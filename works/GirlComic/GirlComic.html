@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運命の少女漫画診断 - Shoujo Manga Sommelier Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Anime.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background-color: #fff0f5; /* Lavender Blush */
+            color: #4a4a4a;
+            /* Allow scrolling, remove overflow-hidden from body */
+            overflow-y: auto; 
+            overflow-x: hidden;
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #ec4899, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(236, 72, 153, 0.15), 0 8px 10px -6px rgba(236, 72, 153, 0.1);
+        }
+        
+        /* Initial states for Anime.js targets */
+        .anime-target {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        /* Background blobs container to stay fixed while scrolling */
+        .bg-blobs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -10;
+            pointer-events: none;
+        }
+
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        .confetti-piece {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Tag badge styles */
+        .tag-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 9999px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+            background-color: #fce7f3;
+            color: #db2777;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 relative justify-center">
+
+    <!-- Background Decor (Fixed) -->
+    <div class="bg-blobs">
+        <div class="absolute top-0 left-0 w-64 h-64 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+        <div class="absolute top-0 right-0 w-64 h-64 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+        <div class="absolute bottom-0 left-20 w-64 h-64 bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+    </div>
+
+    <!-- Confetti Container -->
+    <div id="confetti-wrapper" class="confetti-container"></div>
+
+    <div id="app" class="w-full max-w-md z-10 my-4 flex justify-center">
+        <!-- Content injected by JS -->
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. Database (Same as before, abbreviated for brevity in diff but logic remains)
+        // ==========================================
+        // The database remains the full ~100 titles set.
+        
+        const mangaDatabase = [
+            // --- 70s-80s Classics ---
+            { title: "ベルサイユのばら", author: "池田理代子", tags: { sweet: 6, drama: 10, fantasy: 9, retro: 10, energy: 8 }, keywords: ["歴史", "名作", "男装", "革命", "涙"], desc: "フランス革命の嵐の中、男装の麗人オスカルの激しく美しい生涯。", catch: "歴史を動かす愛と革命の叙事詩" },
+            { title: "ガラスの仮面", author: "美内すずえ", tags: { sweet: 4, drama: 10, fantasy: 2, retro: 9, energy: 10 }, keywords: ["演劇", "天才", "ライバル", "長編", "泥臭い"], desc: "平凡な少女が演劇の才能を開花させ、ライバルと競い合う熱血ドラマ。", catch: "恐ろしい子！演劇に取り憑かれた少女の情熱" },
+            { title: "ときめきトゥナイト", author: "池野恋", tags: { sweet: 9, drama: 4, fantasy: 8, retro: 8, energy: 8 }, keywords: ["ファンタジー", "ラブコメ", "人外", "名作"], desc: "吸血鬼と狼女のハーフである蘭世の、ドタバタ恋物語。", catch: "魔界も巻き込む伝説のファンタジーラブコメ" },
+            { title: "BANANA FISH", author: "吉田秋生", tags: { sweet: 2, drama: 10, fantasy: 1, retro: 7, energy: 9 }, keywords: ["裏社会", "サスペンス", "ブロマンス", "涙", "名作"], desc: "NYのストリートギャングと日本人カメラマンの魂の絆。ハードボイルド名作。", catch: "運命に抗う二人の魂の救済" },
+            { title: "エースをねらえ！", author: "山本鈴美香", tags: { sweet: 4, drama: 9, fantasy: 0, retro: 9, energy: 10 }, keywords: ["スポーツ", "熱血", "コーチ", "成長"], desc: "テニス初心者のひろみが、鬼コーチ宗方のもとで才能を開花させる。", catch: "コートでは誰でも一人一人きり" },
+            { title: "はいからさんが通る", author: "大和和紀", tags: { sweet: 8, drama: 6, fantasy: 4, retro: 9, energy: 9 }, keywords: ["歴史", "大正ロマン", "ギャグ", "一途"], desc: "大正時代、じゃじゃ馬娘の紅緒と許嫁の少尉の波乱万丈な恋。", catch: "大正ロマン溢れる恋と冒険" },
+            { title: "日出処の天子", author: "山岸凉子", tags: { sweet: 3, drama: 10, fantasy: 8, retro: 9, energy: 7 }, keywords: ["歴史", "BL要素", "超能力", "政治", "名作"], desc: "聖徳太子を超能力者として描く、妖しくも美しい歴史サイコサスペンス。", catch: "天才ゆえの孤独と狂気" },
+            { title: "ポーの一族", author: "萩尾望都", tags: { sweet: 3, drama: 9, fantasy: 10, retro: 9, energy: 4 }, keywords: ["吸血鬼", "幻想", "不老不死", "名作", "切ない"], desc: "時を超えて生きる吸血鬼「バンパネラ」の一族の、永遠の孤独と旅。", catch: "少女漫画史に残る、美しき幻想文学" },
+            { title: "有閑倶楽部", author: "一条ゆかり", tags: { sweet: 5, drama: 5, fantasy: 3, retro: 8, energy: 9 }, keywords: ["セレブ", "アクション", "コメディ", "ミステリー"], desc: "超大金持ちの高校生6人組が、権力とコネを駆使して事件を解決する。", catch: "痛快！セレブ高校生のアクションコメディ" },
+            { title: "あさきゆめみし", author: "大和和紀", tags: { sweet: 4, drama: 10, fantasy: 6, retro: 9, energy: 4 }, keywords: ["歴史", "源氏物語", "平安", "恋愛", "名作"], desc: "光源氏の栄光と没落、そして彼を取り巻く女性たちの愛憎を描く。", catch: "世界最古の恋愛小説を完全漫画化" },
+            { title: "悪魔の花嫁", author: "あしべゆうほ", tags: { sweet: 5, drama: 8, fantasy: 10, retro: 9, energy: 6 }, keywords: ["悪魔", "オカルト", "ホラー", "長編"], desc: "悪魔デイモスと妹の花嫁に選ばれた美奈子の、妖しくも美しい恐怖の物語。", catch: "恐怖とエロスのカルト的名作" },
+            { title: "エイリアン通り", author: "成田美名子", tags: { sweet: 6, drama: 6, fantasy: 2, retro: 8, energy: 7 }, keywords: ["青春", "異文化", "友情", "アメリカ"], desc: "LAを舞台に、シャールと仲間たちの自由で知的な青春を描く。", catch: "80年代の風を感じるスタイリッシュな青春" },
+
+            // --- 90s Golden Age ---
+            { title: "花より男子", author: "神尾葉子", tags: { sweet: 8, drama: 7, fantasy: 1, retro: 6, energy: 9 }, keywords: ["学園", "格差", "イケメン", "逆ハーレム", "ドラマ化"], desc: "超金持ち学校に入った貧乏少女つくしが、F4と対決しながら恋に落ちる。", catch: "雑草魂が世界を変える！格差ラブコメの金字塔" },
+            { title: "美少女戦士セーラームーン", author: "武内直子", tags: { sweet: 9, drama: 6, fantasy: 10, retro: 6, energy: 8 }, keywords: ["魔法少女", "バトル", "前世", "アニメ化", "名作"], desc: "ドジで泣き虫なうさぎが、愛と正義のために戦う変身ヒロイン物語。", catch: "月にかわっておしおきよ！永遠の憧れ" },
+            { title: "カードキャプターさくら", author: "CLAMP", tags: { sweet: 10, drama: 3, fantasy: 9, retro: 5, energy: 7 }, keywords: ["魔法少女", "癒やし", "純愛", "アニメ化"], desc: "魔法のカードを集める小学生さくらの、優しくて絶対大丈夫な物語。", catch: "絶対、だいじょうぶ。世界一優しい魔法" },
+            { title: "彼氏彼女の事情", author: "津田雅美", tags: { sweet: 7, drama: 8, fantasy: 0, retro: 5, energy: 6 }, keywords: ["学園", "心理描写", "優等生", "アニメ化"], desc: "優等生を演じる二人が仮面を脱ぎ捨て、心の内面に向き合う。", catch: "仮面優等生たちの、リアルで繊細な心理描写" },
+            { title: "ふしぎ遊戯", author: "渡瀬悠宇", tags: { sweet: 8, drama: 8, fantasy: 10, retro: 6, energy: 8 }, keywords: ["異世界", "逆ハーレム", "冒険", "神話", "中華風"], desc: "本の世界に吸い込まれた少女が、朱雀の巫女として七星士と旅をする。", catch: "異世界トリップ×逆ハーレムの原点" },
+            { title: "ママレード・ボーイ", author: "吉住渉", tags: { sweet: 9, drama: 6, fantasy: 0, retro: 6, energy: 7 }, keywords: ["同居", "学園", "三角関係", "複雑な家庭", "アニメ化"], desc: "両親同士が再婚し、同居することになった高校生男女の甘くて苦い恋。", catch: "だけど気になる、昨日のあいつ" },
+            { title: "天使なんかじゃない", author: "矢沢あい", tags: { sweet: 9, drama: 6, fantasy: 0, retro: 6, energy: 9 }, keywords: ["学園", "生徒会", "友情", "名作", "泣ける"], desc: "生徒会メンバーの友情と恋。エンジェル冴島の笑顔に泣ける。", catch: "学園ラブストーリーのバイブル" },
+            { title: "BASARA", author: "田村由美", tags: { sweet: 6, drama: 10, fantasy: 9, retro: 6, energy: 10 }, keywords: ["戦記", "冒険", "宿命", "アクション", "泣ける"], desc: "文明崩壊後の日本。宿命を背負った少女更紗と赤の王の戦いと愛。", catch: "敵対する二人の、壮大すぎる運命" },
+            { title: "こどものおもちゃ", author: "小花美穂", tags: { sweet: 7, drama: 9, fantasy: 0, retro: 6, energy: 10 }, keywords: ["芸能界", "学級崩壊", "トラウマ", "成長", "アニメ化"], desc: "人気子役の紗南と、問題児・羽山の激しくも深い絆の物語。", catch: "明るい笑顔の裏にある、子供たちの孤独と再生" },
+            { title: "赤ずきんチャチャ", author: "彩花みん", tags: { sweet: 6, drama: 2, fantasy: 10, retro: 6, energy: 10 }, keywords: ["魔法", "ギャグ", "学園", "アニメ化"], desc: "魔法使いのたまごチャチャと、狼男のリーヤたちの爆笑マジカルコメディ。", catch: "愛と勇気と希望の…爆笑ギャグ！" },
+            { title: "魔法騎士レイアース", author: "CLAMP", tags: { sweet: 6, drama: 8, fantasy: 10, retro: 6, energy: 8 }, keywords: ["異世界", "ロボット", "バトル", "魔法少女", "アニメ化"], desc: "東京タワーから異世界セフィーロに召喚された女子中学生3人の戦い。", catch: "少女たちの願いが、世界を変える" },
+            { title: "赤ちゃんと僕", author: "羅川真里茂", tags: { sweet: 8, drama: 7, fantasy: 0, retro: 6, energy: 6 }, keywords: ["家族", "兄弟", "癒やし", "泣ける", "アニメ化"], desc: "母を亡くした小学生の拓也が、幼い弟の実の世話に奮闘するホームドラマ。", catch: "涙なしでは読めない、兄弟愛の傑作" },
+            { title: "快感♥フレーズ", author: "新條まゆ", tags: { sweet: 10, drama: 5, fantasy: 1, retro: 6, energy: 9 }, keywords: ["バンド", "過激", "シンデレラ", "俺様"], desc: "平凡な女子高生が、超人気ロックバンドのボーカルに見初められる。", catch: "刺激的すぎる！伝説のロック・ラブ" },
+            { title: "ご近所物語", author: "矢沢あい", tags: { sweet: 8, drama: 6, fantasy: 0, retro: 6, energy: 9 }, keywords: ["ファッション", "夢", "幼馴染", "芸術"], desc: "服飾デザイナーを目指す実果子の、夢と恋と友情のカラフルな青春。", catch: "夢を追うすべての女の子へ" },
+            { title: "花ざかりの君たちへ", author: "中条比紗也", tags: { sweet: 9, drama: 4, fantasy: 1, retro: 5, energy: 9 }, keywords: ["男装", "学園", "イケメン", "寮生活", "ドラマ化"], desc: "憧れの高跳び選手に会うため、男子校に潜入した少女のラブコメディ。", catch: "イケメンパラダイスでの秘密の同居生活" },
+            { title: "フルーツバスケット", author: "高屋奈月", tags: { sweet: 8, drama: 9, fantasy: 6, retro: 4, energy: 7 }, keywords: ["干支", "癒やし", "家族", "トラウマ", "アニメ化"], desc: "十二支の呪いを持つ草摩家の人々と、天涯孤独な透の心の交流。", catch: "雪が溶けたら、春になる" },
+
+            // --- 00s Masterpieces ---
+            { title: "君に届け", author: "椎名軽穂", tags: { sweet: 10, drama: 4, fantasy: 0, retro: 3, energy: 4 }, keywords: ["学園", "純愛", "癒やし", "成長", "アニメ化", "映画化"], desc: "貞子と呼ばれていた爽子が、風早くんとの出会いでクラスに馴染んでいく。", catch: "全日本が浄化された、純度100%の青春" },
+            { title: "NANA -ナナ-", author: "矢沢あい", tags: { sweet: 5, drama: 9, fantasy: 0, retro: 3, energy: 6 }, keywords: ["バンド", "上京", "ドロドロ", "社会現象", "映画化"], desc: "上京した二人のNANA。夢と恋、現実の厳しさが交錯する。", catch: "ねぇナナ…あの頃の私たちは…" },
+            { title: "のだめカンタービレ", author: "二ノ宮知子", tags: { sweet: 6, drama: 5, fantasy: 1, retro: 3, energy: 10 }, keywords: ["音楽", "コメディ", "変人", "ドラマ化", "天才"], desc: "変態ピアニストのだめと俺様指揮者千秋のクラシック音楽コメディ。", catch: "変態×天才！音楽が奏でる爆笑と感動" },
+            { title: "ハチミツとクローバー", author: "羽海野チカ", tags: { sweet: 6, drama: 8, fantasy: 0, retro: 3, energy: 4 }, keywords: ["美大", "片思い", "青春", "切ない", "映画化"], desc: "美大生たちの報われない恋、才能への葛藤を描いた青春群像劇。", catch: "全員片思い。青春のほろ苦さを詰め込んで" },
+            { title: "桜蘭高校ホスト部", author: "葉鳥ビスコ", tags: { sweet: 8, drama: 3, fantasy: 2, retro: 3, energy: 10 }, keywords: ["逆ハーレム", "コメディ", "セレブ", "学園", "アニメ化"], desc: "庶民のハルヒが超セレブ高校のホスト部に入部させられるハイテンションコメディ。", catch: "扉を開けると、そこはホスト部でした" },
+            { title: "ラブ★コン", author: "中原アヤ", tags: { sweet: 8, drama: 4, fantasy: 0, retro: 4, energy: 10 }, keywords: ["学園", "コメディ", "関西弁", "身長差", "映画化"], desc: "背が高い女子と背が低い男子の、漫才コンビのような凸凹ラブコメ。", catch: "キュン死に注意！関西弁マシンの恋" },
+            { title: "働きマン", author: "安野モヨコ", tags: { sweet: 2, drama: 8, fantasy: 0, retro: 4, energy: 9 }, keywords: ["お仕事", "社会人", "キャリア", "リアル"], desc: "仕事モードオン！週刊誌編集者・松方弘子の仕事に生きる日々。", catch: "仕事とは何か？働く大人のバイブル" },
+            { title: "僕等がいた", author: "小畑友紀", tags: { sweet: 6, drama: 9, fantasy: 0, retro: 4, energy: 5 }, keywords: ["過去", "切ない", "長編", "純愛", "映画化"], desc: "過去の影を引きずる矢野と、彼を一途に愛する七美の長い年月の物語。", catch: "忘れない、あの煌めきと切なさ" },
+            { title: "ヴァンパイア騎士", author: "樋野まつり", tags: { sweet: 7, drama: 8, fantasy: 9, retro: 4, energy: 5 }, keywords: ["吸血鬼", "学園", "シリアス", "ゴシック", "アニメ化"], desc: "名門学園の夜間部は全員吸血鬼。美しくも残酷なゴシックロマン。", catch: "血塗られた禁断の恋" },
+            { title: "ヤマトナデシコ七変化♡", author: "はやかわともこ", tags: { sweet: 6, drama: 3, fantasy: 1, retro: 4, energy: 10 }, keywords: ["イケメン", "ホラー好き", "同居", "コメディ", "アニメ化"], desc: "ホラー好きな根暗少女をレディにするため、イケメン4人が奮闘する。", catch: "超・暴走ネガティブ少女の変身計画" },
+            { title: "スキップ・ビート！", author: "仲村佳樹", tags: { sweet: 6, drama: 5, fantasy: 0, retro: 3, energy: 10 }, keywords: ["芸能界", "復讐", "演技", "成長", "アニメ化"], desc: "幼馴染に裏切られた少女が、復讐のために芸能界に入り演技に目覚める。", catch: "復讐から始まる、演技への情熱" },
+            { title: "砂時計", author: "芦原妃名子", tags: { sweet: 5, drama: 9, fantasy: 0, retro: 3, energy: 4 }, keywords: ["初恋", "島根", "トラウマ", "成長", "ドラマ化"], desc: "母の死を乗り越え、島根と東京を行き来しながら成長する杏の年代記。", catch: "過去・現在・未来をつなぐ恋の物語" },
+            { title: "となりの怪物くん", author: "ろびこ", tags: { sweet: 8, drama: 4, fantasy: 0, retro: 2, energy: 8 }, keywords: ["学園", "勉強", "問題児", "青春", "アニメ化"], desc: "勉強第一のドライな雫と、超問題児の春。不器用な二人の恋。", catch: "冷血女子×超問題児の予測不能ラブ" },
+            { title: "大奥", author: "よしながふみ", tags: { sweet: 2, drama: 10, fantasy: 6, retro: 2, energy: 5 }, keywords: ["歴史", "男女逆転", "政治", "ドラマ化", "傑作"], desc: "疫病により男子が激減した江戸時代。女将軍と美男3000人の大奥を描く。", catch: "男女逆転の江戸で繰り広げられる愛憎劇" },
+            { title: "夏目友人帳", author: "緑川ゆき", tags: { sweet: 2, drama: 7, fantasy: 10, retro: 2, energy: 4 }, keywords: ["妖怪", "癒やし", "泣ける", "日常", "アニメ化"], desc: "妖が見える少年・夏目が、祖母の遺品「友人帳」を巡り妖たちと心を通わせる。", catch: "優しくて、どこか切ない妖奇譚" },
+            { title: "ストロボ・エッジ", author: "咲坂伊緒", tags: { sweet: 10, drama: 4, fantasy: 0, retro: 2, energy: 6 }, keywords: ["片思い", "学園", "純愛", "映画化"], desc: "彼女がいる蓮くんに恋をした仁菜子。切なくも温かい片思いの行方。", catch: "好き、という気持ちが加速する" },
+            { title: "L・DK", author: "渡辺あゆ", tags: { sweet: 9, drama: 3, fantasy: 0, retro: 2, energy: 7 }, keywords: ["同居", "学園", "ツンデレ", "壁ドン", "映画化"], desc: "学校の王子様・柊聖とひょんなことから同居することになった葵。", catch: "壁ドンのブームを巻き起こした同居ラブ" },
+
+            // --- 10s Modern Classics ---
+            { title: "暁のヨナ", author: "草凪みずほ", tags: { sweet: 7, drama: 9, fantasy: 10, retro: 2, energy: 8 }, keywords: ["冒険", "ファンタジー", "逆ハーレム", "戦うヒロイン", "アニメ化"], desc: "国を追われた王女ヨナが、四龍の戦士を探して旅をする大河ロマン。", catch: "王女は武器を取る。壮大な国盗りファンタジー" },
+            { title: "ちはやふる", author: "末次由紀", tags: { sweet: 5, drama: 8, fantasy: 0, retro: 2, energy: 10 }, keywords: ["スポーツ", "かるた", "熱血", "青春", "映画化"], desc: "競技かるたに青春の全てを懸ける高校生たちの、熱くて泣ける物語。", catch: "「恋」か「かるた」か。畳の上の格闘技" },
+            { title: "海街diary", author: "吉田秋生", tags: { sweet: 3, drama: 7, fantasy: 0, retro: 4, energy: 2 }, keywords: ["家族", "日常", "鎌倉", "癒やし", "映画化"], desc: "鎌倉の古い家で暮らす四姉妹の、静かで美しい日常と絆。", catch: "鎌倉の四季と、家族の再生の物語" },
+            { title: "ヲタクに恋は難しい", author: "ふじた", tags: { sweet: 8, drama: 2, fantasy: 0, retro: 1, energy: 7 }, keywords: ["オタク", "社会人", "コメディ", "日常", "映画化"], desc: "隠れ腐女子とゲームオタクの幼馴染同士の不器用な交際記録。", catch: "オタクなら共感必至！ニヤニヤが止まらない" },
+            { title: "アオハライド", author: "咲坂伊緒", tags: { sweet: 9, drama: 6, fantasy: 0, retro: 1, energy: 8 }, keywords: ["学園", "初恋", "再会", "青春", "映画化"], desc: "中学時代の初恋の人と高校で再会。止まっていた時が動き出す。", catch: "あと1ミリが届かない、青春のきらめき" },
+            { title: "orange", author: "高野苺", tags: { sweet: 8, drama: 8, fantasy: 4, retro: 1, energy: 5 }, keywords: ["SF", "タイムスリップ", "友情", "泣ける", "映画化"], desc: "10年後の自分から手紙が届く。後悔しないために今を変えるSF青春物語。", catch: "未来の自分からの願い。彼を救って" },
+            { title: "逃げるは恥だが役に立つ", author: "海野つなみ", tags: { sweet: 7, drama: 6, fantasy: 0, retro: 2, energy: 6 }, keywords: ["社会派", "契約結婚", "コメディ", "ドラマ化"], desc: "契約結婚から始まる、就職としての結婚生活とムズキュンな恋。", catch: "社会派ラブコメの金字塔" },
+            { title: "東京タラレバ娘", author: "東村アキコ", tags: { sweet: 3, drama: 8, fantasy: 0, retro: 1, energy: 9 }, keywords: ["アラサー", "婚活", "辛辣", "コメディ", "ドラマ化"], desc: "「タラレバ」ばかり言っていたら30代。アラサー女子の悲痛な叫びと現実。", catch: "現実を突き刺す、アラサー女子の奮闘記" },
+            { title: "アシガール", author: "森本梢子", tags: { sweet: 8, drama: 6, fantasy: 9, retro: 2, energy: 9 }, keywords: ["タイムスリップ", "戦国", "ラブコメ", "一途", "ドラマ化"], desc: "足が速いだけの女子高生が戦国時代へ。若君を守るために駆け抜ける。", catch: "戦国時代を全力疾走するラブコメ" },
+            { title: "コレットは死ぬことにした", author: "幸村アルト", tags: { sweet: 9, drama: 5, fantasy: 10, retro: 1, energy: 6 }, keywords: ["神話", "冥界", "癒やし", "お仕事", "ファンタジー"], desc: "薬師のコレットが飛び込んだ井戸の先は冥府だった。ハデス様との恋。", catch: "冥府の王と薬師の少女の、神話ロマンス" },
+            { title: "魔法使いの嫁", author: "ヤマザキコレ", tags: { sweet: 4, drama: 8, fantasy: 10, retro: 1, energy: 4 }, keywords: ["ファンタジー", "人外", "魔法", "英国", "アニメ化"], desc: "身寄りのない少女チセが、異形の魔法使いエリアスに弟子兼花嫁として買われる。", catch: "世界の美しさを知るための物語" },
+            { title: "春待つ僕ら", author: "あなしん", tags: { sweet: 9, drama: 3, fantasy: 0, retro: 1, energy: 8 }, keywords: ["バスケ", "イケメン四天王", "学園", "青春", "映画化"], desc: "ぼっち女子が、バスケ部のイケメン四天王に気に入られてしまう。", catch: "大事な場所を見つける青春ラブストーリー" },
+            { title: "昭和元禄落語心中", author: "雲田はるこ", tags: { sweet: 2, drama: 10, fantasy: 0, retro: 4, energy: 5 }, keywords: ["落語", "昭和", "愛憎", "芸道", "アニメ化"], desc: "昭和の落語界を舞台に、噺家の業と愛憎を描く骨太な人間ドラマ。", catch: "落語に命を賭した男たちの、愛と孤独" },
+            { title: "きのう何食べた？", author: "よしながふみ", tags: { sweet: 4, drama: 3, fantasy: 0, retro: 2, energy: 4 }, keywords: ["料理", "BL要素", "日常", "飯テロ", "ドラマ化"], desc: "几帳面な弁護士と大らかな美容師、中年男性カップルの食卓と日常。", catch: "おいしいご飯と、温かい日常" },
+            { title: "かげきしょうじょ!!", author: "斉木久美子", tags: { sweet: 3, drama: 9, fantasy: 0, retro: 1, energy: 10 }, keywords: ["歌劇", "音楽学校", "青春", "成長", "アニメ化"], desc: "「紅華歌劇団」の音楽学校に入学した少女たちの、夢と葛藤の日々。", catch: "舞台の幕が開く。少女たちの戦い" },
+            { title: "高台家の人々", author: "森本梢子", tags: { sweet: 8, drama: 4, fantasy: 5, retro: 1, energy: 8 }, keywords: ["テレパス", "妄想", "コメディ", "セレブ", "映画化"], desc: "妄想癖のある地味なOLと、人の心が読めるイケメンエリートの恋。", catch: "妄想炸裂！テレパスとの爆笑ラブ" },
+
+            // --- 20s & Trendy (Webtoon, Villainess, etc.) ---
+            { title: "ミステリと言う勿れ", author: "田村由美", tags: { sweet: 1, drama: 8, fantasy: 1, retro: 1, energy: 3 }, keywords: ["ミステリー", "会話劇", "ドラマ化", "社会派"], desc: "天然パーマの大学生・整が、喋るだけで事件の謎も人の心も解きほぐす。", catch: "常識を覆す、お喋りなミステリー" },
+            { title: "【推しの子】", author: "赤坂アカ×横槍メンゴ", tags: { sweet: 4, drama: 9, fantasy: 6, retro: 0, energy: 8 }, keywords: ["芸能界", "サスペンス", "転生", "アニメ化", "話題作"], desc: "推しの子供に転生？芸能界の光と闇を描く衝撃のサスペンス。", catch: "この芸能界において嘘は武器だ" },
+            { title: "うるわしの宵の月", author: "やまもり三香", tags: { sweet: 10, drama: 3, fantasy: 0, retro: 0, energy: 5 }, keywords: ["学園", "美麗", "王子様", "胸キュン", "話題作"], desc: "「王子」と呼ばれる女子と、先輩のW王子による眼福ラブストーリー。", catch: "美しすぎる二人の、麗しき恋模様" },
+            { title: "薬屋のひとりごと", author: "日向夏/ねこクラゲ", tags: { sweet: 5, drama: 7, fantasy: 9, retro: 1, energy: 6 }, keywords: ["中華風", "ミステリー", "後宮", "アニメ化", "話題作"], desc: "毒見役の少女が、後宮で起こる難事件を薬学の知識で解決する。", catch: "後宮の謎を解く、毒好き少女の痛快劇" },
+            { title: "ゆびさきと恋々", author: "森下suu", tags: { sweet: 10, drama: 4, fantasy: 0, retro: 0, energy: 3 }, keywords: ["大学生", "純愛", "聴覚障害", "美麗", "癒やし"], desc: "聴覚障がいのある女子大生と、世界を旅する先輩のピュアラブ。", catch: "音のない世界に、恋の音が響き渡る" },
+            { title: "山田くんとLv999の恋をする", author: "ましろ", tags: { sweet: 9, drama: 3, fantasy: 3, retro: 0, energy: 7 }, keywords: ["ネットゲーム", "大学生", "年下男子", "アニメ化", "話題作"], desc: "彼氏をネトゲで寝取られた女子大生が、イケメンプロゲーマーと出会う。", catch: "ネトゲから始まる、令和のシンデレラストーリー" },
+            { title: "明日、私は誰かのカノジョ", author: "をのひなお", tags: { sweet: 2, drama: 9, fantasy: 0, retro: 0, energy: 4 }, keywords: ["闇", "リアル", "整形", "パパ活", "ドラマ化"], desc: "レンタル彼女、パパ活、整形…現代女子のリアルな葛藤と闇。", catch: "共感か、嫌悪か。現代を生きる女子のリアル" },
+            { title: "ハニーレモンソーダ", author: "村田真優", tags: { sweet: 10, drama: 3, fantasy: 0, retro: 0, energy: 8 }, keywords: ["学園", "いじめ", "成長", "胸キュン", "映画化"], desc: "内気な少女が、塩対応だけど優しい界に出会い変わっていく。", catch: "シュワっと弾ける、青春のすべて" },
+            { title: "消えた初恋", author: "ひねくれ渡/アルコ", tags: { sweet: 9, drama: 3, fantasy: 0, retro: 0, energy: 8 }, keywords: ["BL要素", "学園", "勘違い", "コメディ", "ドラマ化"], desc: "勘違いから始まる男子高校生同士の初恋。ピュアすぎて尊い。", catch: "一生懸命な恋心に、性別なんて関係ない" },
+            { title: "海月姫", author: "東村アキコ", tags: { sweet: 6, drama: 5, fantasy: 1, retro: 2, energy: 9 }, keywords: ["オタク", "ファッション", "女装", "コメディ", "映画化"], desc: "クラゲオタク女子と女装男子が、天水館を救うためにブランドを立ち上げる。", catch: "オタク女子たちの変身シンデレラストーリー" },
+            { title: "凪のお暇", author: "コナリミサト", tags: { sweet: 4, drama: 7, fantasy: 0, retro: 1, energy: 4 }, keywords: ["節約", "リセット", "三角関係", "ドラマ化", "癒やし"], desc: "空気を読みすぎたOLが全てを捨てて引っ越し。人生リセット物語。", catch: "空気は読むものじゃなく吸うもの" },
+            { title: "乙女ゲームの破滅フラグしかない悪役令嬢に転生してしまった…", author: "山口悟/ひだかなみ", tags: { sweet: 7, drama: 4, fantasy: 10, retro: 0, energy: 9 }, keywords: ["異世界", "悪役令嬢", "転生", "逆ハーレム", "コメディ"], desc: "悪役令嬢に転生したカタリナが、破滅フラグをへし折るために奔走する。", catch: "愛され悪役令嬢のドタバタ回避劇" },
+            { title: "あなたがしてくれなくても", author: "ハルノ晴", tags: { sweet: 1, drama: 10, fantasy: 0, retro: 0, energy: 2 }, keywords: ["不倫", "レス", "夫婦", "ドロドロ", "ドラマ化"], desc: "セックスレスに悩む既婚者同士の、許されない恋と葛藤。", catch: "夫婦の寝室という密室の闇" },
+            { title: "再婚承認を要求します", author: "アルファタルト/SUMM", tags: { sweet: 5, drama: 9, fantasy: 10, retro: 0, energy: 6 }, keywords: ["異世界", "貴族", "Webtoon", "復讐", "スカッと"], desc: "浮気皇帝と離婚し、隣国の皇帝と再婚する元皇后の華麗なる逆転劇。", catch: "離婚します。そして再婚承認を要求します" },
+            { title: "その着せ替え人形は恋をする", author: "福田晋一", tags: { sweet: 9, drama: 2, fantasy: 0, retro: 0, energy: 9 }, keywords: ["コスプレ", "オタク", "学園", "ラブコメ", "アニメ化"], desc: "雛人形職人を目指す男子が、ギャルなクラスメイトのコスプレ衣装を作る。", catch: "好きなものを好きと言える強さ" },
+            { title: "女神降臨", author: "yaongyi", tags: { sweet: 9, drama: 5, fantasy: 0, retro: 0, energy: 7 }, keywords: ["メイク", "Webtoon", "学園", "三角関係", "ドラマ化"], desc: "地味な少女がメイクで女神に変身！イケメン二人との三角関係。", catch: "メイクで人生変えてみせる" },
+            { title: "キングダム", author: "原泰久", tags: { sweet: 1, drama: 10, fantasy: 5, retro: 1, energy: 10 }, keywords: ["歴史", "アクション", "戦記", "映画化", "アニメ化"], desc: "（番外編）中華統一を目指す信と政の物語。女性ファンも極めて多い熱い歴史大作。", catch: "夢を追う男たちの熱き血潮" },
+            { title: "悪役令嬢の中の人", author: "白梅ナズナ", tags: { sweet: 6, drama: 8, fantasy: 10, retro: 0, energy: 8 }, keywords: ["悪役令嬢", "異世界", "転生", "スカッと", "演技"], desc: "清廉潔白なヒロインに断罪された悪役令嬢。中に入っていたのは現代日本の女性だった。", catch: "私の推し（悪役令嬢）は絶対に幸せにする" },
+            { title: "わたしの幸せな結婚", author: "顎木あくみ/高坂りと", tags: { sweet: 9, drama: 6, fantasy: 8, retro: 2, energy: 3 }, keywords: ["和風", "シンデレラ", "異能", "アニメ化", "映画化"], desc: "家族に虐げられていた美世が、冷酷と言われる軍人・清霞のもとに嫁ぐ。", catch: "和風シンデレラストーリー" },
+            { title: "外見至上主義", author: "T.Jun", tags: { sweet: 3, drama: 7, fantasy: 4, retro: 0, energy: 8 }, keywords: ["Webtoon", "イケメン", "学園", "バトル", "アニメ化"], desc: "いじめられっ子の主人公が、ある日超絶イケメンの体を手に入れる。", catch: "2つの体で生きる、奇跡の二重生活" },
+            { title: "ある日、お姫様になってしまった件について", author: "Spoon/Plutus", tags: { sweet: 7, drama: 6, fantasy: 10, retro: 0, energy: 7 }, keywords: ["Webtoon", "転生", "父娘", "美麗", "魔法"], desc: "目が覚めたら小説の中の脇役姫に転生。冷徹な皇帝パパの歓心を買え！", catch: "死亡フラグ回避のため、パパを攻略せよ" },
+            { title: "宝石の国", author: "市川春子", tags: { sweet: 1, drama: 9, fantasy: 10, retro: 0, energy: 6 }, keywords: ["人外", "バトル", "哲学", "美麗", "アニメ化"], desc: "宝石の体を持つ人型生物たちと、月人との果てしない戦い。", catch: "美しくも脆い、宝石たちの戦記" },
+            { title: "舞妓さんちのまかないさん", author: "小山愛子", tags: { sweet: 3, drama: 4, fantasy: 0, retro: 2, energy: 5 }, keywords: ["料理", "京都", "日常", "癒やし", "アニメ化"], desc: "京都の花街で、舞妓さんたちの食事を作る「まかないさん」キヨの日常。", catch: "京都の台所から届く、おいしい幸せ" },
+            { title: "チ。-地球の運動について-", author: "魚豊", tags: { sweet: 0, drama: 10, fantasy: 2, retro: 4, energy: 9 }, keywords: ["歴史", "哲学", "感動", "アニメ化", "知性"], desc: "地動説を証明するために命を懸けた人々を描く、熱き知性の物語。", catch: "世界を動かせ。命を捨てても" },
+            { title: "ホリミヤ", author: "HERO/萩原ダイスケ", tags: { sweet: 9, drama: 3, fantasy: 0, retro: 0, energy: 8 }, keywords: ["学園", "ギャップ", "青春", "アニメ化", "微炭酸"], desc: "派手なギャル・堀さんと、根暗眼鏡・宮村くん。実は互いに秘密があって…。", catch: "超微炭酸系、青春スクールライフ" },
+            { title: "SPY×FAMILY", author: "遠藤達哉", tags: { sweet: 5, drama: 6, fantasy: 3, retro: 1, energy: 9 }, keywords: ["スパイ", "家族", "コメディ", "アニメ化", "アクション"], desc: "スパイの父、殺し屋の母、超能力者の娘。仮初めの家族が世界を救う。", catch: "ワクワクする偽装家族のアクションコメディ" },
+            { title: "葬送のフリーレン", author: "山田鐘人/アベツカサ", tags: { sweet: 3, drama: 8, fantasy: 10, retro: 2, energy: 5 }, keywords: ["ファンタジー", "旅", "後日譚", "泣ける", "アニメ化"], desc: "魔王を倒した後、長寿のエルフ・フリーレンが人を知るために旅に出る。", catch: "冒険の終わりから始まる物語" },
+            { title: "女の園の星", author: "和山やま", tags: { sweet: 2, drama: 2, fantasy: 0, retro: 3, energy: 6 }, keywords: ["学園", "ギャグ", "シュール", "教師", "話題作"], desc: "女子校の国語教師・星先生の、地味だけどクスッと笑える日常。", catch: "シュールで愛おしい、女子校の日常" },
+            { title: "かぐや様は告らせたい", author: "赤坂アカ", tags: { sweet: 8, drama: 4, fantasy: 0, retro: 0, energy: 9 }, keywords: ["学園", "頭脳戦", "ラブコメ", "アニメ化", "映画化"], desc: "生徒会長と副会長。プライドが高い二人の「告白した方が負け」な恋愛頭脳戦。", catch: "恋愛は戦！好きになった方が負け" },
+            { title: "ひるなかの流星", author: "やまもり三香", tags: { sweet: 9, drama: 5, fantasy: 0, retro: 1, energy: 7 }, keywords: ["学園", "三角関係", "先生", "田舎", "映画化"], desc: "田舎育ちのすずめが東京へ。担任教師と同級生の間で揺れる恋。", catch: "初恋は、流星のように一瞬で輝く" },
+            { title: "恋に無駄口", author: "福山リョウコ", tags: { sweet: 7, drama: 2, fantasy: 0, retro: 0, energy: 9 }, keywords: ["学園", "コメディ", "残念男子", "青春"], desc: "顔はいいのに中身が残念な男子高校生4人の、無駄だらけの青春。", catch: "青春は、無駄なことほど面白い" },
+            { title: "青楼オペラ", author: "桜小路かのこ", tags: { sweet: 7, drama: 9, fantasy: 4, retro: 8, energy: 7 }, keywords: ["歴史", "江戸", "遊郭", "ミステリー", "純愛"], desc: "武家出身の少女が吉原へ。遊郭で繰り広げられる愛と復讐の物語。", catch: "吉原に咲く、愛と復讐の花" },
+            { title: "月刊少女野崎くん", author: "椿いづみ", tags: { sweet: 5, drama: 2, fantasy: 0, retro: 1, energy: 10 }, keywords: ["学園", "ギャグ", "漫画家", "勘違い", "アニメ化"], desc: "無骨な男子高校生は、実は人気少女漫画家だった。爆笑ラブコメ。", catch: "少女漫画家男子とのドタバタ青春" },
+            { title: "うらみちお兄さん", author: "久世岳", tags: { sweet: 1, drama: 6, fantasy: 0, retro: 0, energy: 4 }, keywords: ["お仕事", "ブラック", "ギャグ", "アニメ化", "闇"], desc: "教育番組の体操のお兄さんの、笑顔の裏に隠された大人の闇。", catch: "よい子のみんな！社会の闇だよ！" },
+            { title: "来世は他人がいい", author: "小西明日翔", tags: { sweet: 4, drama: 8, fantasy: 0, retro: 2, energy: 7 }, keywords: ["極道", "婚約者", "クレイジー", "アニメ化", "スリル"], desc: "極道の家で育った吉乃と、婚約者の霧島。スリル満点の狂った恋。", catch: "はみ出し者たちの、危険な恋" },
+            { title: "天は赤い河のほとり", author: "篠原千絵", tags: { sweet: 8, drama: 9, fantasy: 10, retro: 8, energy: 9 }, keywords: ["歴史", "タイムスリップ", "冒険", "ロマンス", "名作"], desc: "古代ヒッタイトに飛ばされたユーリが、王子カイルと共に戦う。", catch: "古代オリエントの壮大な愛と戦い" }
+        ];
+
+        // ==========================================
+        // 2. Logic & State Management
+        // ==========================================
+        
+        let currentState = 'start'; 
+        let currentQuestionIndex = 0;
+        
+        let userProfile = { sweet: 5, drama: 5, fantasy: 5, retro: 5, energy: 5 };
+        let bonusKeywords = [];
+        let blockedKeywords = [];
+
+        // Updated Questions - Increased to 8 questions to handle 100+ titles better
+        const questions = [
+            {
+                text: "今の気分はどっち？",
+                type: "param",
+                options: [
+                    { label: "とにかく胸キュンして癒やされたい", effects: { sweet: 3, drama: -2 } },
+                    { label: "物語の世界にどっぷり浸かりたい", effects: { sweet: -1, drama: 3 } }
+                ]
+            },
+            {
+                text: "舞台設定の好みは？",
+                type: "param",
+                options: [
+                    { label: "学校やオフィスなど、身近な場所", effects: { fantasy: -5 } },
+                    { label: "歴史物や異世界、スケールの大きな話", effects: { fantasy: 5 } }
+                ]
+            },
+            {
+                text: "絵柄の好みは？",
+                type: "param",
+                options: [
+                    { label: "最新のキラキラ・美麗な絵柄が好き", effects: { retro: -5 } },
+                    { label: "味のある懐かしい絵柄や、名作が好き", effects: { retro: 5 } }
+                ]
+            },
+            {
+                text: "読んだ後にどうなりたい？",
+                type: "param",
+                options: [
+                    { label: "大号泣してデトックスしたい", effects: { energy: -3, drama: 3 }, addTags: ["泣ける", "切ない"] },
+                    { label: "スカッとしたい・笑いたい", effects: { energy: 5, drama: -2 }, addTags: ["コメディ", "スカッと", "熱血"] },
+                    { label: "ニヤニヤして幸せな気分になりたい", effects: { energy: 2, sweet: 3 }, addTags: ["純愛", "癒やし"] }
+                ]
+            },
+            // --- New Question for better accuracy ---
+            {
+                text: "理想のヒーロー（相手役）は？",
+                type: "param",
+                options: [
+                    { label: "王道のスパダリ・完璧超人", effects: { sweet: 2, retro: -1 } },
+                    { label: "少し影がある・ミステリアス", effects: { drama: 2, sweet: -1 } },
+                    { label: "不器用・年下・可愛い系", effects: { energy: 2, drama: -1 } }
+                ]
+            },
+            // --- New Question for better accuracy ---
+            {
+                text: "物語のペースは？",
+                type: "param",
+                options: [
+                    { label: "サクッと読める・テンポ重視", effects: { energy: 2, drama: -1 } },
+                    { label: "じっくり読ませる・心理描写重視", effects: { drama: 3, energy: -1 } }
+                ]
+            },
+            {
+                text: "【重要】特に重視したい要素は？",
+                type: "tag_bonus",
+                options: [
+                    { label: "映像化された話題作・有名作", addTags: ["アニメ化", "ドラマ化", "映画化", "話題作"] },
+                    { label: "非日常感（ファンタジー・歴史・転生）", addTags: ["ファンタジー", "異世界", "歴史", "悪役令嬢", "転生"] },
+                    { label: "リアルな人間ドラマ・お仕事", addTags: ["お仕事", "社会人", "心理描写", "リアル"] },
+                    { label: "こだわりはない", addTags: [] }
+                ]
+            },
+            {
+                text: "【重要】苦手な要素（NG）はありますか？",
+                type: "tag_block",
+                options: [
+                    { label: "ドロドロ・不倫・暗い話は苦手", blockTags: ["ドロドロ", "不倫", "闇", "裏社会"] },
+                    { label: "ファンタジーやSFは苦手", blockTags: ["ファンタジー", "異世界", "SF", "魔法少女", "転生"] },
+                    { label: "古い絵柄や昔の作品は苦手", blockTags: ["レトロ"] },
+                    { label: "特になし（なんでも読める！）", blockTags: [] }
+                ]
+            }
+        ];
+
+        // Main Render Function
+        function render() {
+            const app = document.getElementById('app');
+            app.innerHTML = '';
+
+            if (currentState === 'start') {
+                renderStart(app);
+            } else if (currentState === 'quiz') {
+                renderQuiz(app);
+            } else if (currentState === 'calculating') {
+                renderCalculating(app);
+            } else if (currentState === 'result') {
+                renderResult(app);
+            }
+        }
+
+        // --- Screens ---
+
+        function renderStart(container) {
+            // New Circular Design
+            container.innerHTML = `
+                <div class="bg-white rounded-full aspect-square w-full max-w-sm mx-auto flex flex-col items-center justify-center p-8 text-center card-shadow anime-target relative z-10 overflow-hidden border-4 border-pink-100">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white via-pink-50 to-white opacity-80 z-0"></div>
+                    <div class="relative z-10 flex flex-col items-center justify-center h-full">
+                        <div class="text-6xl mb-2 icon-bounce">💎</div>
+                        <h1 class="text-2xl font-bold mb-2 gradient-text leading-tight">運命の少女漫画<br>ソムリエ診断 Pro</h1>
+                        <p class="text-gray-500 mb-6 text-xs leading-relaxed">
+                            成分分析×タグ検索。<br>
+                            約100作品から<br>
+                            運命の1冊を厳選。
+                        </p>
+                        <button onclick="startQuiz()" class="bg-gradient-to-r from-pink-400 to-purple-500 text-white font-bold py-3 px-10 rounded-full shadow-lg transform transition hover:scale-105 active:scale-95 text-md">
+                            診断スタート
+                        </button>
+                        <p class="mt-3 text-[10px] text-gray-400">Powered by Vibe Coding</p>
+                    </div>
+                </div>
+            `;
+            
+            // AnimeJS Start Animation (Impactful)
+            // 1. Container pop in elastic
+            anime({
+                targets: '.anime-target',
+                scale: [0, 1],
+                opacity: [0, 1],
+                rotate: [-10, 0],
+                duration: 1200,
+                easing: 'easeOutElastic(1, .6)'
+            });
+
+            // 2. Content stagger
+            anime({
+                targets: '.anime-target .relative > *', // Select children inside the z-10 container
+                translateY: [20, 0],
+                opacity: [0, 1],
+                delay: anime.stagger(100, {start: 600}),
+                duration: 800,
+                easing: 'easeOutQuad'
+            });
+            
+            // 3. Icon bounce loop
+             anime({
+                targets: '.icon-bounce',
+                translateY: [-5, 5],
+                duration: 1500,
+                direction: 'alternate',
+                loop: true,
+                easing: 'easeInOutSine'
+            });
+        }
+
+        function renderQuiz(container) {
+            const q = questions[currentQuestionIndex];
+            const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+
+            container.innerHTML = `
+                <div class="bg-white rounded-3xl p-8 card-shadow w-full anime-target">
+                    <div class="w-full bg-gray-100 rounded-full h-2 mb-6">
+                        <div class="bg-pink-400 h-2 rounded-full transition-all duration-300" style="width: ${progress}%"></div>
+                    </div>
+                    
+                    <h2 class="text-lg font-bold text-center mb-6 text-gray-700">Q${currentQuestionIndex + 1}. ${q.text}</h2>
+                    
+                    <div class="space-y-3">
+                        ${q.options.map((opt, idx) => `
+                            <button onclick="answer(${idx})" class="w-full block bg-pink-50 hover:bg-pink-100 border-2 border-pink-100 text-pink-600 font-bold py-4 px-4 rounded-2xl transition text-left relative overflow-hidden group">
+                                <span class="relative z-10 group-hover:pl-2 transition-all text-sm">${opt.label}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            // AnimeJS Quiz Entrance
+            anime({
+                targets: '.anime-target',
+                scale: [0.95, 1],
+                opacity: [0, 1],
+                easing: 'easeOutCubic',
+                duration: 400
+            });
+        }
+
+        function renderCalculating(container) {
+            container.innerHTML = `
+                <div class="bg-white/80 backdrop-blur rounded-3xl p-12 text-center card-shadow">
+                    <div class="text-6xl mb-4" id="spin-icon">🎀</div>
+                    <h2 class="text-xl font-bold text-pink-500">運命の作品を検索中...</h2>
+                    <p class="text-gray-500 text-xs mt-4">パラメータ距離計算...完了<br>NGタグフィルタリング...完了<br>キーワード適合率...計算中</p>
+                </div>
+            `;
+            
+            // AnimeJS Spin Animation
+            anime({
+                targets: '#spin-icon',
+                rotate: '1turn',
+                loop: true,
+                duration: 1000,
+                easing: 'easeInOutSine'
+            });
+
+            setTimeout(() => { calculateResults(); }, 2000);
+        }
+
+        function renderResult(container) {
+            const results = getTopMatches();
+            const top7 = results.slice(0, 7); 
+            
+            // Generate AnimeJS Confetti
+            createAnimeConfetti();
+
+            let htmlContent = `
+                <div class="w-full space-y-8 pb-12">
+                    <div class="text-center anime-header">
+                        <h2 class="text-2xl font-bold text-gray-800">運命の神セブン</h2>
+                        <p class="text-pink-500 text-xs font-bold mt-1">あなただけの選抜メンバー7選</p>
+                    </div>
+            `;
+
+            top7.forEach((result, index) => {
+                const item = result.item;
+                const rank = index + 1;
+                
+                // Styles for Ranking Badge
+                let badgeStyle = "bg-gray-400";
+                let badgeText = `${rank}位`;
+                let borderClass = "";
+                
+                if (rank === 1) {
+                    badgeStyle = "bg-yellow-400 text-white shadow-md text-lg px-4 py-1";
+                    badgeText = "👑 第1位";
+                    borderClass = "border-4 border-yellow-200";
+                } else if (rank === 2) {
+                    badgeStyle = "bg-gray-300 text-gray-600 shadow-sm text-md px-3 py-1";
+                    badgeText = "🥈 第2位";
+                    borderClass = "border-2 border-gray-100";
+                } else if (rank === 3) {
+                    badgeStyle = "bg-orange-300 text-white shadow-sm text-md px-3 py-1";
+                    badgeText = "🥉 第3位";
+                    borderClass = "border-2 border-orange-50";
+                } else {
+                    badgeStyle = "bg-pink-100 text-pink-500 px-3 py-1";
+                    borderClass = "border border-pink-50";
+                }
+
+                // Added 'result-card' class for Anime.js targeting
+                htmlContent += `
+                    <div class="bg-white rounded-3xl p-6 card-shadow ${borderClass} relative result-card anime-target">
+                        <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 ${badgeStyle} rounded-full font-bold whitespace-nowrap z-10">
+                            ${badgeText}
+                        </div>
+                        <div class="mt-4 text-center">
+                            <h3 class="text-xl font-bold text-gray-800 leading-tight mb-1">${item.title}</h3>
+                            <p class="text-xs text-gray-500 mb-3">${item.author} / <span class="text-pink-400 font-bold">マッチ度 ${result.score}pt</span></p>
+                            
+                            <div class="bg-pink-50 rounded-xl p-4 text-left mb-3">
+                                <p class="text-gray-700 text-sm leading-relaxed">
+                                    <span class="text-2xl float-left mr-2 text-pink-300">❝</span>
+                                    ${item.desc}
+                                </p>
+                            </div>
+                             <p class="text-xs text-gray-500 italic mb-3">"${item.catch}"</p>
+                            
+                            <!-- Tags Display -->
+                            <div class="flex flex-wrap gap-1 justify-center">
+                                ${item.keywords.map(k => `<span class="tag-badge">${k}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            htmlContent += `
+                    <div class="text-center pt-4 anime-footer pb-10">
+                        <p class="text-xs text-gray-400 mb-4">気になる作品は見つかりましたか？</p>
+                        <button onclick="location.reload()" class="bg-white border-2 border-pink-400 text-pink-500 font-bold py-3 px-8 rounded-full shadow-sm hover:bg-pink-50 transition transform active:scale-95">
+                            条件を変えて再診断
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = htmlContent;
+
+            // --- AnimeJS Stagger Animation for Results ---
+            
+            // 1. Header fades in
+            anime({
+                targets: '.anime-header',
+                opacity: [0, 1],
+                translateY: [20, 0],
+                duration: 600,
+                easing: 'easeOutQuad'
+            });
+
+            // 2. Cards stagger in
+            anime({
+                targets: '.result-card',
+                opacity: [0, 1],
+                translateY: [50, 0],
+                delay: anime.stagger(150, {start: 300}), // Stagger effect
+                duration: 800,
+                easing: 'easeOutElastic(1, .8)'
+            });
+
+            // 3. Footer fades in last
+            anime({
+                targets: '.anime-footer',
+                opacity: [0, 1],
+                duration: 600,
+                delay: 1500,
+                easing: 'easeOutQuad'
+            });
+        }
+
+        // --- Logic Helper ---
+
+        function startQuiz() {
+            currentState = 'quiz';
+            render();
+        }
+
+        function answer(optionIndex) {
+            const q = questions[currentQuestionIndex];
+            const choice = q.options[optionIndex];
+
+            // 1. Parameter updates
+            if (choice.effects) {
+                for (const [key, value] of Object.entries(choice.effects)) {
+                    if (userProfile[key] !== undefined) {
+                        userProfile[key] += value;
+                        userProfile[key] = Math.max(0, Math.min(10, userProfile[key]));
+                    }
+                }
+            }
+
+            // 2. Tag updates (Bonus)
+            if (choice.addTags) {
+                bonusKeywords.push(...choice.addTags);
+            }
+
+            // 3. Tag updates (Block/NG)
+            if (choice.blockTags) {
+                blockedKeywords.push(...choice.blockTags);
+            }
+
+            currentQuestionIndex++;
+            if (currentQuestionIndex >= questions.length) {
+                currentState = 'calculating';
+            }
+            render();
+        }
+
+        function calculateResults() {
+            currentState = 'result';
+            render();
+        }
+
+        // --- The Improved Algorithm ---
+        function getTopMatches() {
+            const scoredItems = mangaDatabase.map(item => {
+                let diff = 0;
+                diff += Math.abs(item.tags.sweet - userProfile.sweet);
+                diff += Math.abs(item.tags.drama - userProfile.drama);
+                diff += Math.abs(item.tags.fantasy - userProfile.fantasy);
+                diff += Math.abs(item.tags.retro - userProfile.retro);
+                diff += Math.abs(item.tags.energy - userProfile.energy);
+                
+                let baseScore = Math.max(0, 100 - (diff * 2)); 
+
+                let bonusScore = 0;
+                if (item.keywords) {
+                    bonusKeywords.forEach(targetTag => {
+                        if (item.keywords.includes(targetTag)) {
+                            bonusScore += 15;
+                        }
+                    });
+                }
+
+                let isBlocked = false;
+                if (item.keywords && blockedKeywords.length > 0) {
+                    blockedKeywords.forEach(ngTag => {
+                        if (item.keywords.includes(ngTag)) {
+                            isBlocked = true;
+                        }
+                    });
+                }
+
+                let totalScore = isBlocked ? -999 : (baseScore + bonusScore);
+
+                return { item, score: totalScore, diff };
+            });
+
+            scoredItems.sort((a, b) => b.score - a.score);
+
+            return scoredItems;
+        }
+
+        // Anime.js powered Confetti
+        function createAnimeConfetti() {
+            const container = document.getElementById('confetti-wrapper');
+            container.innerHTML = '';
+            const colors = ['#ff69b4', '#8b5cf6', '#ffd700', '#60a5fa'];
+            const confettiCount = 50;
+
+            for (let i = 0; i < confettiCount; i++) {
+                const el = document.createElement('div');
+                el.classList.add('confetti-piece');
+                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                el.style.left = '50%';
+                el.style.top = '50%';
+                container.appendChild(el);
+            }
+
+            anime({
+                targets: '.confetti-piece',
+                translateX: function() { return anime.random(-500, 500); },
+                translateY: function() { return anime.random(-500, 500); },
+                rotate: function() { return anime.random(0, 360); },
+                scale: function() { return anime.random(0.5, 2); },
+                opacity: [1, 0],
+                duration: function() { return anime.random(1000, 3000); },
+                delay: function() { return anime.random(0, 200); },
+                easing: 'easeOutExpo'
+            });
+        }
+
+        render();
+    </script>
+</body>
+</html>

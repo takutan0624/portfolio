@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RESONANCE (Breathing Visualizer)</title>
+  <!-- Tailwind (for quick UI parity) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <!-- Lucide (icons) -->
+  <script src="https://unpkg.com/lucide@0.395.0/dist/umd/lucide.min.js"></script>
+  <style>
+    html, body { height: 100%; }
+    body { margin: 0; overflow: hidden; background: #0a0a0a; }
+    /* Ensure no accidental scroll on touch devices */
+    #app { touch-action: none; -webkit-tap-highlight-color: transparent; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <div id="app" class="relative w-full h-screen bg-neutral-900 text-white overflow-hidden select-none touch-none font-sans">
+    <!-- Visualizer mount -->
+    <div id="viz" class="absolute inset-0 z-0"></div>
+
+    <!-- UI Overlay -->
+    <div class="absolute inset-0 z-10 flex flex-col justify-between p-6 pointer-events-none">
+      <!-- Header -->
+      <div class="flex justify-between items-start pointer-events-auto">
+        <div>
+          <h1 class="text-2xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-teal-200 to-white opacity-90">RESONANCE</h1>
+          <div class="flex gap-2 mt-2">
+            <button id="btnModeBox" class="text-xs px-3 py-1 rounded-full border transition-all">Box (4-4-4-4)</button>
+            <button id="btnModeRelax" class="text-xs px-3 py-1 rounded-full border transition-all">Relax (4-7-8)</button>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <button id="btnMute" class="p-2 rounded-full bg-white/5 hover:bg-white/10 transition text-white/60" aria-label="mute">
+            <span data-lucide="volume-2"></span>
+          </button>
+          <button id="btnInfo" class="p-2 rounded-full bg-white/5 hover:bg-white/10 transition text-white/60" aria-label="info">
+            <span data-lucide="info"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Info Modal -->
+      <div id="infoModal" class="hidden absolute top-16 right-6 w-64 bg-black/80 backdrop-blur-md border border-white/10 p-4 rounded-xl text-sm text-neutral-300 shadow-xl pointer-events-auto z-20">
+        <h3 class="font-bold text-white mb-2">呼吸法ガイド</h3>
+        <ul class="space-y-2 list-disc list-inside text-xs leading-relaxed">
+          <li><span class="text-teal-300 font-bold">Box Breathing</span>: 集中力を高め、パニックを鎮める呼吸法 (4-4-4-4)。</li>
+          <li><span class="text-blue-300 font-bold">4-7-8 Relax</span>: 副交感神経を優位にし、深いリラックスを誘う呼吸法 (4-7-8)。</li>
+          <li>ガイドの動きに合わせて、ゆったりと呼吸を行ってください。</li>
+        </ul>
+      </div>
+
+      <!-- Center Guide -->
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+        <div id="idleGuide" class="flex flex-col items-center animate-pulse">
+          <div class="text-teal-500/50 mb-4"><span data-lucide="wind" style="width:48px;height:48px;display:inline-block"></span></div>
+          <p class="text-neutral-400 text-sm tracking-[0.2em]">START TO BREATHE</p>
+        </div>
+        <div id="playGuide" class="hidden flex flex-col items-center gap-4">
+          <h2 id="phaseLabel" class="text-4xl md:text-6xl font-light tracking-widest text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">吸う</h2>
+        </div>
+      </div>
+
+      <!-- Bottom Controls -->
+      <div class="flex flex-col items-center gap-6 pointer-events-auto pb-8">
+        <!-- Progress bar -->
+        <div id="progressRow" class="hidden w-full max-w-md flex items-center gap-4 px-4">
+          <span id="phaseId" class="text-xs text-teal-200/70 w-16 text-right font-mono tracking-wider">INHALE</span>
+          <div class="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div id="progressBar" class="h-full bg-gradient-to-r from-red-500 via-yellow-400 via-green-500 via-blue-500 to-purple-600 transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(255,255,255,0.3)]" style="width:0%"></div>
+          </div>
+          <span id="remaining" class="text-xs font-mono w-8 text-left text-white/90">0s</span>
+        </div>
+
+        <!-- Play/Pause -->
+        <button id="btnPlay" class="relative group flex items-center justify-center w-16 h-16 rounded-full backdrop-blur-sm transition-all duration-500" aria-label="play">
+          <!-- Play icon (centered triangle) -->
+          <span id="iconPlay" class="absolute inset-0 flex items-center justify-center">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" class="text-teal-200">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </span>
+          <!-- Pause icon (two bars, centered) -->
+          <span id="iconPause" class="hidden absolute inset-0 flex items-center justify-center">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" class="text-white">
+              <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+            </svg>
+          </span>
+          <div id="btnRing" class="absolute inset-0 rounded-full border border-white/20 scale-125 opacity-0 transition-transform duration-700"></div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ========================================================
+  // Constants
+  // ========================================================
+  const BREATH_MODES = {
+    box: {
+      name: "Box Breathing",
+      description: "集中力向上・リセット (4-4-4-4)",
+      phases: [
+        { id: 'inhale', label: '吸う', duration: 4000, color: 0xffa500, tone: 440 },
+        { id: 'hold-full', label: '止める', duration: 4000, color: 0xffffff, tone: 554.37 },
+        { id: 'exhale', label: '吐く', duration: 4000, color: 0x63b3ed, tone: 329.63 },
+        { id: 'hold-empty', label: '止める', duration: 4000, color: 0xffffff, tone: 220 },
+      ]
+    },
+    relax: {
+      name: "4-7-8 Relax",
+      description: "深いリラックス・睡眠導入 (4-7-8)",
+      phases: [
+        { id: 'inhale', label: '吸う', duration: 4000, color: 0xffa500, tone: 329.63 },
+        { id: 'hold-full', label: '止める', duration: 7000, color: 0xffffff, tone: 440 },
+        { id: 'exhale', label: '吐く', duration: 8000, color: 0x63b3ed, tone: 196.00 },
+      ]
+    }
+  };
+
+  // ========================================================
+  // State
+  // ========================================================
+  const state = {
+    isPlaying: false,
+    mode: 'box',
+    phaseIndex: 0,
+    progress: 0, // 0..1
+    showInfo: false,
+    isMuted: false,
+    phaseStart: 0,
+  };
+
+  // ========================================================
+  // Audio (Web Audio API)
+  // ========================================================
+  const audio = {
+    ctx: null,
+    init() {
+      if (!this.ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AC();
+      }
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    playTone(freq) {
+      if (state.isMuted || !this.ctx) return;
+      const ctx = this.ctx;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+      const now = ctx.currentTime;
+      const duration = 2.5;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + duration);
+    }
+  };
+
+  // ========================================================
+  // Three.js Visualizer
+  // ========================================================
+  const viz = {
+    mount: null,
+    scene: null,
+    camera: null,
+    renderer: null,
+    clock: null,
+    frameId: null,
+    coreMesh: null,
+    outerRing: null,
+    particles: null,
+
+    init(mountEl) {
+      this.mount = mountEl;
+
+      const w = mountEl.clientWidth;
+      const h = mountEl.clientHeight;
+
+      this.scene = new THREE.Scene();
+      this.scene.fog = new THREE.FogExp2(0x0a0a0a, 0.02);
+
+      this.camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
+      this.camera.position.z = 5;
+
+      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      this.renderer.setSize(w, h);
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      mountEl.appendChild(this.renderer.domElement);
+
+      // Core
+      const geometry = new THREE.IcosahedronGeometry(1, 2);
+      const material = new THREE.MeshBasicMaterial({
+        color: 0x4fd1c5,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.5
+      });
+      this.coreMesh = new THREE.Mesh(geometry, material);
+      this.scene.add(this.coreMesh);
+
+      // Inner glow
+      const glowGeo = new THREE.IcosahedronGeometry(0.8, 1);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.1,
+        blending: THREE.AdditiveBlending
+      });
+      const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+      this.coreMesh.add(glowMesh);
+
+      // Outer ring
+      const ringGeo = new THREE.TorusGeometry(2.5, 0.02, 16, 100);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+      this.outerRing = new THREE.Mesh(ringGeo, ringMat);
+      this.scene.add(this.outerRing);
+
+      // Particles
+      const particleCount = 400;
+      const posArray = new Float32Array(particleCount * 3);
+      for (let i = 0; i < posArray.length; i++) {
+        posArray[i] = (Math.random() - 0.5) * 10;
+      }
+      const particlesGeo = new THREE.BufferGeometry();
+      particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      const particlesMat = new THREE.PointsMaterial({
+        size: 0.03,
+        color: 0x4fd1c5,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+      });
+      this.particles = new THREE.Points(particlesGeo, particlesMat);
+      this.scene.add(this.particles);
+
+      this.clock = new THREE.Clock();
+
+      const onResize = () => {
+        if (!this.mount) return;
+        const w2 = this.mount.clientWidth;
+        const h2 = this.mount.clientHeight;
+        this.camera.aspect = w2 / h2;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(w2, h2);
+      };
+      window.addEventListener('resize', onResize);
+      this._onResize = onResize;
+
+      const animate = () => {
+        this.frameId = requestAnimationFrame(animate);
+        const t = this.clock.getElapsedTime();
+
+        if (this.coreMesh) {
+          this.coreMesh.rotation.x = t * 0.1;
+          this.coreMesh.rotation.y = t * 0.15;
+        }
+        if (this.particles) {
+          this.particles.rotation.y = t * 0.05;
+        }
+
+        // Reactive update (each frame for smoothness)
+        this.applyBreathState();
+
+        this.renderer.render(this.scene, this.camera);
+      };
+
+      animate();
+    },
+
+    applyBreathState() {
+      if (!this.coreMesh || !this.outerRing) return;
+
+      const activeMode = BREATH_MODES[state.mode];
+      const phase = state.isPlaying ? (activeMode.phases[state.phaseIndex] || activeMode.phases[0]) : null;
+
+      let targetScale = 1;
+      let colorHex = 0x4fd1c5;
+      const nowMs = Date.now();
+
+      if (phase) {
+        if (phase.id === 'inhale') {
+          targetScale = 1 + (state.progress * 1.5);
+          colorHex = phase.color;
+        } else if (phase.id === 'hold-full') {
+          targetScale = 2.5 + (Math.sin(nowMs / 200) * 0.05);
+          colorHex = phase.color;
+        } else if (phase.id === 'exhale') {
+          targetScale = 2.5 - (state.progress * 1.5);
+          colorHex = phase.color;
+        } else if (phase.id === 'hold-empty') {
+          targetScale = 1 + (Math.sin(nowMs / 200) * 0.05);
+          colorHex = phase.color;
+        }
+      } else {
+        targetScale = 1 + Math.sin(nowMs / 1000) * 0.2;
+      }
+
+      const currentScale = this.coreMesh.scale.x;
+      const lerpSpeed = 0.05;
+      const smoothScale = currentScale + (targetScale - currentScale) * lerpSpeed;
+      this.coreMesh.scale.set(smoothScale, smoothScale, smoothScale);
+
+      const targetColor = new THREE.Color(colorHex);
+      this.coreMesh.material.color.lerp(targetColor, 0.1);
+
+      this.outerRing.scale.setScalar(1 + (Math.sin(nowMs / 2000) * 0.05));
+      this.outerRing.material.opacity = 0.2;
+    },
+
+    dispose() {
+      cancelAnimationFrame(this.frameId);
+      window.removeEventListener('resize', this._onResize);
+      if (this.renderer && this.renderer.domElement && this.mount) {
+        this.mount.removeChild(this.renderer.domElement);
+      }
+      this.scene = null;
+      this.camera = null;
+      this.renderer = null;
+      this.clock = null;
+      this.coreMesh = null;
+      this.outerRing = null;
+      this.particles = null;
+      this.mount = null;
+    }
+  };
+
+  // ========================================================
+  // UI bindings
+  // ========================================================
+  const el = {
+    btnModeBox: document.getElementById('btnModeBox'),
+    btnModeRelax: document.getElementById('btnModeRelax'),
+    btnMute: document.getElementById('btnMute'),
+    btnInfo: document.getElementById('btnInfo'),
+    infoModal: document.getElementById('infoModal'),
+    idleGuide: document.getElementById('idleGuide'),
+    playGuide: document.getElementById('playGuide'),
+    phaseLabel: document.getElementById('phaseLabel'),
+    progressRow: document.getElementById('progressRow'),
+    phaseId: document.getElementById('phaseId'),
+    progressBar: document.getElementById('progressBar'),
+    remaining: document.getElementById('remaining'),
+    btnPlay: document.getElementById('btnPlay'),
+    iconPlay: document.getElementById('iconPlay'),
+    iconPause: document.getElementById('iconPause'),
+    btnRing: document.getElementById('btnRing'),
+  };
+
+  function activeMode() { return BREATH_MODES[state.mode]; }
+  function currentPhase() {
+    const m = activeMode();
+    return m.phases[state.phaseIndex] || m.phases[0];
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    state.phaseIndex = 0;
+    state.progress = 0;
+    state.phaseStart = performance.now();
+
+    // If playing, immediately play first phase tone (optional but consistent)
+    if (state.isPlaying) {
+      audio.playTone(activeMode().phases[0].tone);
+    }
+
+    syncUI();
+  }
+
+  function toggleInfo() {
+    state.showInfo = !state.showInfo;
+    syncUI();
+  }
+
+  function toggleMute() {
+    state.isMuted = !state.isMuted;
+    syncUI();
+  }
+
+  function togglePlay() {
+    state.isPlaying = !state.isPlaying;
+
+    if (state.isPlaying) {
+      audio.init();
+      state.phaseIndex = 0;
+      state.progress = 0;
+      state.phaseStart = performance.now();
+      audio.playTone(currentPhase().tone);
+    } else {
+      state.phaseIndex = 0;
+      state.progress = 0;
+    }
+
+    syncUI();
+  }
+
+  // --------------------------------------------------------
+  // Timer Loop (requestAnimationFrame)
+  // --------------------------------------------------------
+  let timerRaf = null;
+  function timerLoop(now) {
+    if (state.isPlaying) {
+      const phase = currentPhase();
+      const elapsed = now - state.phaseStart;
+      let p = elapsed / phase.duration;
+
+      if (p >= 1) {
+        // advance
+        state.phaseIndex = (state.phaseIndex + 1) % activeMode().phases.length;
+        state.phaseStart = now;
+        state.progress = 0;
+
+        const next = currentPhase();
+        audio.playTone(next.tone);
+      } else {
+        state.progress = Math.max(0, Math.min(p, 1));
+      }
+
+      syncUIProgressOnly();
+    }
+
+    timerRaf = requestAnimationFrame(timerLoop);
+  }
+
+  // --------------------------------------------------------
+  // UI sync
+  // --------------------------------------------------------
+  function phaseIdForDisplay(id) {
+    return id.toUpperCase().replace('-FULL', '').replace('-EMPTY', '');
+  }
+
+  function syncUI() {
+    // Mode buttons
+    const boxActive = state.mode === 'box';
+    const relaxActive = state.mode === 'relax';
+
+    el.btnModeBox.className = `text-xs px-3 py-1 rounded-full border transition-all ${boxActive ? 'bg-teal-500/20 border-teal-400 text-teal-300' : 'border-white/10 text-white/40 hover:border-white/30'}`;
+    el.btnModeRelax.className = `text-xs px-3 py-1 rounded-full border transition-all ${relaxActive ? 'bg-teal-500/20 border-teal-400 text-teal-300' : 'border-white/10 text-white/40 hover:border-white/30'}`;
+
+    // Info
+    el.infoModal.classList.toggle('hidden', !state.showInfo);
+
+    // Mute icon
+    el.btnMute.innerHTML = state.isMuted ? '<span data-lucide="volume-x"></span>' : '<span data-lucide="volume-2"></span>';
+
+    // Play button styling
+    if (state.isPlaying) {
+      el.btnPlay.className = 'relative group flex items-center justify-center w-16 h-16 rounded-full backdrop-blur-sm transition-all duration-500 bg-white/10 hover:bg-white/20 border border-white/20';
+      el.iconPlay.classList.add('hidden');
+      el.iconPause.classList.remove('hidden');
+      el.btnRing.className = 'absolute inset-0 rounded-full border border-white/20 scale-125 opacity-0 transition-transform duration-700';
+
+      el.idleGuide.classList.add('hidden');
+      el.playGuide.classList.remove('hidden');
+      el.progressRow.classList.remove('hidden');
+    } else {
+      el.btnPlay.className = 'relative group flex items-center justify-center w-16 h-16 rounded-full backdrop-blur-sm transition-all duration-500 bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/50 animate-pulse';
+      el.iconPlay.classList.remove('hidden');
+      el.iconPause.classList.add('hidden');
+      el.btnRing.className = 'absolute inset-0 rounded-full border border-white/20 scale-125 opacity-0 transition-transform duration-700 group-hover:scale-150 group-hover:opacity-100';
+
+      el.idleGuide.classList.remove('hidden');
+      el.playGuide.classList.add('hidden');
+      el.progressRow.classList.add('hidden');
+    }
+
+    syncUIProgressOnly();
+
+    // Re-render lucide icons after DOM updates
+    try { lucide.createIcons(); } catch (e) {}
+  }
+
+  function syncUIProgressOnly() {
+    const phase = currentPhase();
+    el.phaseLabel.textContent = phase.label;
+    el.phaseId.textContent = phaseIdForDisplay(phase.id);
+
+    const remainingSeconds = Math.max(0, Math.ceil(phase.duration * (1 - state.progress) / 1000));
+    el.remaining.textContent = `${remainingSeconds}s`;
+    el.progressBar.style.width = `${(state.progress * 100).toFixed(2)}%`;
+  }
+
+  // --------------------------------------------------------
+  // Event wiring
+  // --------------------------------------------------------
+  el.btnModeBox.addEventListener('click', () => setMode('box'));
+  el.btnModeRelax.addEventListener('click', () => setMode('relax'));
+  el.btnInfo.addEventListener('click', toggleInfo);
+  el.btnMute.addEventListener('click', toggleMute);
+  el.btnPlay.addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); });
+
+  // Initialize icons + visualizer + timer loop
+  lucide.createIcons();
+  viz.init(document.getElementById('viz'));
+  state.phaseStart = performance.now();
+  syncUI();
+  timerRaf = requestAnimationFrame(timerLoop);
+  </script>
+</body>
+</html>
