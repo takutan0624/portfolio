@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeHobby 200+ - 究極の200趣味診断</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-light: #f8fafc;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-light);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(255, 61, 119, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(51, 138, 255, 0.08) 0px, transparent 50%);
+            color: #0f172a;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 32px;
+        }
+
+        .colorful-shadow {
+            box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.12);
+        }
+
+        .option-card {
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            border: 2px solid transparent;
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .option-card:hover {
+            transform: scale(1.02);
+            background: #fff;
+            border-color: #3b82f6;
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.15);
+        }
+
+        .active-red { border-left: 6px solid #FF3D77; }
+        .relax-blue { border-left: 6px solid #338AFF; }
+        .creative-green { border-left: 6px solid #10b981; }
+        .social-purple { border-left: 6px solid #8b5cf6; }
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-reveal {
+            animation: reveal 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        @keyframes reveal {
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <div id="main-container" class="w-full max-w-xl">
+        
+        <!-- Welcome Screen -->
+        <div id="start-screen" class="glass p-10 text-center colorful-shadow fade-in">
+            <div class="relative inline-block mb-6">
+                <div class="absolute inset-0 bg-blue-500 blur-3xl opacity-10 rounded-full"></div>
+                <div class="relative p-6 bg-gradient-to-br from-pink-500 to-blue-600 rounded-3xl shadow-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                </div>
+            </div>
+            
+            <h1 class="text-4xl font-black mb-4 tracking-tight">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-purple-500 to-blue-600">
+                    VibeHobby 200+
+                </span>
+            </h1>
+            
+            <div class="flex justify-center gap-2 mb-8">
+                <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold border border-blue-100 italic">215 Items Loaded</span>
+                <span class="px-3 py-1 rounded-full bg-pink-50 text-pink-600 text-xs font-bold border border-pink-100 italic">6-Step Filter</span>
+            </div>
+
+            <p class="text-slate-500 mb-10 text-lg leading-relaxed font-medium">
+                「自分に合う趣味がない」はもう終わり。<br>
+                圧倒的ボリュームの215件から、<br>
+                <span class="text-slate-900 font-bold underline decoration-pink-500 decoration-2 text-xl">あなたの本音に刺さる3つ</span>を。
+            </p>
+            
+            <button onclick="startApp()" class="w-full py-5 bg-slate-900 text-white font-extrabold rounded-2xl transition-all hover:bg-slate-800 hover:scale-[1.01] active:scale-95 shadow-xl">
+                究極診断を開始する
+            </button>
+        </div>
+
+        <!-- Diagnostic Screen -->
+        <div id="quiz-screen" class="hidden">
+            <div class="mb-6">
+                <div class="flex justify-between items-end mb-3">
+                    <span id="step-count" class="text-sm font-bold text-slate-400 tracking-tighter uppercase">Step 01</span>
+                    <span id="step-percent" class="text-2xl font-black text-slate-800 italic">0%</span>
+                </div>
+                <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-pink-500 to-blue-500 transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="glass p-8 colorful-shadow min-h-[440px] flex flex-col">
+                <h2 id="question-title" class="text-2xl font-bold mb-8 text-center text-slate-900">...</h2>
+                <div id="options" class="grid gap-3 mt-auto"></div>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden">
+            <div class="text-center mb-8">
+                <div class="inline-block px-4 py-1 rounded-full bg-pink-100 text-pink-600 text-[10px] font-black uppercase mb-4 tracking-widest border border-pink-200">Hyper Filtering Engine</div>
+                <h2 class="text-3xl font-black mb-2 italic text-slate-900 leading-tight">Your Destiny Discovery</h2>
+                <p class="text-slate-500 text-sm font-medium">215の選択肢から絞り込まれた、あなただけの趣味</p>
+            </div>
+
+            <div id="results-container" class="space-y-4 mb-10"></div>
+
+            <button onclick="location.reload()" class="w-full py-5 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold rounded-2xl hover:shadow-lg transition-all active:scale-95">
+                もう一度診断する
+            </button>
+            <p id="counter-info" class="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-6 italic"></p>
+        </div>
+    </div>
+
+    <script>
+        // FULL 200+ HOBBIES DATABASE
+        const hobbies = [
+            // --- ACTIVE (High Energy) ---
+            { name: "ボルダリング", tags: ["high", "outdoor", "social", "cost-mid", "long", "grow"], desc: "壁に挑む達成感と仲間との交流。", cat: "active" },
+            { name: "HIITトレーニング", tags: ["high", "indoor", "solo", "cost-free", "short", "grow"], desc: "短時間で限界まで追い込み脂肪燃焼。", cat: "active" },
+            { name: "キックボクシング", tags: ["high", "indoor", "social", "cost-mid", "long", "grow"], desc: "ストレスを拳に込めて発散。", cat: "active" },
+            { name: "サバイバルゲーム", tags: ["high", "outdoor", "social", "cost-high", "short", "play"], desc: "チームで挑む非日常体験。", cat: "active" },
+            { name: "サーフィン", tags: ["high", "outdoor", "solo", "cost-high", "long", "play"], desc: "波を操り、自然の力を全身で受け止める。", cat: "active" },
+            { name: "ピラティス", tags: ["high", "indoor", "solo", "cost-mid", "long", "grow"], desc: "インナーマッスルを鍛え姿勢を整える。", cat: "active" },
+            { name: "パルクール", tags: ["high", "outdoor", "solo", "cost-free", "long", "grow"], desc: "移動を芸術に変える肉体表現。", cat: "active" },
+            { name: "スカッシュ", tags: ["high", "indoor", "social", "cost-mid", "short", "play"], desc: "四方の壁を使い高速で跳ね返る弾丸。", cat: "active" },
+            { name: "トレイルランニング", tags: ["high", "outdoor", "solo", "cost-free", "long", "play"], desc: "山道ならではの不整地を走る達成感。", cat: "active" },
+            { name: "フットサル", tags: ["high", "indoor", "social", "cost-mid", "short", "play"], desc: "瞬時の判断と華麗な足技の応酬。", cat: "active" },
+            { name: "スラックライン", tags: ["high", "outdoor", "social", "cost-mid", "long", "play"], desc: "細いベルトの上でバランスを競う。", cat: "active" },
+            { name: "リバーカヤック", tags: ["high", "outdoor", "solo", "cost-high", "short", "play"], desc: "激流を下る冒険。", cat: "active" },
+            { name: "スケートボード", tags: ["high", "outdoor", "solo", "cost-mid", "long", "play"], desc: "街を遊び場に変える魔法。", cat: "active" },
+            { name: "カポエイラ", tags: ["high", "indoor", "social", "cost-mid", "long", "grow"], desc: "ブラジルの格闘技とダンスの融合。", cat: "active" },
+            { name: "本格パン作り", tags: ["high", "indoor", "solo", "cost-mid", "long", "grow"], desc: "力強くこねる全身運動と達成感。", cat: "active" },
+            { name: "雪山登山", tags: ["high", "outdoor", "solo", "cost-mid", "short", "grow"], desc: "白銀の世界での自己挑戦。", cat: "active" },
+            { name: "フリーダイビング", tags: ["high", "outdoor", "solo", "cost-high", "long", "grow"], desc: "一呼吸で水中深く潜る精神の旅。", cat: "active" },
+            { name: "アクロバットヨガ", tags: ["high", "indoor", "social", "cost-mid", "short", "grow"], desc: "ペアで行うダイナミックなヨガ。", cat: "active" },
+            { name: "フェンシング", tags: ["high", "indoor", "social", "cost-high", "long", "grow"], desc: "瞬時の判断が鍵となる剣術。", cat: "active" },
+            { name: "バドミントン", tags: ["high", "indoor", "social", "cost-mid", "short", "play"], desc: "時速400km超のシャトルを追う。", cat: "active" },
+            { name: "クロスフィット", tags: ["high", "indoor", "social", "cost-mid", "long", "grow"], desc: "実用的な動作を極限まで高める。", cat: "active" },
+            { name: "ロードバイク", tags: ["high", "outdoor", "social", "cost-high", "long", "play"], desc: "100km先の景色を自分の足で見に行く。", cat: "active" },
+            { name: "水泳", tags: ["high", "indoor", "solo", "cost-mid", "long", "grow"], desc: "水の抵抗を感じながら自己ベストを追う。", cat: "active" },
+            { name: "ロングボード", tags: ["high", "outdoor", "solo", "cost-mid", "long", "play"], desc: "長いボードでアスファルトの上を舞う。", cat: "active" },
+            { name: "BMX", tags: ["high", "outdoor", "solo", "cost-high", "long", "play"], desc: "小回りのきく自転車でトリックを決める。", cat: "active" },
+            { name: "乗馬", tags: ["high", "outdoor", "social", "cost-high", "short", "grow"], desc: "馬との呼吸を合わせる気高きスポーツ。", cat: "active" },
+            { name: "ラクロス", tags: ["high", "outdoor", "social", "cost-mid", "long", "play"], desc: "地上最速の格闘球技。", cat: "active" },
+            { name: "スピードキューブ", tags: ["high", "indoor", "solo", "cost-free", "long", "grow"], desc: "パズルを数秒で解くための反射神経。", cat: "active" },
+            { name: "太鼓(和太鼓)", tags: ["high", "indoor", "social", "cost-mid", "short", "grow"], desc: "全身でリズムを叩き出す伝統表現。", cat: "active" },
+            { name: "エアリアルシルク", tags: ["high", "indoor", "solo", "cost-high", "long", "grow"], desc: "布に包まれ空中を舞うサーカス芸術。", cat: "active" },
+            { name: "ビーチバレー", tags: ["high", "outdoor", "social", "cost-free", "short", "play"], desc: "太陽の下、砂にまみれてボールを追う。", cat: "active" },
+            { name: "パワーリフティング", tags: ["high", "indoor", "solo", "cost-mid", "long", "grow"], desc: "絶対的な筋力の限界を追い求める。", cat: "active" },
+            { name: "トライアスロン", tags: ["high", "outdoor", "solo", "cost-high", "long", "grow"], desc: "水泳・自転車・走。鉄人の称号へ。", cat: "active" },
+            { name: "トランポリンパーク", tags: ["high", "indoor", "social", "cost-mid", "short", "play"], desc: "重力を忘れて高く跳ねる爽快感。", cat: "active" },
+            { name: "ピックルボール", tags: ["high", "outdoor", "social", "cost-mid", "short", "play"], desc: "全米で大流行中の新しいラケット競技。", cat: "active" },
+            { name: "ポールダンス", tags: ["high", "indoor", "solo", "cost-mid", "long", "grow"], desc: "筋力と柔軟性の極致。空中アート。", cat: "active" },
+            { name: "武道(居合道)", tags: ["high", "indoor", "solo", "cost-mid", "long", "grow"], desc: "一瞬の抜きに精神を集中させる。", cat: "active" },
+            { name: "キャニオニング", tags: ["high", "outdoor", "social", "cost-high", "short", "play"], desc: "渓谷を滑り、飛び込み、進む冒険。", cat: "active" },
+            { name: "ローラースケート", tags: ["high", "outdoor", "solo", "cost-mid", "long", "play"], desc: "レトロなスタイルで街を滑る。", cat: "active" },
+            { name: "スカイダイビング", tags: ["high", "outdoor", "social", "cost-high", "short", "play"], desc: "自由落下による究極のアドレナリン。", cat: "active" },
+            { name: "ブラジリアン柔術", tags: ["high", "indoor", "social", "cost-mid", "long", "grow"], desc: "体格差を技術で制す「体を使ったチェス」。", cat: "active" },
+            { name: "アーチェリー", tags: ["high", "outdoor", "solo", "cost-high", "long", "grow"], desc: "静止した瞬間に矢を放つ。", cat: "active" },
+            { name: "野球(草野球)", tags: ["high", "outdoor", "social", "cost-mid", "short", "play"], desc: "週末、仲間と白球を追いかける喜び。", cat: "active" },
+            { name: "バスケットボール", tags: ["high", "outdoor", "social", "cost-free", "short", "play"], desc: "近所のコートでシュートを打つ。", cat: "active" },
+            { name: "競技麻雀", tags: ["high", "indoor", "social", "cost-mid", "long", "grow"], desc: "高速の思考と駆け引きのスポーツ。", cat: "active" },
+            { name: "ベリーダンス", tags: ["high", "indoor", "social", "cost-mid", "long", "grow"], desc: "腰の動きで神秘的な物語を描く。", cat: "active" },
+            { name: "卓球", tags: ["high", "indoor", "social", "cost-free", "short", "play"], desc: "超至近距離での高速ラリー。", cat: "active" },
+            { name: "セパタクロー", tags: ["high", "outdoor", "social", "cost-free", "short", "play"], desc: "足によるアクロバティックなバレーボール。", cat: "active" },
+            { name: "ボルダリングコンペ", tags: ["high", "indoor", "social", "cost-mid", "short", "grow"], desc: "制限時間内にルートを攻略する緊張感。", cat: "active" },
+            { name: "ハンドボール", tags: ["high", "indoor", "social", "cost-mid", "short", "play"], desc: "走・跳・投の三拍子が揃った迫力。", cat: "active" },
+
+            // --- RELAX (Low Energy) ---
+            { name: "瞑想・ゼン", tags: ["low", "indoor", "solo", "cost-free", "short", "grow"], desc: "内なる静寂への旅。", cat: "relax" },
+            { name: "焚き火", tags: ["low", "outdoor", "solo", "cost-high", "short", "play"], desc: "炎のゆらぎに癒やされる。", cat: "relax" },
+            { name: "アロマテラピー", tags: ["low", "indoor", "solo", "cost-mid", "short", "play"], desc: "香りで脳をリラックス。", cat: "relax" },
+            { name: "プラネタリウム", tags: ["low", "indoor", "social", "cost-mid", "short", "play"], desc: "星空の下での安眠体験。", cat: "relax" },
+            { name: "ASMR鑑賞", tags: ["low", "indoor", "solo", "cost-free", "short", "play"], desc: "音の刺激で脳を心地よくとろけさせる。", cat: "relax" },
+            { name: "リストラティブヨガ", tags: ["low", "indoor", "solo", "cost-mid", "long", "grow"], desc: "心身を完全に委ねる究極の休息。", cat: "relax" },
+            { name: "カフェ巡り", tags: ["low", "outdoor", "social", "cost-mid", "short", "play"], desc: "自分だけの居場所探し。", cat: "relax" },
+            { name: "アクアリウム", tags: ["low", "indoor", "solo", "cost-high", "long", "play"], desc: "魚の動きに癒やされる。", cat: "relax" },
+            { name: "バードウォッチング", tags: ["low", "outdoor", "solo", "cost-mid", "long", "play"], desc: "自然の営みを覗く。", cat: "relax" },
+            { name: "サウナ", tags: ["low", "indoor", "social", "cost-mid", "short", "grow"], desc: "深いリフレッシュ。", cat: "relax" },
+            { name: "盆栽", tags: ["low", "outdoor", "solo", "cost-mid", "long", "grow"], desc: "鉢の中に大自然を再現する。", cat: "relax" },
+            { name: "レコード鑑賞", tags: ["low", "indoor", "solo", "cost-high", "long", "play"], desc: "音楽との丁寧な接し方。", cat: "relax" },
+            { name: "森林浴", tags: ["low", "outdoor", "solo", "cost-free", "short", "play"], desc: "森の空気で浄化。", cat: "relax" },
+            { name: "香道", tags: ["low", "indoor", "solo", "cost-mid", "long", "grow"], desc: "香りを「聞く」日本の伝統文化。", cat: "relax" },
+            { name: "御朱印集め", tags: ["low", "outdoor", "solo", "cost-mid", "long", "play"], desc: "寺社を訪れる静かな旅。", cat: "relax" },
+            { name: "天体観測", tags: ["low", "outdoor", "solo", "cost-high", "long", "play"], desc: "宇宙の広大さに思いを馳せる。", cat: "relax" },
+            { name: "ダイヤモンドアート", tags: ["low", "indoor", "solo", "cost-mid", "short", "play"], desc: "ビーズを敷き詰める没頭リラックス。", cat: "relax" },
+            { name: "水たばこ(シーシャ)", tags: ["low", "indoor", "social", "cost-mid", "short", "play"], desc: "甘い煙と緩やかな会話。", cat: "relax" },
+            { name: "鉄道の旅", tags: ["low", "outdoor", "solo", "cost-mid", "short", "play"], desc: "車窓を眺め続ける旅。", cat: "relax" },
+            { name: "お茶屋巡り", tags: ["low", "outdoor", "social", "cost-mid", "short", "grow"], desc: "日本茶の奥深い世界を堪能。", cat: "relax" },
+            { name: "美術館巡り", tags: ["low", "indoor", "solo", "cost-mid", "short", "grow"], desc: "作品と一対一の静寂。", cat: "relax" },
+            { name: "万年筆で日記", tags: ["low", "indoor", "solo", "cost-mid", "long", "grow"], desc: "インクの色を楽しむ贅沢。", cat: "relax" },
+            { name: "苔玉作り", tags: ["low", "indoor", "solo", "cost-mid", "long", "play"], desc: "小さな宇宙を整える。", cat: "relax" },
+            { name: "ソロサウナ", tags: ["low", "indoor", "solo", "cost-mid", "short", "play"], desc: "誰にも邪魔されない「ととのい」。", cat: "relax" },
+            { name: "写経", tags: ["low", "indoor", "solo", "cost-free", "short", "grow"], desc: "一文字ずつ書き写し心を鎮める。", cat: "relax" },
+            { name: "アンティーク家具収集", tags: ["low", "indoor", "solo", "cost-high", "long", "play"], desc: "歴史ある家具の手入れと鑑賞。", cat: "relax" },
+            { name: "銭湯巡り", tags: ["low", "outdoor", "social", "cost-free", "short", "play"], desc: "日常の中にある極楽浄土へ。", cat: "relax" },
+            { name: "海辺で読書", tags: ["low", "outdoor", "solo", "cost-free", "short", "play"], desc: "波の音をBGMに物語へ没入。", cat: "relax" },
+            { name: "サンセット鑑賞", tags: ["low", "outdoor", "solo", "cost-free", "short", "play"], desc: "日が沈む一瞬の奇跡を見逃さない。", cat: "relax" },
+            { name: "博物館巡り", tags: ["low", "indoor", "solo", "cost-mid", "short", "grow"], desc: "人類の叡智に静かに触れる。", cat: "relax" },
+            { name: "ポストカード収集", tags: ["low", "indoor", "solo", "cost-free", "long", "play"], desc: "旅先の一枚を大切に保管する。", cat: "relax" },
+            { name: "ハーブティー研究", tags: ["low", "indoor", "solo", "cost-mid", "short", "grow"], desc: "効能と香りで自分を調律する。", cat: "relax" },
+            { name: "足湯巡り", tags: ["low", "outdoor", "social", "cost-free", "short", "play"], desc: "ふらりと立ち寄り、足元から温める。", cat: "relax" },
+            { name: "瞑想アプリの旅", tags: ["low", "indoor", "solo", "cost-free", "short", "play"], desc: "世界中のガイドと共に呼吸を整える。", cat: "relax" },
+            { name: "水彩画の筆洗い", tags: ["low", "indoor", "solo", "cost-free", "short", "play"], desc: "水に溶ける色を眺めるだけの時間。", cat: "relax" },
+            { name: "ドライフラワー作り", tags: ["low", "indoor", "solo", "cost-mid", "long", "play"], desc: "花の命を静かに留める。", cat: "relax" },
+            { name: "クラシックコンサート", tags: ["low", "indoor", "social", "cost-high", "short", "play"], desc: "生の楽器が響かせる振動を浴びる。", cat: "relax" },
+            { name: "古本屋のハシゴ", tags: ["low", "outdoor", "solo", "cost-free", "short", "play"], desc: "誰かの記憶が眠る棚を歩く。", cat: "relax" },
+            { name: "苔テラリウム", tags: ["low", "indoor", "solo", "cost-mid", "long", "grow"], desc: "ガラスの中の緑を静かに育てる。", cat: "relax" },
+            { name: "ハンモック昼寝", tags: ["low", "outdoor", "solo", "cost-mid", "short", "play"], desc: "揺られながら、空の広さを感じる。", cat: "relax" },
+            { name: "タロット占い", tags: ["low", "indoor", "solo", "cost-mid", "long", "grow"], desc: "カードが示す深層心理を読み解く。", cat: "relax" },
+            { name: "深夜のドライブ", tags: ["low", "outdoor", "solo", "cost-mid", "short", "play"], desc: "誰にもいない夜の街を滑走する。", cat: "relax" },
+            { name: "ガーデニング", tags: ["low", "outdoor", "solo", "cost-mid", "long", "grow"], desc: "土に触れ、命の成長を見守る。", cat: "relax" },
+            { name: "お香自作", tags: ["low", "indoor", "solo", "cost-mid", "long", "grow"], desc: "自分にとって最も落ち着く香りを創る。", cat: "relax" },
+            { name: "ジャズ喫茶", tags: ["low", "indoor", "solo", "cost-mid", "short", "play"], desc: "巨大なスピーカーの前で音に没入。", cat: "relax" },
+            { name: "アロマキャンドル", tags: ["low", "indoor", "solo", "cost-mid", "short", "play"], desc: "揺れる火と香りの相乗効果。", cat: "relax" },
+            { name: "数独・ナンプレ", tags: ["low", "indoor", "solo", "cost-free", "short", "play"], desc: "静かにパズルに没頭する心地よさ。", cat: "relax" },
+            { name: "お弁当作り", tags: ["low", "indoor", "solo", "cost-mid", "long", "grow"], desc: "自分のための小さな世界を詰める。", cat: "relax" },
+            { name: "ぬりえ(大人の塗り絵)", tags: ["low", "indoor", "solo", "cost-free", "short", "play"], desc: "色を選ぶだけの癒やし。", cat: "relax" },
+            { name: "靴磨き", tags: ["low", "indoor", "solo", "cost-mid", "short", "grow"], desc: "道具を整え、光らせる瞑想的習慣。", cat: "relax" },
+
+            // --- CREATIVE (Creative Focus) ---
+            { name: "デジタルイラスト", tags: ["creative", "indoor", "solo", "cost-mid", "long", "grow"], desc: "無限の色彩で描く。", cat: "creative" },
+            { name: "スパイスカレー", tags: ["creative", "indoor", "social", "cost-mid", "short", "play"], desc: "味をデザインする。", cat: "creative" },
+            { name: "Vibe Coding", tags: ["creative", "indoor", "solo", "cost-free", "long", "grow"], desc: "理想をプログラムで形に。", cat: "creative" },
+            { name: "陶芸", tags: ["creative", "indoor", "social", "cost-high", "long", "play"], desc: "土の形が変わる快感。", cat: "creative" },
+            { name: "夜景撮影", tags: ["creative", "outdoor", "solo", "cost-high", "long", "play"], desc: "光を一瞬に固定。", cat: "creative" },
+            { name: "3Dプリンター", tags: ["creative", "indoor", "solo", "cost-high", "long", "grow"], desc: "データが物質になる瞬間。", cat: "creative" },
+            { name: "DTM", tags: ["creative", "indoor", "solo", "cost-mid", "long", "grow"], desc: "一人でオーケストラを操る。", cat: "creative" },
+            { name: "レザークラフト", tags: ["creative", "indoor", "solo", "cost-mid", "long", "play"], desc: "一生モノの革小物を制作。", cat: "creative" },
+            { name: "NFTアート", tags: ["creative", "indoor", "solo", "cost-free", "short", "grow"], desc: "デジタル資産としての表現。", cat: "creative" },
+            { name: "短歌", tags: ["creative", "outdoor", "solo", "cost-free", "long", "grow"], desc: "31音に無限の情景を。", cat: "creative" },
+            { name: "精密プラモデル", tags: ["creative", "indoor", "solo", "cost-mid", "long", "play"], desc: "細部までこだわった構築美。", cat: "creative" },
+            { name: "カリグラフィー", tags: ["creative", "indoor", "solo", "cost-mid", "long", "grow"], desc: "文字そのものの芸術表現。", cat: "creative" },
+            { name: "創作菓子", tags: ["creative", "indoor", "social", "cost-mid", "short", "play"], desc: "味と見た目の驚きを設計。", cat: "creative" },
+            { name: "ジオキャッシング", tags: ["creative", "outdoor", "social", "cost-free", "short", "play"], desc: "地球規模の宝探し。", cat: "creative" },
+            { name: "立体刺繍", tags: ["creative", "indoor", "solo", "cost-mid", "long", "play"], desc: "浮き出す針仕事のアート。", cat: "creative" },
+            { name: "華道(いけばな)", tags: ["creative", "indoor", "social", "cost-mid", "long", "grow"], desc: "空間を演出する引き算の美学。", cat: "creative" },
+            { name: "コーヒー自家焙煎", tags: ["creative", "indoor", "solo", "cost-mid", "short", "grow"], desc: "豆の焦げる香りと化学反応。", cat: "creative" },
+            { name: "テラリウム", tags: ["creative", "indoor", "solo", "cost-mid", "long", "play"], desc: "ガラスの中に自分だけの森。", cat: "creative" },
+            { name: "切り絵", tags: ["creative", "indoor", "solo", "cost-free", "long", "play"], desc: "紙一枚が生む光と影。", cat: "creative" },
+            { name: "消しゴムはんこ", tags: ["creative", "indoor", "solo", "cost-free", "short", "play"], desc: "世界に一つのスタンプを自作。", cat: "creative" },
+            { name: "動画編集", tags: ["creative", "indoor", "solo", "cost-mid", "long", "grow"], desc: "素材から感動的な物語を紡ぐ。", cat: "creative" },
+            { name: "シルクスクリーン", tags: ["creative", "indoor", "social", "cost-high", "short", "play"], desc: "オリジナルTシャツやアートを量産。", cat: "creative" },
+            { name: "DIY家具作り", tags: ["creative", "indoor", "solo", "cost-high", "long", "play"], desc: "木材から自分の暮らしを創り出す。", cat: "creative" },
+            { name: "レジンアクセサリー", tags: ["creative", "indoor", "solo", "cost-mid", "long", "play"], desc: "透明な樹脂に想い出を閉じ込める。", cat: "creative" },
+            { name: "万年筆イラスト", tags: ["creative", "indoor", "solo", "cost-mid", "long", "play"], desc: "インクの濃淡だけで描く詩的な世界。", cat: "creative" },
+            { name: "お菓子デコレーション", tags: ["creative", "indoor", "social", "cost-mid", "short", "play"], desc: "ケーキをキャンバスに変える。", cat: "creative" },
+            { name: "ドールハウス制作", tags: ["creative", "indoor", "solo", "cost-mid", "long", "play"], desc: "1/12の生活をミリ単位で構築。", cat: "creative" },
+            { name: "自作キーボード", tags: ["creative", "indoor", "solo", "cost-high", "long", "grow"], desc: "打ち心地を徹底的に究める。", cat: "creative" },
+            { name: "電子工作", tags: ["creative", "indoor", "solo", "cost-mid", "long", "grow"], desc: "回路を繋ぎ、便利な道具を作る。", cat: "creative" },
+            { name: "羊毛フェルト", tags: ["creative", "indoor", "solo", "cost-free", "short", "play"], desc: "針で刺すだけで生まれるふわふわ。 ", cat: "creative" },
+            { name: "朗読劇の台本書き", tags: ["creative", "indoor", "solo", "cost-free", "long", "grow"], desc: "声で演じられるための言葉を紡ぐ。", cat: "creative" },
+            { name: "書道(創作)", tags: ["creative", "indoor", "solo", "cost-mid", "long", "grow"], desc: "伝統を破り、心のままに筆を動かす。", cat: "creative" },
+            { name: "ボタニカルアート", tags: ["creative", "indoor", "solo", "cost-mid", "long", "grow"], desc: "植物の細部を精密に写し取る。", cat: "creative" },
+            { name: "スクラップブッキング", tags: ["creative", "indoor", "social", "cost-mid", "long", "play"], desc: "写真を美しく彩り保存する。", cat: "creative" },
+            { name: "ペーパークラフト", tags: ["creative", "indoor", "solo", "cost-free", "long", "play"], desc: "紙だけで驚くほど立体的な造形を。", cat: "creative" },
+            { name: "スマホで作曲", tags: ["creative", "indoor", "solo", "cost-free", "short", "play"], desc: "指先一つでビートを刻む。", cat: "creative" },
+            { name: "料理の再現レシピ", tags: ["creative", "indoor", "social", "cost-mid", "short", "grow"], desc: "有名店の味を自宅で解明する。", cat: "creative" },
+            { name: "シルバークレイ", tags: ["creative", "indoor", "social", "cost-mid", "short", "play"], desc: "粘土から銀の指輪を焼き上げる。", cat: "creative" },
+            { name: "万華鏡制作", tags: ["creative", "indoor", "solo", "cost-mid", "short", "play"], desc: "二度と現れない光の幾何学を創る。", cat: "creative" },
+            { name: "俳句散歩", tags: ["creative", "outdoor", "solo", "cost-free", "short", "grow"], desc: "歩きながら五七五を探す。", cat: "creative" },
+            { name: "マドラー・箸置き自作", tags: ["creative", "indoor", "solo", "cost-mid", "short", "play"], desc: "食卓の脇役をデザインする。", cat: "creative" },
+            { name: "オリジナルカクテル", tags: ["creative", "indoor", "social", "cost-high", "short", "play"], desc: "味と色のパレットをグラスに。", cat: "creative" },
+            { name: "風景画のスケッチ", tags: ["creative", "outdoor", "solo", "cost-mid", "short", "play"], desc: "旅先の空気を持ち帰る。", cat: "creative" },
+            { name: "ドリップコーヒー抽出", tags: ["creative", "indoor", "solo", "cost-mid", "short", "grow"], desc: "お湯の温度と速度で味を支配。", cat: "creative" },
+            { name: "ミニチュア盆栽", tags: ["creative", "outdoor", "solo", "cost-mid", "long", "play"], desc: "小さな鉢に宇宙を育てる。", cat: "creative" },
+            { name: "パッチワーク", tags: ["creative", "indoor", "solo", "cost-mid", "long", "play"], desc: "布の欠片を繋ぎ、大きな物語に。", cat: "creative" },
+            { name: "電子書籍の出版", tags: ["creative", "indoor", "solo", "cost-free", "long", "grow"], desc: "自分の知識や物語を世界へ。", cat: "creative" },
+            { name: "石粉粘土造形", tags: ["creative", "indoor", "solo", "cost-free", "short", "play"], desc: "石のような質感のオブジェを作る。", cat: "creative" },
+            { name: "動画用素材作り", tags: ["creative", "indoor", "solo", "cost-free", "short", "grow"], desc: "誰かのクリエイティブを支える部品制作。", cat: "creative" },
+            { name: "ストップモーションアニメ", tags: ["creative", "indoor", "solo", "cost-mid", "long", "grow"], desc: "静止した物体に命を吹き込む。", cat: "creative" },
+
+            // --- SOCIAL (Mixed/Social Culture) ---
+            { name: "重厚ボードゲーム", tags: ["creative", "indoor", "social", "cost-high", "short", "play"], desc: "3時間に及ぶ戦略の応酬。", cat: "social" },
+            { name: "リアル脱出ゲーム", tags: ["creative", "indoor", "social", "cost-mid", "short", "play"], desc: "仲間と謎を解き明かす連帯感。", cat: "social" },
+            { name: "ポーカー戦略", tags: ["creative", "indoor", "social", "cost-mid", "long", "grow"], desc: "心理と確率の遊戯。", cat: "social" },
+            { name: "ネット囲碁将棋", tags: ["creative", "indoor", "social", "cost-free", "long", "grow"], desc: "盤上の真剣勝負。", cat: "social" },
+            { name: "マーダーミステリー", tags: ["creative", "indoor", "social", "cost-mid", "short", "play"], desc: "物語の登場人物になりきる。", cat: "social" },
+            { name: "パデル", tags: ["high", "outdoor", "social", "cost-mid", "short", "play"], desc: "テニスとスカッシュの融合スポーツ。", cat: "social" },
+            { name: "競技ダーツ", tags: ["high", "indoor", "social", "cost-mid", "long", "grow"], desc: "0.1mmを競う集中力の極致。", cat: "social" },
+            { name: "ビリヤード", tags: ["creative", "indoor", "social", "cost-mid", "long", "play"], desc: "物理的な計算と繊細なショット。", cat: "social" },
+            { name: "ワインテイスティング", tags: ["creative", "indoor", "social", "cost-high", "short", "play"], desc: "歴史と産地を味わう。", cat: "social" },
+            { name: "朝の読書会", tags: ["creative", "indoor", "social", "cost-mid", "short", "grow"], desc: "一冊の本から対話を生む。", cat: "social" },
+            { name: "ドローンレース", tags: ["creative", "outdoor", "solo", "cost-high", "short", "play"], desc: "空を飛ぶ超感覚体験。", cat: "social" },
+            { name: "ボランティア", tags: ["high", "outdoor", "social", "cost-free", "short", "grow"], desc: "社会と繋がる喜び。", cat: "social" },
+            { name: "マジック披露", tags: ["high", "outdoor", "social", "cost-mid", "long", "play"], desc: "驚きの演出で場を沸かせる。", cat: "social" },
+            { name: "ブッシュクラフト", tags: ["creative", "outdoor", "solo", "cost-mid", "short", "grow"], desc: "最小限の道具で自然を生き抜く。", cat: "social" },
+            { name: "高難度折り紙", tags: ["creative", "indoor", "solo", "cost-free", "long", "play"], desc: "数百工程の紙の芸術。", cat: "social" },
+            { name: "ポタリング", tags: ["low", "outdoor", "solo", "cost-mid", "short", "play"], desc: "自転車での街探検。", cat: "social" },
+            { name: "テントサウナ", tags: ["low", "outdoor", "social", "cost-high", "short", "play"], desc: "自然の中でととのう特等席。", cat: "social" },
+            { name: "ドリップコーヒー探求", tags: ["creative", "indoor", "solo", "cost-mid", "long", "grow"], desc: "豆の個性を引き出す技術。", cat: "social" },
+            { name: "キャンドル作り", tags: ["creative", "indoor", "solo", "cost-mid", "short", "play"], desc: "光の灯り方をデザイン。", cat: "social" },
+            { name: "ジオラマ製作", tags: ["creative", "indoor", "solo", "cost-high", "long", "play"], desc: "懐かしい風景を現出させる。", cat: "social" },
+            { name: "カクテル考案", tags: ["creative", "indoor", "social", "cost-high", "short", "play"], desc: "味の設計。", cat: "social" },
+            { name: "英会話(カフェ)", tags: ["creative", "outdoor", "social", "cost-mid", "long", "grow"], desc: "新しい言葉での対話。", cat: "social" },
+            { name: "オンライン英会話", tags: ["creative", "indoor", "social", "cost-mid", "long", "grow"], desc: "自宅から世界へ繋がる窓。", cat: "social" },
+            { name: "TRPG(テーブルトーク)", tags: ["creative", "indoor", "social", "cost-free", "long", "play"], desc: "対話だけで生み出す壮大な冒険。", cat: "social" },
+            { name: "コスプレ制作", tags: ["creative", "indoor", "solo", "cost-high", "long", "play"], desc: "好きなキャラへの愛を形で示す。", cat: "social" },
+            { name: "お笑いライブ鑑賞", tags: ["high", "indoor", "social", "cost-mid", "short", "play"], desc: "生の「笑い」で免疫力を高める。", cat: "social" },
+            { name: "落語会", tags: ["low", "indoor", "social", "cost-mid", "short", "play"], desc: "座布団一、扇子一本の芸能世界。", cat: "social" },
+            { name: "神社仏閣ツアー", tags: ["low", "outdoor", "social", "cost-mid", "short", "grow"], desc: "歴史の背景を学びながら歩く。", cat: "social" },
+            { name: "ウォーキングサッカー", tags: ["high", "outdoor", "social", "cost-free", "short", "play"], desc: "走らないから誰でも楽しめる。", cat: "social" },
+            { name: "eスポーツ観戦", tags: ["high", "indoor", "social", "cost-free", "short", "play"], desc: "超絶技巧をオンラインで応援。", cat: "social" },
+            { name: "寄付活動の選定", tags: ["low", "indoor", "solo", "cost-mid", "long", "grow"], desc: "自分が支援すべき社会課題を探す。", cat: "social" },
+            { name: "朗読会参加", tags: ["low", "indoor", "social", "cost-free", "short", "play"], desc: "人の読みを聞き、言葉の深さを知る。", cat: "social" },
+            { name: "利き酒(日本酒)", tags: ["low", "indoor", "social", "cost-mid", "short", "grow"], desc: "地域の風土を喉で感じる。", cat: "social" },
+            { name: "パン屋巡り", tags: ["low", "outdoor", "social", "cost-free", "short", "play"], desc: "週末の朝、最高の一口を探す。", cat: "social" },
+            { name: "カードゲーム(TCG)", tags: ["creative", "indoor", "social", "cost-high", "long", "grow"], desc: "デッキを構築し対戦する知略。", cat: "social" },
+            { name: "俳句の会", tags: ["creative", "indoor", "social", "cost-free", "short", "grow"], desc: "自作の句を批評し、洗練させる。", cat: "social" },
+            { name: "社交ダンスパーティ", tags: ["high", "indoor", "social", "cost-mid", "short", "play"], desc: "ドレスアップして夜を踊り抜く。", cat: "social" },
+            { name: "映画同好会", tags: ["low", "indoor", "social", "cost-mid", "short", "play"], desc: "鑑賞後に感想を語り合う贅沢。", cat: "social" },
+            { name: "フリーマーケット出店", tags: ["high", "outdoor", "social", "cost-mid", "short", "play"], desc: "自分のモノを誰かの宝物に変える。", cat: "social" },
+            { name: "料理教室", tags: ["creative", "indoor", "social", "cost-mid", "long", "grow"], desc: "一生モノの技術を仲間と学ぶ。", cat: "social" },
+            { name: "手話の学習", tags: ["creative", "indoor", "social", "cost-free", "long", "grow"], desc: "手の動きで新しい対話の扉を開く。", cat: "social" },
+            { name: "観光ボランティア", tags: ["high", "outdoor", "social", "cost-free", "short", "grow"], desc: "自分の街の魅力を客人に伝える。", cat: "social" },
+            { name: "合唱・クワイア", tags: ["high", "indoor", "social", "cost-mid", "long", "grow"], desc: "声を重ね、一つのハーモニーへ。", cat: "social" },
+            { name: "吹奏楽・楽団", tags: ["high", "indoor", "social", "cost-high", "long", "grow"], desc: "楽器を持ち寄り、合奏する喜び。", cat: "social" },
+            { name: "サークル活動の幹事", tags: ["high", "indoor", "social", "cost-free", "short", "grow"], desc: "人の集まる場を自らコーディネート。", cat: "social" },
+            { name: "ポッドキャスト収録", tags: ["creative", "indoor", "social", "cost-free", "short", "grow"], desc: "自分の声を波に乗せて配信する。", cat: "social" },
+            { name: "コミュニティ菜園", tags: ["low", "outdoor", "social", "cost-mid", "long", "play"], desc: "共同で野菜を育て、収穫を祝う。", cat: "social" },
+            { name: "ワインセラー管理", tags: ["low", "indoor", "solo", "cost-high", "long", "play"], desc: "最高の状態までじっくり寝かせる。", cat: "social" },
+            { name: "伝統芸能鑑賞", tags: ["low", "indoor", "social", "cost-mid", "short", "play"], desc: "時代を超えて受け継がれる美を観る。", cat: "social" },
+            { name: "瞑想キャンプ", tags: ["low", "outdoor", "social", "cost-high", "short", "grow"], desc: "集団で静寂を分かち合う特別な時間。", cat: "social" },
+            { name: "ゴミ拾いウォーキング", tags: ["high", "outdoor", "social", "cost-free", "short", "grow"], desc: "街を綺麗にしながら健康になる。", cat: "social" },
+            { name: "オンラインゲーム遠征", tags: ["high", "indoor", "social", "cost-mid", "short", "play"], desc: "仮想世界で大規模な目標に挑む。", cat: "social" },
+            { name: "茶道サークル", tags: ["low", "indoor", "social", "cost-mid", "long", "grow"], desc: "一期一会の精神を仲間と共有。", cat: "social" },
+            { name: "博物館の友の会", tags: ["low", "indoor", "social", "cost-mid", "long", "play"], desc: "専門家と共に深く知る楽しみ。", cat: "social" },
+            { name: "地方移住体験", tags: ["high", "outdoor", "social", "cost-high", "short", "play"], desc: "短期間、異なる暮らしに身を置く。", cat: "social" },
+            { name: "クラウドファンディング支援", tags: ["low", "indoor", "solo", "cost-mid", "short", "play"], desc: "誰かの挑戦を並走して応援する。", cat: "social" },
+            { name: "香水のレイヤード", tags: ["creative", "indoor", "solo", "cost-high", "short", "play"], desc: "複数の香りを重ね、自分だけの残り香。", cat: "social" },
+            { name: "万年筆のインク工房", tags: ["creative", "indoor", "social", "cost-mid", "short", "play"], desc: "世界に一つの色を調合する。", cat: "social" },
+            { name: "歴史シミュレーション", tags: ["creative", "indoor", "solo", "cost-mid", "long", "play"], desc: "ifの歴史を盤上で構築する。", cat: "social" },
+            { name: "アナログ盤の掘り出し", tags: ["high", "outdoor", "solo", "cost-mid", "short", "play"], desc: "中古店で運命の一枚を探す。", cat: "social" },
+            { name: "銭湯のペンキ絵鑑賞", tags: ["low", "indoor", "solo", "cost-free", "short", "play"], desc: "浴室に広がる富士山に思いを馳せる。", cat: "social" },
+            { name: "スパイスハーブの自作調合", tags: ["creative", "indoor", "solo", "cost-free", "short", "grow"], desc: "どんな料理も自分流に変える魔法の粉。", cat: "social" },
+            { name: "朗読アプリの配信者", tags: ["creative", "indoor", "solo", "cost-free", "short", "play"], desc: "読み手として誰かの耳に届ける。", cat: "social" },
+            { name: "ドローン空撮", tags: ["creative", "outdoor", "solo", "cost-high", "short", "play"], desc: "鳥の視点で世界を記録する。", cat: "social" },
+            { name: "ソロ登山(低山)", tags: ["high", "outdoor", "solo", "cost-free", "short", "play"], desc: "自分のペースで頂を目指す。", cat: "social" }
+        ];
+
+        const questions = [
+            { title: "今のエネルギー状態は？", key: "energy", options: [
+                { label: "爆発させたい！", value: "high", icon: "⚡", color: "from-orange-500 to-red-500" },
+                { label: "静かに癒やされたい", value: "low", icon: "🌙", color: "from-blue-500 to-indigo-600" },
+                { label: "何かを生み出したい", value: "creative", icon: "🎨", color: "from-emerald-400 to-teal-600" }
+            ]},
+            { title: "理想のフィールドは？", key: "place", options: [
+                { label: "プライベートな室内", value: "indoor", icon: "🏠", color: "from-amber-400 to-orange-500" },
+                { label: "開放的な屋外", value: "outdoor", icon: "🌳", color: "from-green-400 to-cyan-500" }
+            ]},
+            { title: "誰と過ごしたい？", key: "style", options: [
+                { label: "究極の自分時間", value: "solo", icon: "👤", color: "from-slate-500 to-slate-800" },
+                { label: "誰かとバイブスを共有", value: "social", icon: "👥", color: "from-purple-500 to-pink-500" }
+            ]},
+            { title: "予算のイメージは？", key: "cost", options: [
+                { label: "まずは無料で手軽に", value: "cost-free", icon: "✨", color: "from-teal-300 to-emerald-500" },
+                { label: "そこそこ投資できる", value: "cost-mid", icon: "💳", color: "from-blue-400 to-sky-600" },
+                { label: "本格的に機材を揃える", value: "cost-high", icon: "💎", color: "from-amber-500 to-yellow-600" }
+            ]},
+            { title: "どれくらい続けたい？", key: "duration", options: [
+                { label: "今日だけ楽しみたい", value: "short", icon: "⏱️", color: "from-rose-400 to-red-500" },
+                { label: "一生モノの習慣に", value: "long", icon: "♾️", color: "from-indigo-500 to-violet-700" }
+            ]},
+            { title: "一番重視する成果は？", key: "goal", options: [
+                { label: "ただ楽しんで発散！", value: "play", icon: "🎈", color: "from-pink-400 to-fuchsia-600" },
+                { label: "成長やスキルを得たい", value: "grow", icon: "📈", color: "from-blue-500 to-cyan-400" }
+            ]}
+        ];
+
+        let currentStep = 0;
+        let userAnswers = [];
+
+        function startApp() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = questions[currentStep];
+            const container = document.getElementById('options');
+            const progress = (currentStep / questions.length) * 100;
+            
+            document.getElementById('step-count').innerText = `Step 0${currentStep + 1}`;
+            document.getElementById('step-percent').innerText = `${Math.round(progress)}%`;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('question-title').innerText = q.title;
+            
+            container.innerHTML = '';
+            q.options.forEach(opt => {
+                const button = document.createElement('button');
+                button.className = `option-card w-full p-4 glass flex items-center gap-4 rounded-2xl text-left colorful-shadow fade-in`;
+                button.innerHTML = `
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br ${opt.color} flex items-center justify-center text-lg shadow-md text-white">
+                        ${opt.icon}
+                    </div>
+                    <div class="text-slate-900 font-bold text-sm md:text-base">${opt.label}</div>
+                `;
+                button.onclick = () => selectOption(opt.value);
+                container.appendChild(button);
+            });
+        }
+
+        function selectOption(val) {
+            userAnswers.push(val);
+            if (currentStep < questions.length - 1) {
+                currentStep++;
+                renderQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            
+            // Score each hobby based on ALL tags
+            const scoredResults = hobbies.map(h => {
+                let score = 0;
+                userAnswers.forEach(ans => {
+                    if (h.tags.includes(ans)) score++;
+                });
+                return { ...h, score };
+            });
+
+            // High precision filtering: Shuffle and pick Top 3
+            const finalPicks = scoredResults
+                .sort(() => Math.random() - 0.5)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3);
+
+            const container = document.getElementById('results-container');
+            container.innerHTML = '';
+
+            finalPicks.forEach((h, i) => {
+                const colorMap = { 'active': 'active-red', 'relax': 'relax-blue', 'creative': 'creative-green', 'social': 'social-purple' };
+                const div = document.createElement('div');
+                div.className = `result-reveal glass p-5 ${colorMap[h.cat]} flex items-center gap-4 colorful-shadow`;
+                div.style.animationDelay = `${i * 0.15}s`;
+                div.innerHTML = `
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center font-black italic text-lg text-slate-300">${i+1}</div>
+                    <div>
+                        <div class="flex items-center gap-2 mb-0.5">
+                             <h3 class="text-lg font-black text-slate-900">${h.name}</h3>
+                             <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-400 font-bold uppercase">${h.cat}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 leading-tight font-medium">${h.desc}</p>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('counter-info').innerText = `${hobbies.length}種類の趣味からベストマッチを抽出しました`;
+        }
+    </script>
+</body>
+</html>

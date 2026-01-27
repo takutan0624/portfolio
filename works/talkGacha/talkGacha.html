@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>きらめき話題ガチャ - Ice Break Gacha</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism Card */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+
+        /* Animations */
+        
+        /* 1. 待機中のゆらゆら */
+        @keyframes float-idle {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(2deg); }
+        }
+
+        /* 2. 落下とバウンド */
+        @keyframes drop-bounce {
+            0% { transform: translateY(-400px) scale(0.8); opacity: 0; }
+            40% { transform: translateY(0) scale(1.1); opacity: 1; }
+            60% { transform: translateY(-60px) scale(0.95) rotate(-5deg); }
+            80% { transform: translateY(0) scale(1.05) rotate(2deg); }
+            100% { transform: translateY(0) scale(1) rotate(0); }
+        }
+
+        /* 3. フタが開く */
+        @keyframes open-lid {
+            0% { transform: translateY(0) rotate(0); }
+            100% { transform: translateY(-150px) rotate(-45deg) scale(0.9); opacity: 0; }
+        }
+
+        /* 4. 下半分が消える（少し遅れて） */
+        @keyframes fade-cup {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(50px) scale(0.8); opacity: 0; }
+        }
+
+        /* 5. 結果ポップアップ */
+        @keyframes pop-result {
+            0% { transform: scale(0); opacity: 0; }
+            70% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* 光のエフェクト */
+        @keyframes burst-light {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        .animate-float { animation: float-idle 4s infinite ease-in-out; }
+        .animate-drop { animation: drop-bounce 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        .animate-lid-open { animation: open-lid 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .animate-cup-fade { animation: fade-cup 0.6s ease-out forwards; }
+        .animate-pop-result { animation: pop-result 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+        .animate-burst { animation: burst-light 0.8s ease-out forwards; }
+
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.3); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+
+        /* Button Effects */
+        .btn-push { transition: all 0.1s; box-shadow: 0px 5px 0px 0px #e5e7eb; }
+        .btn-push:active { transform: translateY(5px); box-shadow: 0px 0px 0px 0px #e5e7eb; }
+        
+        .btn-primary-push { box-shadow: 0px 5px 0px 0px #4f46e5; }
+        .btn-primary-push:active { box-shadow: 0px 0px 0px 0px #4f46e5; }
+
+        .tab-active { background: white; color: #4f46e5; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); font-weight: 700; }
+        
+        .particle { position: absolute; pointer-events: none; border-radius: 50%; }
+
+        /* Capsule Parts */
+        .capsule-half {
+            width: 100%;
+            height: 50%;
+            position: absolute;
+            left: 0;
+            overflow: hidden;
+            transition: background 0.3s;
+        }
+        .capsule-top {
+            top: 0;
+            border-radius: 999px 999px 0 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%);
+            border: 4px solid white;
+            border-bottom: none;
+            transform-origin: bottom center;
+            z-index: 2;
+        }
+        .capsule-bottom {
+            bottom: 0;
+            border-radius: 0 0 999px 999px;
+            border: 4px solid white;
+            border-top: none;
+            transform-origin: top center;
+            z-index: 1;
+        }
+        
+        /* Inner color ball */
+        .inner-color {
+            width: 100%;
+            height: 100%;
+        }
+
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <div class="glass-panel w-full max-w-md rounded-3xl p-6 relative overflow-hidden flex flex-col items-center min-h-[600px]">
+        
+        <!-- Header -->
+        <header class="w-full text-center mb-6 z-10">
+            <h1 class="text-2xl font-bold text-gray-800 tracking-wider">
+                <i class="fas fa-comments text-indigo-500 mr-2"></i>話題ガチャ
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">会話のきっかけを、ひとつまみ。</p>
+        </header>
+
+        <!-- Category Tabs -->
+        <div class="flex space-x-1 mb-8 z-10 bg-white/30 p-1 rounded-xl w-full justify-between overflow-x-auto">
+            <button onclick="setCategory('all')" id="tab-all" class="flex-1 py-2 px-1 text-[10px] sm:text-xs rounded-lg transition-all text-gray-600 tab-active whitespace-nowrap">
+                すべて
+            </button>
+            <button onclick="setCategory('casual')" id="tab-casual" class="flex-1 py-2 px-1 text-[10px] sm:text-xs rounded-lg transition-all text-gray-600 hover:bg-white/50 whitespace-nowrap">
+                日常
+            </button>
+            <button onclick="setCategory('silly')" id="tab-silly" class="flex-1 py-2 px-1 text-[10px] sm:text-xs rounded-lg transition-all text-gray-600 hover:bg-white/50 whitespace-nowrap">
+                あるある
+            </button>
+            <button onclick="setCategory('debate')" id="tab-debate" class="flex-1 py-2 px-1 text-[10px] sm:text-xs rounded-lg transition-all text-gray-600 hover:bg-white/50 whitespace-nowrap">
+                論争
+            </button>
+            <button onclick="setCategory('hobby')" id="tab-hobby" class="flex-1 py-2 px-1 text-[10px] sm:text-xs rounded-lg transition-all text-gray-600 hover:bg-white/50 whitespace-nowrap">
+                価値観
+            </button>
+        </div>
+
+        <!-- Main Visual Area -->
+        <div class="relative flex-grow flex items-center justify-center w-full mb-8 z-10" style="min-height: 240px;">
+            
+            <!-- Capsule Container -->
+            <div id="capsule-wrapper" class="relative w-48 h-48 animate-float">
+                
+                <!-- Burst Effect (Behind) -->
+                <div id="burst-effect" class="absolute inset-0 bg-yellow-300 rounded-full opacity-0"></div>
+
+                <!-- Capsule Top -->
+                <div id="capsule-top" class="capsule-half capsule-top">
+                    <div id="color-top" class="inner-color bg-gradient-to-br from-indigo-400 to-purple-400 opacity-90"></div>
+                    <!-- Highlight -->
+                    <div class="absolute top-4 left-6 w-12 h-6 bg-white opacity-60 rounded-full transform -rotate-12 blur-sm"></div>
+                </div>
+
+                <!-- Capsule Bottom -->
+                <div id="capsule-bottom" class="capsule-half capsule-bottom">
+                    <div id="color-bottom" class="inner-color bg-gradient-to-t from-indigo-500 to-purple-500 opacity-90"></div>
+                </div>
+
+                <!-- Icon (Initially hidden inside) -->
+                <div class="absolute inset-0 flex items-center justify-center z-0">
+                     <i class="fas fa-question text-6xl text-white/50"></i>
+                </div>
+
+            </div>
+
+            <!-- Result Card -->
+            <div id="result-card" class="hidden absolute inset-0 z-20 flex items-center justify-center">
+                <div class="w-full bg-white/95 rounded-2xl shadow-2xl p-6 text-center transform border-4 border-indigo-100 relative">
+                    
+                    <div class="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-indigo-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
+                        TOPIC
+                    </div>
+
+                    <div id="result-icon" class="text-4xl text-indigo-400 mb-4 mt-2">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    
+                    <h2 id="result-text" class="text-lg font-bold text-gray-800 leading-relaxed mb-4 min-h-[4.5rem] flex items-center justify-center">
+                        話題
+                    </h2>
+
+                    <div class="flex justify-center space-x-2">
+                        <button onclick="resetGacha()" class="px-6 py-2 bg-gray-100 text-gray-600 rounded-full text-sm font-bold hover:bg-gray-200 transition btn-push">
+                            閉じる
+                        </button>
+                        <button onclick="spinGacha()" class="px-6 py-2 bg-indigo-500 text-white rounded-full text-sm font-bold hover:bg-indigo-600 transition btn-primary-push shadow-lg shadow-indigo-200">
+                            もう一度
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Area -->
+        <div class="w-full z-10">
+            <button id="spin-btn" onclick="spinGacha()" class="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 active:translate-y-0 btn-primary-push flex items-center justify-center group">
+                <span class="mr-2 group-hover:rotate-180 transition-transform duration-500"><i class="fas fa-sync-alt"></i></span>
+                話題を引く
+            </button>
+        </div>
+
+        <!-- History/Footer -->
+        <div class="mt-6 w-full z-10 border-t border-gray-200/50 pt-4">
+            <p class="text-xs text-gray-500 mb-2 font-bold text-center">履歴（最新3件）</p>
+            <ul id="history-list" class="text-xs text-gray-600 space-y-2 text-center min-h-[4rem]">
+                <li class="opacity-50">まだ履歴はありません</li>
+            </ul>
+        </div>
+
+        <!-- Background Decorations -->
+        <div class="absolute -top-20 -right-20 w-64 h-64 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
+        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
+
+    </div>
+
+    <script>
+        // Data: Topics Database (Keeping the clean, curated list)
+        const topics = {
+            casual: [
+                "最近『ちょっとだけ救われた』出来事ってあった？（小さくてOK）",
+                "今週の『生活ハック』を1つ教えて。地味でも強いやつ。",
+                "最近見つけた“自分のご機嫌スイッチ”って何？",
+                "子どもの頃から今も変わらない『好きな匂い』は？",
+                "今の自分にとっての“贅沢”って、どんな状態？",
+                "最近『これは成長したな』と思った瞬間ある？",
+                "もし今、1日だけ“体力が無限”なら何をする？",
+                "一番好きな『散歩ルートの景色』ってどんな感じ？",
+                "最近ハマってる“音（環境音/曲/声）”はある？",
+                "毎日ちょっとだけ良くするなら、まず何を変える？",
+                "好きな『カフェの条件』を3つ挙げるとしたら？",
+                "最近の“買ってよかった”ベスト1、理由も添えて。",
+                "コンビニでつい買ってしまう『謎の定番』ある？",
+                "今、冷蔵庫にあるもので作れる“最強”は何？",
+                "“疲れた日でもできる料理”のレパートリーある？",
+                "思い出のある『音楽』って、いつどこで聴いてた？",
+                "最近の“心が軽くなった言葉”があれば教えて。",
+                "今の自分に“ご褒美”を出すなら何にする？",
+                "1週間だけ“朝型生活”になったら、何が変わりそう？",
+                "最近の『写真フォルダ』で一番見返す一枚は？",
+                "もし“自分の取扱説明書”を一行で書くなら？",
+                "最近の“ちょい嬉しい偶然”って何かあった？",
+                "子どもの頃の“謎のマイブーム”を覚えてる？",
+                "今までで一番『助かった店員さん』エピソードある？",
+                "“住む街の推しポイント”をひとつ挙げるとしたら？",
+                "『寝る前のルーティン』、理想形はどんな感じ？",
+                "最近『初めて知ってびっくりしたこと』ある？",
+                "“今日の気分”を天気で表すと、どんな天気？",
+                "『一人時間』が上手くいく条件って何？",
+                "今、誰かにおすすめしたい“ちょい良いもの”は？"
+            ],
+            silly: [
+                "自分の人生に“アップデート通知”が来るとしたら、今どんな内容？",
+                "もし明日から“NPCのセリフ”が見えるようになったら、何が怖い？",
+                "『あなたの人生、今シーズンのサブクエ』を勝手に命名して。",
+                "無人島に1つだけ“変なスキル”を持って行けるなら何？",
+                "自分が“マスコット化”したら、どんな見た目・名前になる？",
+                "人生のBGMが常に流れるとしたら、今どんなジャンル？",
+                "『今日の自分』にアイテムドロップさせるなら何が落ちる？",
+                "“笑いのツボ”が可視化されたら、どこが光ると思う？",
+                "あなたの『絶妙にどうでもいい特技』を自慢して。",
+                "“時空が歪んだ”としか思えない体験、ある？（小話でOK）",
+                "『許せない擬音』を一つ決めるなら何？（例：ベチャ、など）",
+                "コンビニのレジで“最も気まずい瞬間”を演じるなら？",
+                "もし“人生のセーブポイント”を1つ置けるなら、どこ？",
+                "自分の性格を“家電の機能”で例えると何になる？",
+                "『寝起きの自分』をキャラ化すると、属性は？",
+                "あなたの“謎のこだわり”を、プレゼンして。",
+                "“お風呂場で思いつく名案”ってだいたい何？",
+                "人生に“デバッグモード”があったら、まず何を確認する？",
+                "『自分の脳内会議』の議題ランキングTOP3は？",
+                "もし“気分の天気予報”が出るアプリがあったら、何が表示されがち？",
+                "あなたの“口癖”をロゴにするとしたら、どんなデザイン？",
+                "『最強の言い訳』を一つだけ合法化できるなら？",
+                "“やる気”に形があったら、どんな生き物？",
+                "『疲労』を倒す必殺技、名前と効果を決めて。",
+                "もし“思考が音”になって漏れてたら、どんな音量？どんな音？",
+                "あなたの人生に“裏ステージ”があるとしたら、どんな場所？",
+                "『好きなことをして生きる』をRPGのスキルツリーで表すと？",
+                "今の気持ちを“たべもの”で例えると何？",
+                "“謎に記憶に残ってる看板/ポスター”ってある？",
+                "『一生に一度だけ使えるエモい演出』、いつ使う？"
+            ],
+            debate: [
+                "“幸せ”は『安定』と『刺激』どっちの比率が大事？",
+                "『効率』と『こだわり』、人生ではどっちが勝つ？",
+                "“趣味”は『一人で深掘り』vs『誰かと共有』どっち派？",
+                "“最適化”は良いこと？それとも“余白”が減って危ない？",
+                "『早起き』は正義？それとも“合う人だけの宗教”？",
+                "“行き当たりばったり旅行”は最高？それともリスク？",
+                "『美味しい』は味？雰囲気？誰と食べたか？",
+                "“紙の本”は浪漫？それとも重い？",
+                "“SNS断ち”は健康？それとも情報弱者化？",
+                "『好きなこと』を続けるなら、毎日少し派？週末まとめて派？",
+                "“貯金”と“経験”は、どっちに振るべき？",
+                "“友達は少数精鋭”vs“広く浅く”どっちが幸せ？",
+                "“正しさ”より“優しさ”が必要な場面は多い？少ない？",
+                "“才能”は生まれつき？それとも“設計して伸ばせる”？",
+                "“やりたいこと”は探すもの？作るもの？",
+                "“学び”は『体系立てて』vs『触って覚える』どっちが合う？",
+                "“休む”は攻め？守り？どっちの行為だと思う？",
+                "“学び”は独学が最強？コミュニティが最強？",
+                "“完成度70%で出す”は賢い？それとも妥協？",
+                "“小さな改善”は人生を変える？変えない？",
+                "“好き”は説明できる派？できない派？",
+                "“努力”は報われる？報われない？条件付き？",
+                "“楽しい”は目的？それとも結果？",
+                "“達成感”は『数字』vs『誰かの反応』どっちで来やすい？",
+                "“人付き合い”は『深く少なく』vs『浅く広く』どっちが心地いい？",
+                "“人生の目標”は必要？なくてもいい？",
+                "“アウトプット”は毎日少し？まとめて一気？",
+                "“自分らしさ”は守るもの？更新するもの？",
+                "“AIを使う”はズル？それとも新しい鉛筆？",
+                "“安心”のために、何を手放せる？"
+            ],
+            hobby: [
+                "最近『没頭できた時間』は何をしてた？どこが刺さった？",
+                "“好きな世界観”を3つのキーワードで表すと？",
+                "もし“自分の博物館”を作るなら、展示物は何？",
+                "『一生に一度は行きたい場所』を、理由込みで。",
+                "最近見た作品で『セリフが刺さった』ものある？",
+                "“音楽”を聴くとき、歌詞派？サウンド派？",
+                "“ゲーム”で一番好きな瞬間は？（探索/育成/勝利/物語…）",
+                "趣味を続けるコツって“習慣”か“熱量”か、どっち？",
+                "“写真”を撮るなら、被写体は人？街？空？",
+                "“旅”の良さは、景色？食？人？非日常？",
+                "最近『買って満足した道具』って何？使い道も。",
+                "あなたが“沼った作品”の沼ポイントを解説して。",
+                "もし今から新しい趣味を1つ“お試し3日”するなら？",
+                "“上達”が楽しい趣味と、“体験”が楽しい趣味、どっちが好き？",
+                "“コレクション”は増やす派？厳選派？",
+                "あなたの“推しの魅力”を、初見の人に30秒で伝えると？",
+                "“創作”するなら、文章/絵/音/動画/コード…何が一番しっくり？",
+                "好きな“デザイン”の特徴は？（余白/情報量/色/質感など）",
+                "“学ぶ”なら、体系立てて？触って覚える？",
+                "“好き”が仕事に混ざると、燃える？疲れる？",
+                "もし“自分の作品”が1つだけ残るなら、何を残したい？",
+                "“世界が広がった本/映画/アニメ”って何？",
+                "最近の“好奇心レーダー”はどの方向を向いてる？",
+                "“理想の休日”をタイムラインで組むと、どうなる？",
+                "“好きな香り/音/手触り”を1つずつ挙げると？",
+                "“ひとり外出”のご褒美ルートを作るなら、どこに寄る？（店/景色/音）",
+                "“自分の強み”を趣味のスキルで例えると？",
+                "“憧れる生き方”を作品のキャラで例えると？",
+                "もし“人生のテーマ曲”を依頼できるなら、どんな曲調？",
+                "“今の自分”に合うジャンル（映画/本/ゲーム）を1つ選ぶなら？"
+            ]
+        };
+
+        // State
+        let currentCategory = 'all';
+        let isSpinning = false;
+        let history = [];
+        let lastTopic = null; // 直前に出た話題を保持（連続重複防止用）
+
+        // Elements
+        const capsuleWrapper = document.getElementById('capsule-wrapper');
+        const capsuleTop = document.getElementById('capsule-top');
+        const capsuleBottom = document.getElementById('capsule-bottom');
+        const burstEffect = document.getElementById('burst-effect');
+        const resultCard = document.getElementById('result-card');
+        const resultText = document.getElementById('result-text');
+        const spinBtn = document.getElementById('spin-btn');
+        const historyList = document.getElementById('history-list');
+
+        // Sounds (Optional: using Web Audio API for simple synth beeps if desired, kept silent for now for safety)
+
+        // Random Color Palette for Capsules
+        const capsuleColors = [
+            { top: 'from-red-400 to-orange-400', bottom: 'from-red-500 to-orange-500' },     // Red/Orange
+            { top: 'from-blue-400 to-cyan-400', bottom: 'from-blue-500 to-cyan-500' },       // Blue/Cyan
+            { top: 'from-green-400 to-emerald-400', bottom: 'from-green-500 to-emerald-500' }, // Green
+            { top: 'from-yellow-400 to-amber-400', bottom: 'from-yellow-500 to-amber-500' },   // Yellow
+            { top: 'from-purple-400 to-pink-400', bottom: 'from-purple-500 to-pink-500' },   // Purple
+            { top: 'from-pink-400 to-rose-400', bottom: 'from-pink-500 to-rose-500' },       // Pink
+            { top: 'from-indigo-400 to-blue-400', bottom: 'from-indigo-500 to-blue-500' },   // Indigo
+            { top: 'from-teal-400 to-green-400', bottom: 'from-teal-500 to-green-500' }      // Teal
+        ];
+
+        function setRandomCapsuleColor() {
+            const randomColor = capsuleColors[Math.floor(Math.random() * capsuleColors.length)];
+            
+            const topEl = document.getElementById('color-top');
+            const botEl = document.getElementById('color-bottom');
+            
+            // Remove old gradient classes (simplest way is to reset className base and add new)
+            topEl.className = `inner-color bg-gradient-to-br ${randomColor.top} opacity-90 transition-colors duration-500`;
+            botEl.className = `inner-color bg-gradient-to-t ${randomColor.bottom} opacity-90 transition-colors duration-500`;
+        }
+
+        // Set Category
+        function setCategory(cat) {
+            if (isSpinning) return;
+            currentCategory = cat;
+            
+            // UI Update
+            document.querySelectorAll('button[id^="tab-"]').forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('hover:bg-white/50');
+            });
+            const activeBtn = document.getElementById(`tab-${cat}`);
+            activeBtn.classList.add('tab-active');
+            activeBtn.classList.remove('hover:bg-white/50');
+
+            // Change capsule color randomly on category switch too
+            setRandomCapsuleColor();
+        }
+
+        // Spin Logic
+        function spinGacha() {
+            if (isSpinning) return;
+            isSpinning = true;
+            spinBtn.disabled = true;
+            spinBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // Reset States
+            resetAnimations();
+            resultCard.classList.add('hidden');
+            resultCard.classList.remove('animate-pop-result'); // remove popup anim to reset
+
+            // Change color for the new spin!
+            setRandomCapsuleColor();
+
+            // 1. Drop In Sequence
+            capsuleWrapper.classList.remove('animate-float');
+            capsuleWrapper.classList.add('animate-drop');
+
+            // Create dust particles at landing
+            setTimeout(() => createParticles('dust'), 400);
+
+            // 2. Crack Open Sequence
+            setTimeout(() => {
+                capsuleTop.classList.add('animate-lid-open');
+                capsuleBottom.classList.add('animate-cup-fade');
+                burstEffect.classList.add('animate-burst');
+                
+                // Pop particles
+                createParticles('sparkle');
+                
+            }, 800); // Wait for drop to finish
+
+            // 3. Show Result
+            setTimeout(() => {
+                showResult();
+                isSpinning = false;
+                spinBtn.disabled = false;
+                spinBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }, 1000);
+        }
+
+        function resetGacha() {
+            // Close result and bring back a fresh capsule
+            resultCard.classList.add('hidden');
+            resetAnimations();
+            
+            // Set a NEW random color for the next spin
+            setRandomCapsuleColor();
+            
+            capsuleWrapper.classList.add('animate-float');
+        }
+
+        function resetAnimations() {
+            capsuleWrapper.classList.remove('animate-drop', 'animate-float');
+            capsuleTop.classList.remove('animate-lid-open');
+            capsuleBottom.classList.remove('animate-cup-fade');
+            burstEffect.classList.remove('animate-burst');
+            // Force Reflow
+            void capsuleWrapper.offsetWidth;
+        }
+
+        function getTopic() {
+            let pool = [];
+            if (currentCategory === 'all') {
+                pool = [...topics.casual, ...topics.silly, ...topics.debate, ...topics.hobby];
+            } else {
+                pool = topics[currentCategory];
+            }
+
+            if (pool.length <= 1) return pool[0];
+
+            // 履歴（最新3件）と連続重複を避ける
+            const avoid = new Set(history.slice(0, 3));
+
+            let topic;
+            let guard = 0;
+            do {
+                const randomIndex = Math.floor(Math.random() * pool.length);
+                topic = pool[randomIndex];
+                guard++;
+                // 10回程度で諦めて（プールが小さい等）許容する
+            } while ((avoid.has(topic) || topic === lastTopic) && guard < 20);
+
+            lastTopic = topic;
+            return topic;
+        }
+
+        function showResult() {
+            const topic = getTopic();
+            resultText.textContent = topic;
+            
+            // Icon logic based on category
+            const iconEl = document.getElementById('result-icon');
+            if (topics.casual.includes(topic)) iconEl.innerHTML = '<i class="fas fa-mug-hot text-emerald-400"></i>';
+            else if (topics.silly.includes(topic)) iconEl.innerHTML = '<i class="fas fa-laugh-squint text-pink-500"></i>';
+            else if (topics.debate.includes(topic)) iconEl.innerHTML = '<i class="fas fa-fire-alt text-red-500"></i>';
+            else if (topics.hobby.includes(topic)) iconEl.innerHTML = '<i class="fas fa-balance-scale text-blue-500"></i>';
+            else iconEl.innerHTML = '<i class="fas fa-lightbulb text-yellow-400"></i>';
+
+            // Show card
+            resultCard.classList.remove('hidden');
+            resultCard.classList.add('animate-pop-result');
+
+            // Update History
+            updateHistory(topic);
+        }
+
+        function updateHistory(text) {
+            history.unshift(text);
+            if (history.length > 3) history.pop();
+
+            historyList.innerHTML = history.map(item => `
+                <li class="bg-white/40 rounded px-2 py-1 truncate animate-pop border-l-2 border-indigo-300">
+                    ${item}
+                </li>
+            `).join('');
+        }
+
+        function createParticles(type) {
+            const rect = capsuleWrapper.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2; // Approximate center
+
+            const count = type === 'dust' ? 6 : 12;
+            
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.classList.add('particle');
+                document.body.appendChild(p);
+
+                const size = Math.random() * 10 + 4;
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = Math.random() * 100 + (type === 'dust' ? 20 : 60);
+
+                p.style.width = `${size}px`;
+                p.style.height = `${size}px`;
+                
+                // Start position
+                if (type === 'dust') {
+                    p.style.left = `${centerX}px`;
+                    p.style.top = `${rect.bottom - 20}px`; // Near floor
+                    p.style.backgroundColor = 'rgba(255,255,255,0.6)';
+                } else {
+                    p.style.left = `${centerX}px`;
+                    p.style.top = `${centerY}px`;
+                    p.style.backgroundColor = ['#FFD700', '#FF69B4', '#00BFFF'][Math.floor(Math.random() * 3)];
+                }
+                
+                const destX = Math.cos(angle) * velocity;
+                const destY = Math.sin(angle) * velocity;
+
+                p.animate([
+                    { transform: 'translate(0, 0) scale(0)', opacity: 1 },
+                    { transform: `translate(${destX}px, ${destY}px) scale(0)`, opacity: 0 }
+                ], {
+                    duration: 600,
+                    easing: 'ease-out'
+                }).onfinish = () => p.remove();
+            }
+        }
+        
+        // Initial setup
+        setRandomCapsuleColor(); // Random color on load
+        capsuleWrapper.classList.add('animate-float');
+
+    </script>
+</body>
+</html>
