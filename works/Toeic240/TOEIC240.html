@@ -1,0 +1,2935 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOEIC文法 240問ノック</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Roboto', 'Noto Sans JP', sans-serif;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .option-btn {
+            transition: all 0.2s;
+        }
+        .option-btn:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-indigo-700 text-white p-4 shadow-md sticky top-0 z-10">
+        <div class="max-w-3xl mx-auto flex justify-between items-center">
+            <h1 class="text-lg font-bold"><i class="fas fa-pen-nib mr-2"></i>TOEIC文法 240問ノック</h1>
+            <div id="progress-display" class="text-sm font-medium hidden">
+                <span id="current-q-num">1</span> / <span id="total-q-num">240</span>
+            </div>
+        </div>
+        <!-- Progress Bar -->
+        <div id="progress-bar-container" class="w-full bg-indigo-900 h-1.5 mt-2 hidden rounded-full overflow-hidden">
+            <div id="progress-bar" class="bg-green-400 h-full w-0 transition-all duration-300"></div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-4 flex items-center justify-center">
+        <div class="w-full max-w-3xl">
+
+            <!-- Start Screen -->
+            <div id="start-screen" class="bg-white rounded-xl shadow-lg p-8 text-center fade-in">
+                <div class="mb-6 text-indigo-600">
+                    <i class="fas fa-book-reader text-6xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-4">TOEIC 800点突破<br>文法特訓 240問</h2>
+                <p class="text-gray-600 mb-8">
+                    不定詞・動名詞・前置詞・熟語の頻出パターンを完全網羅。<br>
+                    即時解説で苦手を克服しましょう。
+                </p>
+                <div class="space-y-3">
+                    <button onclick="startQuiz(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:-translate-y-1 w-full md:w-auto">
+                        はじめから
+                    </button>
+                    <button id="resume-btn" onclick="resumeQuiz()" class="hidden bg-white hover:bg-gray-50 text-indigo-700 font-bold py-3 px-8 rounded-full shadow border border-indigo-200 transition w-full md:w-auto">
+                        続きから
+                    </button>
+                    <button id="wrong-only-btn" onclick="startWrongQuiz()" class="hidden bg-white hover:bg-gray-50 text-indigo-700 font-bold py-3 px-8 rounded-full shadow border border-indigo-200 transition w-full md:w-auto">
+                        間違えた問題だけ <span id="wrong-count" class="ml-1 text-xs text-gray-500">(0)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quiz Screen -->
+            <div id="quiz-screen" class="hidden fade-in">
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-6 md:p-8">
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded">Question <span id="q-index">1</span></span>
+                        </div>
+                        
+                        <h3 id="question-text" class="text-xl md:text-2xl font-medium mb-8 leading-relaxed">
+                            <!-- Question goes here -->
+                        </h3>
+
+                        <div id="options-container" class="grid gap-4 md:grid-cols-1">
+                            <!-- Buttons go here -->
+                        </div>
+
+                        <!-- Feedback Section -->
+                        <div id="feedback-section" class="hidden mt-6 p-4 rounded-lg bg-gray-50 border border-gray-200">
+                            <div class="flex items-center mb-2">
+                                <div id="feedback-icon" class="text-2xl mr-3"></div>
+                                <div id="feedback-title" class="text-lg font-bold"></div>
+                            </div>
+                            <p id="feedback-rationale" class="text-gray-700 leading-relaxed"></p>
+                            
+                            <div class="mt-4 text-right">
+                                <button id="next-btn" onclick="nextQuestion()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg shadow transition">
+                                    次の問題へ <i class="fas fa-arrow-right ml-1"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="hint-area" class="mt-4 text-center space-y-2">
+                    <div class="flex flex-col md:flex-row items-center justify-center gap-3">
+                        <button onclick="toggleHint()" class="text-gray-500 hover:text-indigo-600 text-sm underline focus:outline-none">
+                            ヒントを見る
+                        </button>
+                        <button onclick="manualSave()" class="text-indigo-700 hover:text-indigo-900 text-sm underline focus:outline-none">
+                            保存
+                        </button>
+                    </div>
+                    <div id="save-status" class="text-xs text-green-600 hidden">保存しました</div>
+                    <p id="hint-text" class="hidden text-sm text-gray-600 mt-2 bg-yellow-50 p-2 rounded border border-yellow-200 inline-block mx-auto"></p>
+                </div>
+            </div>
+
+            <!-- Result Screen -->
+            <div id="result-screen" class="hidden bg-white rounded-xl shadow-lg p-8 text-center fade-in">
+                <div class="mb-6">
+                    <div id="result-icon" class="text-6xl mb-4"></div>
+                    <h2 class="text-3xl font-bold mb-2">完了！</h2>
+                    <p class="text-gray-600">お疲れ様でした。</p>
+                </div>
+                
+                <div class="flex justify-center items-center mb-8">
+                    <div class="text-center mx-4">
+                        <div class="text-sm text-gray-500">正解数</div>
+                        <div class="text-4xl font-bold text-indigo-600"><span id="score-count">0</span><span class="text-xl text-gray-400">/<span id="score-total">240</span></span></div>
+                    </div>
+                    <div class="text-center mx-4">
+                        <div class="text-sm text-gray-500">正答率</div>
+                        <div class="text-4xl font-bold text-indigo-600"><span id="score-percent">0</span><span class="text-xl">%</span></div>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <button onclick="restartQuiz()" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow transition">
+                        もう一度挑戦する
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-gray-200 text-center p-4 text-gray-500 text-sm">
+        &copy; 2024 TOEIC Grammar Training App
+    </footer>
+
+    <script>
+        // --- 240 Questions Data ---
+        // Vol.1 (1-30), Vol.2 (31-60), Vol.3 (61-90), Vol.4 (91-120)
+        const questionsData = [
+            // Vol 1
+            {
+                q: "We are strictly committed ______ the highest quality standards in all our manufacturing processes.",
+                options: [
+                    { t: "maintain", r: "be committed to の to は不定詞の to ではなく前置詞です。原形動詞は置けません。", c: false },
+                    { t: "to maintain", r: "commit は「委ねる」というイメージから、対象への到達を表す前置詞 to を伴います。不定詞ではありません。", c: false },
+                    { t: "to maintaining", r: "be committed to ～ing（～することに献身する／取り組む）はTOEIC最頻出表現です。to は前置詞なので動名詞が続きます。", c: true },
+                    { t: "maintained", r: "受動態や過去形の形は文法的に不適切です。", c: false }
+                ],
+                hint: "be committed to の to は「矢印（方向）」を表す前置詞です。"
+            },
+            {
+                q: "The board of directors raised an objection ______ the proposed merger with the competitor.",
+                options: [
+                    { t: "for", r: "objection for とは言いません。", c: false },
+                    { t: "to", r: "objection to ～（～への反対）というコロケーションです。動詞 object to ～ と同様に to を使います。", c: true },
+                    { t: "with", r: "objection with とは言いません。", c: false },
+                    { t: "against", r: "objection against とは慣用的に言いません。", c: false }
+                ],
+                hint: "動詞の object も同じ前置詞をとります。「～に対して」反対します。"
+            },
+            {
+                q: "Ms. Lee suggested ______ the marketing budget to accommodate the new campaign.",
+                options: [
+                    { t: "increasing", r: "suggest は目的語に動名詞（-ing）をとる代表的な動詞です。", c: true },
+                    { t: "to increase", r: "suggest は不定詞を目的語にとりません。", c: false },
+                    { t: "increase", r: "suggest の直後に原形動詞はきません。", c: false },
+                    { t: "increased", r: "過去分詞は不適切です。", c: false }
+                ],
+                hint: "suggest, finish, enjoy, consider などは後ろに何をとる動詞でしたか？"
+            },
+            {
+                q: "______ careful analysis, the team identified the root cause of the system failure.",
+                options: [
+                    { t: "Through", r: "Through は「～を通して（手段）」を表し、「慎重な分析を通して」という意味で合致します。", c: true },
+                    { t: "Thorough", r: "これは「徹底的な」という意味の形容詞です。", c: false },
+                    { t: "Between", r: "Between は通常2つのものや期間の間を表します。", c: false },
+                    { t: "Along", r: "Along は「～に沿って」という意味です。", c: false }
+                ],
+                hint: "「～（という手段）によって」という意味の前置詞を選びます。スペルに注意。"
+            },
+            {
+                q: "The new software will allow users ______ large files much faster than before.",
+                options: [
+                    { t: "transfer", r: "allow 目的語 の後ろに原形不定詞はきません。", c: false },
+                    { t: "transferring", r: "allow 目的語 の後ろに現在分詞はきません。", c: false },
+                    { t: "to transfer", r: "allow + 目的語 + to do（Oが～するのを可能にする）の基本構文です。", c: true },
+                    { t: "transferred", r: "受動的な意味にするとしても文法的に不適切です。", c: false }
+                ],
+                hint: "allow 人 to do の形を思い出しましょう。"
+            },
+            {
+                q: "Despite ______ extensive experience, Mr. Gomez was not selected for the management position.",
+                options: [
+                    { t: "he", r: "Despite は前置詞なので、主格の代名詞 he は続きません。", c: false },
+                    { t: "his", r: "Despite の後ろには名詞句が来ます。extensive experience を修飾する所有格の his が正解です。", c: true },
+                    { t: "him", r: "him extensive experience という語順は不自然です。", c: false },
+                    { t: "himself", r: "再帰代名詞を入れる文脈ではありません。", c: false }
+                ],
+                hint: "Despite は前置詞です。後ろには名詞の塊が続きます。"
+            },
+            {
+                q: "The interns spent the entire afternoon ______ the old files.",
+                options: [
+                    { t: "organize", r: "spend 時間 の後ろに原形動詞は続きません。", c: false },
+                    { t: "organizing", r: "spend + 時間 + (in) doing（～して時間を過ごす）という構文です。", c: true },
+                    { t: "to organize", r: "spend の場合は -ing をとるのが定型です。", c: false },
+                    { t: "organization", r: "名詞を並べることはできません。", c: false }
+                ],
+                hint: "「～して時間を過ごす」は spend time ...ing です。"
+            },
+            {
+                q: "All passengers are required to refrain ______ smoking during the flight.",
+                options: [
+                    { t: "of", r: "refrain of とは言いません。", c: false },
+                    { t: "against", r: "refrain against とは言いません。", c: false },
+                    { t: "from", r: "refrain from ～（～を控える）は決まった言い回しです。", c: true },
+                    { t: "to", r: "refrain to とは言いません。", c: false }
+                ],
+                hint: "「～することから離れる・控える」というニュアンスの前置詞です。"
+            },
+            {
+                q: "______ addition to his role as CEO, he also serves as the chairman of the charity foundation.",
+                options: [
+                    { t: "On", r: "On addition to ではありません。", c: false },
+                    { t: "In", r: "In addition to ～（～に加えて）という群前置詞です。", c: true },
+                    { t: "With", r: "With addition to ではありません。", c: false },
+                    { t: "For", r: "For addition to ではありません。", c: false }
+                ],
+                hint: "「～に加えて」という熟語です。"
+            },
+            {
+                q: "The factory has been operational ______ last Monday.",
+                options: [
+                    { t: "from", r: "現在完了形と共に使い、継続の起点を表す場合は since を使います。", c: false },
+                    { t: "since", r: "現在完了形（has been）と相性が良く、「～以来ずっと」を表すのは since です。", c: true },
+                    { t: "until", r: "until は動作の終了点を表します。", c: false },
+                    { t: "at", r: "at は一点を指しますが、継続の意味はありません。", c: false }
+                ],
+                hint: "現在完了形と一緒に使われる「～以来」を表す語は？"
+            },
+            {
+                q: "It is vital for the company ______ its online presence to attract younger customers.",
+                options: [
+                    { t: "strengthen", r: "原形は不可です。", c: false },
+                    { t: "strengthens", r: "三単現のsがついた形は不可です。", c: false },
+                    { t: "to strengthen", r: "It is [形容詞] for [意味上の主語] to do の形式主語構文です。", c: true },
+                    { t: "strengthening", r: "この構文で動名詞は使いません。", c: false }
+                ],
+                hint: "It is 形容詞 for A ... の後ろに続く形です。"
+            },
+            {
+                q: "______ finalizing the contract, please ensure all terms are mutually agreed upon.",
+                options: [
+                    { t: "Prior to", r: "Prior to ～（～より前に）は before と同じ意味を持つ前置詞句です。", c: true },
+                    { t: "Next to", r: "Next to は「隣に」という意味です。", c: false },
+                    { t: "According to", r: "According to は「～によると」という意味です。", c: false },
+                    { t: "In order to", r: "In order to の後ろには動詞の原形が来ます。", c: false }
+                ],
+                hint: "Before のフォーマルな言い換え表現です。"
+            },
+            {
+                q: "The purpose of this meeting is ______ the budget for the next fiscal year.",
+                options: [
+                    { t: "discuss", r: "be動詞の補語として原形不定詞は使えません。", c: false },
+                    { t: "to discuss", r: "The purpose is to do（目的は～することだ）という標準的な形です。", c: true },
+                    { t: "discussed", r: "受動態になってしまいます。", c: false },
+                    { t: "discussion", r: "文法的に誤りです。", c: false }
+                ],
+                hint: "「目的は～することです」という文を作ります。"
+            },
+            {
+                q: "He had no trouble ______ the directions to the conference center.",
+                options: [
+                    { t: "follow", r: "have trouble の後ろに原形はきません。", c: false },
+                    { t: "to follow", r: "have trouble to do という形は使いません。", c: false },
+                    { t: "following", r: "have trouble (in) doing（～するのに苦労する）という慣用表現です。", c: true },
+                    { t: "followed", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "difficulty や trouble の後ろには何が続くでしょうか？"
+            },
+            {
+                q: "The seminar was delayed ______ technical difficulties with the projector.",
+                options: [
+                    { t: "because", r: "because は接続詞なので後ろにSVが必要です。", c: false },
+                    { t: "due", r: "due 単体では理由を表せません。", c: false },
+                    { t: "owing to", r: "owing to ～ は「～のために（理由）」を表す群前置詞です。", c: true },
+                    { t: "result", r: "result 単体では不適切です。", c: false }
+                ],
+                hint: "「～のために（理由）」を表す前置詞句を選びます。"
+            },
+            {
+                q: "We apologize for any inconvenience caused ______ the construction work.",
+                options: [
+                    { t: "by", r: "caused by ～（～によって引き起こされた）という受動態の動作主を表す by です。", c: true },
+                    { t: "to", r: "caused to とは言いません。", c: false },
+                    { t: "for", r: "caused for とは言いません。", c: false },
+                    { t: "on", r: "caused on とは言いません。", c: false }
+                ],
+                hint: "「～によって」引き起こされた、です。"
+            },
+            {
+                q: "The manager encourages all employees ______ part in the training sessions.",
+                options: [
+                    { t: "take", r: "encourage + 目的語 の後ろに原形はきません。", c: false },
+                    { t: "taking", r: "人が目的語に入る場合は to do です。", c: false },
+                    { t: "to take", r: "encourage + 目的語 + to do（Oに～するよう奨励する）の基本パターンです。", c: true },
+                    { t: "taken", r: "過去分詞は不適切です。", c: false }
+                ],
+                hint: "encourage 人 to do の形です。"
+            },
+            {
+                q: "______ receiving the award, Dr. Smith gave a heartfelt speech.",
+                options: [
+                    { t: "Upon", r: "Upon (または On) doing は「～するとすぐに」という意味を表します。", c: true },
+                    { t: "Unless", r: "Unless は接続詞です。", c: false },
+                    { t: "Whereas", r: "Whereas は接続詞です。", c: false },
+                    { t: "Within", r: "Within receiving とは言いません。", c: false }
+                ],
+                hint: "「～するとすぐに」を表す on/upon + ing の表現です。"
+            },
+            {
+                q: "The warranty covers defects in materials ______ a period of one year.",
+                options: [
+                    { t: "during", r: "数詞を含む具体的な期間の長さには通常 for を使います。", c: false },
+                    { t: "for", r: "for は「～の間（期間の長さ）」を表します。", c: true },
+                    { t: "while", r: "while は接続詞です。", c: false },
+                    { t: "within", r: "「1年間（継続）」を示す文脈では for が最も自然です。", c: false }
+                ],
+                hint: "期間の長さを表す前置詞です。"
+            },
+            {
+                q: "Mr. Evans is capable ______ leading the team to success.",
+                options: [
+                    { t: "with", r: "capable with とは言いません。", c: false },
+                    { t: "to", r: "able to do と混同しやすいですが、capable to do とは言いません。", c: false },
+                    { t: "of", r: "be capable of doing（～する能力がある）は重要イディオムです。", c: true },
+                    { t: "for", r: "capable for とは言いません。", c: false }
+                ],
+                hint: "able is to \"to\", capable is to ...?"
+            },
+            {
+                q: "They decided to postpone the event ______ the unexpected storm.",
+                options: [
+                    { t: "because", r: "because は接続詞です。", c: false },
+                    { t: "since", r: "since は接続詞です（理由の場合）。", c: false },
+                    { t: "on account of", r: "on account of ～ は「～のために（理由）」を表す群前置詞です。", c: true },
+                    { t: "even though", r: "even though は逆接の接続詞です。", c: false }
+                ],
+                hint: "「～が原因で」という意味の群前置詞です。"
+            },
+            {
+                q: "We are looking into the possibility ______ opening a new branch in Osaka.",
+                options: [
+                    { t: "of", r: "the possibility of doing（～するという可能性）という同格的な使い方です。", c: true },
+                    { t: "to", r: "possibility to do という形は一般的ではありません。", c: false },
+                    { t: "for", r: "直後に動名詞が来るなら of が最適です。", c: false },
+                    { t: "with", r: "possibility with とは言いません。", c: false }
+                ],
+                hint: "possibility の後ろに来る前置詞は決まっています。"
+            },
+            {
+                q: "Please refuel the car ______ returning it to the rental agency.",
+                options: [
+                    { t: "ago", r: "ago は文末に使います。", c: false },
+                    { t: "before", r: "before は前置詞としても使えます。before returning（返す前に）は正しいです。", c: true },
+                    { t: "front", r: "in front of なら場所を表せますが単独では使いません。", c: false },
+                    { t: "previously", r: "previously は副詞です。", c: false }
+                ],
+                hint: "「～する前に」です。"
+            },
+            {
+                q: "______ interviewing several candidates, she finally hired Mr. Brown.",
+                options: [
+                    { t: "After", r: "After interviewing（面接をした後で）という形で文脈に合います。", c: true },
+                    { t: "Since", r: "Since interviewing とすると「面接して以来」となり文脈に合いません。", c: false },
+                    { t: "While", r: "論理的に不自然です。", c: false },
+                    { t: "Until", r: "意味が通りません。", c: false }
+                ],
+                hint: "時系列を考えましょう。面接した、その後で雇った、です。"
+            },
+            {
+                q: "The manual provides instructions ______ how to assemble the furniture.",
+                options: [
+                    { t: "on", r: "instructions on ～ で「～に関する指示」という意味になります。", c: true },
+                    { t: "to", r: "instructions to how とは言いません。", c: false },
+                    { t: "at", r: "instructions at とは言いません。", c: false },
+                    { t: "with", r: "instructions with とは言いません。", c: false }
+                ],
+                hint: "「～に関する」指示、です。"
+            },
+            {
+                q: "The CEO expressed his gratitude ______ the employees for their hard work.",
+                options: [
+                    { t: "for", r: "gratitude for (something) ですが、ここでは人に対してなので不適切です。", c: false },
+                    { t: "to", r: "gratitude to (someone) for (something) の形です。", c: true },
+                    { t: "with", r: "gratitude with とは言いません。", c: false },
+                    { t: "at", r: "gratitude at とは言いません。", c: false }
+                ],
+                hint: "感謝を「誰に」向けているか、という方向です。"
+            },
+            {
+                q: "You should check the schedule ______ advance so you don't miss the train.",
+                options: [
+                    { t: "at", r: "at advance とは言いません。", c: false },
+                    { t: "in", r: "in advance（事前に）は頻出の熟語です。", c: true },
+                    { t: "to", r: "to advance とは言いません。", c: false },
+                    { t: "by", r: "by advance とは言いません。", c: false }
+                ],
+                hint: "「事前に」という熟語です。"
+            },
+            {
+                q: "The marketing team is considering ______ the launch date.",
+                options: [
+                    { t: "change", r: "consider の後ろに原形はきません。", c: false },
+                    { t: "to change", r: "consider は不定詞を目的語にとりません。", c: false },
+                    { t: "changing", r: "consider は動名詞（-ing）を目的語にとります。", c: true },
+                    { t: "changed", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "consider は suggest や finish と同じグループです。"
+            },
+            {
+                q: "Mr. Wilson is accustomed ______ working late hours.",
+                options: [
+                    { t: "to", r: "be accustomed to doing（～することに慣れている）という表現です。", c: true },
+                    { t: "for", r: "accustomed for とは言いません。", c: false },
+                    { t: "with", r: "accustomed with とは言いません。", c: false },
+                    { t: "by", r: "accustomed by とは言いません。", c: false }
+                ],
+                hint: "be used to doing と似た意味・用法の表現です。"
+            },
+            {
+                q: "______ finding a solution, we must first understand the problem thoroughly.",
+                options: [
+                    { t: "Because", r: "Because は接続詞です。", c: false },
+                    { t: "Before", r: "Before finding（見つける前に）理解しなければならない。文脈に合います。", c: true },
+                    { t: "Whereas", r: "Whereas は接続詞です。", c: false },
+                    { t: "Although", r: "Although は接続詞です。", c: false }
+                ],
+                hint: "解決策を見つける「前に」問題を理解する必要があります。"
+            },
+            // Vol 2
+            {
+                q: "The new regulations prohibited the company ______ selling its products overseas.",
+                options: [
+                    { t: "to", r: "prohibit は prohibit O to do の形をとりません。", c: false },
+                    { t: "from", r: "prohibit O from doing（Oが～するのを妨げる）という定型表現です。", c: true },
+                    { t: "with", r: "prohibit with とは言いません。", c: false },
+                    { t: "by", r: "prohibit by とは言いません。", c: false }
+                ],
+                hint: "「Oが～するのを妨げる」という動詞とセットになる前置詞です。"
+            },
+            {
+                q: "Mr. Harrison contributed significantly ______ the development of the new software.",
+                options: [
+                    { t: "to", r: "contribute to ～（～に貢献する）の to は前置詞です。", c: true },
+                    { t: "for", r: "contribute for とは言いません。", c: false },
+                    { t: "with", r: "contribute with とは言いません。", c: false },
+                    { t: "on", r: "contribute on とは言いません。", c: false }
+                ],
+                hint: "contribute の後ろに来る前置詞は決まっています。"
+            },
+            {
+                q: "The CEO is opposed ______ outsourcing the customer service department.",
+                options: [
+                    { t: "to", r: "be opposed to ～（～に反対している）の to は前置詞です。", c: true },
+                    { t: "with", r: "opposed with とは言いません。", c: false },
+                    { t: "for", r: "opposed for とは言いません。", c: false },
+                    { t: "against", r: "opposed という語は前置詞 to とセットで使います。", c: false }
+                ],
+                hint: "object to ～（～に反対する）と同じ前置詞を使います。"
+            },
+            {
+                q: "We regret ______ you that your application has not been successful.",
+                options: [
+                    { t: "inform", r: "regret の直後に原形はきません。", c: false },
+                    { t: "informing", r: "regret doing は「～したことを後悔する」という意味です。", c: false },
+                    { t: "to inform", r: "regret to do は「残念ながら～する」という定型表現です。", c: true },
+                    { t: "informed", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "不採用通知などの「残念ながら～する」という決まり文句です。"
+            },
+            {
+                q: "The scholarship enabled the student ______ his studies abroad.",
+                options: [
+                    { t: "continue", r: "enable O do の形はとりません。", c: false },
+                    { t: "continuing", r: "enable O doing の形はとりません。", c: false },
+                    { t: "to continue", r: "enable + O + to do（Oが～できるようにする）という基本構文です。", c: true },
+                    { t: "continued", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "allow 人 to do と同じ形をとる動詞です。"
+            },
+            {
+                q: "The manager insisted ______ checking every detail of the report himself.",
+                options: [
+                    { t: "on", r: "insist on ～（～することを強く主張する）という重要熟語です。", c: true },
+                    { t: "to", r: "insist to do という形は一般的ではありません。", c: false },
+                    { t: "in", r: "persist in と混同しやすいですが、insist は on をとります。", c: false },
+                    { t: "for", r: "insist for とは言いません。", c: false }
+                ],
+                hint: "「～の上に（on）」乗っかって主張するイメージです。"
+            },
+            {
+                q: "This specialized equipment is worth ______ in for the long term.",
+                options: [
+                    { t: "invest", r: "worth の後ろに原形はきません。", c: false },
+                    { t: "to invest", r: "worth to do という形は使いません。", c: false },
+                    { t: "investing", r: "be worth doing（～する価値がある）という慣用表現です。", c: true },
+                    { t: "invested", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "「～する価値がある」は be worth ... ing です。"
+            },
+            {
+                q: "Ms. Garcia is in charge ______ coordinating the international conference.",
+                options: [
+                    { t: "with", r: "in charge with とは言いません。", c: false },
+                    { t: "of", r: "be in charge of ～（～の担当である）は頻出熟語です。", c: true },
+                    { t: "to", r: "in charge to とは言いません。", c: false },
+                    { t: "for", r: "in charge for とは言いません。", c: false }
+                ],
+                hint: "「～の担当である」という熟語の前置詞です。"
+            },
+            {
+                q: "The client refused ______ the defective merchandise.",
+                options: [
+                    { t: "accept", r: "refuse の直後に原形はきません。", c: false },
+                    { t: "accepting", r: "refuse は動名詞を目的語にとりません。", c: false },
+                    { t: "to accept", r: "refuse to do（～することを拒む）という形をとります。", c: true },
+                    { t: "accepted", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "refuse は不定詞をとります。"
+            },
+            {
+                q: "He admitted ______ a mistake in the calculation.",
+                options: [
+                    { t: "make", r: "admit の後ろに原形はきません。", c: false },
+                    { t: "to make", r: "admit to do という不定詞の形はとりません。", c: false },
+                    { t: "making", r: "admit (to) doing（～したことを認める）という形をとります。", c: true },
+                    { t: "made", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "admit は「～したこと」を認めるので、動名詞をとります。"
+            },
+            {
+                q: "Would you mind ______ the window? It's getting hot in here.",
+                options: [
+                    { t: "open", r: "mind の後ろに原形はきません。", c: false },
+                    { t: "to open", r: "mind to do という形はとりません。", c: false },
+                    { t: "opening", r: "Would you mind doing? は丁寧な依頼の定番表現です。mind は動名詞をとります。", c: true },
+                    { t: "opened", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "mind は enjoy や finish と同じグループの動詞です。"
+            },
+            {
+                q: "The consultant helped us ______ the efficiency of our workflow.",
+                options: [
+                    { t: "improving", r: "help O doing という形は一般的ではありません。", c: false },
+                    { t: "improve", r: "help (O) (to) do では、to が省略されて原形不定詞になることがよくあります。", c: true },
+                    { t: "improved", r: "過去分詞はきません。", c: false },
+                    { t: "improvement", r: "名詞を続けると文型が崩れます。", c: false }
+                ],
+                hint: "help は後ろに to不定詞または「原形不定詞」をとることができます。"
+            },
+            {
+                q: "Please remind Mr. Sato ______ the meeting agenda before Friday.",
+                options: [
+                    { t: "submit", r: "remind O do の形はとりません。", c: false },
+                    { t: "submitting", r: "「これから提出するように言っておく」文脈では to do です。", c: false },
+                    { t: "to submit", r: "remind O to do（Oに～することを思い出させる）という形です。", c: true },
+                    { t: "submitted", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "「忘れずに～するように言う」という意味のときは不定詞を使います。"
+            },
+            {
+                q: "The new software interface is not yet familiar ______ most users.",
+                options: [
+                    { t: "with", r: "familiar with は「（人が）～に詳しい」という意味です。", c: false },
+                    { t: "to", r: "familiar to は「（物が）～によく知られている」という意味です。主語が software なのでこちらが正解です。", c: true },
+                    { t: "for", r: "familiar for とは言いません。", c: false },
+                    { t: "by", r: "familiar by とは言いません。", c: false }
+                ],
+                hint: "主語が「人」か「物」かで前置詞が変わります。"
+            },
+            {
+                q: "Employees are eligible ______ paid leave after three months of employment.",
+                options: [
+                    { t: "for", r: "be eligible for ～（～の資格がある）はTOEIC頻出です。", c: true },
+                    { t: "to", r: "be eligible to do なら正解ですが、空欄の後は名詞なので to は不適切です。", c: false },
+                    { t: "with", r: "eligible with とは言いません。", c: false },
+                    { t: "in", r: "eligible in とは言いません。", c: false }
+                ],
+                hint: "名詞が続く場合は for、動詞が続く場合は to do です。"
+            },
+            {
+                q: "The schedule is subject ______ change without prior notice.",
+                options: [
+                    { t: "of", r: "subject of ではありません。", c: false },
+                    { t: "to", r: "be subject to ～（～の影響を受けやすい、～する可能性がある）という表現です。", c: true },
+                    { t: "with", r: "subject with ではありません。", c: false },
+                    { t: "for", r: "subject for ではありません。", c: false }
+                ],
+                hint: "「変更される可能性がある」という決まり文句です。"
+            },
+            {
+                q: "The company hired more staff ______ the increased workload.",
+                options: [
+                    { t: "regardless of", r: "文脈に合いません。", c: false },
+                    { t: "instead of", r: "文脈に合いません。", c: false },
+                    { t: "because of", r: "because of（～のために）が文脈に合います。", c: true },
+                    { t: "in spite of", r: "逆接なので文脈に合いません。", c: false }
+                ],
+                hint: "「～が理由で」という意味の熟語を選びます。"
+            },
+            {
+                q: "I would like to congratulate you ______ your promotion.",
+                options: [
+                    { t: "for", r: "congratulate for と言いたくなりますが、正しくは on です。", c: false },
+                    { t: "on", r: "congratulate O on ～（Oの～を祝う）が正しいコロケーションです。", c: true },
+                    { t: "to", r: "congratulate to とは言いません。", c: false },
+                    { t: "with", r: "congratulate with とは言いません。", c: false }
+                ],
+                hint: "祝う対象の出来事（promotion）にくっつく前置詞は on です。"
+            },
+            {
+                q: "Nobody should be blamed ______ the technical error; it was unavoidable.",
+                options: [
+                    { t: "to", r: "blamed to とは言いません。", c: false },
+                    { t: "with", r: "blamed with とは言いません。", c: false },
+                    { t: "for", r: "blame O for ～（～のことでOを責める）という形です。", c: true },
+                    { t: "on", r: "人が主語（責められる側）なので for が適切です。", c: false }
+                ],
+                hint: "「～という理由で」責める、です。"
+            },
+            {
+                q: "He was accused ______ violating the company's code of conduct.",
+                options: [
+                    { t: "for", r: "accused for ではありません。", c: false },
+                    { t: "of", r: "accuse O of ～（Oを～という理由で訴える）が正しい形です。", c: true },
+                    { t: "with", r: "accused with とは言いません。", c: false },
+                    { t: "on", r: "accused on ではありません。", c: false }
+                ],
+                hint: "accuse A ... B の前置詞は remind A ... B と同じです。"
+            },
+            {
+                q: "The board does not approve ______ the proposed budget cuts.",
+                options: [
+                    { t: "to", r: "approve to とは言いません。", c: false },
+                    { t: "of", r: "approve of ～（～を良いと認める）という自動詞的な使い方です。", c: true },
+                    { t: "for", r: "approve for とは言いません。", c: false },
+                    { t: "on", r: "approve on とは言いません。", c: false }
+                ],
+                hint: "「～について良しとする」という意味で自動詞として使う場合の前置詞です。"
+            },
+            {
+                q: "Many small businesses will benefit ______ the new tax incentives.",
+                options: [
+                    { t: "of", r: "動詞として使う場合は of は使いません。", c: false },
+                    { t: "from", r: "benefit from ～（～から利益を得る）という自動詞の用法です。", c: true },
+                    { t: "to", r: "benefit to とは言いません。", c: false },
+                    { t: "with", r: "benefit with とは言いません。", c: false }
+                ],
+                hint: "「～から」恩恵を受ける、と考えれば自然と出てくる前置詞です。"
+            },
+            {
+                q: "All employees must comply ______ the safety regulations.",
+                options: [
+                    { t: "to", r: "comply to とは言いません。", c: false },
+                    { t: "with", r: "comply with ～（～を順守する）はTOEIC必須熟語です。", c: true },
+                    { t: "by", r: "comply by とは言いません。", c: false },
+                    { t: "on", r: "comply on とは言いません。", c: false }
+                ],
+                hint: "規則などを「守る」系の単語です。with を使います。"
+            },
+            {
+                q: "We cannot rely solely ______ data to make this decision.",
+                options: [
+                    { t: "in", r: "rely in とは言いません。", c: false },
+                    { t: "at", r: "rely at とは言いません。", c: false },
+                    { t: "on", r: "rely on（～に頼る）は基本熟語です。", c: true },
+                    { t: "with", r: "rely with とは言いません。", c: false }
+                ],
+                hint: "depend と同じ前置詞を使います。"
+            },
+            {
+                q: "The organization provides local communities ______ clean water.",
+                options: [
+                    { t: "to", r: "provide A with B の語順なので to は使いません。", c: false },
+                    { t: "for", r: "provide for は「～を養う」等の意味になります。", c: false },
+                    { t: "with", r: "provide A with B（AにBを供給する）の形です。", c: true },
+                    { t: "of", r: "provide of とは言いません。", c: false }
+                ],
+                hint: "provide A ... B の形です。A（人・場所）にB（物）を与えるときの前置詞です。"
+            },
+            {
+                q: "The project aims ______ reduce waste by 20% next year.",
+                options: [
+                    { t: "to", r: "aim to do（～することを目指す）という形です。", c: true },
+                    { t: "at", r: "aim at doing なら可能ですが、原形なので at は使えません。", c: false },
+                    { t: "for", r: "aim for + 名詞 なら可能ですが、原形動詞には繋がりません。", c: false },
+                    { t: "in", r: "aim in とは言いません。", c: false }
+                ],
+                hint: "aim at doing か aim to do か、空欄の後ろを見て判断します。"
+            },
+            {
+                q: "Please do not hesitate ______ us if you have any questions.",
+                options: [
+                    { t: "contact", r: "hesitate の後ろに原形はきません。", c: false },
+                    { t: "contacting", r: "hesitate contacting とは言いません。", c: false },
+                    { t: "to contact", r: "hesitate to do（～するのをためらう）は定番表現です。", c: true },
+                    { t: "contacted", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "「遠慮なくご連絡ください」の定番表現です。"
+            },
+            {
+                q: "He devoted his life ______ finding a cure for the disease.",
+                options: [
+                    { t: "to", r: "devote O to ～（Oを～に捧げる）の to は前置詞です。動名詞 finding が続きます。", c: true },
+                    { t: "for", r: "devote for とは言いません。", c: false },
+                    { t: "in", r: "devote in とは言いません。", c: false },
+                    { t: "with", r: "devote with とは言いません。", c: false }
+                ],
+                hint: "「～に対して」捧げる、という方向性を表す前置詞です。"
+            },
+            {
+                q: "Access ______ the conference room is restricted to authorized personnel.",
+                options: [
+                    { t: "at", r: "access at とは言いません。", c: false },
+                    { t: "to", r: "名詞として使われる場合は access to ～（～へのアクセス）となります。", c: true },
+                    { t: "with", r: "access with とは言いません。", c: false },
+                    { t: "(no word)", r: "名詞の access は自動詞的に使えないため to が必要です。", c: false }
+                ],
+                hint: "access は名詞の場合は前置詞が必要です。"
+            },
+            {
+                q: "We succeeded ______ increasing sales by 15% this quarter.",
+                options: [
+                    { t: "to", r: "succeed to は「～を継承する」という意味になります。", c: false },
+                    { t: "in", r: "succeed in doing（～することに成功する）が正解です。", c: true },
+                    { t: "at", r: "succeed at より in doing が一般的です。", c: false },
+                    { t: "on", r: "succeed on とは言いません。", c: false }
+                ],
+                hint: "「～という分野・行為において」成功する、というイメージです。"
+            },
+             // Vol 3
+            {
+                q: "All staff members are expected to adhere strictly ______ the safety guidelines.",
+                options: [
+                    { t: "with", r: "adhere with とは言いません。", c: false },
+                    { t: "to", r: "adhere to ～（～を固守する）は comply with, abide by と並ぶ重要表現です。", c: true },
+                    { t: "by", r: "adhere by とは言いません。", c: false },
+                    { t: "on", r: "adhere on とは言いません。", c: false }
+                ],
+                hint: "「くっつく（接着する）」イメージの語です。comply with と区別しましょう。"
+            },
+            {
+                q: "The marketing strategy focuses ______ engaging with customers through social media.",
+                options: [
+                    { t: "to", r: "focus to とは言いません。", c: false },
+                    { t: "at", r: "focus at とは通常言いません。", c: false },
+                    { t: "on", r: "focus on ～（～に焦点を合わせる）は頻出です。", c: true },
+                    { t: "in", r: "focus in とは言いません。", c: false }
+                ],
+                hint: "意識を「～の上に」置くイメージの前置詞です。"
+            },
+            {
+                q: "We attribute our success ______ the hard work and dedication of our team.",
+                options: [
+                    { t: "for", r: "attribute A for B とは言いません。", c: false },
+                    { t: "to", r: "attribute A to B（AはBのおかげだと考える）という重要表現です。", c: true },
+                    { t: "with", r: "attribute A with B とは言いません。", c: false },
+                    { t: "by", r: "attribute A by B とは言いません。", c: false }
+                ],
+                hint: "「結果（A）を原因（B）への矢印で結びつける」イメージです。"
+            },
+            {
+                q: "Please ______ from using mobile phones during the performance.",
+                options: [
+                    { t: "prevent", r: "prevent from と自動詞的には使いません。", c: false },
+                    { t: "refrain", r: "refrain from doing（～するのを控える）は頻出の自動詞表現です。", c: true },
+                    { t: "avoid", r: "avoid は他動詞なので前置詞 from は不要です。", c: false },
+                    { t: "stop", r: "stop from using と自動詞的に使う形は一般的ではありません。", c: false }
+                ],
+                hint: "「控える」という意味の自動詞です。"
+            },
+            {
+                q: "The company is committed to ______ its environmental impact.",
+                options: [
+                    { t: "reduce", r: "be committed to の to は前置詞です。", c: false },
+                    { t: "reducing", r: "be committed to doing（～することに尽力する）です。", c: true },
+                    { t: "reduction", r: "reduction its impact と目的語をつなげることはできません。", c: false },
+                    { t: "reduced", r: "過去分詞は続きません。", c: false }
+                ],
+                hint: "devoted to, dedicated to と同様、この to は前置詞です。"
+            },
+            {
+                q: "The figures account ______ approximately 30% of the total revenue.",
+                options: [
+                    { t: "to", r: "account to は「（人）に説明・報告する」という意味です。", c: false },
+                    { t: "for", r: "account for ～（～（割合）を占める、～の原因を説明する）は頻出です。", c: true },
+                    { t: "with", r: "account with とは言いません。", c: false },
+                    { t: "of", r: "account of とは言いません。", c: false }
+                ],
+                hint: "割合を「占める」、または理由を「説明する」熟語です。"
+            },
+            {
+                q: "Ms. Chang is ______ to accept the offer because of the relocation requirement.",
+                options: [
+                    { t: "hesitate", r: "hesitate は動詞です。", c: false },
+                    { t: "reluctance", r: "reluctance は名詞です。", c: false },
+                    { t: "reluctant", r: "be reluctant to do（～するのに気が進まない）という形容詞の語法です。", c: true },
+                    { t: "reluctantly", r: "副詞は be動詞の補語になりません。", c: false }
+                ],
+                hint: "willing to do（～する意思がある）の反対語に近い形容詞です。"
+            },
+            {
+                q: "He failed ______ the deadline for the project submission.",
+                options: [
+                    { t: "meeting", r: "fail は目的語に動名詞をとりません。", c: false },
+                    { t: "to meet", r: "fail to do（～し損なう、～できない）という基本表現です。", c: true },
+                    { t: "meet", r: "fail の直後に原形はきません。", c: false },
+                    { t: "met", r: "過去形・過去分詞は続きません。", c: false }
+                ],
+                hint: "fail は不定詞をとる動詞です。「～できない」という意味になります。"
+            },
+            {
+                q: "This software is not compatible ______ the older operating system.",
+                options: [
+                    { t: "to", r: "compatible to とは言いません。", c: false },
+                    { t: "with", r: "compatible with ～（～と互換性がある）はIT関連で頻出です。", c: true },
+                    { t: "for", r: "compatible for とは言いません。", c: false },
+                    { t: "at", r: "compatible at とは言いません。", c: false }
+                ],
+                hint: "「～と共に」うまくやっていける、というイメージです。"
+            },
+            {
+                q: "We urge all employees ______ the safety seminar next week.",
+                options: [
+                    { t: "attend", r: "urge O do の形はとりません。", c: false },
+                    { t: "attending", r: "urge O doing の形はとりません。", c: false },
+                    { t: "to attend", r: "urge O to do（Oに～するよう強く促す）です。", c: true },
+                    { t: "attended", r: "過去分詞は不適切です。", c: false }
+                ],
+                hint: "「人に～するように促す」動詞のパターンです。"
+            },
+            {
+                q: "The construction noise interfered ______ our ability to concentrate.",
+                options: [
+                    { t: "on", r: "interfere on とは言いません。", c: false },
+                    { t: "to", r: "interfere to とは言いません。", c: false },
+                    { t: "with", r: "interfere with ～（～を邪魔する）という熟語です。", c: true },
+                    { t: "in", r: "「（能力や動作を）妨げる」という文脈では with が一般的です。", c: false }
+                ],
+                hint: "妨害を表す熟語です。"
+            },
+            {
+                q: "The team collaborated ______ the design department to create the brochure.",
+                options: [
+                    { t: "with", r: "collaborate with （人・部署）が正解です。", c: true },
+                    { t: "to", r: "collaborate to は使いません。", c: false },
+                    { t: "of", r: "collaborate of とは言いません。", c: false },
+                    { t: "at", r: "collaborate at とは言いません。", c: false }
+                ],
+                hint: "「誰と」協力するかを表す前置詞です。"
+            },
+            {
+                q: "There is a significant discrepancy ______ the projected sales and the actual figures.",
+                options: [
+                    { t: "among", r: "among は通常3つ以上のものの間を表します。", c: false },
+                    { t: "between", r: "discrepancy between A and B（AとBの間の不一致）です。", c: true },
+                    { t: "from", r: "discrepancy from とは言いません。", c: false },
+                    { t: "with", r: "discrepancy with とは言いません。", c: false }
+                ],
+                hint: "「AとBの間」の不一致です。"
+            },
+            {
+                q: "The internship program is designed to expose students ______ real-world business challenges.",
+                options: [
+                    { t: "with", r: "expose A with B とは言いません。", c: false },
+                    { t: "to", r: "expose A to B（AをBにさらす、触れさせる）という表現です。", c: true },
+                    { t: "for", r: "expose A for B とは言いません。", c: false },
+                    { t: "on", r: "expose A on B とは言いません。", c: false }
+                ],
+                hint: "対象に「直面させる」方向性の前置詞です。"
+            },
+            {
+                q: "We anticipate ______ increased demand during the holiday season.",
+                options: [
+                    { t: "see", r: "anticipate の後ろに原形はきません。", c: false },
+                    { t: "to see", r: "anticipate は通常 to不定詞を目的語にとりません。", c: false },
+                    { t: "seeing", r: "anticipate は動名詞（-ing）を目的語にとる動詞です。", c: true },
+                    { t: "seen", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "anticipate はメガフェプス（動名詞をとる動詞）の仲間です。"
+            },
+            {
+                q: "Please dispose ______ all waste materials in the designated bins.",
+                options: [
+                    { t: "with", r: "dispose with とは言いません。", c: false },
+                    { t: "off", r: "dispose off と言いたくなりますが、正しくは of です。", c: false },
+                    { t: "of", r: "dispose of ～（～を処分する）は頻出の群動詞です。", c: true },
+                    { t: "away", r: "dispose away とは言いません。", c: false }
+                ],
+                hint: "「～を取り除く」系の動詞でよく使われる前置詞です。"
+            },
+            {
+                q: "The salary will be commensurate ______ your experience and qualifications.",
+                options: [
+                    { t: "to", r: "commensurate to とは通常言いません。", c: false },
+                    { t: "with", r: "commensurate with ～（～に見合っている）は求人広告でよく出る上級表現です。", c: true },
+                    { t: "for", r: "commensurate for とは言いません。", c: false },
+                    { t: "on", r: "commensurate on とは言いません。", c: false }
+                ],
+                hint: "「～と一緒に（釣り合って）」というイメージです。"
+            },
+            {
+                q: "Ms. Davids advised us ______ the contract carefully before signing.",
+                options: [
+                    { t: "review", r: "advise O do の形はとりません。", c: false },
+                    { t: "reviewing", r: "目的語（us）がある場合は advise O to do になります。", c: false },
+                    { t: "to review", r: "advise O to do（Oに～するように助言する）が正解です。", c: true },
+                    { t: "reviewed", r: "過去分詞は不適切です。", c: false }
+                ],
+                hint: "tell 人 to do, ask 人 to do と同じ形です。"
+            },
+            {
+                q: "______ accordance with the new policy, all receipts must be submitted digitally.",
+                options: [
+                    { t: "In", r: "In accordance with ～（～に従って）というフォーマルな定型表現です。", c: true },
+                    { t: "At", r: "At accordance with とは言いません。", c: false },
+                    { t: "On", r: "On accordance with とは言いません。", c: false },
+                    { t: "With", r: "With accordance with とは言いません。", c: false }
+                ],
+                hint: "according to のフォーマルな言い換えです。"
+            },
+            {
+                q: "He participated ______ the workshop to improve his negotiation skills.",
+                options: [
+                    { t: "at", r: "participate at とは言いません。", c: false },
+                    { t: "on", r: "participate on とは言いません。", c: false },
+                    { t: "in", r: "participate in ～（～に参加する）は基本熟語です。", c: true },
+                    { t: "to", r: "participate to とは言いません。", c: false }
+                ],
+                hint: "活動の「中に」入っていくイメージです。"
+            },
+            {
+                q: "Effective communication is key ______ building strong client relationships.",
+                options: [
+                    { t: "to", r: "key to ～（～への鍵）の to は前置詞です。名詞 building につながります。", c: true },
+                    { t: "for", r: "key for よりも key to が最も慣用的なコロケーションです。", c: false },
+                    { t: "of", r: "「秘訣」の意味では to が一般的です。", c: false },
+                    { t: "with", r: "key with とは言いません。", c: false }
+                ],
+                hint: "「解決への」鍵、という方向性を表す前置詞 to です。"
+            },
+            {
+                q: "We strive ______ the highest level of customer satisfaction.",
+                options: [
+                    { t: "providing", r: "strive providing と動名詞を続ける形はとりません。", c: false },
+                    { t: "to provide", r: "strive to do（～しようと懸命に努力する）という表現です。", c: true },
+                    { t: "provide", r: "strive provide とは言いません。", c: false },
+                    { t: "provided", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "「～するために」努力する、です。"
+            },
+            {
+                q: "The outdoor event will take place ______ of the weather conditions.",
+                options: [
+                    { t: "regardless", r: "regardless of ～（～に関わらず）という群前置詞です。", c: true },
+                    { t: "regarding", r: "regarding は of はつきません。", c: false },
+                    { t: "regard", r: "regard of とは言いません。", c: false },
+                    { t: "regards", r: "regards of とは言いません。", c: false }
+                ],
+                hint: "irrespective of と同じ意味です。"
+            },
+            {
+                q: "Mr. Roberts spoke on ______ of the entire department at the ceremony.",
+                options: [
+                    { t: "benefit", r: "on benefit of とは言いません。", c: false },
+                    { t: "behalf", r: "on behalf of ～（～を代表して）はスピーチや公式文書で頻出です。", c: true },
+                    { t: "favor", r: "on favor of とは言いません。", c: false },
+                    { t: "place", r: "on place of とは言いません。", c: false }
+                ],
+                hint: "「～を代表して」という意味の熟語です。"
+            },
+            {
+                q: "We plan to compensate you ______ the travel expenses incurred.",
+                options: [
+                    { t: "to", r: "compensate to とは言いません。", c: false },
+                    { t: "with", r: "「（損失や費用）を埋め合わせる」対象を示すには for を使います。", c: false },
+                    { t: "for", r: "compensate (人) for (損失・費用)（～の埋め合わせをする）が正しい形です。", c: true },
+                    { t: "on", r: "compensate on とは言いません。", c: false }
+                ],
+                hint: "pay for, apologize for のように、理由・対価を表す for です。"
+            },
+            {
+                q: "The company decided to invest ______ new technology to boost productivity.",
+                options: [
+                    { t: "on", r: "invest on とは通常言いません。", c: false },
+                    { t: "to", r: "invest to とは言いません。", c: false },
+                    { t: "in", r: "invest in ～（～に投資する）が正しいコロケーションです。", c: true },
+                    { t: "for", r: "invest for とは言いません。", c: false }
+                ],
+                hint: "事業や分野の「中に」資金を投入するイメージです。"
+            },
+            {
+                q: "______ to the meeting, please review the attached agenda.",
+                options: [
+                    { t: "Prior", r: "Prior to ～（～より前に）は before の硬い表現です。", c: true },
+                    { t: "Advanced", r: "Advanced to とは言いません。", c: false },
+                    { t: "Previous", r: "ビジネス文書では Prior to の方が圧倒的に一般的です。", c: false },
+                    { t: "Forward", r: "Forward to とは言いません。", c: false }
+                ],
+                hint: "「～より優先して、前に」という意味の形容詞由来の前置詞句です。"
+            },
+            {
+                q: "I would like to remind you to ______ your password regularly.",
+                options: [
+                    { t: "renew", r: "remind you to do という不定詞の構造の中なので、原形の renew が正解です。", c: true },
+                    { t: "renewing", r: "remind O to do の to は不定詞の to です。", c: false },
+                    { t: "renewal", r: "動詞が必要です。", c: false },
+                    { t: "renews", r: "原形である必要があります。", c: false }
+                ],
+                hint: "文構造を見抜きましょう。remind [人] [to do] です。"
+            },
+            {
+                q: "We are seeking a candidate who specializes ______ corporate law.",
+                options: [
+                    { t: "on", r: "specialize on とは言いません。", c: false },
+                    { t: "at", r: "specialize at とは言いません。", c: false },
+                    { t: "in", r: "specialize in ～（～を専門にする）は必須熟語です。", c: true },
+                    { t: "with", r: "specialize with とは言いません。", c: false }
+                ],
+                hint: "専門分野という「領域・範囲」を表す前置詞です。"
+            },
+            {
+                q: "The heavy rain resulted ______ the cancellation of the outdoor concert.",
+                options: [
+                    { t: "from", r: "result from は「～から生じる（結果←原因）」です。", c: false },
+                    { t: "in", r: "result in ～（～という結果になる（原因→結果））が正解です。", c: true },
+                    { t: "to", r: "result to とは言いません。", c: false },
+                    { t: "of", r: "result of は「～の結果（名詞）」です。", c: false }
+                ],
+                hint: "「結果として～の中に入っていく（in）」か、「～から出てくる（from）」か。"
+            },
+            // Vol 4 (New)
+            {
+                q: "The team is dedicated ______ providing exceptional customer service.",
+                options: [
+                    { t: "to", r: "be dedicated to doing（～することに献身する）は be committed to doing と並ぶ重要表現です。to は前置詞です。", c: true },
+                    { t: "for", r: "dedicated for とは通常言いません。", c: false },
+                    { t: "with", r: "dedicated with とは言いません。", c: false },
+                    { t: "at", r: "dedicated at とは言いません。", c: false }
+                ],
+                hint: "committed to と同じ意味・用法の表現です。"
+            },
+            {
+                q: "We need to look ______ the cause of the network error immediately.",
+                options: [
+                    { t: "into", r: "look into（～を調査する）という意味の熟語です。investigate と同義です。", c: true },
+                    { t: "up", r: "look up は「（辞書などで）調べる、見上げる」という意味です。", c: false },
+                    { t: "after", r: "look after は「世話をする」という意味です。", c: false },
+                    { t: "for", r: "look for は「探す」という意味ですが、「原因を究明する（調査する）」文脈では look into が適切です。", c: false }
+                ],
+                hint: "「中を覗き込んで」調査するイメージです。"
+            },
+            {
+                q: "The printer has run ______ of paper again.",
+                options: [
+                    { t: "out", r: "run out of（～を使い果たす、～を切らす）は頻出のイディオムです。", c: true },
+                    { t: "away", r: "run away は「逃げる」です。", c: false },
+                    { t: "off", r: "run off は「走り去る、印刷する」などの意味があります。", c: false },
+                    { t: "over", r: "run over は「（車が）ひく、あふれる」などの意味があります。", c: false }
+                ],
+                hint: "「外に出て行って」無くなるイメージです。"
+            },
+            {
+                q: "It is difficult to keep ______ with the rapid changes in technology.",
+                options: [
+                    { t: "up", r: "keep up with（～についていく、遅れずについていく）は重要熟語です。", c: true },
+                    { t: "on", r: "keep on は「～し続ける」です。", c: false },
+                    { t: "in", r: "keep in with なら「～と仲良くする」ですが、文脈に合いません。", c: false },
+                    { t: "out", r: "keep out は「締め出す」です。", c: false }
+                ],
+                hint: "ペースを落とさず「上げて（up）」ついていくイメージです。"
+            },
+            {
+                q: "We must reduce costs by cutting ______ on unnecessary expenses.",
+                options: [
+                    { t: "down", r: "cut down on（～を減らす、削減する）は reduce の言い換えとして頻出です。", c: true },
+                    { t: "off", r: "cut off は「切り離す、中断する」です。", c: false },
+                    { t: "out", r: "cut out は「切り抜く、やめる」です。", c: false },
+                    { t: "back", r: "cut back on とも言いますが、選択肢に back がないため down が正解です。", c: false }
+                ],
+                hint: "「下げて（down）」減らすイメージです。"
+            },
+            {
+                q: "The management decided to do ______ with the old dress code policy.",
+                options: [
+                    { t: "away", r: "do away with（～を廃止する）は abolish と同義の重要熟語です。", c: true },
+                    { t: "out", r: "do out とは言いません。", c: false },
+                    { t: "off", r: "do off とは言いません。", c: false },
+                    { t: "without", r: "do without は「～なしで済ます」という意味です。", c: false }
+                ],
+                hint: "「遠くへ（away）」やってしまう＝廃止する。"
+            },
+            {
+                q: "Ms. Kato gets ______ well with all her colleagues.",
+                options: [
+                    { t: "along", r: "get along with（～と仲良くやっていく）は職場の人間関係を表すのによく使われます。", c: true },
+                    { t: "over", r: "get over は「乗り越える、回復する」です。", c: false },
+                    { t: "through", r: "get through は「通り抜ける、連絡がつく」です。", c: false },
+                    { t: "by", r: "get by は「なんとかやっていく」です。", c: false }
+                ],
+                hint: "一緒に「長い道のりを進む」イメージです。"
+            },
+            {
+                q: "Many employees look ______ to the manager for her leadership skills.",
+                options: [
+                    { t: "up", r: "look up to（～を尊敬する）は respect と同義です。", c: true },
+                    { t: "down", r: "look down on は「見下す」です。", c: false },
+                    { t: "forward", r: "look forward to は「楽しみに待つ」です。", c: false },
+                    { t: "out", r: "look out for は「気をつける」です。", c: false }
+                ],
+                hint: "「見上げる」＝尊敬する。"
+            },
+            {
+                q: "I cannot put ______ with this noise any longer; I need to focus.",
+                options: [
+                    { t: "up", r: "put up with（～を我慢する）は tolerate や endure の言い換えです。", c: true },
+                    { t: "out", r: "put out は「（火を）消す、迷惑をかける」です。", c: false },
+                    { t: "off", r: "put off は「延期する」です。", c: false },
+                    { t: "on", r: "put on は「着る、開催する」です。", c: false }
+                ],
+                hint: "自分のところに「置いて（put）」「上げて（up）」おく＝我慢する。"
+            },
+            {
+                q: "You should take ______ of the early bird discount for the conference.",
+                options: [
+                    { t: "advantage", r: "take advantage of（～を利用する、活用する）は必須表現です。", c: true },
+                    { t: "care", r: "take care of は「世話をする」です。", c: false },
+                    { t: "part", r: "take part in は「参加する」です。", c: false },
+                    { t: "place", r: "take place は「開催される」です。", c: false }
+                ],
+                hint: "有利な点（advantage）を取る＝利用する。"
+            },
+            {
+                q: "We failed to come ______ with a viable solution during the meeting.",
+                options: [
+                    { t: "up", r: "come up with（～を思いつく、提案する）はアイデアや解決策について話す際によく使われます。", c: true },
+                    { t: "down", r: "come down with は「（病気）にかかる」です。", c: false },
+                    { t: "out", r: "come out は「発売される、明らかになる」です。", c: false },
+                    { t: "in", r: "come in は「入る」です。", c: false }
+                ],
+                hint: "アイデアが頭に「浮かび上がる（up）」イメージです。"
+            },
+            {
+                q: "Please sign ______ for the workshop by the end of the day.",
+                options: [
+                    { t: "up", r: "sign up for（～に申し込む、登録する）は register for と同義です。", c: true },
+                    { t: "in", r: "sign in は「署名して入館する、ログインする」です。", c: false },
+                    { t: "out", r: "sign out は「署名して退館する、ログアウトする」です。", c: false },
+                    { t: "off", r: "sign off は「署名して終える、承認する」です。", c: false }
+                ],
+                hint: "署名してリストに名前を「上げる（up）」＝登録する。"
+            },
+            {
+                q: "The CEO is concerned ______ the declining sales figures in the Asian market.",
+                options: [
+                    { t: "about", r: "be concerned about は「～について心配している」という意味です。", c: true },
+                    { t: "with", r: "be concerned with は「～に関心がある、～に関係している」という意味で、心配の文脈では使いません。", c: false },
+                    { t: "to", r: "concerned to とは言いません。", c: false },
+                    { t: "at", r: "concerned at も使われますが、about が最も一般的です。", c: false }
+                ],
+                hint: "「～について」心配する、です。"
+            },
+            {
+                q: "We were disappointed ______ the quality of the catering service.",
+                options: [
+                    { t: "with", r: "be disappointed with（～に失望する）が正解です。in も使われます。", c: true },
+                    { t: "to", r: "disappointed to do なら「～してがっかりした」ですが、名詞の前にはきません。", c: false },
+                    { t: "for", r: "disappointed for とは言いません。", c: false },
+                    { t: "on", r: "disappointed on とは言いません。", c: false }
+                ],
+                hint: "be satisfied with と同じ前置詞を使います。"
+            },
+            {
+                q: "The committee is satisfied ______ the progress of the construction.",
+                options: [
+                    { t: "with", r: "be satisfied with（～に満足している）は基本熟語です。", c: true },
+                    { t: "at", r: "satisfied at とは言いません。", c: false },
+                    { t: "to", r: "satisfied to do なら可ですが、名詞の前にはきません。", c: false },
+                    { t: "on", r: "satisfied on とは言いません。", c: false }
+                ],
+                hint: "「～と一緒に（with）いて満足」というイメージです。"
+            },
+            {
+                q: "This region is known ______ its high-quality tea production.",
+                options: [
+                    { t: "for", r: "be known for ～（～という理由で知られている）です。", c: true },
+                    { t: "as", r: "be known as ～（～という資格・名前として知られている）です。「茶生産として知られている」では不自然です。", c: false },
+                    { t: "to", r: "be known to ～（～（人）に知られている）です。", c: false },
+                    { t: "by", r: "be known by ～（～によって判断される）です。", c: false }
+                ],
+                hint: "有名な「理由」を表す前置詞です。"
+            },
+            {
+                q: "The report consists ______ three main sections: introduction, analysis, and conclusion.",
+                options: [
+                    { t: "of", r: "consist of（～から成る、構成される）は受動態にしない動詞句として重要です。", c: true },
+                    { t: "in", r: "consist in は「（本質が）～にある」という意味です。", c: false },
+                    { t: "with", r: "consist with は「～と一致する」という意味です。", c: false },
+                    { t: "from", r: "consist from とは言いません（be composed of / be made up of と混同しないように）。", c: false }
+                ],
+                hint: "構成要素を表す of です。"
+            },
+            {
+                q: "Success in this industry depends largely ______ customer satisfaction.",
+                options: [
+                    { t: "on", r: "depend on（～次第である、～に依存する）は rely on と同様 on をとります。", c: true },
+                    { t: "to", r: "depend to とは言いません。", c: false },
+                    { t: "with", r: "depend with とは言いません。", c: false },
+                    { t: "at", r: "depend at とは言いません。", c: false }
+                ],
+                hint: "「～の上に（on）」ぶら下がっているイメージです。"
+            },
+            {
+                q: "Despite the challenges, he persisted ______ pursuing his goals.",
+                options: [
+                    { t: "in", r: "persist in doing（～することを固執する、やり通す）です。insist on と区別しましょう。", c: true },
+                    { t: "on", r: "persist on とは言いません。", c: false },
+                    { t: "with", r: "persist with も使われますが、in doing がTOEICでは一般的です。", c: false },
+                    { t: "to", r: "persist to とは言いません。", c: false }
+                ],
+                hint: "insist は on ですが、persist は...？"
+            },
+            {
+                q: "Mr. Tanaka was charged ______ overseeing the merger negotiations.",
+                options: [
+                    { t: "with", r: "be charged with ～（～の任務を負わされる）という表現です。be responsible for と同義です。", c: true },
+                    { t: "for", r: "charged for は「～の代金を請求される」という意味になります。", c: false },
+                    { t: "to", r: "charged to とは言いません。", c: false },
+                    { t: "on", r: "charged on とは言いません。", c: false }
+                ],
+                hint: "「～という任務を持って」いるイメージです。"
+            },
+            {
+                q: "This photo reminds me ______ my time working in the London branch.",
+                options: [
+                    { t: "of", r: "remind A of B（AにBを思い出させる）です。", c: true },
+                    { t: "about", r: "remind A about B も使われますが、過去の記憶を呼び起こす場合は of が自然です。", c: false },
+                    { t: "to", r: "remind A to do なら「忘れずに～するように言う」です。", c: false },
+                    { t: "for", r: "remind for とは言いません。", c: false }
+                ],
+                hint: "inform A of B, accuse A of B と同じ前置詞です。"
+            },
+            {
+                q: "We must prevent unauthorized users ______ accessing the database.",
+                options: [
+                    { t: "from", r: "prevent O from doing（Oが～するのを妨げる）は prohibit, stop, keep と並ぶ重要表現です。", c: true },
+                    { t: "to", r: "prevent O to do とは言いません。", c: false },
+                    { t: "with", r: "prevent with とは言いません。", c: false },
+                    { t: "by", r: "prevent by とは言いません。", c: false }
+                ],
+                hint: "「～することから（from）」遠ざけるイメージです。"
+            },
+            {
+                q: "It is often difficult to distinguish a high-quality replica ______ the original.",
+                options: [
+                    { t: "from", r: "distinguish A from B（AとBを区別する）です。tell A from B も同様です。", c: true },
+                    { t: "to", r: "distinguish A to B とは言いません。", c: false },
+                    { t: "with", r: "distinguish A with B とは言いません。", c: false },
+                    { t: "between", r: "distinguish between A and B なら正解ですが、空欄の後ろは the original（B）のみなので from が適切です。", c: false }
+                ],
+                hint: "「～から」区別する、です。"
+            },
+            {
+                q: "The new policy will be put into effect ______ of next month.",
+                options: [
+                    { t: "as", r: "as of（～付けで、～以降）は契約書や公式文書で頻出です。", c: true },
+                    { t: "in", r: "in of とは言いません。", c: false },
+                    { t: "on", r: "on of とは言いません。", c: false },
+                    { t: "by", r: "by of とは言いません。", c: false }
+                ],
+                hint: "日付や期間の起点を表す熟語です。"
+            },
+            {
+                q: "In ______ of the bad weather, the event was cancelled.",
+                options: [
+                    { t: "light", r: "In light of（～を考慮して、～の観点から）は because of のフォーマルな表現として使われます。", c: true },
+                    { t: "spite", r: "In spite of は「～にも関わらず」という逆接なので、中止された理由にはなりません。", c: false },
+                    { t: "case", r: "In case of は「～の場合には（備えて）」です。", c: false },
+                    { t: "front", r: "In front of は「～の前に」です。", c: false }
+                ],
+                hint: "「～の明かりに照らして考えると」＝～を考慮して、です。"
+            },
+            {
+                q: "He is regarded ______ one of the leading experts in the field.",
+                options: [
+                    { t: "as", r: "regard A as B（AをBとみなす）は必須構文です。think of A as B, look upon A as B も同様。", c: true },
+                    { t: "for", r: "regard for とは言いません。", c: false },
+                    { t: "to", r: "regard to は with regard to の形で使います。", c: false },
+                    { t: "like", r: "regard A like B と言うこともありますが、as が最も標準的です。", c: false }
+                ],
+                hint: "「～として」みなす、です。"
+            },
+            {
+                q: "Please fill ______ the application form completely.",
+                options: [
+                    { t: "out", r: "fill out（記入する）は書類全体を埋める場合に使います。fill in は特定の空欄を埋める場合に使われますが、どちらも正解になり得ます。ここでは out が選択肢にあるため正解です。", c: true },
+                    { t: "up", r: "fill up は「満タンにする（液体など）」です。", c: false },
+                    { t: "over", r: "fill over とは言いません。", c: false },
+                    { t: "on", r: "fill on とは言いません。", c: false }
+                ],
+                hint: "書類を隅々まで書いて「外に出す」イメージの out、または空欄に「入れる」 in です。"
+            },
+            {
+                q: "The meeting was called ______ due to the chairman's illness.",
+                options: [
+                    { t: "off", r: "call off（中止する）は cancel と同義です。", c: true },
+                    { t: "out", r: "call out は「大声で呼ぶ、召集する」です。", c: false },
+                    { t: "back", r: "call back は「折り返し電話する」です。", c: false },
+                    { t: "away", r: "call away は「呼び出す」です。", c: false }
+                ],
+                hint: "スイッチを「切る（off）」イメージで中止する、です。"
+            },
+            {
+                q: "I would like to point ______ that the deadline has already passed.",
+                options: [
+                    { t: "out", r: "point out（指摘する）は note や mention と同様に使われます。", c: true },
+                    { t: "up", r: "point up は「強調する」ですが、point out の方が一般的です。", c: false },
+                    { t: "at", r: "point at は「～を指さす（物理的）」です。", c: false },
+                    { t: "on", r: "point on とは言いません。", c: false }
+                ],
+                hint: "指で「外へ（out）」示して指摘するイメージです。"
+            },
+            {
+                q: "We will carry ______ the survey next week.",
+                options: [
+                    { t: "out", r: "carry out（実行する）は conduct や perform と同義の重要熟語です。", c: true },
+                    { t: "on", r: "carry on は「続ける」です。", c: false },
+                    { t: "over", r: "carry over は「持ち越す」です。", c: false },
+                    { t: "away", r: "carry away は「運び去る、夢中にさせる」です。", c: false }
+                ],
+                hint: "外へ「運び出す（out）」＝実行する。"
+            },
+            // Vol 5 (New Expansion)
+            {
+                q: "The board of directors unanimously agreed ______ the proposal.",
+                options: [
+                    { t: "to", r: "agree to ～（提案など）に同意する。意見や計画に対して使います。", c: true },
+                    { t: "with", r: "agree with ～ は通常「人」や「意見の内容」に対して使います。", c: false },
+                    { t: "on", r: "agree on ～ は「～（議題）について合意する」です。", c: false },
+                    { t: "at", r: "agree at とは言いません。", c: false }
+                ],
+                hint: "「（提案・計画）に対して」同意する、という方向性です。"
+            },
+            {
+                q: "We are looking forward ______ hearing from you soon.",
+                options: [
+                    { t: "to", r: "look forward to の後ろには名詞または動名詞が来ます。to hearing が正解です。", c: false },
+                    { t: "to hearing", r: "look forward to ～ing（～を楽しみに待つ）はTOEIC最頻出の引っかけ問題です。この to は前置詞です。", c: true },
+                    { t: "hearing", r: "to が抜けています。", c: false },
+                    { t: "hear", r: "to hear とは言いません。", c: false }
+                ],
+                hint: "look forward to の to は前置詞です。"
+            },
+            {
+                q: "The manager turned ______ the offer because the salary was too low.",
+                options: [
+                    { t: "down", r: "turn down（～を断る、却下する）という重要句動詞です。", c: true },
+                    { t: "off", r: "turn off は「消す」です。", c: false },
+                    { t: "out", r: "turn out は「判明する」です。", c: false },
+                    { t: "over", r: "turn over は「ひっくり返す、譲る」です。", c: false }
+                ],
+                hint: "「却下する・断る」という意味の句動詞です。"
+            },
+            {
+                q: "______ popular belief, the economy is actually showing signs of recovery.",
+                options: [
+                    { t: "Contrary to", r: "Contrary to ～（～に反して）という慣用表現です。", c: true },
+                    { t: "Opposite", r: "Opposite to とはあまり言いません。", c: false },
+                    { t: "Against", r: "Against popular belief とも言えますが、Contrary to の方がより決まった表現です。", c: false },
+                    { t: "Versus", r: "Versus は「対」という意味です。", c: false }
+                ],
+                hint: "「一般に信じられていることとは裏腹に（逆に）」です。"
+            },
+            {
+                q: "It is essential ______ the team to finish the project on time.",
+                options: [
+                    { t: "of", r: "It is [形容詞] of [人] to do は「人の性質」を表す形容詞（kind, nice等）の時に使います。", c: false },
+                    { t: "for", r: "It is essential for A to do（Aが～することは不可欠だ）の構文です。", c: true },
+                    { t: "to", r: "essential to the team なら「チームにとって不可欠」ですが、後ろに to finish があるため for が適切です。", c: false },
+                    { t: "with", r: "essential with とは言いません。", c: false }
+                ],
+                hint: "It is ... for A to do の構文です。"
+            },
+            {
+                q: "The seminar provided us ______ a great opportunity to network.",
+                options: [
+                    { t: "to", r: "provide us to とは言いません。", c: false },
+                    { t: "for", r: "provide for は「備える、養う」です。", c: false },
+                    { t: "with", r: "provide A with B（AにBを提供する）の形です。", c: true },
+                    { t: "at", r: "provide at とは言いません。", c: false }
+                ],
+                hint: "provide A ... B の形を思い出してください。"
+            },
+            {
+                q: "He is currently responsible ______ supervising the intern program.",
+                options: [
+                    { t: "of", r: "responsible of とは言いません。", c: false },
+                    { t: "for", r: "be responsible for ～（～に対して責任がある、担当している）は必須熟語です。", c: true },
+                    { t: "with", r: "responsible with とは言いません。", c: false },
+                    { t: "to", r: "responsible to [人]（人に対して説明責任がある）とは言いますが、業務内容には for を使います。", c: false }
+                ],
+                hint: "in charge of と同じ意味ですが、前置詞が異なります。"
+            },
+            {
+                q: "The company plans to set ______ a new branch in Singapore.",
+                options: [
+                    { t: "up", r: "set up（～を設立する、設置する）は establish と同義です。", c: true },
+                    { t: "in", r: "set in は「（季節などが）始まる」です。", c: false },
+                    { t: "on", r: "set on は「襲わせる」などの意味です。", c: false },
+                    { t: "off", r: "set off は「出発する、作動させる」です。", c: false }
+                ],
+                hint: "「設立する」という意味の句動詞です。"
+            },
+            {
+                q: "We need to ______ up with a better solution to this problem.",
+                options: [
+                    { t: "go", r: "go up with とは言いません。", c: false },
+                    { t: "come", r: "come up with（～を思いつく）という3語の群動詞です。", c: true },
+                    { t: "catch", r: "catch up with は「追いつく」です。解決策を追いつくとは言いません。", c: false },
+                    { t: "keep", r: "keep up with は「遅れずについていく」です。", c: false }
+                ],
+                hint: "アイデアを「思いつく」です。"
+            },
+            {
+                q: "Usually, I avoid ______ during rush hour.",
+                options: [
+                    { t: "drive", r: "avoid の後ろに原形はきません。", c: false },
+                    { t: "to drive", r: "avoid は不定詞をとりません。", c: false },
+                    { t: "driving", r: "avoid doing（～することを避ける）はメガフェプス（動名詞をとる動詞）の一つです。", c: true },
+                    { t: "driven", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "avoid は enjoy や finish の仲間です。"
+            },
+            {
+                q: "Please ______ free to contact us if you need assistance.",
+                options: [
+                    { t: "feel", r: "feel free to do（遠慮なく～する）という定型表現です。", c: true },
+                    { t: "be", r: "be free to do も「自由に～してよい」ですが、定型句としては feel が自然です。", c: false },
+                    { t: "get", r: "get free とは言いません。", c: false },
+                    { t: "make", r: "make free とは言いません。", c: false }
+                ],
+                hint: "「遠慮なく～してください」の決まり文句です。"
+            },
+            {
+                q: "The results were inconsistent ______ the earlier data.",
+                options: [
+                    { t: "with", r: "inconsistent with ～（～と一致しない、矛盾する）です。", c: true },
+                    { t: "to", r: "inconsistent to とは言いません。", c: false },
+                    { t: "for", r: "inconsistent for とは言いません。", c: false },
+                    { t: "on", r: "inconsistent on とは言いません。", c: false }
+                ],
+                hint: "compatible with と同様、一致・不一致は with を使います。"
+            },
+            {
+                q: "______ terms of cost, the new model is very competitive.",
+                options: [
+                    { t: "On", r: "On terms of とは言いません。", c: false },
+                    { t: "In", r: "In terms of ～（～の点では、～の観点から）は頻出の群前置詞です。", c: true },
+                    { t: "By", r: "By terms of とは言いません。", c: false },
+                    { t: "With", r: "With terms of とは言いません。", c: false }
+                ],
+                hint: "「～の観点から言うと」という熟語です。"
+            },
+            {
+                q: "She promised ______ the report by Monday morning.",
+                options: [
+                    { t: "finish", r: "promise の直後に原形はきません。", c: false },
+                    { t: "finishing", r: "promise は動名詞をとりません。", c: false },
+                    { t: "to finish", r: "promise to do（～することを約束する）です。これからのことなので不定詞を使います。", c: true },
+                    { t: "finished", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "「これから～する」ことを約束するので、未来志向の形を選びます。"
+            },
+            {
+                q: "The bank requires two forms of identification ______ opening an account.",
+                options: [
+                    { t: "prior to", r: "prior to ～（～より前に）が文脈に適しています。", c: true },
+                    { t: "ahead", r: "ahead of なら正解ですが、of がありません。", c: false },
+                    { t: "forward", r: "forward to とは言いません。", c: false },
+                    { t: "advance", r: "in advance of なら正解ですが、単体では使えません。", c: false }
+                ],
+                hint: "before のフォーマルな表現です。"
+            },
+
+            // Vol 6 (Additional Expansion)
+            {
+                q: "We must comply ______ all federal regulations.",
+                options: [
+                    { t: "to", r: "comply to とは言いません。", c: false },
+                    { t: "with", r: "comply with ～（～を順守する）です。observe は他動詞ですが comply は自動詞です。", c: true },
+                    { t: "at", r: "comply at とは言いません。", c: false },
+                    { t: "by", r: "abide by と混同しないようにしましょう。", c: false }
+                ],
+                hint: "ルールを「守る」熟語です。observe(他動詞), abide by, adhere to, comply ...?"
+            },
+            {
+                q: "He insisted on ______ for the dinner.",
+                options: [
+                    { t: "pay", r: "on は前置詞なので原形はきません。", c: false },
+                    { t: "paying", r: "insist on doing（～すると言い張る）です。前置詞の後ろは動名詞です。", c: true },
+                    { t: "to pay", r: "insist to pay とは言いません。", c: false },
+                    { t: "paid", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "on は前置詞です。"
+            },
+            {
+                q: "The flight was canceled ______ the heavy snowstorm.",
+                options: [
+                    { t: "because", r: "because は接続詞なので、後ろに文（SV）が必要です。", c: false },
+                    { t: "due to", r: "due to ～（～が原因で）は前置詞句として名詞をつなげます。", c: true },
+                    { t: "since", r: "since は接続詞、または「～以来」の前置詞です。", c: false },
+                    { t: "as", r: "as は理由を表す接続詞ですが、前置詞としては「～として」の意味になります。", c: false }
+                ],
+                hint: "owing to と同じ意味の表現です。"
+            },
+            {
+                q: "I am not accustomed ______ speaking in public.",
+                options: [
+                    { t: "for", r: "accustomed for とは言いません。", c: false },
+                    { t: "with", r: "accustomed with とは言いません。", c: false },
+                    { t: "to", r: "be accustomed to doing（～することに慣れている）です。used to doing と同義です。", c: true },
+                    { t: "by", r: "accustomed by とは言いません。", c: false }
+                ],
+                hint: "be used to ...ing と同じ意味です。"
+            },
+            {
+                q: "The CEO attributed the increase in profits ______ the new marketing strategy.",
+                options: [
+                    { t: "for", r: "attribute A for B とは言いません。", c: false },
+                    { t: "on", r: "attribute A on B とは言いません。", c: false },
+                    { t: "to", r: "attribute A to B（AはBのおかげであるとする）です。", c: true },
+                    { t: "with", r: "attribute A with B とは言いません。", c: false }
+                ],
+                hint: "結果（A）を原因（B）に帰属させる（矢印を向ける）イメージです。"
+            },
+            {
+                q: "Please ______ from smoking in this area.",
+                options: [
+                    { t: "stop", r: "stop smoking なら正解ですが、from があるので不可です。", c: false },
+                    { t: "refrain", r: "refrain from doing（～を控える）です。", c: true },
+                    { t: "quit", r: "quit smoking なら正解ですが、from はつきません。", c: false },
+                    { t: "avoid", r: "avoid smoking なら正解ですが、from はつきません。", c: false }
+                ],
+                hint: "「控える」という意味の自動詞です。"
+            },
+            {
+                q: "We are currently ______ of stock on this item.",
+                options: [
+                    { t: "out", r: "out of stock（在庫切れで）という決まり文句です。", c: true },
+                    { t: "off", r: "off of stock とは言いません。", c: false },
+                    { t: "low", r: "low on stock（在庫が少ない）とは言いますが、of は使いません。", c: false },
+                    { t: "lacking", r: "lacking in stock とは言いますが、of は使いません。", c: false }
+                ],
+                hint: "在庫が「外に出てしまった」状態です。"
+            },
+            {
+                q: "The project team consists ______ five engineers and two designers.",
+                options: [
+                    { t: "in", r: "consist in は「（本質が）～にある」です。", c: false },
+                    { t: "of", r: "consist of（～から成る）です。comprise や be composed of と類義です。", c: true },
+                    { t: "with", r: "consist with は「～と一致する」です。", c: false },
+                    { t: "from", r: "consist from とは言いません。", c: false }
+                ],
+                hint: "構成要素を表す of です。"
+            },
+            {
+                q: "Do you mind ______ here while I check the inventory?",
+                options: [
+                    { t: "wait", r: "mind の後ろに原形はきません。", c: false },
+                    { t: "to wait", r: "mind は不定詞をとりません。", c: false },
+                    { t: "waiting", r: "mind doing（～するのを嫌がる→～していただけますか）です。", c: true },
+                    { t: "waited", r: "過去分詞はきません。", c: false }
+                ],
+                hint: "Would you mind ...?"
+            },
+            {
+                q: "The workshop is aimed ______ improving employee productivity.",
+                options: [
+                    { t: "to", r: "aimed to do なら正解ですが、後ろが improving なので不可です。", c: false },
+                    { t: "at", r: "be aimed at doing（～することを狙いとしている）です。", c: true },
+                    { t: "for", r: "aimed for + 名詞 なら可ですが、doing の場合は at が自然です。", c: false },
+                    { t: "on", r: "aimed on とは言いません。", c: false }
+                ],
+                hint: "的を「狙う（at）」イメージです。"
+            },
+            {
+                q: "______ addition to the salary, the company offers a good benefits package.",
+                options: [
+                    { t: "On", r: "On addition to とは言いません。", c: false },
+                    { t: "In", r: "In addition to（～に加えて）です。", c: true },
+                    { t: "With", r: "With addition to とは言いません。", c: false },
+                    { t: "For", r: "For addition to とは言いません。", c: false }
+                ],
+                hint: "Besides と同じ意味の群前置詞です。"
+            },
+            {
+                q: "The new system is capable ______ processing data twice as fast.",
+                options: [
+                    { t: "to", r: "capable to do とは言いません（able to do と混同注意）。", c: false },
+                    { t: "of", r: "be capable of doing（～する能力がある）です。", c: true },
+                    { t: "for", r: "capable for とは言いません。", c: false },
+                    { t: "with", r: "capable with とは言いません。", c: false }
+                ],
+                hint: "able は to、capable は ...?"
+            },
+            {
+                q: "We apologize ______ the delay in shipping your order.",
+                options: [
+                    { t: "to", r: "apologize to [人] です。", c: false },
+                    { t: "for", r: "apologize for [理由]（～のことで謝罪する）です。", c: true },
+                    { t: "with", r: "apologize with とは言いません。", c: false },
+                    { t: "on", r: "apologize on とは言いません。", c: false }
+                ],
+                hint: "感謝(thank)や謝罪(apologize)の理由を表す前置詞は？"
+            },
+            {
+                q: "The negotiation resulted ______ a merger between the two companies.",
+                options: [
+                    { t: "from", r: "result from は「（結果）が（原因）から生じる」です。", c: false },
+                    { t: "in", r: "result in（～という結果になる）です。", c: true },
+                    { t: "to", r: "result to とは言いません。", c: false },
+                    { t: "at", r: "result at とは言いません。", c: false }
+                ],
+                hint: "「～の中へ（in）」帰着するイメージです。"
+            },
+            {
+                q: "Make sure to fill ______ the form completely before submitting it.",
+                options: [
+                    { t: "out", r: "fill out（記入する）は書類全体を完成させる場合に使います。", c: true },
+                    { t: "up", r: "fill up は「満タンにする」です。", c: false },
+                    { t: "over", r: "fill over とは言いません。", c: false },
+                    { t: "through", r: "fill through とは言いません。", c: false }
+                ],
+                hint: "書類を書いて「仕上げる・出す」イメージです。"
+            },
+            // Vol 7 (Confusing Words & Grammar)
+            {
+                q: "The marketing manager decided to ______ the meeting until next Monday.",
+                options: [
+                    { t: "cancel", r: "「来週の月曜まで」なので、中止（cancel）ではなく延期が適切です。", c: false },
+                    { t: "postpone", r: "postpone（延期する）は put off と同義で、until と相性が良いです。", c: true },
+                    { t: "do", r: "do the meeting とは言いません。", c: false },
+                    { t: "make", r: "make the meeting とは言いません。", c: false }
+                ],
+                hint: "「延期する」という意味の単語です。"
+            },
+            {
+                q: "The new policy will ______ all employees effective immediately.",
+                options: [
+                    { t: "effect", r: "effect は動詞だと「（結果）をもたらす」という意味になり、文脈に合いません。", c: false },
+                    { t: "affect", r: "affect（～に影響を与える）は他動詞です。effect（名詞：効果）と混同しないようにしましょう。", c: true },
+                    { t: "impact on", r: "impact を動詞として使う場合、通常前置詞 on は不要です（または名詞として have an impact on）。", c: false },
+                    { t: "infect", r: "infect は「感染させる」です。", c: false }
+                ],
+                hint: "「～に影響する」という動詞です。e か a かに注意。"
+            },
+            {
+                q: "Please ______ the attached document for the meeting details.",
+                options: [
+                    { t: "look", r: "look は自動詞なので look at the document なら正解です。", c: false },
+                    { t: "see", r: "see は「見える、会う」などの意味で、「参照する」文脈では使いません。", c: false },
+                    { t: "refer", r: "refer は自動詞なので refer to なら正解です。", c: false },
+                    { t: "consult", r: "consult（～を参照する、調べる）は他動詞として使えます。", c: true }
+                ],
+                hint: "refer to と同じ意味の他動詞を選びます。"
+            },
+            {
+                q: "The CEO ______ the importance of teamwork in his speech.",
+                options: [
+                    { t: "emphasized", r: "emphasize（～を強調する）は他動詞なので前置詞は不要です。", c: true },
+                    { t: "emphasized on", r: "日本語の「～について強調する」につられて on を入れないように注意。", c: false },
+                    { t: "focused", r: "focus は on が必要です（focus on）。", c: false },
+                    { t: "stressed on", r: "stress（強調する）も他動詞なので on は不要です。", c: false }
+                ],
+                hint: "他動詞です。日本語の「～について」に惑わされないでください。"
+            },
+            {
+                q: "We need to ______ the issue regarding the budget cuts.",
+                options: [
+                    { t: "discuss", r: "discuss（～について議論する）は他動詞です。about は不要です。", c: true },
+                    { t: "discuss about", r: "discuss は他動詞なので about はつきません。TOEIC頻出の引っかけです。", c: false },
+                    { t: "talk", r: "talk は自動詞なので talk about なら正解です。", c: false },
+                    { t: "argue", r: "argue about なら正解ですが、単体では他動詞として使いにくい文脈です。", c: false }
+                ],
+                hint: "「～について議論する」ですが、about は不要です。"
+            },
+            {
+                q: "Should you have any questions, please ______ me immediately.",
+                options: [
+                    { t: "contact to", r: "contact は他動詞なので to は不要です。", c: false },
+                    { t: "contact", r: "contact（～に連絡する）は他動詞です。", c: true },
+                    { t: "contact with", r: "make contact with（名詞）なら正解ですが、動詞に with はつきません。", c: false },
+                    { t: "connect", r: "connect with なら「つながる」ですが、contact がビジネスでは一般的です。", c: false }
+                ],
+                hint: "日本語の「～に」に惑わされず、他動詞として扱います。"
+            },
+            {
+                q: "The price of raw materials has ______ significantly this year.",
+                options: [
+                    { t: "raised", r: "raise（～を上げる）は他動詞なので目的語が必要です。", c: false },
+                    { t: "risen", r: "rise（上がる）は自動詞です。主語（価格）が上がったので risen が正解です。", c: true },
+                    { t: "rose", r: "has の後ろなので過去分詞が必要です。rose は過去形です。", c: false },
+                    { t: "raising", r: "現在完了形なので過去分詞が必要です。", c: false }
+                ],
+                hint: "「上がる（自動詞）」か「上げる（他動詞）」かを見極めます。"
+            },
+            {
+                q: "Please keep me ______ regarding the project's progress.",
+                options: [
+                    { t: "inform", r: "keep O C（Cは形容詞か分詞）の形です。原形はきません。", c: false },
+                    { t: "informing", r: "「私が（誰かを）知らせている状態」になるため不自然です。", c: false },
+                    { t: "informed", r: "keep me informed（私が知らされている状態に保つ＝随時連絡をくれ）という定型表現です。", c: true },
+                    { t: "information", r: "名詞は入りません。", c: false }
+                ],
+                hint: "「知らされた状態」にしておいて、という意味です。"
+            },
+            {
+                q: "We accept payment by credit card, bank transfer, ______ cash.",
+                options: [
+                    { t: "and", r: "A, B, and C の形なら最後は and ですが、否定文や選択肢の場合は or が使われます。文脈的に「または」なので or が自然です。", c: false },
+                    { t: "or", r: "選択肢を並べる場合、最後に or を置きます。", c: true },
+                    { t: "nor", r: "nor は否定文で使います。", c: false },
+                    { t: "but", r: "文脈に合いません。", c: false }
+                ],
+                hint: "選択肢を列挙しています。"
+            },
+            {
+                q: "______ the weather was bad, the event was well-attended.",
+                options: [
+                    { t: "Despite", r: "Despite は前置詞なので、後ろに節（SV）は置けません。", c: false },
+                    { t: "Although", r: "Although は接続詞なので、後ろに節（the weather was bad）を置けます。", c: true },
+                    { t: "In spite of", r: "In spite of は前置詞句なので不可です。", c: false },
+                    { t: "Nevertheless", r: "Nevertheless は副詞なので、接続詞の働きはありません。", c: false }
+                ],
+                hint: "後ろにSV（主語＋動詞）が続いているので接続詞を選びます。"
+            },
+            {
+                q: "I will call you ______ I arrive at the station.",
+                options: [
+                    { t: "soon", r: "as soon as なら接続詞になりますが、soon 単体は副詞です。", c: false },
+                    { t: "once", r: "once（いったん～したら）は接続詞として使えます。", c: true },
+                    { t: "immediate", r: "形容詞です。", c: false },
+                    { t: "during", r: "during は前置詞です。", c: false }
+                ],
+                hint: "「～したらすぐに」という意味の接続詞です。"
+            },
+            {
+                q: "The interns worked hard; ______, they could not finish the task on time.",
+                options: [
+                    { t: "therefore", r: "因果関係が逆です。", c: false },
+                    { t: "however", r: "「しかしながら」という逆接の接続副詞です。セミコロンとカンマの間によく入ります。", c: true },
+                    { t: "although", r: "although は接続詞なので、文頭か文中に置かれます。この位置（独立した副詞的用法）には置きません。", c: false },
+                    { t: "despite", r: "前置詞なので不可です。", c: false }
+                ],
+                hint: "文をつなぐ副詞（接続副詞）です。逆接を選びます。"
+            },
+            {
+                q: "______ he is experienced, he still needs training on the new system.",
+                options: [
+                    { t: "Despite", r: "後ろがSVなので不可です。", c: false },
+                    { t: "Even though", r: "Even though（～だけれども）は接続詞なのでSVを導けます。", c: true },
+                    { t: "However", r: "However は形容詞/副詞を修飾する（However hard he tries...）か、接続副詞として使います。", c: false },
+                    { t: "But", r: "文頭の But も可能ですが、従属節を作る Even though が文法的に最も適切です。", c: false }
+                ],
+                hint: "「～だけれども」という譲歩の接続詞です。"
+            },
+            {
+                q: "The construction will continue ______ the summer.",
+                options: [
+                    { t: "while", r: "while は接続詞なので、後ろにはSVが必要です（while it is summer なら可）。", c: false },
+                    { t: "during", r: "during（～の間）は前置詞なので、特定期間を表す名詞（the summer）をとれます。", c: true },
+                    { t: "for", r: "for は「数値を含む期間（for 3 months）」に使われることが多いです。for the summer も可能ですが、during の方が「期間中のどこかで／ずっと」のニュアンスで自然です。", c: false },
+                    { t: "when", r: "when は接続詞です。", c: false }
+                ],
+                hint: "特定の期間を表す名詞の前につく前置詞です。"
+            },
+            {
+                q: "We must finish the inventory ______ the end of the week.",
+                options: [
+                    { t: "until", r: "until は「継続」を表します。「週末までずっと終え続ける」のは不自然です。", c: false },
+                    { t: "by", r: "by は「期限（完了）」を表します。「週末までに（終わらせる）」なので正解です。", c: true },
+                    { t: "to", r: "from ... to なら使いますが、期限を表す場合は by です。", c: false },
+                    { t: "on", r: "on the end とは言いません（at the end）。", c: false }
+                ],
+                hint: "「期限」を表す前置詞です。until（継続）と区別しましょう。"
+            },
+            {
+                q: "Please stay seated ______ the plane comes to a complete stop.",
+                options: [
+                    { t: "by", r: "by は前置詞です。", c: false },
+                    { t: "until", r: "until（～までずっと）は接続詞としても使えます。後ろにSVが続くので正解です。", c: true },
+                    { t: "during", r: "during は前置詞です。", c: false },
+                    { t: "while", r: "while the plane comes... は「飛行機が止まる動作をしている間」となり少し不自然です。「止まってしまうまで」待つのが自然です。", c: false }
+                ],
+                hint: "「～するまで（継続して）」という意味の接続詞です。"
+            },
+            {
+                q: "The train had already left ______ we arrived at the platform.",
+                options: [
+                    { t: "by the time", r: "by the time（～する頃には）は接続詞的に使えます。", c: true },
+                    { t: "until", r: "「着くまでずっと出発していた」は不可能です。", c: false },
+                    { t: "since", r: "「着いて以来出発した」は時系列がおかしいです。", c: false },
+                    { t: "during", r: "前置詞なので不可です。", c: false }
+                ],
+                hint: "「～する時までには（すでに）」という完了のニュアンスを含む接続詞句です。"
+            },
+            {
+                q: "______ had I entered the room than the phone rang.",
+                options: [
+                    { t: "Hardly", r: "Hardly ... when/before 構文が有名ですが、No sooner ... than 構文の形です。than があるので No sooner です。", c: false },
+                    { t: "No sooner", r: "No sooner had S V ... than ～（SがVするとすぐに～した）という倒置構文です。", c: true },
+                    { t: "Scarcely", r: "Scarcely ... when/before です。", c: false },
+                    { t: "As soon as", r: "As soon as I entered... の語順になります。", c: false }
+                ],
+                hint: "後ろに than があるのが決め手です。"
+            },
+            {
+                q: "It is vital that he ______ present at the meeting.",
+                options: [
+                    { t: "is", r: "vital などの「重要・必要・提案」を表す形容詞の後ろの that 節では、動詞は原形（仮定法現在）になります。", c: false },
+                    { t: "be", r: "should be の should が省略された形（原形）の be が正解です。", c: true },
+                    { t: "was", r: "過去形は使いません。", c: false },
+                    { t: "will be", r: "未来形も使いません。", c: false }
+                ],
+                hint: "提案・要求・重要などを表す形容詞の後ろの that 節の中身は？"
+            },
+            {
+                q: "If I ______ you, I would accept the offer.",
+                options: [
+                    { t: "was", r: "口語では was も使われますが、文法の試験では were が正解です。", c: false },
+                    { t: "am", r: "現在の事実に反する仮定（仮定法過去）なので現在形は使いません。", c: false },
+                    { t: "were", r: "If I were you（もし私があなたなら）は仮定法過去の定番です。", c: true },
+                    { t: "had been", r: "これは仮定法過去完了（過去の事実に反する）になります。", c: false }
+                ],
+                hint: "仮定法過去のbe動詞です。"
+            },
+
+            // Vol 8 (Participles & Relatives)
+            {
+                q: "The man ______ to the manager is the new sales representative.",
+                options: [
+                    { t: "talk", r: "動詞が2つになるため不可です。", c: false },
+                    { t: "talking", r: "talking（話している）という現在分詞が The man を後ろから修飾しています。", c: true },
+                    { t: "talked", r: "talked to the manager だと「マネージャーに話しかけられた男」とも取れますが、文脈的には「話している男」が自然です。また talking の方が能動的な動作を表します。", c: false },
+                    { t: "to talk", r: "未来の予定などを表す場合を除き、進行中の動作は -ing で修飾します。", c: false }
+                ],
+                hint: "「～している」人、です。"
+            },
+            {
+                q: "The report ______ by the committee was very detailed.",
+                options: [
+                    { t: "submit", r: "動詞は不可です。", c: false },
+                    { t: "submitting", r: "レポートは「提出する」側ではなく「提出される」側です。", c: false },
+                    { t: "submitted", r: "submitted（提出された）という過去分詞が The report を修飾しています。", c: true },
+                    { t: "to submit", r: "これからのことではないので不適切です。", c: false }
+                ],
+                hint: "受け身の関係（～された）を選びます。"
+            },
+            {
+                q: "Anyone ______ to participate should contact the HR department.",
+                options: [
+                    { t: "wish", r: "Anyone who wishes... なら正解ですが、動詞単体は不可です。", c: false },
+                    { t: "wishing", r: "wishing（望む人）という現在分詞修飾です。Anyone wishing to do は頻出フレーズです。", c: true },
+                    { t: "wished", r: "過去分詞は不可です。", c: false },
+                    { t: "wishes", r: "動詞は不可です。", c: false }
+                ],
+                hint: "Anyone who wishes の who wishes を分詞にした形です。"
+            },
+            {
+                q: "Usually, products ______ in this factory are exported to Europe.",
+                options: [
+                    { t: "make", r: "不可です。", c: false },
+                    { t: "making", r: "製品は「作る」側ではありません。", c: false },
+                    { t: "made", r: "products made in...（～で作られた製品）です。", c: true },
+                    { t: "to make", r: "不可です。", c: false }
+                ],
+                hint: "「作られた」製品です。"
+            },
+            {
+                q: "______ the weather, we decided to go for a picnic.",
+                options: [
+                    { t: "Considering", r: "Considering（～を考慮すると）という分詞構文由来の前置詞的表現です。", c: true },
+                    { t: "Considered", r: "過去分詞単独で文頭に来るのは不自然です。", c: false },
+                    { t: "To consider", r: "目的を表す不定詞になりますが、文脈に合いません。", c: false },
+                    { t: "Consider", r: "命令形になります。", c: false }
+                ],
+                hint: "「～を考慮すると」です。"
+            },
+            {
+                q: "______ exhausted from the long trip, he went to bed early.",
+                options: [
+                    { t: "Be", r: "不可です。", c: false },
+                    { t: "Being", r: "分詞構文です。(Because he was) exhausted... の省略形と考えられます。", c: true },
+                    { t: "Been", r: "Having been なら可ですが、Been 単体は不可です。", c: false },
+                    { t: "To be", r: "不可です。", c: false }
+                ],
+                hint: "理由を表す分詞構文です。"
+            },
+            {
+                q: "The woman ______ purse was stolen reported it to the police.",
+                options: [
+                    { t: "who", r: "who の後ろには動詞が来ますが、purse（財布）という名詞が来ています。", c: false },
+                    { t: "whose", r: "whose（その人の～）は所有格の関係代名詞です。whose purse（その人の財布）となります。", c: true },
+                    { t: "whom", r: "whom は目的格です。", c: false },
+                    { t: "which", r: "人は先行詞にできません。", c: false }
+                ],
+                hint: "「その人の」財布、という所有の関係です。"
+            },
+            {
+                q: "This is the building ______ the conference will be held.",
+                options: [
+                    { t: "which", r: "which を使うなら in which です。", c: false },
+                    { t: "where", r: "場所を表す関係副詞 where です。in which と書き換えられます。", c: true },
+                    { t: "that", r: "that を関係副詞的に使うことはありますが、where が最も適切です。", c: false },
+                    { t: "when", r: "時ではありません。", c: false }
+                ],
+                hint: "場所を表す関係副詞です。"
+            },
+            {
+                q: "______ wants to join the club is welcome.",
+                options: [
+                    { t: "Who", r: "Who wants... は疑問文になります。名詞節を作るなら Whoever が自然です。", c: false },
+                    { t: "Whoever", r: "Whoever（～する人は誰でも）は複合関係代名詞で、名詞節の主語になります。", c: true },
+                    { t: "Whomever", r: "Whomever は目的格なので主語にはなれません。", c: false },
+                    { t: "Anyone", r: "Anyone wants と動詞を続けることはできません。Anyone who wants なら正解です。", c: false }
+                ],
+                hint: "Anyone who と同じ意味の語です。"
+            },
+            {
+                q: "He is the only candidate ______ resume impressed me.",
+                options: [
+                    { t: "who", r: "不可です。", c: false },
+                    { t: "that", r: "不可です。", c: false },
+                    { t: "whose", r: "whose resume（その履歴書）です。", c: true },
+                    { t: "whom", r: "不可です。", c: false }
+                ],
+                hint: "所有格の関係代名詞です。"
+            },
+            {
+                q: "The laptop, ______ cover is red, belongs to Sarah.",
+                options: [
+                    { t: "which", r: "which cover とは言いません。", c: false },
+                    { t: "whose", r: "whose cover（そのカバー）です。無生物主語でも whose は使えます。", c: true },
+                    { t: "that", r: "カンマの後ろ（非制限用法）では that は使えません。", c: false },
+                    { t: "what", r: "関係代名詞の what は先行詞を含んでしまうため不可です。", c: false }
+                ],
+                hint: "「物の」所有格でも whose を使います。"
+            },
+            {
+                q: "We hired an engineer ______ specializes in AI development.",
+                options: [
+                    { t: "who", r: "先行詞が人（engineer）なので who が適切です。", c: true },
+                    { t: "which", r: "人は先行詞にできません。", c: false },
+                    { t: "whose", r: "所有格ではありません。", c: false },
+                    { t: "whom", r: "後ろに動詞（specializes）が続いているので主格が必要です。", c: false }
+                ],
+                hint: "人の主格です。"
+            },
+            {
+                q: "The reasons ______ the project failed are still unclear.",
+                options: [
+                    { t: "which", r: "fail は自動詞なので、for which なら正解です。", c: false },
+                    { t: "why", r: "the reason why（～という理由）の関係副詞です。", c: true },
+                    { t: "where", r: "場所ではありません。", c: false },
+                    { t: "how", r: "the reason how とは言いません。", c: false }
+                ],
+                hint: "理由を表す関係副詞です。"
+            },
+            {
+                q: "Please select ______ option you prefer.",
+                options: [
+                    { t: "whichever", r: "whichever（～するどちらでも）は形容詞的に後ろの名詞（option）を修飾できます。", c: true },
+                    { t: "whoever", r: "人は option になれません。", c: false },
+                    { t: "however", r: "however は形容詞・副詞を修飾しますが、名詞は修飾しません。", c: false },
+                    { t: "wherever", r: "場所ではありません。", c: false }
+                ],
+                hint: "「どちらの～でも」という意味です。"
+            },
+            {
+                q: "There are many tourists, most of ______ are from Asia.",
+                options: [
+                    { t: "them", r: "接続詞がないので、代名詞 them を置くことはできません（文がつながらない）。", c: false },
+                    { t: "whom", r: "most of whom（彼らのうちの大部分）は、前置詞 of の後ろなので目的格の関係代名詞を使います。", c: true },
+                    { t: "who", r: "of の後ろなので主格は不可です。", c: false },
+                    { t: "that", r: "前置詞の後ろ、およびカンマの後ろで that は使えません。", c: false }
+                ],
+                hint: "接続詞の役割を兼ねる関係代名詞を選びます。"
+            },
+            {
+                q: "______ arrives first will receive a prize.",
+                options: [
+                    { t: "Whoever", r: "Whoever（～する人は誰でも）が主語の節を作ります。", c: true },
+                    { t: "Who", r: "Who arrives first? なら疑問文ですが、ここは平叙文の主語です。", c: false },
+                    { t: "Whomever", r: "Whomever は目的格なので主語（arrivesの主語）にはなれません。", c: false },
+                    { t: "Whatever", r: "人なので Whatever は不可です。", c: false }
+                ],
+                hint: "Anyone who の意味です。"
+            },
+            {
+                q: "Do you know ______ he is arriving?",
+                options: [
+                    { t: "what time", r: "at what time の at が省略された形で、「何時に」という意味で使えます。", c: false },
+                    { t: "when", r: "when（いつ）が最も自然です。what time も間違いではありませんが、選択肢の中では when がシンプルです。（注：この問題は文脈により what time も正解になり得ますが、より包括的な when を正解とします）", c: true },
+                    { t: "where", r: "文脈次第ですが、到着時刻を問うのが一般的です。", c: false },
+                    { t: "which", r: "不可です。", c: false }
+                ],
+                hint: "時を尋ねる疑問詞です。"
+            },
+            {
+                q: "The package, ______ was sent last week, arrived today.",
+                options: [
+                    { t: "who", r: "物は不可です。", c: false },
+                    { t: "which", r: "先行詞が物（package）で、非制限用法（カンマあり）なので which が正解です。", c: true },
+                    { t: "that", r: "カンマの後ろで that は使えません。", c: false },
+                    { t: "what", r: "不可です。", c: false }
+                ],
+                hint: "カンマの後ろで使える、物を指す関係代名詞です。"
+            },
+            {
+                q: "______ interested in the workshop should sign up now.",
+                options: [
+                    { t: "Those", r: "Those (who are) interested... の省略形です。「～な人々」という意味で頻出です。", c: true },
+                    { t: "They", r: "They interested とは言いません。", c: false },
+                    { t: "Them", r: "Them interested とは言いません。", c: false },
+                    { t: "Their", r: "Their interested とは言いません。", c: false }
+                ],
+                hint: "「興味がある人々」という意味の代名詞です。"
+            },
+            {
+                q: "I received a letter ______ that my application was accepted.",
+                options: [
+                    { t: "state", r: "不可です。", c: false },
+                    { t: "stating", r: "stating（～と述べている）という現在分詞が letter を修飾しています。", c: true },
+                    { t: "stated", r: "stated letter だと「述べられた手紙」となり意味が少し変です。手紙自体が内容を「述べている（能動）」と考えます。", c: false },
+                    { t: "states", r: "不可です。", c: false }
+                ],
+                hint: "手紙が「～と言っている（述べている）」と考えます。"
+            },
+
+            // Vol 9 (Business Collocations & Idioms)
+            {
+                q: "We need to ______ address the customer complaints.",
+                options: [
+                    { t: "promptly", r: "promptly（迅速に）は address（対処する）を修飾するのに最適です。", c: true },
+                    { t: "prompt", r: "形容詞です。", c: false },
+                    { t: "promptness", r: "名詞です。", c: false },
+                    { t: "prompted", r: "動詞の過去形です。", c: false }
+                ],
+                hint: "「迅速に」対処する、です。"
+            },
+            {
+                q: "The meeting will ______ place in the main conference room.",
+                options: [
+                    { t: "take", r: "take place（開催される、行われる）は必須熟語です。", c: true },
+                    { t: "make", r: "make place とは言いません。", c: false },
+                    { t: "have", r: "have place とは言いません。", c: false },
+                    { t: "do", r: "do place とは言いません。", c: false }
+                ],
+                hint: "「開催される」という熟語です。"
+            },
+            {
+                q: "Please ______ free to ask any questions.",
+                options: [
+                    { t: "become", r: "不可です。", c: false },
+                    { t: "get", r: "不可です。", c: false },
+                    { t: "feel", r: "feel free to do（遠慮なく～する）です。", c: true },
+                    { t: "stay", r: "不可です。", c: false }
+                ],
+                hint: "「遠慮なく～してください」です。"
+            },
+            {
+                q: "We must ______ the deadline for the project.",
+                options: [
+                    { t: "meet", r: "meet the deadline（締め切りに間に合わせる）はビジネス英語の基本です。", c: true },
+                    { t: "catch", r: "catch the deadline とは言いません。", c: false },
+                    { t: "reach", r: "reach the deadline は「期限が到来する」というニュアンスになりますが、人が主語なら meet が一般的です。", c: false },
+                    { t: "make", r: "make the deadline も使われますが、meet が最も標準的です。", c: false }
+                ],
+                hint: "締め切りを「満たす」＝間に合わせる、です。"
+            },
+            {
+                q: "The company plans to ______ a survey to gather customer feedback.",
+                options: [
+                    { t: "conduct", r: "conduct a survey（調査を行う）というコロケーションです。", c: true },
+                    { t: "make", r: "make a survey とは言いません。", c: false },
+                    { t: "do", r: "do a survey も口語では言いますが、ビジネスでは conduct が好まれます。", c: false },
+                    { t: "take", r: "take a survey は「（回答者が）調査に答える」という意味になります。", c: false }
+                ],
+                hint: "調査を「実施する」という動詞です。"
+            },
+            {
+                q: "It is important to ______ a good relationship with clients.",
+                options: [
+                    { t: "maintain", r: "maintain a relationship（関係を維持する）は適切なコロケーションです。", c: true },
+                    { t: "stay", r: "stay a relationship とは言いません。", c: false },
+                    { t: "hold", r: "hold a relationship とはあまり言いません。", c: false },
+                    { t: "reserve", r: "reserve は「予約する」です。", c: false }
+                ],
+                hint: "関係を「維持する」です。"
+            },
+            {
+                q: "I would like to ______ an appointment with Mr. Smith.",
+                options: [
+                    { t: "do", r: "do an appointment とは言いません。", c: false },
+                    { t: "make", r: "make an appointment（アポを取る）は決まり文句です。", c: true },
+                    { t: "take", r: "take an appointment とは言いません。", c: false },
+                    { t: "get", r: "get an appointment も通じますが、make が標準的です。", c: false }
+                ],
+                hint: "アポを「作る」イメージです。"
+            },
+            {
+                q: "The negotiations ______ down due to a lack of compromise.",
+                options: [
+                    { t: "broke", r: "break down（決裂する、故障する）です。", c: true },
+                    { t: "fell", r: "fall down は「転ぶ、落ちる」です。", c: false },
+                    { t: "went", r: "go down は「下がる」です。", c: false },
+                    { t: "put", r: "put down は「置く」です。", c: false }
+                ],
+                hint: "交渉が「壊れた」＝決裂した。"
+            },
+            {
+                q: "We need to ______ up with the changing market trends.",
+                options: [
+                    { t: "keep", r: "keep up with（～に遅れずについていく）です。", c: true },
+                    { t: "go", r: "go up with とは言いません。", c: false },
+                    { t: "make", r: "make up with は「仲直りする」です。", c: false },
+                    { t: "take", r: "take up with は「～と付き合う、～に夢中になる」などの意味です。", c: false }
+                ],
+                hint: "ペースを保ってついていく、です。"
+            },
+            {
+                q: "Please ______ out the application form.",
+                options: [
+                    { t: "write", r: "write out もありますが、記入するなら fill out が一般的です。", c: false },
+                    { t: "fill", r: "fill out（記入する）です。", c: true },
+                    { t: "make", r: "make out は「理解する、作成する」です。", c: false },
+                    { t: "put", r: "put out は「出す、消す」です。", c: false }
+                ],
+                hint: "用紙を「埋める」です。"
+            },
+            {
+                q: "The CEO ______ down shortly after the scandal.",
+                options: [
+                    { t: "stepped", r: "step down（辞任する）は resign の言い換えとしてよく使われます。", c: true },
+                    { t: "walked", r: "walk down は「歩いて降りる」です。", c: false },
+                    { t: "ran", r: "run down は「駆け下りる、ひく」です。", c: false },
+                    { t: "sat", r: "sat down は「座る」です。", c: false }
+                ],
+                hint: "役職から「降りる」＝辞任する。"
+            },
+            {
+                q: "We should ______ advantage of this opportunity.",
+                options: [
+                    { t: "take", r: "take advantage of（～を利用する）は必須熟語です。", c: true },
+                    { t: "make", r: "make advantage of とは言いません。", c: false },
+                    { t: "get", r: "get advantage of とは言いません。", c: false },
+                    { t: "have", r: "have an advantage over なら使います。", c: false }
+                ],
+                hint: "機会を「利用する」です。"
+            },
+            {
+                q: "The event was called ______ due to rain.",
+                options: [
+                    { t: "off", r: "call off（中止する）です。", c: true },
+                    { t: "out", r: "call out は「大声で呼ぶ」です。", c: false },
+                    { t: "back", r: "call back は「折り返す」です。", c: false },
+                    { t: "in", r: "call in は「呼び寄せる」です。", c: false }
+                ],
+                hint: "中止する、です。"
+            },
+            {
+                q: "Can you ______ care of the guest arrangements?",
+                options: [
+                    { t: "take", r: "take care of（～の世話をする、～を担当・処理する）です。", c: true },
+                    { t: "make", r: "make care of とは言いません。", c: false },
+                    { t: "do", r: "do care of とは言いません。", c: false },
+                    { t: "have", r: "have care of とは言いません。", c: false }
+                ],
+                hint: "「面倒を見る、処理する」です。"
+            },
+            {
+                q: "I look forward to ______ from you.",
+                options: [
+                    { t: "hearing", r: "look forward to doing（～を楽しみに待つ）です。hear ではなく hearing です。", c: true },
+                    { t: "hear", r: "to は前置詞なので原形はきません。", c: false },
+                    { t: "heard", r: "過去分詞はきません。", c: false },
+                    { t: "hears", r: "不可です。", c: false }
+                ],
+                hint: "to は前置詞です。"
+            },
+            {
+                q: "The manager pointed ______ several errors in the report.",
+                options: [
+                    { t: "out", r: "point out（指摘する）です。", c: true },
+                    { t: "in", r: "point in とは言いません。", c: false },
+                    { t: "up", r: "point up は「強調する」ですがあまり一般的ではありません。", c: false },
+                    { t: "off", r: "point off とは言いません。", c: false }
+                ],
+                hint: "指で外へ示す＝指摘する。"
+            },
+            {
+                q: "We need to ______ into the cause of the problem.",
+                options: [
+                    { t: "look", r: "look into（調査する）です。", c: true },
+                    { t: "see", r: "see into はあまり使いません。", c: false },
+                    { t: "watch", r: "watch into とは言いません。", c: false },
+                    { t: "view", r: "view into とは言いません。", c: false }
+                ],
+                hint: "中を覗き込む＝調査する。"
+            },
+            {
+                q: "The plane took ______ on time.",
+                options: [
+                    { t: "off", r: "take off（離陸する）です。", c: true },
+                    { t: "out", r: "take out は「取り出す」です。", c: false },
+                    { t: "up", r: "take up は「始める、場所を取る」です。", c: false },
+                    { t: "in", r: "take in は「取り入れる、騙す」です。", c: false }
+                ],
+                hint: "地面から離れる＝離陸する。"
+            },
+            {
+                q: "I ran ______ an old friend at the station.",
+                options: [
+                    { t: "into", r: "run into（偶然出会う）です。", c: true },
+                    { t: "out", r: "run out は「尽きる」です。", c: false },
+                    { t: "over", r: "run over は「ひく」です。", c: false },
+                    { t: "away", r: "run away は「逃げる」です。", c: false }
+                ],
+                hint: "走ってぶつかるイメージ＝偶然会う。"
+            },
+            {
+                q: "Please turn ______ the lights when you leave.",
+                options: [
+                    { t: "off", r: "turn off（消す）です。", c: true },
+                    { t: "out", r: "turn out は「判明する」です。（lights out とは言いますが動詞句なら turn off です）", c: false },
+                    { t: "away", r: "turn away は「顔を背ける」です。", c: false },
+                    { t: "over", r: "turn over は「ひっくり返す」です。", c: false }
+                ],
+                hint: "電気を消す、です。"
+            },
+            // Vol 10 (Comprehensive / Advanced)
+            {
+                q: "______ for the traffic jam, we would have arrived on time.",
+                options: [
+                    { t: "But", r: "But for ～（～がなければ）という仮定法の慣用表現です。Without と書き換え可能です。", c: true },
+                    { t: "If", r: "If for とは言いません。", c: false },
+                    { t: "Unless", r: "Unless for とは言いません。", c: false },
+                    { t: "Without", r: "Without なら正解ですが、選択肢にはありません（But for が正解）。", c: false }
+                ],
+                hint: "「もし～がなかったら」という仮定法のイディオムです。"
+            },
+            {
+                q: "The manager suggested that the deadline ______ extended.",
+                options: [
+                    { t: "is", r: "suggest などの提案を表す動詞の後ろの that 節では、動詞は原形（または should + 原形）になります。", c: false },
+                    { t: "be", r: "should be の should が省略された形（仮定法現在）の be が正解です。", c: true },
+                    { t: "was", r: "過去形は使いません。", c: false },
+                    { t: "will be", r: "未来形は使いません。", c: false }
+                ],
+                hint: "提案・要求の動詞の後ろの that 節です。"
+            },
+            {
+                q: "______ had I sat down when the meeting started.",
+                options: [
+                    { t: "Hardly", r: "Hardly ... when ～（～するとすぐに～した）という倒置構文です。", c: true },
+                    { t: "No sooner", r: "No sooner の後ろは than が続きます（No sooner ... than）。", c: false },
+                    { t: "As soon as", r: "As soon as I sat down... の語順になります。", c: false },
+                    { t: "Scarcely", r: "Scarcely も when/before と共に使えますが、選択肢の Hardly が最も一般的です（両方ある場合は稀ですが、文法的にはどちらも可。ここではHardlyを正解とします）。", c: false }
+                ],
+                hint: "後ろに when があるのが決め手です。"
+            },
+            {
+                q: "The company announced a ______ plan to cut costs.",
+                options: [
+                    { t: "comprehensive", r: "comprehensive（包括的な）は plan や review を修飾する定番の形容詞です。", c: true },
+                    { t: "comprehension", r: "名詞（理解）です。", c: false },
+                    { t: "comprehend", r: "動詞（理解する）です。", c: false },
+                    { t: "comprehensible", r: "「理解できる」という意味ですが、コスト削減計画の修飾語としては「包括的な」の方が文脈に合います。", c: false }
+                ],
+                hint: "「包括的な」計画、です。"
+            },
+            {
+                q: "We need to ______ the feasibility of the new project.",
+                options: [
+                    { t: "assess", r: "assess（～を評価する、査定する）は feasibility（実現可能性）とよく一緒に使われます。", c: true },
+                    { t: "access", r: "access（～にアクセスする）です。スペルに注意。", c: false },
+                    { t: "excess", r: "名詞（過剰）です。", c: false },
+                    { t: "assist", r: "assist（～を助ける）です。", c: false }
+                ],
+                hint: "実現可能性を「評価・査定する」動詞です。"
+            },
+            {
+                q: "______ the economy improves, we will freeze hiring.",
+                options: [
+                    { t: "Unless", r: "Unless（～しない限り）は「If ... not」の意味を持つ接続詞です。", c: true },
+                    { t: "If", r: "If だと「経済が改善したら採用を凍結する」となり、論理が逆です。", c: false },
+                    { t: "Without", r: "前置詞なのでSVを導けません。", c: false },
+                    { t: "Despite", r: "前置詞なのでSVを導けません。", c: false }
+                ],
+                hint: "「～でない限り」です。"
+            },
+            {
+                q: "The new software is designed to ______ the workflow.",
+                options: [
+                    { t: "facilitate", r: "facilitate（～を促進する、容易にする）はビジネスで好まれる単語です。", c: true },
+                    { t: "facility", r: "名詞（施設）です。", c: false },
+                    { t: "facile", r: "形容詞（手軽な）です。", c: false },
+                    { t: "facilitation", r: "名詞（促進）です。", c: false }
+                ],
+                hint: "仕事を「スムーズにする、促進する」動詞です。"
+            },
+            {
+                q: "Please ______ the documents to the HR department.",
+                options: [
+                    { t: "forward", r: "forward（～を転送する）はメールや書類を送る際によく使われます。", c: true },
+                    { t: "foreword", r: "名詞（まえがき）です。", c: false },
+                    { t: "toward", r: "前置詞（～の方へ）です。", c: false },
+                    { t: "reward", r: "動詞（報いる）または名詞（報酬）です。", c: false }
+                ],
+                hint: "書類を「転送する」です。"
+            },
+            {
+                q: "The merger is expected to bring ______ significant changes.",
+                options: [
+                    { t: "about", r: "bring about（～をもたらす、引き起こす）は cause の言い換えとして重要です。", c: true },
+                    { t: "along", r: "bring along は「連れてくる」です。", c: false },
+                    { t: "up", r: "bring up は「育てる、話題に出す」です。", c: false },
+                    { t: "over", r: "bring over は「持ってくる」です。", c: false }
+                ],
+                hint: "変化を「引き起こす」熟語です。"
+            },
+            {
+                q: "______ consideration, we decided to accept the proposal.",
+                options: [
+                    { t: "After", r: "After consideration（検討の結果）という表現です。", c: true },
+                    { t: "Under", r: "Under consideration なら「検討中」という意味になります（We decided... と続かない）。", c: false },
+                    { t: "With", r: "With consideration も言えますが、時間的な前後関係を示す After が自然です。", c: false },
+                    { t: "For", r: "For consideration は「検討のために」です。", c: false }
+                ],
+                hint: "よく検討した「後で」、です。"
+            },
+            {
+                q: "This membership gives you ______ access to premium content.",
+                options: [
+                    { t: "exclusive", r: "exclusive（独占的な、専用の）は access や right を修飾する頻出語です。", c: true },
+                    { t: "exclude", r: "動詞（除外する）です。", c: false },
+                    { t: "exclusion", r: "名詞（除外）です。", c: false },
+                    { t: "exclusively", r: "副詞なので名詞 access を修飾できません。", c: false }
+                ],
+                hint: "「限定の、独占的な」アクセス権です。"
+            },
+            {
+                q: "The team worked around the ______ to meet the deadline.",
+                options: [
+                    { t: "clock", r: "around the clock（24時間ぶっ通しで、昼夜兼行で）というイディオムです。", c: true },
+                    { t: "time", r: "around the time とは言いません。", c: false },
+                    { t: "hour", r: "around the hour とは言いません。", c: false },
+                    { t: "watch", r: "around the watch とは言いません。", c: false }
+                ],
+                hint: "「時計」の周りを一周するくらい働く＝不眠不休で。"
+            },
+            {
+                q: "______ his lack of experience, he was hired for the job.",
+                options: [
+                    { t: "Notwithstanding", r: "Notwithstanding（～にも関わらず）は despite と同じ意味の前置詞です。少し堅い表現です。", c: true },
+                    { t: "Although", r: "接続詞なのでSVが必要です。", c: false },
+                    { t: "However", r: "副詞です。", c: false },
+                    { t: "Even", r: "Even if/though なら可ですが単体では不可です。", c: false }
+                ],
+                hint: "Despite と同じ意味の長い単語です。"
+            },
+            {
+                q: "It is strictly ______ to take photos inside the facility.",
+                options: [
+                    { t: "forbidden", r: "forbidden（禁じられている）です。prohibited と同義です。", c: true },
+                    { t: "forbid", r: "受動態なので過去分詞が必要です。", c: false },
+                    { t: "forbade", r: "過去形です。", c: false },
+                    { t: "forbidding", r: "現在分詞です。", c: false }
+                ],
+                hint: "「禁じられている」です。"
+            },
+            {
+                q: "We must ______ to the terms of the contract.",
+                options: [
+                    { t: "adhere", r: "adhere to（～を固守する、従う）です。", c: true },
+                    { t: "observe", r: "observe は他動詞なので to はつきません（observe the terms）。", c: false },
+                    { t: "follow", r: "follow は他動詞なので to はつきません。", c: false },
+                    { t: "obey", r: "obey は他動詞なので to はつきません。", c: false }
+                ],
+                hint: "ルールに従う系の動詞で、to をとるのは？"
+            },
+            {
+                q: "The figures in the report do not ______ up.",
+                options: [
+                    { t: "add", r: "add up（計算が合う、つじつまが合う）という表現です。", c: true },
+                    { t: "make", r: "make up は「構成する、捏造する」です。", c: false },
+                    { t: "count", r: "count up とはあまり言いません。", c: false },
+                    { t: "take", r: "take up は「始める」です。", c: false }
+                ],
+                hint: "数字を足し合わせて計算が合うこと。"
+            },
+            {
+                q: "We are committed to ______ customer satisfaction.",
+                options: [
+                    { t: "ensure", r: "committed to の to は前置詞です。", c: false },
+                    { t: "ensuring", r: "be committed to doing（～することを確実にするために尽力する）です。", c: true },
+                    { t: "ensured", r: "過去分詞です。", c: false },
+                    { t: "ensures", r: "三単現です。", c: false }
+                ],
+                hint: "to は前置詞です。ensure（確実にする）をどう変形しますか？"
+            },
+            {
+                q: "______ the sheer size of the project, we need more staff.",
+                options: [
+                    { t: "Given", r: "Given ～（～を考慮すると）という前置詞的用法です。", c: true },
+                    { t: "Giving", r: "Giving だと「与えている」という意味になります。", c: false },
+                    { t: "Gave", r: "動詞の過去形です。", c: false },
+                    { t: "To give", r: "不定詞です。", c: false }
+                ],
+                hint: "「～を与えられると」→「～を考慮すると」となります。"
+            },
+            {
+                q: "This agreement is ______ to change without notice.",
+                options: [
+                    { t: "subject", r: "be subject to（～の対象となる、～する可能性がある）です。", c: true },
+                    { t: "object", r: "object to は「反対する」という動詞です。", c: false },
+                    { t: "reject", r: "reject は「拒絶する」という動詞です。", c: false },
+                    { t: "project", r: "project は「計画する」です。", c: false }
+                ],
+                hint: "「変更される可能性がある」という決まり文句です。"
+            },
+            {
+                q: "I would rather you ______ come tomorrow.",
+                options: [
+                    { t: "didn't", r: "would rather S V（SにVしてほしい/ほしくない）のVは仮定法過去（過去形）になります。「来ないでほしい」なので didn't come。", c: true },
+                    { t: "don't", r: "現在の願望でも、文法上は過去形を使います。", c: false },
+                    { t: "won't", r: "未来形は使いません。", c: false },
+                    { t: "not", r: "I would rather not come なら正しいですが、you が入る場合は仮定法です。", c: false }
+                ],
+                hint: "would rather S V の後ろは仮定法（過去形）です。"
+            },
+            {
+                q: "The warranty is ______ for two years from the date of purchase.",
+                options: [
+                    { t: "valid", r: "valid（有効な）です。", c: true },
+                    { t: "value", r: "名詞（価値）です。", c: false },
+                    { t: "validate", r: "動詞（有効にする）です。", c: false },
+                    { t: "validity", r: "名詞（有効性）です。", c: false }
+                ],
+                hint: "「有効である」という形容詞です。"
+            },
+            {
+                q: "Not only ______ late, but he also forgot the documents.",
+                options: [
+                    { t: "was he", r: "Not only などの否定語が文頭に来ると、後ろは倒置（疑問文の語順）になります。", c: true },
+                    { t: "he was", r: "倒置されていません。", c: false },
+                    { t: "he is", r: "時制が合いません（forgotは過去）。", c: false },
+                    { t: "is he", r: "時制が合いません。", c: false }
+                ],
+                hint: "否定語が文頭に来ると倒置が起きます。"
+            },
+            {
+                q: "We need to ______ the old files to clear up space.",
+                options: [
+                    { t: "discard", r: "discard（～を廃棄する）です。dispose of と同義ですが、discard は他動詞です。", c: true },
+                    { t: "dispose", r: "dispose は of が必要です。", c: false },
+                    { t: "depart", r: "depart（出発する）です。", c: false },
+                    { t: "dispute", r: "dispute（論争する）です。", c: false }
+                ],
+                hint: "「捨てる」です。dispose ではありません。"
+            },
+            {
+                q: "The decision implies that ______ layoffs may be necessary.",
+                options: [
+                    { t: "subsequent", r: "subsequent（それに続く、その後の）です。", c: true },
+                    { t: "consequent", r: "consequent も似ていますが、subsequent layoffs（その後の解雇）という使い方が自然です。", c: false },
+                    { t: "frequent", r: "頻繁な、です。", c: false },
+                    { t: "eloquent", r: "雄弁な、です。", c: false }
+                ],
+                hint: "「その後に続く」という意味です。"
+            },
+            {
+                q: "______ what may, we will proceed with the plan.",
+                options: [
+                    { t: "Come", r: "Come what may（何が起ころうとも）という慣用表現です。", c: true },
+                    { t: "Go", r: "Go what may とは言いません。", c: false },
+                    { t: "Be", r: "Be what may とは言いません。", c: false },
+                    { t: "Do", r: "Do what may とは言いません。", c: false }
+                ],
+                hint: "「何が来ようとも」というイディオムです。"
+            },
+            {
+                q: "The board reached a ______ decision to appoint her as CEO.",
+                options: [
+                    { t: "unanimous", r: "unanimous（満場一致の）は decision を修飾するコロケーションとして頻出です。", c: true },
+                    { t: "anonymous", r: "anonymous（匿名の）です。", c: false },
+                    { t: "synonymous", r: "synonymous（同義の）です。", c: false },
+                    { t: "ambitious", r: "ambitious（野心的な）です。", c: false }
+                ],
+                hint: "全員が賛成した、という意味です。"
+            },
+            {
+                q: "We should ______ aside some money for unexpected expenses.",
+                options: [
+                    { t: "set", r: "set aside（～を取っておく、確保する）です。", c: true },
+                    { t: "put", r: "put aside も使いますが、資金や時間の確保には set aside がよく使われます。", c: false },
+                    { t: "take", r: "take aside は「（人を）わきへ連れて行く」です。", c: false },
+                    { t: "keep", r: "keep aside とはあまり言いません。", c: false }
+                ],
+                hint: "予備として「脇に置いておく」イメージです。"
+            },
+            {
+                q: "The regulations are ______ to change based on the government's advice.",
+                options: [
+                    { t: "liable", r: "liable to change（変更しやすい、変更の対象となる）です。subject to に近いです。", c: true },
+                    { t: "reliable", r: "reliable（信頼できる）です。", c: false },
+                    { t: "capable", r: "capable of changing なら可です。", c: false },
+                    { t: "possible", r: "The regulations are possible to change とは言いません（It is possible to change...）。", c: false }
+                ],
+                hint: "「～しがちである、～の義務がある」という意味の語です。"
+            },
+            {
+                q: "It is high time we ______ the system.",
+                options: [
+                    { t: "upgraded", r: "It is high time S V（過去形）で「もうとっくに～してよい時間だ（なのにしていない）」という仮定法です。", c: true },
+                    { t: "upgrade", r: "現在形は使いません。", c: false },
+                    { t: "will upgrade", r: "未来形は使いません。", c: false },
+                    { t: "have upgraded", r: "現在完了も使いません。", c: false }
+                ],
+                hint: "It is time... の後ろは仮定法過去（過去形）です。"
+            },
+            {
+                q: "Please ______ the receipt for your records.",
+                options: [
+                    { t: "retain", r: "retain（～を保管する、保持する）は keep のフォーマルな表現です。", c: true },
+                    { t: "remain", r: "remain は自動詞（～のままである）です。", c: false },
+                    { t: "restrain", r: "restrain（抑制する）です。", c: false },
+                    { t: "regain", r: "regain（取り戻す）です。", c: false }
+                ],
+                hint: "Keep の硬い言い方です。"
+            }
+        ];
+
+        const SAVE_KEY = "toeic_grammar_quiz_progress_v1";
+        const WRONG_KEY = "toeic_grammar_quiz_wrong_v1";
+        let currentQuestionIndex = 0;
+        let currentQuestionIds = [];
+        let score = 0;
+        let isAnswered = false;
+        let quizMode = "all";
+
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const qIndex = document.getElementById('q-index');
+        
+        const feedbackSection = document.getElementById('feedback-section');
+        const feedbackIcon = document.getElementById('feedback-icon');
+        const feedbackTitle = document.getElementById('feedback-title');
+        const feedbackRationale = document.getElementById('feedback-rationale');
+        
+        const scoreCount = document.getElementById('score-count');
+        const scorePercent = document.getElementById('score-percent');
+        const resultIcon = document.getElementById('result-icon');
+
+        const hintArea = document.getElementById('hint-area');
+        const hintText = document.getElementById('hint-text');
+
+        const progressDisplay = document.getElementById('progress-display');
+        const currentQNum = document.getElementById('current-q-num');
+        const totalQNum = document.getElementById('total-q-num');
+        const progressBarContainer = document.getElementById('progress-bar-container');
+        const progressBar = document.getElementById('progress-bar');
+
+        function buildAllQuestionIds() {
+            return Array.from({ length: questionsData.length }, (_, i) => i);
+        }
+
+        function startQuiz(forceReset = false) {
+            if (forceReset) {
+                clearProgress();
+            }
+            quizMode = "all";
+            score = 0;
+            currentQuestionIndex = 0;
+            currentQuestionIds = buildAllQuestionIds();
+            
+            startScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            progressDisplay.classList.remove('hidden');
+            progressBarContainer.classList.remove('hidden');
+
+            totalQNum.textContent = currentQuestionIds.length;
+            
+            showQuestion();
+        }
+
+        function resumeQuiz() {
+            const saved = loadProgress();
+            if (!saved) {
+                startQuiz(true);
+                return;
+            }
+            quizMode = "all";
+            score = saved.score ?? 0;
+            currentQuestionIndex = saved.index ?? 0;
+            currentQuestionIds = buildAllQuestionIds();
+            if (currentQuestionIndex >= currentQuestionIds.length) {
+                clearProgress();
+                startQuiz(true);
+                return;
+            }
+
+            startScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            progressDisplay.classList.remove('hidden');
+            progressBarContainer.classList.remove('hidden');
+
+            totalQNum.textContent = currentQuestionIds.length;
+            showQuestion();
+        }
+
+        function saveProgress() {
+            const payload = {
+                index: currentQuestionIndex,
+                score,
+                total: questionsData.length
+            };
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                // ignore storage errors
+            }
+        }
+
+        function loadProgress() {
+            try {
+                const raw = localStorage.getItem(SAVE_KEY);
+                if (!raw) return null;
+                const data = JSON.parse(raw);
+                if (data.total !== questionsData.length) return null;
+                return data;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function clearProgress() {
+            try {
+                localStorage.removeItem(SAVE_KEY);
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        function loadWrongSet() {
+            try {
+                const raw = localStorage.getItem(WRONG_KEY);
+                if (!raw) return new Set();
+                const data = JSON.parse(raw);
+                if (!Array.isArray(data)) return new Set();
+                return new Set(data.filter(n => Number.isInteger(n)));
+            } catch (e) {
+                return new Set();
+            }
+        }
+
+        function saveWrongSet(set) {
+            try {
+                const list = Array.from(set.values()).sort((a, b) => a - b);
+                localStorage.setItem(WRONG_KEY, JSON.stringify(list));
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        function updateWrongCount() {
+            const btn = document.getElementById('wrong-only-btn');
+            const countEl = document.getElementById('wrong-count');
+            if (!btn || !countEl) return;
+            const count = loadWrongSet().size;
+            countEl.textContent = `(${count})`;
+            if (count > 0) {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+
+        function recordWrong(questionId) {
+            const set = loadWrongSet();
+            set.add(questionId);
+            saveWrongSet(set);
+            updateWrongCount();
+        }
+
+        function recordCorrect(questionId) {
+            const set = loadWrongSet();
+            if (set.has(questionId)) {
+                set.delete(questionId);
+                saveWrongSet(set);
+                updateWrongCount();
+            }
+        }
+
+        function startWrongQuiz() {
+            const wrongSet = loadWrongSet();
+            const wrongIds = Array.from(wrongSet.values()).filter(n => n >= 0 && n < questionsData.length);
+            if (wrongIds.length === 0) {
+                updateWrongCount();
+                alert("間違えた問題がありません。まず通常モードで解いてみましょう。");
+                return;
+            }
+            quizMode = "wrong";
+            score = 0;
+            currentQuestionIndex = 0;
+            currentQuestionIds = wrongIds;
+
+            startScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            progressDisplay.classList.remove('hidden');
+            progressBarContainer.classList.remove('hidden');
+
+            totalQNum.textContent = currentQuestionIds.length;
+            showQuestion();
+        }
+
+        function showQuestion() {
+            isAnswered = false;
+            const questionId = currentQuestionIds[currentQuestionIndex];
+            const q = questionsData[questionId];
+            
+            qIndex.textContent = currentQuestionIndex + 1;
+            currentQNum.textContent = currentQuestionIndex + 1;
+            
+            // Progress Bar Update
+            const percent = ((currentQuestionIndex) / currentQuestionIds.length) * 100;
+            progressBar.style.width = `${percent}%`;
+
+            questionText.textContent = q.q;
+            optionsContainer.innerHTML = '';
+            
+            feedbackSection.classList.add('hidden');
+            hintText.classList.add('hidden');
+
+            // Hint
+            hintText.textContent = "文法ポイントを確認しましょう。";
+
+            // Shuffle options slightly? No, stick to provided order or random?
+            // Let's keep order for consistency with rationale logic, but data structure is safe for shuffle.
+            // Let's not shuffle for now to keep it simple.
+            
+            q.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = "option-btn w-full text-left p-4 rounded-lg border-2 border-indigo-100 hover:bg-indigo-50 hover:border-indigo-300 font-medium text-lg";
+                btn.textContent = opt.t;
+                btn.onclick = () => checkAnswer(index);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedIndex) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const questionId = currentQuestionIds[currentQuestionIndex];
+            const q = questionsData[questionId];
+            const selectedOpt = q.options[selectedIndex];
+            const correctOptIndex = q.options.findIndex(o => o.c);
+            const buttons = optionsContainer.children;
+
+            // Update Progress Bar to current
+             const percent = ((currentQuestionIndex + 1) / currentQuestionIds.length) * 100;
+             progressBar.style.width = `${percent}%`;
+
+            // UI Updates for Buttons
+            for (let i = 0; i < buttons.length; i++) {
+                buttons[i].classList.remove('hover:bg-indigo-50', 'hover:border-indigo-300');
+                if (i === correctOptIndex) {
+                    buttons[i].classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+                    buttons[i].innerHTML += ' <i class="fas fa-check-circle float-right mt-1"></i>';
+                } else if (i === selectedIndex && !selectedOpt.c) {
+                    buttons[i].classList.add('bg-red-100', 'border-red-500', 'text-red-800');
+                    buttons[i].innerHTML += ' <i class="fas fa-times-circle float-right mt-1"></i>';
+                } else {
+                    buttons[i].classList.add('opacity-50');
+                }
+            }
+
+            // Feedback
+            feedbackSection.classList.remove('hidden');
+            if (selectedOpt.c) {
+                score++;
+                recordCorrect(questionId);
+                feedbackTitle.textContent = "正解！";
+                feedbackTitle.className = "text-lg font-bold text-green-600";
+                feedbackIcon.innerHTML = '<i class="fas fa-smile text-green-500"></i>';
+                feedbackSection.className = "mt-6 p-4 rounded-lg bg-green-50 border border-green-200 fade-in";
+            } else {
+                recordWrong(questionId);
+                feedbackTitle.textContent = "不正解...";
+                feedbackTitle.className = "text-lg font-bold text-red-600";
+                feedbackIcon.innerHTML = '<i class="fas fa-frown text-red-500"></i>';
+                feedbackSection.className = "mt-6 p-4 rounded-lg bg-red-50 border border-red-200 fade-in";
+            }
+            feedbackRationale.textContent = "正解: " + q.options[correctOptIndex].t;
+            if (quizMode === "all") {
+                saveProgress();
+            }
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < currentQuestionIds.length) {
+                showQuestion();
+                if (quizMode === "all") {
+                    saveProgress();
+                }
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+    quizScreen.classList.add('hidden');
+    progressDisplay.classList.add('hidden');
+    progressBarContainer.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+    if (quizMode === "all") {
+        clearProgress();
+    }
+
+    const totalQuestions = currentQuestionIds.length;
+    const percent = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+    
+      // スコア表示は数値のみ（分母はHTML側で固定表示）
+      scoreCount.textContent = score;
+      document.getElementById('score-total').textContent = totalQuestions;
+    scorePercent.textContent = percent;
+
+    // 240問用の評価ロジック（長丁場なので評価コメントをねぎらい重視に変更し、ランクを細分化）
+    if (percent >= 95) {
+        // 95%以上 (約228問以上) - 神レベル
+        resultIcon.innerHTML = '<i class="fas fa-crown text-yellow-500"></i>';
+        resultIcon.nextElementSibling.textContent = "Part5 マスター！";
+        resultIcon.nextElementSibling.nextElementSibling.textContent = "990点満点を狙える水準です。240問完走お見事です！";
+    } else if (percent >= 85) {
+        // 85%以上 (約204問以上) - 900点レベル
+        resultIcon.innerHTML = '<i class="fas fa-trophy text-yellow-400"></i>';
+        resultIcon.nextElementSibling.textContent = "素晴らしい！";
+        resultIcon.nextElementSibling.nextElementSibling.textContent = "900点レベルの知識と集中力です。自信を持って！";
+    } else if (percent >= 70) {
+        // 70%以上 (約168問以上) - 800点レベル
+        resultIcon.innerHTML = '<i class="fas fa-thumbs-up text-blue-500"></i>';
+        resultIcon.nextElementSibling.textContent = "Good Job!";
+        resultIcon.nextElementSibling.nextElementSibling.textContent = "800点突破の実力があります。苦手なパターンを潰せば完璧です。";
+    } else if (percent >= 60) {
+        // 60%以上 (約144問以上) - 600-700点レベル
+        resultIcon.innerHTML = '<i class="fas fa-check-circle text-green-500"></i>';
+        resultIcon.nextElementSibling.textContent = "合格ラインです";
+        resultIcon.nextElementSibling.nextElementSibling.textContent = "基礎はできています。600〜730点を目指せる位置にいます。";
+    } else {
+        // それ以下
+        resultIcon.innerHTML = '<i class="fas fa-book-open text-indigo-400"></i>';
+        resultIcon.nextElementSibling.textContent = "お疲れ様でした";
+        resultIcon.nextElementSibling.nextElementSibling.textContent = "240問解ききったことが財産です。解説を読んで弱点を克服しましょう。";
+    }
+}
+
+        function restartQuiz() {
+            startQuiz(true);
+        }
+
+        function toggleHint() {
+            hintText.classList.toggle('hidden');
+        }
+
+        function manualSave() {
+            if (quizMode !== "all") return;
+            saveProgress();
+            const status = document.getElementById('save-status');
+            if (!status) return;
+            status.classList.remove('hidden');
+            clearTimeout(window.__saveStatusTimer);
+            window.__saveStatusTimer = setTimeout(() => {
+                status.classList.add('hidden');
+            }, 1500);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const saved = loadProgress();
+            if (saved) {
+                const resumeBtn = document.getElementById('resume-btn');
+                if (resumeBtn) {
+                    resumeBtn.classList.remove('hidden');
+                }
+            }
+            updateWrongCount();
+        });
+    </script>
+</body>
+</html>
+

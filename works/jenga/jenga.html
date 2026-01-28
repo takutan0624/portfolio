@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Physics Sandbox - Jenga Pro</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #1a1a1a; 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .hud-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            pointer-events: auto;
+            max-width: 340px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+            color: #fff;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #eab308;
+            padding-bottom: 8px;
+            display: inline-block;
+        }
+
+        p {
+            margin: 10px 0 20px 0;
+            font-size: 0.95rem;
+            color: #ddd;
+            line-height: 1.6;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            pointer-events: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+            font-weight: 600;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        button:hover {
+            background: #555;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        /* トグルボタン用のアクティブ状態 */
+        button.active {
+            background: #3b82f6;
+            border-color: #60a5fa;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+            color: #1a1a1a;
+            border: none;
+        }
+        button.primary:hover {
+            filter: brightness(1.1);
+        }
+        
+        button.action {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+        }
+        button.action:hover {
+             filter: brightness(1.1);
+        }
+
+        button.danger {
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+        }
+
+        .status-bar {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 10px;
+        }
+        
+        /* カメラ操作パッド */
+        #camera-pad {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            pointer-events: auto;
+            z-index: 100;
+        }
+        
+        .pad-row {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .pad-btn {
+            width: 48px;
+            height: 48px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 1.4rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.1s;
+            user-select: none;
+            touch-action: none; /* iOSでのダブルタップなどを防止 */
+            padding: 0;
+            flex: initial; /* flex-grow防止 */
+        }
+        
+        .pad-btn:active {
+            background: rgba(255,255,255,0.3);
+            transform: scale(0.95);
+        }
+
+        /* モバイル用アクションボタン */
+        #mobile-actions {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            pointer-events: auto;
+        }
+
+        .fab {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            border: 2px solid rgba(255,255,255,0.2);
+            flex: initial;
+        }
+
+        @media (min-width: 768px) {
+            #mobile-actions {
+                display: none;
+            }
+        }
+    </style>
+    
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+    
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+          "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+        }
+      }
+    </script>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-layer">
+        <div class="hud-panel">
+            <h1>Jenga Pro <span style="font-size:0.6em; color:#4ade80;">(Easy)</span></h1>
+            <p>
+                <b>左ドラッグ</b>: ブロックを引き抜く<br>
+                <b>Shift+ドラッグ</b>: 持ち上げる<br>
+                <span style="font-size:0.85em; color:#10b981;">※ブロックを触った後に「上に積む」を押すと、<br>自動で頂上に移動します。</span>
+            </p>
+            <div class="controls">
+                <button id="btn-auto-stack" class="action" title="最後に触ったブロックを頂上へ">⬆️ 上に積む</button>
+                <button id="btn-jenga" class="primary">🏗️ タワー再生成</button>
+                <button id="btn-lift-mode" title="持ち上げモード切替">↕️ 持ち上げモード (OFF)</button>
+                <div class="btn-row">
+                    <button id="btn-reset" class="danger">リセット</button>
+                </div>
+            </div>
+            <div class="status-bar">
+                <span>Objects: <span id="obj-count">0</span></span>
+                <span id="drag-status" style="color: #4ade80; opacity: 0;">Grip!</span>
+            </div>
+        </div>
+
+        <!-- カメラ操作パッド -->
+        <div id="camera-pad">
+            <button id="cam-up" class="pad-btn">⬆️</button>
+            <div class="pad-row">
+                <button id="cam-left" class="pad-btn">⬅️</button>
+                <button id="cam-right" class="pad-btn">➡️</button>
+            </div>
+            <button id="cam-down" class="pad-btn">⬇️</button>
+        </div>
+
+        <div id="mobile-actions">
+            <button id="btn-auto-stack-mobile" class="fab action" title="上に積む">⬆️</button>
+            <button id="btn-lift-mobile" class="fab" title="持ち上げモード">↕️</button>
+            <button id="btn-jenga-mobile" class="fab primary" title="タワー生成">🏗️</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import * as CANNON from 'cannon-es';
+
+        // --- Global Variables ---
+        let scene, camera, renderer, world, controls;
+        const objectsToUpdate = [];
+        const timeStep = 1 / 60;
+        
+        // Physics Materials
+        let defaultMaterial, woodMaterial;
+        
+        // Interaction Variables
+        let raycaster, mouse;
+        let mouseConstraint = null;
+        let mouseBody = null; 
+        let isDragging = false;
+        let dragPlaneIntersection = new THREE.Vector3(); 
+        let dragPlaneY = 0; 
+        let liftMode = false;
+        
+        // 自動スタック用: 最後に操作したブロックを記録
+        let lastTouchedBody = null;
+        
+        // スムージング用
+        let mouseTargetPos = new THREE.Vector3();
+        
+        // ハイライト用
+        let selectedMesh = null;
+        let originalColor = null;
+
+        // カメラ操作状態
+        const camMoveState = { up: false, down: false, left: false, right: false };
+
+        // --- Initialization ---
+        function init() {
+            // 1. Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+            scene.fog = new THREE.Fog(0x1a1a1a, 20, 100);
+
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(12, 12, 12);
+            camera.lookAt(0, 4, 0);
+
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // 4. Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            dirLight.position.set(10, 25, 15);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.bias = -0.0005;
+            scene.add(dirLight);
+
+            // 5. Physics World
+            world = new CANNON.World();
+            world.gravity.set(0, -4.0, 0); 
+            world.broadphase = new CANNON.SAPBroadphase(world);
+            world.allowSleep = true; 
+            world.solver.iterations = 30; 
+            world.solver.tolerance = 0.001;
+
+            // Materials
+            defaultMaterial = new CANNON.Material('default');
+            woodMaterial = new CANNON.Material('wood');
+            
+            const woodContact = new CANNON.ContactMaterial(woodMaterial, woodMaterial, {
+                friction: 0.05,    
+                restitution: 0.05, 
+                contactEquationStiffness: 1e7,
+                contactEquationRelaxation: 3
+            });
+            
+            const groundContact = new CANNON.ContactMaterial(defaultMaterial, woodMaterial, {
+                friction: 0.6,
+                restitution: 0.1
+            });
+            
+            world.addContactMaterial(woodContact);
+            world.addContactMaterial(groundContact);
+
+            // 6. Ground
+            createGround();
+
+            // 7. Mouse Body (Kinematic)
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            const shape = new CANNON.Sphere(0.1);
+            mouseBody = new CANNON.Body({ mass: 0, shape: shape });
+            mouseBody.collisionFilterGroup = 0;
+            mouseBody.collisionFilterMask = 0;
+            world.addBody(mouseBody);
+
+            // 8. Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.02;
+
+            // 9. Events
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
+            
+            const canvas = renderer.domElement;
+            canvas.addEventListener('pointerdown', onPointerDown);
+            canvas.addEventListener('pointermove', onPointerMove);
+            canvas.addEventListener('pointerup', onPointerUp);
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+            // UI Buttons
+            document.getElementById('btn-reset').addEventListener('click', resetWorld);
+            document.getElementById('btn-jenga').addEventListener('click', createJengaTower);
+            document.getElementById('btn-jenga-mobile').addEventListener('click', (e) => { e.stopPropagation(); createJengaTower(); });
+            
+            // Auto Stack Button
+            document.getElementById('btn-auto-stack').addEventListener('click', autoStackBlock);
+            document.getElementById('btn-auto-stack-mobile').addEventListener('click', (e) => { e.stopPropagation(); autoStackBlock(); });
+            
+            // Lift Mode
+            const btnLift = document.getElementById('btn-lift-mode');
+            const btnLiftMob = document.getElementById('btn-lift-mobile');
+            const toggleLift = () => {
+                liftMode = !liftMode;
+                updateLiftUI();
+            };
+            btnLift.addEventListener('click', toggleLift);
+            btnLiftMob.addEventListener('click', (e) => { e.stopPropagation(); toggleLift(); });
+
+            // Camera Pad Events
+            setupCameraPad('cam-up', 'up');
+            setupCameraPad('cam-down', 'down');
+            setupCameraPad('cam-left', 'left');
+            setupCameraPad('cam-right', 'right');
+
+            // Initial Setup
+            createJengaTower();
+            animate();
+        }
+
+        // --- Camera Control Logic ---
+
+        function setupCameraPad(id, direction) {
+            const btn = document.getElementById(id);
+            const start = (e) => { 
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                camMoveState[direction] = true; 
+            };
+            const end = (e) => { 
+                e.preventDefault();
+                e.stopPropagation();
+                camMoveState[direction] = false; 
+            };
+            
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('touchstart', start, {passive: false});
+            
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+            btn.addEventListener('touchend', end);
+        }
+
+        // --- Interaction Logic ---
+        
+        function updateLiftUI() {
+            const btnLift = document.getElementById('btn-lift-mode');
+            const btnLiftMob = document.getElementById('btn-lift-mobile');
+            
+            if (liftMode) {
+                btnLift.classList.add('active');
+                btnLift.textContent = "↕️ 持ち上げモード (ON)";
+                btnLiftMob.classList.add('active'); 
+                btnLiftMob.style.backgroundColor = '#3b82f6';
+            } else {
+                btnLift.classList.remove('active');
+                btnLift.textContent = "↕️ 持ち上げモード (OFF)";
+                btnLiftMob.classList.remove('active');
+                btnLiftMob.style.backgroundColor = '';
+            }
+        }
+        
+        function onKeyDown(e) {
+            if (e.key === 'Shift') {
+                liftMode = true;
+                updateLiftUI();
+            }
+            if (e.key === 'ArrowUp') camMoveState.up = true;
+            if (e.key === 'ArrowDown') camMoveState.down = true;
+            if (e.key === 'ArrowLeft') camMoveState.left = true;
+            if (e.key === 'ArrowRight') camMoveState.right = true;
+        }
+        
+        function onKeyUp(e) {
+            if (e.key === 'Shift') {
+                liftMode = false;
+                updateLiftUI();
+            }
+            if (e.key === 'ArrowUp') camMoveState.up = false;
+            if (e.key === 'ArrowDown') camMoveState.down = false;
+            if (e.key === 'ArrowLeft') camMoveState.left = false;
+            if (e.key === 'ArrowRight') camMoveState.right = false;
+        }
+
+        function getRayIntersection(clientX, clientY) {
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            
+            const meshes = objectsToUpdate.map(obj => obj.mesh);
+            const intersects = raycaster.intersectObjects(meshes);
+
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const hitObject = objectsToUpdate.find(obj => obj.mesh === hitMesh);
+                if (hitObject) {
+                    return {
+                        body: hitObject.body,
+                        mesh: hitObject.mesh,
+                        point: intersects[0].point,
+                        distance: intersects[0].distance
+                    };
+                }
+            }
+            return null;
+        }
+
+        function onPointerDown(e) {
+            if (e.button === 2) { 
+                // Right click action if needed
+                return;
+            }
+
+            const hit = getRayIntersection(e.clientX, e.clientY);
+
+            if (hit) {
+                controls.enabled = false;
+                isDragging = true;
+                
+                // 最後に触ったブロックを記録
+                lastTouchedBody = hit.body;
+                
+                highlightMesh(hit.mesh);
+
+                const statusEl = document.getElementById('drag-status');
+                statusEl.style.opacity = 1;
+                statusEl.innerText = liftMode ? "↕️ Lifting!" : "↔️ Sliding!";
+
+                const pos = hit.point;
+                mouseBody.position.set(pos.x, pos.y, pos.z);
+                mouseTargetPos.copy(pos); 
+
+                dragPlaneY = pos.y;
+                
+                const localPivot = new CANNON.Vec3();
+                hit.body.pointToLocalFrame(new CANNON.Vec3(pos.x, pos.y, pos.z), localPivot);
+
+                mouseConstraint = new CANNON.PointToPointConstraint(
+                    hit.body, 
+                    localPivot, 
+                    mouseBody, 
+                    new CANNON.Vec3(0, 0, 0)
+                );
+                
+                world.addConstraint(mouseConstraint);
+                dragPlaneIntersection.copy(hit.point);
+                hit.body.angularDamping = 0.8; 
+            }
+        }
+
+        function onPointerMove(e) {
+            if (!isDragging) return;
+
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            
+            if (liftMode) {
+                const dist = camera.position.distanceTo(dragPlaneIntersection);
+                const newPos = new THREE.Vector3().copy(camera.position).add(
+                    raycaster.ray.direction.multiplyScalar(dist)
+                );
+                mouseTargetPos.copy(newPos);
+                dragPlaneY = newPos.y;
+
+            } else {
+                const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -dragPlaneY);
+                const target = new THREE.Vector3();
+                
+                const intersection = raycaster.ray.intersectPlane(plane, target);
+                
+                if (intersection) {
+                    mouseTargetPos.copy(intersection);
+                }
+            }
+        }
+
+        function onPointerUp(e) {
+            if (isDragging) {
+                isDragging = false;
+                controls.enabled = true;
+                
+                unhighlightMesh();
+
+                const statusEl = document.getElementById('drag-status');
+                statusEl.style.opacity = 0;
+
+                if (mouseConstraint) {
+                    mouseConstraint.bodyA.angularDamping = 0.5; 
+                    world.removeConstraint(mouseConstraint);
+                    mouseConstraint = null;
+                }
+            }
+        }
+        
+        function highlightMesh(mesh) {
+            if (selectedMesh) unhighlightMesh();
+            selectedMesh = mesh;
+            originalColor = mesh.material.color.getHex();
+            mesh.material.color.setHex(0xffee55);
+            mesh.material.emissive.setHex(0x333300);
+        }
+        
+        function unhighlightMesh() {
+            if (selectedMesh && originalColor !== null) {
+                selectedMesh.material.color.setHex(originalColor);
+                selectedMesh.material.emissive.setHex(0x000000);
+                selectedMesh = null;
+                originalColor = null;
+            }
+        }
+
+        // --- Auto Stack Logic ---
+
+        function autoStackBlock() {
+            if (!lastTouchedBody) return;
+            
+            if (isDragging) {
+                onPointerUp();
+            }
+
+            const blockHeight = 0.6;
+            const posTolerance = 0.3; // 同じ段とみなす許容範囲
+
+            // 1. 最上段（Top Layer）を探す
+            let maxY = -Infinity;
+            let topBlocks = [];
+
+            // 自分以外のブロックで最も高いY座標を探す
+            for (const obj of objectsToUpdate) {
+                if (obj.body === lastTouchedBody) continue;
+                if (obj.body.position.y > maxY) {
+                    maxY = obj.body.position.y;
+                }
+            }
+            
+            // ブロックが一つもない場合
+            if (maxY === -Infinity) {
+                 lastTouchedBody.position.set(0, 0.3, 0);
+                 lastTouchedBody.quaternion.set(0,0,0,1);
+                 lastTouchedBody.velocity.set(0,0,0);
+                 lastTouchedBody.wakeUp();
+                 return;
+            }
+
+            // 最上段にあるブロックを収集
+            for (const obj of objectsToUpdate) {
+                if (obj.body === lastTouchedBody) continue;
+                if (Math.abs(obj.body.position.y - maxY) < posTolerance) {
+                    topBlocks.push(obj.body);
+                }
+            }
+            
+            // 2. 最上段の向き（Orientation）を判定
+            // 基準となるブロックを一つ選び、その長辺がX軸向きかZ軸向きかを判定する
+            const refBlock = topBlocks[0];
+            
+            // Shapeの寸法を取得
+            const shape = refBlock.shapes[0];
+            const sizeX = shape.halfExtents.x * 2;
+            const sizeZ = shape.halfExtents.z * 2;
+            
+            // 現在の回転を考慮して、ワールド空間でのX方向・Z方向の幅を計算
+            const vecX = new CANNON.Vec3(sizeX, 0, 0); // ローカルX幅ベクトル
+            const vecZ = new CANNON.Vec3(0, 0, sizeZ); // ローカルZ幅ベクトル
+            refBlock.quaternion.vmult(vecX, vecX);
+            refBlock.quaternion.vmult(vecZ, vecZ);
+            
+            // ワールドX軸への投影成分の合計と、ワールドZ軸への投影成分の合計を比較
+            // (回転していても、どちらかの軸に平行に近いはず)
+            const worldExtentX = Math.abs(vecX.x) + Math.abs(vecZ.x);
+            const worldExtentZ = Math.abs(vecX.z) + Math.abs(vecZ.z);
+            
+            // X方向の広がりが大きければ「X軸長辺（横向き）」
+            const isCurrentLayerXAligned = worldExtentX > worldExtentZ;
+            
+            // 3. スロット占有状況チェック (-1, 0, 1 の3スロット)
+            const occupiedSlots = [false, false, false]; 
+            
+            topBlocks.forEach(b => {
+                let pos;
+                // X軸平行(横長)なら、並びはZ軸方向 (z = -1, 0, 1)
+                // Z軸平行(縦長)なら、並びはX軸方向 (x = -1, 0, 1)
+                if (isCurrentLayerXAligned) {
+                    pos = b.position.z;
+                } else {
+                    pos = b.position.x;
+                }
+                
+                // ブロック幅は約1.0。四捨五入してインデックス化
+                const index = Math.round(pos) + 1; // -1->0, 0->1, 1->2
+                if (index >= 0 && index <= 2) {
+                    occupiedSlots[index] = true;
+                }
+            });
+            
+            // 4. 次に置く場所を決定
+            let targetY = maxY;
+            let targetSlot = -1;
+            let targetIsXAligned = isCurrentLayerXAligned;
+            
+            // 空きスロットを探す
+            const freeSlots = [];
+            occupiedSlots.forEach((occupied, idx) => {
+                if (!occupied) freeSlots.push(idx - 1); // インデックスを座標(-1,0,1)に戻す
+            });
+            
+            if (freeSlots.length > 0) {
+                // 【ルール適用】空きがあるなら、その段を埋める
+                // ここではランダムな空きスロットを選択
+                targetSlot = freeSlots[Math.floor(Math.random() * freeSlots.length)];
+                
+                // 高さを既存ブロックの平均に合わせる（微調整）
+                let sumY = 0;
+                topBlocks.forEach(b => sumY += b.position.y);
+                targetY = sumY / topBlocks.length;
+                
+            } else {
+                // 【ルール適用】満杯なら、新しい段を作る
+                targetY = maxY + blockHeight;
+                targetIsXAligned = !isCurrentLayerXAligned; // 向きを90度変える
+                
+                // 新しい段は真ん中(0)から置くのが安定
+                targetSlot = 0; 
+            }
+            
+            // 5. 自身の形状に合わせて回転と位置を設定
+            const myShape = lastTouchedBody.shapes[0];
+            const myW = myShape.halfExtents.x * 2;
+            const myD = myShape.halfExtents.z * 2;
+            const amIXLongShape = myW > myD; // 元の形状がX長辺で作られているか
+            
+            const q = new CANNON.Quaternion();
+            
+            if (targetIsXAligned) {
+                // 目標: X軸長辺
+                if (amIXLongShape) {
+                    q.set(0, 0, 0, 1); // そのまま
+                } else {
+                    q.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI / 2); // 90度回す
+                }
+            } else {
+                // 目標: Z軸長辺
+                if (amIXLongShape) {
+                    q.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI / 2); // 90度回す
+                } else {
+                    q.set(0, 0, 0, 1); // そのまま
+                }
+            }
+            
+            // 座標計算
+            let tx, tz;
+            const jitter = (Math.random() - 0.5) * 0.02; // ズレを減らしてより精密に
+            
+            if (targetIsXAligned) {
+                // X長辺配置。並びはZ方向。
+                tx = jitter;
+                tz = targetSlot * 1.0; 
+            } else {
+                // Z長辺配置。並びはX方向。
+                tx = targetSlot * 1.0;
+                tz = jitter;
+            }
+            
+            // 適用
+            const gentleOffset = 0.02;
+
+            lastTouchedBody.velocity.set(0, 0, 0);
+            lastTouchedBody.angularVelocity.set(0, 0, 0);
+            lastTouchedBody.position.set(tx, targetY + gentleOffset, tz); 
+            lastTouchedBody.quaternion.copy(q);
+            
+            // 置いた後の微振動を抑えるため、抵抗(Damping)を一時的に高める
+            lastTouchedBody.linearDamping = 0.9;
+            lastTouchedBody.angularDamping = 0.9;
+
+            lastTouchedBody.wakeUp();
+            
+            // カメラ追従
+            if (camera.position.y < targetY + 5) {
+                controls.target.y = targetY;
+            }
+        }
+
+        // --- Object Creation ---
+
+        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+
+        function createGround() {
+            const groundGeo = new THREE.PlaneGeometry(100, 100);
+            const groundMat = new THREE.MeshStandardMaterial({ 
+                color: 0x222222, 
+                roughness: 0.9 
+            });
+            const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+            groundMesh.rotation.x = -Math.PI / 2;
+            groundMesh.receiveShadow = true;
+            scene.add(groundMesh);
+
+            const groundBody = new CANNON.Body({
+                mass: 0,
+                shape: new CANNON.Plane(),
+                material: defaultMaterial
+            });
+            groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+            world.addBody(groundBody);
+        }
+
+        function createBox(width, height, depth, position, materialType = 'random') {
+            let mat, color;
+            if (materialType === 'wood') {
+                const lightness = 0.5 + Math.random() * 0.15;
+                color = new THREE.Color().setHSL(0.08, 0.5, lightness); 
+                mat = woodMaterial;
+            } else {
+                color = new THREE.Color().setHSL(Math.random(), 0.6, 0.6);
+                mat = defaultMaterial;
+            }
+
+            const mesh = new THREE.Mesh(
+                boxGeometry,
+                new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, metalness: 0.05 })
+            );
+            mesh.scale.set(width, height, depth);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.position.copy(position);
+            scene.add(mesh);
+
+            const shape = new CANNON.Box(new CANNON.Vec3(width / 2, height / 2, depth / 2));
+            const body = new CANNON.Body({
+                mass: 0.5, 
+                shape: shape,
+                material: mat,
+                linearDamping: 0.5, 
+                angularDamping: 0.5 
+            });
+            body.position.copy(position);
+            
+            body.sleepSpeedLimit = 0.1;
+            body.sleepTimeLimit = 0.5;
+            
+            world.addBody(body);
+
+            objectsToUpdate.push({ mesh, body });
+            updateObjectCount();
+        }
+
+        function createJengaTower() {
+            resetWorld();
+
+            const layers = 16; 
+            const blockWidth = 1.0;
+            const blockHeight = 0.6;
+            const blockLength = 3.0; 
+            
+            for (let i = 0; i < layers; i++) {
+                const y = 0.5 + blockHeight / 2 + i * blockHeight;
+                const isOddLayer = i % 2 !== 0;
+
+                for (let j = 0; j < 3; j++) {
+                    let x, z, w, h, d;
+                    const offset = (j - 1) * blockWidth;
+                    const gap = 0.01; 
+
+                    if (isOddLayer) {
+                        w = blockLength; h = blockHeight; d = blockWidth - gap;
+                        x = 0; z = offset;
+                    } else {
+                        w = blockWidth - gap; h = blockHeight; d = blockLength;
+                        x = offset; z = 0;
+                    }
+                    
+                    x += (Math.random() - 0.5) * 0.02;
+                    z += (Math.random() - 0.5) * 0.02;
+
+                    createBox(w, h, d, { x, y, z }, 'wood');
+                }
+            }
+            
+            camera.position.set(10, 12, 10);
+            controls.target.set(0, 5, 0);
+            lastTouchedBody = null;
+        }
+
+        function resetWorld() {
+            for (const object of objectsToUpdate) {
+                scene.remove(object.mesh);
+                world.removeBody(object.body);
+            }
+            objectsToUpdate.length = 0;
+            updateObjectCount();
+            
+            if(mouseConstraint) {
+                world.removeConstraint(mouseConstraint);
+                mouseConstraint = null;
+            }
+            isDragging = false;
+            controls.enabled = true;
+            unhighlightMesh();
+            lastTouchedBody = null;
+        }
+
+        function updateObjectCount() {
+            document.getElementById('obj-count').innerText = objectsToUpdate.length;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Loop ---
+        const clock = new THREE.Clock();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const dt = clock.getDelta();
+            const safeDt = Math.min(dt, 0.1);
+
+            world.step(timeStep, safeDt, 10);
+
+            if (isDragging) {
+                mouseBody.position.x += (mouseTargetPos.x - mouseBody.position.x) * 0.2; 
+                mouseBody.position.y += (mouseTargetPos.y - mouseBody.position.y) * 0.2;
+                mouseBody.position.z += (mouseTargetPos.z - mouseBody.position.z) * 0.2;
+                
+                mouseBody.velocity.set(0,0,0);
+                mouseBody.wakeUp();
+                if(mouseConstraint) mouseConstraint.bodyA.wakeUp();
+            }
+
+            // カメラの手動回転処理
+            const rotateSpeed = 0.04; // 回転速度
+            const moveSpeed = 0.2;   // 上下移動速度
+
+            if (camMoveState.left) {
+                const offset = camera.position.clone().sub(controls.target);
+                offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotateSpeed);
+                camera.position.copy(controls.target).add(offset);
+            }
+            if (camMoveState.right) {
+                const offset = camera.position.clone().sub(controls.target);
+                offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), -rotateSpeed);
+                camera.position.copy(controls.target).add(offset);
+            }
+            if (camMoveState.up) {
+                camera.position.y += moveSpeed;
+                if (camera.position.y > 30) camera.position.y = 30; // 上限
+            }
+            if (camMoveState.down) {
+                camera.position.y -= moveSpeed;
+                if (camera.position.y < 0.5) camera.position.y = 0.5; // 下限
+            }
+            
+            if (camMoveState.left || camMoveState.right || camMoveState.up || camMoveState.down) {
+                camera.lookAt(controls.target);
+            }
+
+            for (const object of objectsToUpdate) {
+                object.mesh.position.copy(object.body.position);
+                object.mesh.quaternion.copy(object.body.quaternion);
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
