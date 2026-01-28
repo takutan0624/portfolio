@@ -1326,10 +1326,19 @@
         padding: 12px 20px;
       }
 
+      .nav-container {
+        justify-content: space-between;
+      }
+
       .menu-toggle {
         display: flex;
+        order: 2;
       }
-      
+
+      .logo {
+        order: 1;
+      }
+
       .nav-links {
         position: fixed;
         top: 0;
@@ -1345,12 +1354,13 @@
         padding: var(--space-lg);
         transition: right var(--transition-normal);
         gap: var(--space-md);
+        order: 3;
       }
-      
+
       .nav-links.active {
         right: 0;
       }
-      
+
       .nav-links a {
         font-size: 1.5rem;
         padding: var(--space-sm);
