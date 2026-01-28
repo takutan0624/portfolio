@@ -957,6 +957,89 @@
     }
 
     /* ================================
+       MUSIC SECTION
+       ================================ */
+    .music-lead {
+      color: var(--color-text-muted);
+      font-size: 0.95rem;
+      line-height: 1.7;
+      margin: 0 0 var(--space-md);
+      max-width: 720px;
+    }
+
+    .music-tiles {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 18px;
+    }
+
+    .music-tile {
+      background: var(--glass-bg-gradient);
+      backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+      border: 1px solid var(--glass-border);
+      border-top: 1px solid var(--glass-edge-shine);
+      border-left: 1px solid var(--glass-edge-shine);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      transition: all var(--transition-normal);
+      opacity: 0;
+      transform: translateY(40px) scale(0.96);
+      box-shadow: 0 10px 24px -12px rgba(0,0,0,0.5), var(--glass-highlight);
+    }
+
+    .music-tile:hover {
+      background: var(--glass-bg-hover);
+      border-top-color: rgba(255, 255, 255, 0.6);
+      border-left-color: rgba(255, 255, 255, 0.6);
+      transform: translateY(-6px) scale(1);
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35), var(--glass-highlight);
+    }
+
+    .music-tile.is-empty {
+      cursor: default;
+      opacity: 0.8;
+    }
+
+    .music-tile.is-empty:hover {
+      transform: translateY(0) scale(0.98);
+      box-shadow: 0 10px 24px -12px rgba(0,0,0,0.5), var(--glass-highlight);
+    }
+
+    .music-cover {
+      aspect-ratio: 1 / 1;
+      border-radius: 14px;
+      background: radial-gradient(circle at 20% 20%, rgba(41, 230, 255, 0.35), transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(212, 179, 106, 0.35), transparent 55%),
+                  rgba(255, 255, 255, 0.02);
+      display: grid;
+      place-items: center;
+      font-family: var(--font-heading);
+      font-size: 1.1rem;
+      letter-spacing: 3px;
+      color: rgba(255, 255, 255, 0.18);
+      border: 1px solid var(--glass-border);
+      border-top: 1px solid var(--glass-edge-shine);
+      border-left: 1px solid var(--glass-edge-shine);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 10px 20px rgba(0,0,0,0.35);
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+    }
+
+    .music-tile-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .music-tile-meta {
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+    }
+
+    /* ================================
        SKILLS SECTION
        ================================ */
     .skills {
@@ -1322,6 +1405,10 @@
       .nav-container {
         gap: 24px;
       }
+
+      .music-tiles {
+        grid-template-columns: repeat(3, minmax(140px, 1fr));
+      }
     }
 
     @media (max-width: 768px) {
@@ -1383,6 +1470,10 @@
       
       .works-grid {
         grid-template-columns: 1fr;
+      }
+
+      .music-tiles {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
       }
       
       .about-stats {
@@ -1451,6 +1542,7 @@
       <ul class="nav-links" id="navLinks">
         <li><a href="#about">About</a></li>
         <li><a href="#works">Works</a></li>
+        <li><a href="#music">Music</a></li>
         <li><a href="#skills">Skills</a></li>
         <li><a href="#contact">Contact</a></li>
       </ul>
@@ -1689,11 +1781,44 @@
     </div>
   </section>
 
+  <!-- Music Section -->
+  <section class="music" id="music">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">03 / MUSIC</span>
+        <h2 class="section-title">My Music</h2>
+      </div>
+      <p class="music-lead">プレイリストが増えていく前提で、CDジャケットが並ぶタイルにしています。</p>
+      <div class="music-tiles">
+        <a class="music-tile" href="https://suno.com/playlist/043ec0cd-5e03-481b-a170-d0212b8076bf" target="_blank" rel="noopener">
+          <div class="music-cover">8BIT</div>
+          <div class="music-tile-title">8Bit Jazz</div>
+          <div class="music-tile-meta">Suno Playlist</div>
+        </a>
+        <a class="music-tile" href="https://suno.com/playlist/eba27832-f80d-49fd-8622-388223d3557e" target="_blank" rel="noopener">
+          <div class="music-cover">JAZZ</div>
+          <div class="music-tile-title">Jazz</div>
+          <div class="music-tile-meta">Suno Playlist</div>
+        </a>
+        <a class="music-tile" href="https://suno.com/playlist/97b6fff7-b74d-489d-b04d-461a5666a0f1" target="_blank" rel="noopener">
+          <div class="music-cover">8BIT</div>
+          <div class="music-tile-title">8Bit citypop</div>
+          <div class="music-tile-meta">Suno Playlist</div>
+        </a>
+        <div class="music-tile is-empty">
+          <div class="music-cover">NEW</div>
+          <div class="music-tile-title">Coming Soon</div>
+          <div class="music-tile-meta">Suno Playlist</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Skills Section -->
   <section class="skills" id="skills">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag">03 / SKILLS</span>
+        <span class="section-tag">04 / SKILLS</span>
         <h2 class="section-title">What I Do</h2>
       </div>
       <div class="skills-content">
@@ -1783,7 +1908,7 @@
   <section class="contact" id="contact">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag">04 / CONTACT</span>
+        <span class="section-tag">05 / CONTACT</span>
         <h2 class="section-title">Get in Touch</h2>
       </div>
       <div class="contact-content">
@@ -2277,7 +2402,7 @@
       animateCursors();
       
       // Hover effects on interactive elements
-      const interactiveElements = document.querySelectorAll('a, button, .work-card, .skill-card');
+      const interactiveElements = document.querySelectorAll('a, button, .work-card, .skill-card, .music-tile');
       
       interactiveElements.forEach(el => {
         el.addEventListener('mouseenter', () => {
@@ -2395,6 +2520,7 @@
       document.querySelectorAll('.section-header').forEach(el => observer.observe(el));
       document.querySelectorAll('.about-text, .about-visual').forEach(el => observer.observe(el));
       document.querySelectorAll('.works-filter, .work-card').forEach(el => observer.observe(el));
+      document.querySelectorAll('.music-tile').forEach(el => observer.observe(el));
       document.querySelectorAll('.skills-intro, .skill-card').forEach(el => observer.observe(el));
       document.querySelectorAll('.contact-info, .contact-form').forEach(el => observer.observe(el));
     }
@@ -2487,6 +2613,17 @@
           translateY: [60, 0],
           scale: [0.95, 1],
           duration: 1000,
+          easing: 'easeOutExpo'
+        });
+      }
+
+      if (el.classList.contains('music-tile')) {
+        anime({
+          targets: el,
+          opacity: [0, 1],
+          translateY: [40, 0],
+          scale: [0.96, 1],
+          duration: 800,
           easing: 'easeOutExpo'
         });
       }
@@ -2799,7 +2936,7 @@
     // CARD HOVER EFFECTS - ENHANCED
     // ================================
     function initCardHoverEffects() {
-      const cards = document.querySelectorAll('.work-card, .skill-card');
+      const cards = document.querySelectorAll('.work-card, .skill-card, .music-tile');
       
       cards.forEach(card => {
         card.addEventListener('mouseenter', () => {
