@@ -1322,8 +1322,16 @@
 
     @media (max-width: 768px) {
       .nav {
-        width: calc(100% - 40px);
+        left: 20px;
+        right: 20px;
+        width: auto;
         padding: 12px 20px;
+        transform: translateY(-100px);
+        border-radius: var(--radius-md);
+      }
+
+      .nav.visible {
+        transform: translateY(0);
       }
 
       .nav-container {
