@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>出席表から掃除シフト自動生成（Excel風入力＋準最適化）</title>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Noto+Sans+JP:wght@400;500&display=swap");
+
+    body {
+      font-family: "Poppins","Noto Sans JP",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      margin: 0;
+      padding: 32px 16px;
+      background: radial-gradient(circle at 20% 20%, rgba(99,102,241,0.15), transparent 25%),
+                  radial-gradient(circle at 80% 0%, rgba(16,185,129,0.18), transparent 25%),
+                  #0f172a;
+      color: #e5e7eb;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 28px 70px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.08);
+      backdrop-filter: blur(14px);
+      position: relative;
+      overflow: hidden;
+    }
+    .container::before,
+    .container::after {
+      content: "";
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(226,232,240,0.6), rgba(180,198,255,0.35));
+      filter: blur(45px);
+      opacity: 0.75;
+      z-index: 0;
+    }
+    .container::before { top: -60px; left: -60px; }
+    .container::after { bottom: -60px; right: -40px; }
+    #bgCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.6;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+      color: #fff;
+      letter-spacing: 0.02em;
+      position: relative;
+      z-index: 1;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 0.95rem;
+      position: relative;
+      z-index: 1;
+    }
+    select {
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      font-size: 0.95rem;
+      background: rgba(255,255,255,0.06);
+      color: #e5e7eb;
+      outline: none;
+      backdrop-filter: blur(6px);
+    }
+    select:focus {
+      border-color: rgba(94,234,212,0.7);
+      box-shadow: 0 0 0 3px rgba(94,234,212,0.15);
+    }
+    button {
+      margin-top: 12px;
+      padding: 12px 18px;
+      border-radius: 14px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #0b1220;
+      background: linear-gradient(135deg, #1fb8e2 0%, #22d3ee 60%, #1fb8e2 100%);
+      box-shadow: 0 12px 30px rgba(34,211,238,0.35);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+      z-index: 1;
+    }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 42px rgba(14,165,233,0.4);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button .glow {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25), transparent 40%),
+                  radial-gradient(circle at 80% 10%, rgba(255,255,255,0.2), transparent 40%);
+      mix-blend-mode: screen;
+      pointer-events: none;
+      opacity: 0.9;
+    }
+    .error {
+      color: #fca5a5;
+      margin-top: 6px;
+      font-size: 0.9rem;
+      z-index: 1;
+      position: relative;
+    }
+
+    /* Excel風グリッド外枠 */
+    #excelContainer {
+      width: 100%;
+      height: 400px;
+      border: 1px solid rgba(255,255,255,0.35);
+      overflow: scroll;
+      background: rgba(255,255,255,0.72);
+      margin-top: 10px;
+      border-radius: 14px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.8);
+      position: relative;
+      z-index: 1;
+      backdrop-filter: blur(10px);
+    }
+
+    /* グリッド本体 */
+    table.excelGrid {
+      border-collapse: collapse;
+      table-layout: fixed;
+      width: max-content;
+      color: #0b1220;
+    }
+
+    /* セル */
+    table.excelGrid td {
+      width: 120px;         /* A〜AFくらい貼り付けても余裕 */
+      height: 28px;
+      border: 1px solid rgba(15,23,42,0.08);
+      padding: 2px 4px;
+      background: rgba(255,255,255,0.85);
+      white-space: pre;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    /* セル編集時 */
+    table.excelGrid td[contenteditable="true"]:focus {
+      outline: 2px solid #0ea5e9;
+      background: rgba(14,165,233,0.1);
+      box-shadow: 0 0 0 3px rgba(14,165,233,0.18);
+    }
+
+    /* 1行目をヘッダ風に */
+    table.excelGrid tr:first-child td {
+      background: rgba(255,255,255,0.75);
+      font-weight: bold;
+      border-color: rgba(15,23,42,0.12);
+    }
+
+    table.resultTable {
+      width: 100%;
+      margin-top: 18px;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      color: #0b1220;
+      overflow: hidden;
+      border-radius: 12px;
+      box-shadow: 0 10px 32px rgba(0,0,0,0.22);
+      background: rgba(255,255,255,0.82);
+      backdrop-filter: blur(8px);
+    }
+    table.resultTable th, table.resultTable td {
+      border: 1px solid rgba(15,23,42,0.08);
+      padding: 8px 10px;
+      text-align: center;
+      white-space: nowrap;
+      background: rgba(255,255,255,0.85);
+    }
+    table.resultTable th {
+      background: linear-gradient(135deg, rgba(14,165,233,0.18), rgba(14,165,233,0.3));
+      color: #0b1220;
+      font-weight: 700;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    table.resultTable tr.weekend td {
+      background: rgba(254,226,226,0.7);
+      color: #7f1d1d;
+    }
+    table.resultTable tbody tr {
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+    }
+    table.resultTable tbody tr:hover td {
+      background: rgba(14,165,233,0.1);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+    .summary pre {
+      background: rgba(255,255,255,0.85);
+      padding: 10px;
+      border-radius: 10px;
+      font-family: Consolas, monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      border: 1px solid rgba(15,23,42,0.08);
+      color: #0b1220;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.16);
+    }
+
+    .pulse {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: rgba(255,255,255,0.35);
+      border-radius: 50%;
+      pointer-events: none;
+      filter: drop-shadow(0 0 12px rgba(255,255,255,0.5));
+      animation: shoot 0.9s ease-out forwards;
+    }
+    @keyframes shoot {
+      0%   { transform: translate(-50%,-50%) scale(0.4); opacity: 0.9; }
+      70%  { transform: translate(var(--tx), var(--ty)) scale(1.6); opacity: 0.45; }
+      100% { transform: translate(calc(var(--tx)*1.3), calc(var(--ty)*1.1)) scale(0.2); opacity: 0; }
+    }
+    .burst {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      pointer-events: none;
+      opacity: 0.9;
+      animation: burst 0.9s ease-out forwards;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    @keyframes burst {
+      0%   { transform: translate(-50%,-50%) scale(0.8) rotate(0deg); opacity: 1; }
+      100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.6) rotate(var(--dr)); opacity: 0; }
+    }
+    .ring {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.1) 60%, transparent 70%);
+      pointer-events: none;
+      transform: translate(-50%,-50%) scale(0.2);
+      animation: ringPop 0.6s ease-out forwards;
+      filter: blur(0.2px);
+    }
+    @keyframes ringPop {
+      0%   { transform: translate(-50%,-50%) scale(0.2); opacity: 0.75; }
+      70%  { transform: translate(-50%,-50%) scale(8); opacity: 0.4; }
+      100% { transform: translate(-50%,-50%) scale(9.5); opacity: 0; }
+    }
+    .resultFade {
+      animation: fadeUp 0.35s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .buttonGroup {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .print-only { display: none; }
+    .taskConfig {
+      margin: 18px 0 8px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+    .taskConfig h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      color: #fff;
+    }
+    .taskList {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px 12px;
+      align-items: center;
+    }
+    .taskItem {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(255,255,255,0.18);
+      border-radius: 10px;
+      padding: 6px 8px;
+      color: #f8fafc;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .taskItem input[type="text"] {
+      flex: 1;
+      min-width: 120px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(15,23,42,0.35);
+      color: #e5e7eb;
+    }
+    .taskItem select {
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(15,23,42,0.35);
+      color: #e5e7eb;
+      font-size: 0.9rem;
+    }
+    .weekdayPicker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 6px;
+    }
+    .weekdayPicker label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.8rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.35);
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+    .taskItem .removeTask {
+      background: rgba(248,113,113,0.15);
+      color: #fecaca;
+      border: 1px solid rgba(248,113,113,0.35);
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <h1>出席表 → 掃除シフト自動生成（Excel風入力＋準最適化）</h1>
+
+  <div class="controls">
+    <span>対象年月：</span>
+    <label>年
+      <select id="yearSelect"></select>
+    </label>
+    <label>月
+      <select id="monthSelect">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
+        <option value="11">11</option>
+        <option value="12">12</option>
+      </select>
+    </label>
+  </div>
+
+  <p style="font-size:0.9rem;">
+    ▼ Excelの出席表をコピーして、下のセルにそのまま貼り付けてください。<br>
+    例：<br>
+    ・1行目：日付（1,2,3,...）<br>
+    ・2行目：曜日（使いませんがそのままでOK）<br>
+    ・3行目以降：名前 ＋ 各日のシフト（通 / 通P / 在 など）<br>
+    ・女性は漢字名＋（女）で入力（例：佐藤花子（女））<br>
+  </p>
+
+  <div class="taskConfig">
+    <h3>清掃項目の設定（On/Off + 追加）</h3>
+    <div id="defaultTaskList" class="taskList"></div>
+    <div style="margin-top:10px; font-size:0.9rem; color:#e2e8f0;">追加項目</div>
+    <div id="customTaskList" class="taskList" style="margin-top:6px;"></div>
+    <div class="buttonGroup" style="margin-top:10px;">
+      <button id="addTaskBtn" type="button" style="background:linear-gradient(135deg,#a3e635,#65a30d); box-shadow:0 10px 24px rgba(101,163,13,0.35); color:#0b1220; padding:8px 14px; font-size:0.9rem;">項目を追加<span class="glow"></span></button>
+    </div>
+    <div style="margin-top:6px; font-size:0.8rem; color:#cbd5e1;">追加項目は「題名」と「曜日(複数可／未選択なら毎日)」を設定してください。</div>
+  </div>
+
+  <div id="excelContainer">
+    <table id="excelGrid" class="excelGrid"></table>
+  </div>
+
+  <div class="buttonGroup no-print">
+    <button id="convertBtn">掃除シフトを生成する<span class="glow"></span></button>
+    <button id="exportXlsxBtn" style="background:linear-gradient(135deg,#34d399,#22c55e); box-shadow:0 12px 30px rgba(34,197,94,0.35); color:#0b1220;">Excel出力<span class="glow"></span></button>
+    <button id="exportHtmlBtn" style="background:linear-gradient(135deg,#fb923c,#f97316); box-shadow:0 12px 30px rgba(249,115,22,0.35); color:#0b1220;">HTML出力<span class="glow"></span></button>
+  </div>
+  <div id="errorBox" class="error"></div>
+
+  <div id="resultArea"></div>
+</div>
+
+<script>
+$(function() {
+  // ===== 清掃項目の設定 =====
+  var defaultTaskDefs = [
+    { key: "manToilet", label: "男トイレ", rule: { type: "all" } },
+    { key: "womanToilet", label: "女トイレ", rule: { type: "all" } },
+    { key: "coroFront", label: "コロコロ(前)", rule: { type: "odd" } },
+    { key: "coroBack", label: "コロコロ(後)", rule: { type: "even" } },
+    { key: "longFront", label: "長コロ(前)", rule: { type: "odd" } },
+    { key: "longBack", label: "長コロ(後)", rule: { type: "even" } },
+    { key: "gomi", label: "ゴミ", rule: { type: "weekday", value: "金" } },
+    { key: "ikimono", label: "生き物", rule: { type: "weekday", value: "木" } }
+  ];
+  var customTaskSeq = 0;
+  var weekdayOptions = [
+    { value: "all", label: "毎日" },
+    { value: "月", label: "月" },
+    { value: "火", label: "火" },
+    { value: "水", label: "水" },
+    { value: "木", label: "木" },
+    { value: "金", label: "金" }
+  ];
+
+  function ruleLabel(rule) {
+    if (!rule || rule.type === "all") return "毎日";
+    if (rule.type === "odd") return "奇数日";
+    if (rule.type === "even") return "偶数日";
+    if (rule.type === "weekday") return rule.value + "のみ";
+    return "";
+  }
+
+  function renderDefaultTaskList() {
+    var $list = $("#defaultTaskList");
+    $list.empty();
+    defaultTaskDefs.forEach(function(def){
+      var $item = $('<label class="taskItem"></label>');
+      var $chk = $('<input type="checkbox">').attr("data-key", def.key).prop("checked", true);
+      var $label = $('<span></span>').text(def.label);
+      var $rule = $('<span style="font-size:0.8rem; color:#e2e8f0;"></span>').text(ruleLabel(def.rule));
+      $item.append($chk).append($label).append($rule);
+      $list.append($item);
+    });
+  }
+
+  function ensureAtLeastOneCustomRow() {
+    if ($("#customTaskList .customTaskItem").length === 0) {
+      addCustomTaskRow({ enabled: false });
+    }
+  }
+
+  function addCustomTaskRow(initial) {
+    customTaskSeq += 1;
+    var key = "custom_" + customTaskSeq;
+    var $item = $('<div class="taskItem customTaskItem"></div>').attr("data-key", key);
+    var enabled = (initial && typeof initial.enabled === "boolean") ? initial.enabled : true;
+    var $chk = $('<input type="checkbox" class="taskEnabled">').prop("checked", enabled);
+    var $title = $('<input type="text" class="taskTitle" placeholder="例：玄関">');
+    var $picker = $('<div class="weekdayPicker"></div>');
+    weekdayOptions.forEach(function(opt){
+      var $lbl = $('<label></label>');
+      var cls = (opt.value === "all") ? "taskEveryday" : "taskWeekday";
+      var $cb = $('<input type="checkbox">').addClass(cls).attr("value", opt.value);
+      $lbl.append($cb).append($('<span></span>').text(opt.label));
+      $picker.append($lbl);
+    });
+    if (initial && initial.title) $title.val(initial.title);
+    if (initial && Array.isArray(initial.weekdays)) {
+      initial.weekdays.forEach(function(w){
+        $picker.find('input.taskWeekday[value="' + w + '"]').prop("checked", true);
+      });
+    }
+    var $remove = $('<button type="button" class="removeTask">削除</button>');
+    $remove.on("click", function(){
+      $item.remove();
+      ensureAtLeastOneCustomRow();
+      updateAddTaskButton();
+    });
+    $picker.on("change", ".taskEveryday", function(){
+      if ($(this).prop("checked")) {
+        $picker.find(".taskWeekday").prop("checked", false);
+      }
+    });
+    $picker.on("change", ".taskWeekday", function(){
+      if ($(this).prop("checked")) {
+        $picker.find(".taskEveryday").prop("checked", false);
+      }
+    });
+    $item.append($chk).append($title).append($picker).append($remove);
+    $("#customTaskList").append($item);
+    updateAddTaskButton();
+  }
+
+  function getTaskConfig() {
+    var tasks = [];
+    defaultTaskDefs.forEach(function(def){
+      var enabled = $('#defaultTaskList input[data-key="' + def.key + '"]').prop("checked");
+      if (enabled) {
+        tasks.push({ key: def.key, label: def.label, rule: def.rule });
+      }
+    });
+    $("#customTaskList .customTaskItem").each(function(){
+      var $row = $(this);
+      var enabled = $row.find(".taskEnabled").prop("checked");
+      var title = ($row.find(".taskTitle").val() || "").trim();
+      var weekdays = [];
+      var every = $row.find(".taskEveryday").prop("checked");
+      $row.find(".taskWeekday:checked").each(function(){
+        weekdays.push($(this).val());
+      });
+      if (!enabled) return;
+      if (!title) throw new Error("追加項目の題名を入力してください。");
+      var rule = (every || weekdays.length === 0) ? { type: "all" } : { type: "weekdays", value: weekdays };
+      tasks.push({ key: $row.data("key"), label: title, rule: rule });
+    });
+    if (tasks.length === 0) throw new Error("清掃項目が1つ以上必要です。");
+    return tasks;
+  }
+
+  function taskApplies(task, wd, dateNum) {
+    if (!task || !task.rule) return true;
+    if (task.rule.type === "all") return true;
+    if (task.rule.type === "odd") return (dateNum % 2 === 1);
+    if (task.rule.type === "even") return (dateNum % 2 === 0);
+    if (task.rule.type === "weekday") return (wd === task.rule.value);
+    if (task.rule.type === "weekdays") return Array.isArray(task.rule.value) && task.rule.value.indexOf(wd) !== -1;
+    return true;
+  }
+
+  var MAX_CUSTOM_TASKS = 5;
+
+  function updateAddTaskButton() {
+    var $btn = $("#addTaskBtn");
+    var $rows = $("#customTaskList .customTaskItem");
+    if ($rows.length >= MAX_CUSTOM_TASKS) {
+      $btn.prop("disabled", true);
+      return;
+    }
+    var $lastTitle = $rows.last().find(".taskTitle");
+    var hasTitle = $lastTitle.length === 0 ? true : ($lastTitle.val() || "").trim().length > 0;
+    $btn.prop("disabled", !hasTitle);
+  }
+
+  renderDefaultTaskList();
+  addCustomTaskRow({ enabled: false });
+
+  $("#addTaskBtn").on("click", function(){
+    var $rows = $("#customTaskList .customTaskItem");
+    if ($rows.length < MAX_CUSTOM_TASKS) {
+      addCustomTaskRow({ enabled: false });
+      $("#customTaskList .customTaskItem").last().find(".taskTitle").focus();
+      return;
+    }
+    $("#errorBox").text("追加項目は最大" + MAX_CUSTOM_TASKS + "件までです。");
+  });
+
+  $("#customTaskList").on("input", ".taskTitle", function(){
+    updateAddTaskButton();
+  });
+
+  // ===== 背景アニメ（掃除の泡をイメージ） =====
+  (function initBubbleBackground(){
+    var canvas = document.createElement("canvas");
+    canvas.id = "bgCanvas";
+    document.body.insertBefore(canvas, document.body.firstChild);
+    var ctx = canvas.getContext("2d");
+    var w = 0, h = 0;
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    var bubbles = [];
+    var foamStrokes = [];
+
+    function resetBubble(b) {
+      b.x = Math.random() * w;
+      b.y = h + Math.random() * h * 0.5;
+      b.r = 6 + Math.random() * 16;
+      b.dy = 0.4 + Math.random() * 1.2;
+      b.dx = (Math.random() - 0.5) * 0.4;
+      b.alpha = 0.5 + Math.random() * 0.35;
+      b.shine = Math.random() * 0.6 + 0.4;
+    }
+    for (var i = 0; i < 40; i++) {
+      var b = {};
+      resetBubble(b);
+      bubbles.push(b);
+    }
+
+    for (var j = 0; j < 3; j++) {
+      foamStrokes.push({
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.0025 + Math.random() * 0.0015,
+        offset: j * 2000
+      });
+    }
+
+    function drawBubble(b) {
+      var grad = ctx.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.2, b.x, b.y, b.r);
+      grad.addColorStop(0, "rgba(255,255,255," + (0.4 * b.shine) + ")");
+      grad.addColorStop(0.6, "rgba(255,255,255," + (0.15 * b.shine) + ")");
+      grad.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawFoam(t) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      foamStrokes.forEach(function(fs, idx){
+        var y = (Math.sin(t * fs.speed + fs.phase) * 0.15 + 0.4) * h;
+        var xStart = -200 + (t * 0.06 + fs.offset) % (w + 400);
+        var grad = ctx.createLinearGradient(xStart, y, xStart + 220, y + 60);
+        grad.addColorStop(0, "rgba(255,255,255,0)");
+        grad.addColorStop(0.3, "rgba(255,255,255,0.18)");
+        grad.addColorStop(0.7, "rgba(255,255,255,0.08)");
+        grad.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(xStart + 100, y + 20, 160, 40, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function animate(timestamp) {
+      ctx.clearRect(0, 0, w, h);
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      bubbles.forEach(function(b){
+        b.y -= b.dy;
+        b.x += b.dx;
+        if (b.y + b.r < -20) resetBubble(b);
+        drawBubble(b);
+      });
+      ctx.restore();
+      drawFoam(timestamp || 0);
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+  })();
+
+  // ===== 年月プルダウン初期化 =====
+  (function initYearSelect() {
+    var now = new Date();
+    var thisYear = now.getFullYear();
+    var $y = $("#yearSelect");
+    for (var y = thisYear - 1; y <= thisYear + 10; y++) {
+      var opt = $("<option>").val(y).text(y);
+      if (y === thisYear) opt.attr("selected", "selected");
+      $y.append(opt);
+    }
+    $("#monthSelect").val(now.getMonth() + 1);
+  })();
+
+  // ===== Excel風グリッドを生成（行60 × 列40くらい） =====
+  var ROWS = 60;
+  var COLS = 40;
+  var $grid = $("#excelGrid");
+
+  for (var r = 0; r < ROWS; r++) {
+    var tr = $("<tr>");
+    for (var c = 0; c < COLS; c++) {
+      tr.append('<td contenteditable="true"></td>');
+    }
+    $grid.append(tr);
+  }
+
+  // ===== セルへの貼り付け（Excelからのタブ区切りを分割） =====
+  $grid.on("paste", "td", function(e) {
+    e.preventDefault();
+    var text = (e.originalEvent || e).clipboardData.getData("text/plain");
+    var rows = text.split(/\r?\n/);
+
+    var startCell = $(this);
+    var startRow = startCell.parent().index();
+    var startCol = startCell.index();
+
+    for (var r = 0; r < rows.length; r++) {
+      if (!rows[r]) continue;
+      var cols = rows[r].split(/\t/);
+      for (var c = 0; c < cols.length; c++) {
+        var targetRow = startRow + r;
+        var targetCol = startCol + c;
+        var cell = $grid.find("tr").eq(targetRow).find("td").eq(targetCol);
+        if (cell.length) cell.text(cols[c]);
+      }
+    }
+  });
+
+  // ===== グリッドから2次元配列を読み取る =====
+  function readExcelGrid() {
+    var table = [];
+    $("#excelGrid tr").each(function() {
+      var row = [];
+      $(this).find("td").each(function() {
+        row.push($(this).text().trim());
+      });
+      table.push(row);
+    });
+    return table;
+  }
+
+  // ===== 出席表形式に変換（dates, weekdayRow, members, shifts） =====
+  function convertGridToAttendance(table) {
+    // 空行除去
+    table = table.filter(function(row){
+      return row.some(function(cell){ return cell !== ""; });
+    });
+
+    if (table.length < 3) {
+      throw new Error("最低3行（1行目:日付, 2行目:曜日, 3行目以降:メンバー）が必要です。");
+    }
+
+    // 1行目：日付
+    var header = table[0].slice(1).filter(function(v){ return v !== ""; });
+    if (header.length === 0) {
+      throw new Error("1行目に日付の列がありません。");
+    }
+    var dates = header.map(function(v){
+      var n = parseInt(v, 10);
+      if (isNaN(n)) throw new Error("1行目の日付が数値として解釈できません: " + v);
+      return n;
+    });
+
+    // 2行目：曜日（一応取るがチェックには使わない）
+    var weekdayRow = table[1].slice(1);
+
+    var members = [];
+    var shifts = {};
+
+    for (var r = 2; r < table.length; r++) {
+      var name = table[r][0];
+      if (!name) continue;
+      // 非メンバー行を弾く
+      if (name === "通" || name === "曜日" || name === "ヘッダ行" || name === "日付") continue;
+      if (members.indexOf(name) !== -1) continue;
+
+      members.push(name);
+      shifts[name] = {};
+
+      for (var c = 1; c < table[r].length && c <= dates.length; c++) {
+        shifts[name][dates[c-1]] = table[r][c] || "";
+      }
+    }
+
+    if (members.length === 0) {
+      throw new Error("有効なメンバー行が見つかりません。1列目に名前が入っているか確認してください。");
+    }
+
+    return { dates: dates, weekdayRow: weekdayRow, members: members, shifts: shifts };
+  }
+
+  // ===== 共通ユーティリティ =====
+  function jpWeekday(y, m, d) {
+    var dt = new Date(y, m - 1, d);
+    var arr = ["日","月","火","水","木","金","土"];
+    return arr[dt.getDay()];
+  }
+
+  // 午後オフィスにいるか（通・通Pのみを午後出社とみなす）
+  function inOfficePm(shift) {
+    return (shift === "通" || shift === "通P");
+  }
+  // 午前にいるか（金曜午前は 通 / 通A のみ有効）
+  function inOfficeAm(shift) {
+    return (shift === "通" || shift === "通A");
+  }
+
+  // 表示用に補足ラベルを除去
+  function displayName(n) {
+    if (n == null) return n;
+    if (typeof n !== "string") return n;
+    return n.replace(/（女）/g, "");
+  }
+
+  // 空・ハイフンを揃えて「-」で表示する共通整形
+  function normalizeCellValue(val) {
+    if (val === "-" || val === "" || val == null) return "-";
+    var cleaned = displayName(val);
+    if (cleaned === "" || cleaned == null) return "-";
+    return cleaned;
+  }
+
+  // 文字列のXMLエスケープ
+  function xmlEscape(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  // ===== ZIP(STORE)を自前生成してXLSXに利用 =====
+  // CRC32計算
+  var CRC_TABLE = (function(){
+    var c, table = [];
+    for (var n = 0; n < 256; n++) {
+      c = n;
+      for (var k = 0; k < 8; k++) {
+        c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+  function crc32Uint8(arr) {
+    var crc = 0 ^ (-1);
+    for (var i = 0; i < arr.length; i++) {
+      crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ arr[i]) & 0xFF];
+    }
+    return (crc ^ (-1)) >>> 0;
+  }
+
+  function toUint8(arrLike) {
+    if (arrLike instanceof Uint8Array) return arrLike;
+    return new Uint8Array(arrLike);
+  }
+
+  function numToBytesLE(num, bytes) {
+    var out = new Uint8Array(bytes);
+    for (var i = 0; i < bytes; i++) {
+      out[i] = num & 0xFF;
+      num >>>= 8;
+    }
+    return out;
+  }
+
+  function currentOffset(parts) {
+    var total = 0;
+    for (var i = 0; i < parts.length; i++) {
+      total += parts[i].length;
+    }
+    return total;
+  }
+
+  function encodeUtf8(str) {
+    return new TextEncoder().encode(str);
+  }
+
+  function makeZip(files) {
+    // files: [{path, data(string or Uint8Array)}]
+    var parts = [];
+    var centralRecords = [];
+
+    files.forEach(function(file){
+      var fileNameBytes = encodeUtf8(file.path);
+      var dataBytes = (typeof file.data === "string") ? encodeUtf8(file.data) : toUint8(file.data);
+      var crc = crc32Uint8(dataBytes);
+      var compSize = dataBytes.length;
+      var uncompSize = dataBytes.length;
+      var modTime = 0;
+      var modDate = 0;
+
+      var localHeader = [];
+      localHeader.push(numToBytesLE(0x04034b50, 4)); // signature
+      localHeader.push(numToBytesLE(20, 2)); // version needed
+      localHeader.push(numToBytesLE(0, 2));  // flags
+      localHeader.push(numToBytesLE(0, 2));  // compression (store)
+      localHeader.push(numToBytesLE(modTime, 2));
+      localHeader.push(numToBytesLE(modDate, 2));
+      localHeader.push(numToBytesLE(crc, 4));
+      localHeader.push(numToBytesLE(compSize, 4));
+      localHeader.push(numToBytesLE(uncompSize, 4));
+      localHeader.push(numToBytesLE(fileNameBytes.length, 2));
+      localHeader.push(numToBytesLE(0, 2)); // extra len
+      localHeader.push(fileNameBytes);
+
+      var start = currentOffset(parts);
+      parts.push(concat(localHeader));
+      parts.push(dataBytes);
+
+      var central = [];
+      central.push(numToBytesLE(0x02014b50, 4)); // signature
+      central.push(numToBytesLE(0, 2)); // version made by
+      central.push(numToBytesLE(20, 2)); // version needed
+      central.push(numToBytesLE(0, 2)); // flags
+      central.push(numToBytesLE(0, 2)); // compression
+      central.push(numToBytesLE(modTime, 2));
+      central.push(numToBytesLE(modDate, 2));
+      central.push(numToBytesLE(crc, 4));
+      central.push(numToBytesLE(compSize, 4));
+      central.push(numToBytesLE(uncompSize, 4));
+      central.push(numToBytesLE(fileNameBytes.length, 2));
+      central.push(numToBytesLE(0, 2)); // extra
+      central.push(numToBytesLE(0, 2)); // comment
+      central.push(numToBytesLE(0, 2)); // disk start
+      central.push(numToBytesLE(0, 2)); // internal attrs
+      central.push(numToBytesLE(0, 4)); // external attrs
+      central.push(numToBytesLE(start, 4)); // local header offset
+      central.push(fileNameBytes);
+      centralRecords.push(concat(central));
+    });
+
+    var centralStart = currentOffset(parts);
+    centralRecords.forEach(function(rec){ parts.push(rec); });
+    var centralEnd = currentOffset(parts);
+
+    var endRecord = [];
+    endRecord.push(numToBytesLE(0x06054b50, 4)); // signature
+    endRecord.push(numToBytesLE(0, 2)); // disk
+    endRecord.push(numToBytesLE(0, 2)); // start disk
+    endRecord.push(numToBytesLE(files.length, 2)); // entries on this disk
+    endRecord.push(numToBytesLE(files.length, 2)); // total entries
+    endRecord.push(numToBytesLE(centralEnd - centralStart, 4)); // central size
+    endRecord.push(numToBytesLE(centralStart, 4)); // central offset
+    endRecord.push(numToBytesLE(0, 2)); // comment length
+    parts.push(concat(endRecord));
+
+    return new Blob(parts, { type: "application/zip" });
+  }
+
+  function concat(arrays) {
+    var total = arrays.reduce(function(sum, a){ return sum + a.length; }, 0);
+    var out = new Uint8Array(total);
+    var offset = 0;
+    arrays.forEach(function(a){
+      out.set(toUint8(a), offset);
+      offset += a.length;
+    });
+    return out;
+  }
+
+  // ===== スケジュール評価（焼きなまし用） =====
+  function evaluateSchedule(rows, tasks, members, availPm, availAm, lastFriday, female, male, possibleCount, possibleRoleCount) {
+    var assignCount = {};
+    members.forEach(function(n){ assignCount[n] = 0; });
+
+    var maleWeekToilet = {};
+    var femaleWeekToilet = {};
+    var roleCount = {};
+    var roleRepeatTargets = new Set(tasks.map(function(t){ return t.key; }));
+    var roleAssignCount = {};
+    var prevAssigned = null;
+    var consecutivePenalty = 0;
+
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var d = r.日付;
+      var wd = r.曜日;
+      var weekIdx = Math.floor((d - 1) / 7);
+      var used = {};
+      var dayAssigned = [];
+
+      if (wd === "土" || wd === "日") {
+        prevAssigned = null;
+        continue;
+      }
+
+      function handle(name, roleKey) {
+        if (!name || name === "-" || name === "スタッフ" || name === "支援員") return true;
+
+        var dayAvail = (d === lastFriday) ? availAm : availPm;
+        if (!dayAvail[d] || !dayAvail[d].hasOwnProperty(name) || !dayAvail[d][name]) {
+          return false;
+        }
+
+        if (used[name]) return false;
+        used[name] = true;
+
+        if (!assignCount.hasOwnProperty(name)) assignCount[name] = 0;
+        assignCount[name]++;
+
+        if (!roleAssignCount[roleKey]) roleAssignCount[roleKey] = {};
+        roleAssignCount[roleKey][name] = (roleAssignCount[roleKey][name] || 0) + 1;
+
+        if (roleKey === "manToilet") {
+          if (!male.has(name)) return false;
+          var keyM = weekIdx + "_" + name;
+          maleWeekToilet[keyM] = (maleWeekToilet[keyM] || 0) + 1;
+          if (maleWeekToilet[keyM] > 1) return false;
+        } else if (roleKey === "womanToilet") {
+          if (!female.has(name)) return false;
+          var keyF = weekIdx + "_" + name;
+          femaleWeekToilet[keyF] = (femaleWeekToilet[keyF] || 0) + 1;
+          if (femaleWeekToilet[keyF] > 1) return false;
+        }
+
+        if (roleRepeatTargets.has(roleKey)) {
+          if (!roleCount[roleKey]) roleCount[roleKey] = {};
+          roleCount[roleKey][name] = (roleCount[roleKey][name] || 0) + 1;
+        }
+        dayAssigned.push(name);
+        return true;
+      }
+
+      for (var ti = 0; ti < tasks.length; ti++) {
+        var task = tasks[ti];
+        var key = task.key;
+        var val = (r.tasks && r.tasks.hasOwnProperty(key)) ? r.tasks[key] : "-";
+        if (taskApplies(task, wd, d)) {
+          if (!handle(val, key)) return { valid: false };
+        } else {
+          if (val && val !== "-") return { valid: false };
+        }
+      }
+
+      if (prevAssigned) {
+        dayAssigned.forEach(function(n){
+          if (prevAssigned.has(n)) consecutivePenalty += 1;
+        });
+      }
+      prevAssigned = new Set(dayAssigned);
+    }
+
+    // 担当回数/機会数の分散をコストに
+    var ratios = [];
+    var sum = 0;
+    var cnt = 0;
+    members.forEach(function(name){
+      var poss = possibleCount[name] || 0;
+      if (poss === 0) return;
+      var ratio = (assignCount[name] || 0) / poss;
+      ratios.push(ratio);
+      sum += ratio;
+      cnt++;
+    });
+    if (cnt === 0) return { valid: true, cost: 0, assignCount: assignCount };
+
+    var mean = sum / cnt;
+    var sq = 0;
+    for (var k = 0; k < ratios.length; k++) {
+      var diff = ratios[k] - mean;
+      sq += diff * diff;
+    }
+
+    var roleFairness = 0;
+    Object.keys(roleAssignCount).forEach(function(roleKey){
+      var rc = roleAssignCount[roleKey];
+      var possMap = (possibleRoleCount && possibleRoleCount[roleKey]) || {};
+      var rSum = 0;
+      var rCnt = 0;
+      var rRatios = [];
+      Object.keys(possMap).forEach(function(name){
+        var poss = possMap[name] || 0;
+        if (poss === 0) return;
+        var ratio = (rc && rc[name] ? rc[name] : 0) / poss;
+        rRatios.push(ratio);
+        rSum += ratio;
+        rCnt++;
+      });
+      if (rCnt === 0) return;
+      var rMean = rSum / rCnt;
+      var rSq = 0;
+      for (var j = 0; j < rRatios.length; j++) {
+        var dff = rRatios[j] - rMean;
+        rSq += dff * dff;
+      }
+      roleFairness += rSq;
+    });
+
+    var repeatPenalty = 0;
+    Object.keys(roleCount).forEach(function(roleKey){
+      var rc = roleCount[roleKey];
+      Object.keys(rc).forEach(function(name){
+        var excess = rc[name] - 1;
+        if (excess > 0) {
+          repeatPenalty += excess * excess;
+        }
+      });
+    });
+
+    var cost = sq + repeatPenalty + roleFairness + consecutivePenalty;
+
+    return { valid: true, cost: cost, assignCount: assignCount };
+  }
+
+  // ===== 焼きなましでスケジュールを改善 =====
+  function refineSchedule(rows, tasks, members, availPm, availAm, lastFriday, female, male, possibleCount, possibleRoleCount) {
+    var eval0 = evaluateSchedule(rows, tasks, members, availPm, availAm, lastFriday, female, male, possibleCount, possibleRoleCount);
+    if (!eval0.valid) {
+      return { rows: rows, assignCount: eval0.assignCount || {} };
+    }
+
+    var currentCost = eval0.cost;
+    var currentAssignCount = eval0.assignCount;
+
+    var bestCost = currentCost;
+    var bestRows = JSON.parse(JSON.stringify(rows));
+    var bestAssignCount = Object.assign({}, currentAssignCount);
+
+    var slots = [];
+
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (r.曜日 === "土" || r.曜日 === "日") continue;
+      for (var t = 0; t < tasks.length; t++) {
+        var task = tasks[t];
+        if (!taskApplies(task, r.曜日, r.日付)) continue;
+        var v = (r.tasks && r.tasks.hasOwnProperty(task.key)) ? r.tasks[task.key] : "-";
+        if (!v || v === "-" || v === "スタッフ" || v === "支援員") continue;
+        slots.push({ rowIndex: i, key: task.key });
+      }
+    }
+
+    if (slots.length < 2) {
+      return { rows: bestRows, assignCount: bestAssignCount };
+    }
+
+    var ITER = 15000;
+    var T0 = 1.0;
+    var T_end = 0.01;
+
+    function randInt(max) {
+      return Math.floor(Math.random() * max);
+    }
+
+    for (var iter = 0; iter < ITER; iter++) {
+      var T = T0 * Math.pow(T_end / T0, iter / (ITER - 1));
+
+      var s1 = slots[randInt(slots.length)];
+      var s2 = slots[randInt(slots.length)];
+      if (s1.rowIndex === s2.rowIndex && s1.key === s2.key) continue;
+
+      var r1 = rows[s1.rowIndex];
+      var r2 = rows[s2.rowIndex];
+
+      var p1 = r1.tasks[s1.key];
+      var p2 = r2.tasks[s2.key];
+
+      if (!p1 || !p2 || p1 === "-" || p2 === "-" || p1 === "スタッフ" || p2 === "スタッフ" || p1 === "支援員" || p2 === "支援員") continue;
+      if (p1 === p2) continue;
+
+      // スワップ
+      r1.tasks[s1.key] = p2;
+      r2.tasks[s2.key] = p1;
+
+      var ev = evaluateSchedule(rows, tasks, members, availPm, availAm, lastFriday, female, male, possibleCount, possibleRoleCount);
+      if (!ev.valid) {
+        r1.tasks[s1.key] = p1;
+        r2.tasks[s2.key] = p2;
+        continue;
+      }
+
+      var newCost = ev.cost;
+      var delta = newCost - currentCost;
+
+      if (delta <= 0 || Math.random() < Math.exp(-delta / T)) {
+        currentCost = newCost;
+        currentAssignCount = ev.assignCount;
+        if (newCost < bestCost) {
+          bestCost = newCost;
+          bestRows = JSON.parse(JSON.stringify(rows));
+          bestAssignCount = Object.assign({}, ev.assignCount);
+        }
+      } else {
+        r1.tasks[s1.key] = p1;
+        r2.tasks[s2.key] = p2;
+      }
+    }
+
+    return { rows: bestRows, assignCount: bestAssignCount };
+  }
+
+  // ===== 初期スケジュール作成（貪欲法）＋ 焼きなまし =====
+  function buildSchedule(att, year, month, tasks) {
+    var dates = att.dates;
+    var members = att.members;
+    var shifts = att.shifts;
+    var female = new Set(members.filter(function(n){ return n.indexOf("（女）") !== -1; }));
+    var male   = new Set(members.filter(function(n){ return n.indexOf("（女）") === -1; }));
+
+    var availPm = {};
+    var availAm = {};
+    dates.forEach(function(d){
+      availPm[d] = {};
+      availAm[d] = {};
+      members.forEach(function(name){
+        var s = shifts[name][d] || "";
+        availPm[d][name] = inOfficePm(s);
+        availAm[d][name] = inOfficeAm(s);
+      });
+    });
+
+    var lastFriday = null;
+    dates.forEach(function(d){
+      if (jpWeekday(year, month, d) === "金") {
+        if (lastFriday === null || d > lastFriday) lastFriday = d;
+      }
+    });
+
+    var assignCount = {};
+    members.forEach(function(n){ assignCount[n] = 0; });
+
+    var possibleCount = {};
+    var possibleRoleCount = {};
+    var roleKeys = tasks.map(function(t){ return t.key; });
+    members.forEach(function(n){
+      possibleCount[n] = 0;
+      roleKeys.forEach(function(k){
+        if (!possibleRoleCount[k]) possibleRoleCount[k] = {};
+        possibleRoleCount[k][n] = 0;
+      });
+    });
+
+    dates.forEach(function(d){
+      var wd = jpWeekday(year, month, d);
+      if (wd === "土" || wd === "日") return;
+      var dayAvail = (d === lastFriday) ? availAm : availPm;
+      var dayCandidates = members.filter(function(name){ return dayAvail[d][name]; });
+      members.forEach(function(name){
+        if (dayAvail[d][name]) possibleCount[name] += 1;
+      });
+      function addPossible(role, arr) {
+        arr.forEach(function(n){
+          possibleRoleCount[role][n] = (possibleRoleCount[role][n] || 0) + 1;
+        });
+      }
+
+      tasks.forEach(function(task){
+        if (taskApplies(task, wd, d)) {
+          if (task.key === "manToilet") addPossible(task.key, dayCandidates.filter(function(n){ return male.has(n); }));
+          else if (task.key === "womanToilet") addPossible(task.key, dayCandidates.filter(function(n){ return female.has(n); }));
+          else addPossible(task.key, dayCandidates);
+        }
+      });
+    });
+
+    var femaleWeekLimit = {};
+    var maleWeekLimit   = {};
+
+    function weekKey(weekIdx, n) {
+      return weekIdx + "_" + n;
+    }
+
+    function choose(cands, used, filterFn) {
+      var arr = cands.filter(function(n){
+        if (used.has(n)) return false;
+        if (filterFn && !filterFn(n)) return false;
+        return true;
+      });
+      if (arr.length === 0) return null;
+      arr.sort(function(a, b){
+        var pa = possibleCount[a] || 1;
+        var pb = possibleCount[b] || 1;
+        var ra = assignCount[a] / pa;
+        var rb = assignCount[b] / pb;
+        if (ra !== rb) return ra - rb;
+        if (assignCount[a] !== assignCount[b]) return assignCount[a] - assignCount[b];
+        return a.localeCompare(b);
+      });
+      return arr[0];
+    }
+
+    var rows = [];
+
+    dates.forEach(function(d){
+      var wd = jpWeekday(year, month, d);
+      var taskValues = {};
+      tasks.forEach(function(t){ taskValues[t.key] = "-"; });
+      var row = {
+        日付: d,
+        曜日: wd,
+        tasks: taskValues
+      };
+
+      if (wd === "土" || wd === "日") {
+        rows.push(row);
+        return;
+      }
+
+      var used = new Set();
+      var dayAvail = (d === lastFriday) ? availAm : availPm;
+      var candidates = members.filter(function(n){ return dayAvail[d][n]; });
+      if (candidates.length === 0) {
+        rows.push(row);
+        return;
+      }
+
+      function anyOk(n) { return true; }
+      for (var ti = 0; ti < tasks.length; ti++) {
+        var task = tasks[ti];
+        if (!taskApplies(task, wd, d)) continue;
+        var pick = null;
+        if (task.key === "manToilet") {
+          var weekIdxM = Math.floor((d - 1) / 7);
+          function maleOk(n) {
+            var key = weekKey(weekIdxM, n);
+            if ((maleWeekLimit[key] || 0) >= 1) return false;
+            return true;
+          }
+          pick = choose(candidates.filter(function(n){ return male.has(n); }), used, maleOk);
+          if (pick) {
+            var mkey = weekKey(weekIdxM, pick);
+            maleWeekLimit[mkey] = (maleWeekLimit[mkey] || 0) + 1;
+          }
+        } else if (task.key === "womanToilet") {
+          var weekIdxF = Math.floor((d - 1) / 7);
+          function femaleOk(n) {
+            var key = weekKey(weekIdxF, n);
+            if ((femaleWeekLimit[key] || 0) >= 1) return false;
+            return true;
+          }
+          pick = choose(candidates.filter(function(n){ return female.has(n); }), used, femaleOk);
+          if (pick) {
+            var fkey = weekKey(weekIdxF, pick);
+            femaleWeekLimit[fkey] = (femaleWeekLimit[fkey] || 0) + 1;
+          }
+        } else {
+          pick = choose(candidates, used, anyOk);
+        }
+        if (pick) {
+          row.tasks[task.key] = pick;
+          used.add(pick);
+          assignCount[pick]++;
+        } else if (task.key === "womanToilet") {
+          row.tasks[task.key] = "支援員";
+        }
+      }
+
+      rows.push(row);
+    });
+
+    var refined = refineSchedule(rows, tasks, members, availPm, availAm, lastFriday, female, male, possibleCount, possibleRoleCount);
+    return {
+      rows: refined.rows,
+      assignCount: refined.assignCount,
+      year: year,
+      month: month,
+      tasks: tasks
+    };
+  }
+
+  // ===== 結果描画 =====
+  function renderResult(schedule) {
+    var rows = schedule.rows;
+    var assignCount = schedule.assignCount;
+    var year = schedule.year;
+    var month = schedule.month;
+    var tasks = schedule.tasks || [];
+    var html = "";
+    html += "<h2>" + year + "年" + month + "月 掃除シフト</h2>";
+
+    html += "<table class='resultTable'><thead><tr>";
+    html += "<th>日付</th>";
+    html += "<th>曜日</th>";
+    tasks.forEach(function(t){
+      html += "<th>" + t.label + "</th>";
+    });
+    html += "</tr></thead><tbody>";
+
+    rows.forEach(function(r){
+      var weekend = (r.曜日 === "土" || r.曜日 === "日") ? " class='weekend'" : "";
+      html += "<tr" + weekend + ">";
+      html += "<td>" + r.日付 + "</td>";
+      html += "<td>" + r.曜日 + "</td>";
+      tasks.forEach(function(t){
+        var val = r.tasks ? r.tasks[t.key] : "-";
+        html += "<td>" + normalizeCellValue(val) + "</td>";
+      });
+      html += "</tr>";
+    });
+
+    html += "</tbody></table>";
+
+    html += "<h3>担当回数</h3><div class='summary'><pre>";
+    Object.keys(assignCount).sort().forEach(function(n){
+      html += displayName(n) + ": " + assignCount[n] + " 回\n";
+    });
+    html += "</pre></div>";
+
+    $("#resultArea").html(html);
+  }
+
+  // ===== ボタンクリック =====
+  var latestSchedule = null;
+  var latestTaskConfig = null;
+
+  function triggerGenerateMotion(btn) {
+    var rect = btn.getBoundingClientRect();
+    var cx = rect.left + rect.width / 2 + window.scrollX;
+    var cy = rect.top  + rect.height / 2 + window.scrollY;
+
+    var ring = document.createElement("div");
+    ring.className = "ring";
+    ring.style.left = cx + "px";
+    ring.style.top  = cy + "px";
+    document.body.appendChild(ring);
+    setTimeout(function(){ ring.remove(); }, 650);
+
+    var palette = ["#22d3ee","#1fb8e2","#a78bfa","#34d399","#f472b6","#fde047"];
+    for (var j = 0; j < 20; j++) {
+      var b = document.createElement("div");
+      b.className = "burst";
+      var angle = Math.random() * Math.PI * 2;
+      var dist = 90 + Math.random() * 80;
+      var dx = Math.cos(angle) * dist;
+      var dy = Math.sin(angle) * dist;
+      b.style.left = cx + "px";
+      b.style.top  = cy + "px";
+      b.style.setProperty("--dx", dx + "px");
+      b.style.setProperty("--dy", dy + "px");
+      b.style.setProperty("--dr", (Math.random() * 240 - 120) + "deg");
+      b.style.background = palette[Math.floor(Math.random() * palette.length)];
+      document.body.appendChild(b);
+      setTimeout((function(el){ return function(){ el.remove(); }; })(b), 950);
+    }
+
+    for (var i = 0; i < 12; i++) {
+      var p = document.createElement("div");
+      p.className = "pulse";
+      var angle = Math.random() * Math.PI * 2;
+      var dist = 80 + Math.random() * 60;
+      p.style.left = (rect.width / 2) + "px";
+      p.style.top  = (rect.height / 2) + "px";
+      p.style.setProperty("--tx", Math.cos(angle) * dist + "px");
+      p.style.setProperty("--ty", Math.sin(angle) * dist + "px");
+      btn.appendChild(p);
+      setTimeout((function(el){ return function(){ el.remove(); };})(p), 900);
+    }
+  }
+
+  $("#convertBtn").on("click", function() {
+    triggerGenerateMotion(this);
+    $("#errorBox").text("");
+    $("#resultArea").empty();
+
+    var year  = parseInt($("#yearSelect").val(), 10);
+    var month = parseInt($("#monthSelect").val(), 10);
+    if (isNaN(year) || isNaN(month)) {
+      $("#errorBox").text("年と月を正しく選択してください。");
+      return;
+    }
+
+    try {
+      var tasks = getTaskConfig();
+      var table = readExcelGrid();
+      var att = convertGridToAttendance(table);
+      var schedule = buildSchedule(att, year, month, tasks);
+      renderResult(schedule);
+      $("#resultArea").addClass("resultFade");
+      latestSchedule = schedule;
+      latestTaskConfig = tasks;
+      $("#errorBox").text("");
+    } catch (e) {
+      $("#errorBox").text(e.message || String(e));
+      latestSchedule = null;
+      latestTaskConfig = null;
+    }
+  });
+
+  function scheduleToHtml(schedule) {
+    var tasks = schedule.tasks || [];
+    function cell(val) {
+      var text = normalizeCellValue(val);
+      var isEmpty = (text === "-");
+      var cls = isEmpty ? "td cell empty" : "td cell";
+      return '<td class="' + cls + '">' + text + "</td>";
+    }
+    var rowsHtml = schedule.rows.map(function(r, idx){
+      var isSat = r.曜日 === "土";
+      var isSun = r.曜日 === "日";
+      var zebra = idx % 2 === 1 ? " zebra" : "";
+      var baseClass = isSat ? "row sat" : isSun ? "row sun" : "row" + zebra;
+      var taskCells = tasks.map(function(t){
+        var val = r.tasks ? r.tasks[t.key] : "-";
+        return cell(val);
+      }).join("");
+      return [
+        '<tr class="' + baseClass + '">',
+        '<td class="td cell date ' + (isSat || isSun ? "strong" : "") + '">' + r.日付 + '</td>',
+        '<td class="td cell day ' + (isSat || isSun ? "strong" : "") + '">' + r.曜日 + '</td>',
+        taskCells,
+        '</tr>'
+      ].join("");
+    }).join("\n");
+
+    var headerCells = tasks.map(function(t){ return "          <th>" + t.label + "</th>"; }).join("\n");
+    return [
+      '<!DOCTYPE html>',
+      '<html lang="ja">',
+      '<head>',
+      '  <meta charset="UTF-8">',
+      '  <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+      '  <title>' + schedule.year + '年' + schedule.month + '月 掃除シフト</title>',
+      '  <style>',
+      "    @page { size: A4 portrait; margin: 10mm; }",
+      "    body { margin:0; padding:0; background:#f5f7fb; font-family:'Poppins','Noto Sans JP',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:#1f2937; }",
+      "    .wrap { width:190mm; max-width:190mm; margin:0 auto; background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 12px 28px rgba(0,0,0,0.08); padding:12mm; box-sizing:border-box; }",
+      "    h1 { margin:0 0 10px; font-size:18px; color:#0f172a; letter-spacing:0.02em; text-align:center; }",
+      "    .table { width:100%; border-collapse:collapse; table-layout:fixed; }",
+      "    .table th, .table td { border:1px solid #e5e7eb; padding:6px 8px; text-align:center; white-space:normal; word-break:break-all; font-size:12px; }",
+      "    .table th { background:linear-gradient(135deg, #e0f2fe, #dbeafe); color:#0f172a; font-weight:700; }",
+      "    .row.zebra td { background:#fbfdff; }",
+      "    .row.sat td { background:#e7f2ff; color:#0f3c7a; font-weight:600; }",
+      "    .row.sun td { background:#ffeef0; color:#8b1a1a; font-weight:600; }",
+      "    .td.cell.empty { color:#cbd5e1; }",
+      "    .td.date { font-weight:700; }",
+      "    .td.day { font-weight:600; }",
+      "    .td.strong { font-weight:800; }",
+      "    .footer { margin-top:6px; text-align:center; color:#4b5563; font-size:11px; }",
+      '  </style>',
+      '</head>',
+      '<body>',
+      '<div class="wrap">',
+      '  <h1>📅 ' + schedule.year + '年' + schedule.month + '月 掃除シフト</h1>',
+      '  <div style="overflow-x:auto;">',
+      '    <table class="table">',
+      '      <thead>',
+      '        <tr>',
+      '          <th>日付</th>',
+      '          <th>曜日</th>',
+      headerCells,
+      '        </tr>',
+      '      </thead>',
+      '      <tbody>',
+      rowsHtml,
+      '      </tbody>',
+      '    </table>',
+      '  </div>',
+      '</div>',
+      '</body>',
+      '</html>'
+    ].join("\n");
+  }
+
+  // ===== 簡易XLSX出力（JSZipで最小構成のxlsxを生成） =====
+  function scheduleToXlsx(schedule) {
+    // 簡易ZIP(STORE)でxlsxコンテナを構築
+    var title = schedule.year + "年" + schedule.month + "月 掃除シフト";
+    var tasks = schedule.tasks || [];
+    var headers = ["日付","曜日"].concat(tasks.map(function(t){ return t.label; }));
+    var rows = schedule.rows;
+
+    function columnName(idx) {
+      var name = "";
+      var n = idx + 1;
+      while (n > 0) {
+        var rem = (n - 1) % 26;
+        name = String.fromCharCode(65 + rem) + name;
+        n = Math.floor((n - 1) / 26);
+      }
+      return name;
+    }
+
+    function cellRef(colIdx, rowIdx) {
+      return columnName(colIdx) + rowIdx;
+    }
+
+    function cellXml(colIdx, rowIdx, value, styleId) {
+      var val = xmlEscape(value);
+      var styleAttr = (styleId != null) ? ' s="' + styleId + '"' : "";
+      return '<c r="' + cellRef(colIdx, rowIdx) + '" t="inlineStr"' + styleAttr + '><is><t>' + val + '</t></is></c>';
+    }
+
+    var sheetRows = [];
+    // row 1: title (merge A1:J1 later)
+    sheetRows.push('<row r="1">' + cellXml(0, 1, title, 0) + '</row>');
+
+    // row 2: header
+    var headerCells = headers.map(function(h, idx){ return cellXml(idx, 2, h, 0); }).join("");
+    sheetRows.push('<row r="2">' + headerCells + '</row>');
+
+    // data rows start at row 3
+    var dataStartRow = 3;
+    rows.forEach(function(r, i){
+      var excelRow = dataStartRow + i;
+      var isSat = r.曜日 === "土";
+      var isSun = r.曜日 === "日";
+      var styleId = isSat ? 1 : isSun ? 2 : 0; // 0: normal, 1: sat, 2: sun
+      var cellsArr = [
+        cellXml(0, excelRow, r.日付, styleId),
+        cellXml(1, excelRow, r.曜日, styleId)
+      ];
+      tasks.forEach(function(t, idx){
+        var val = r.tasks ? r.tasks[t.key] : "-";
+        cellsArr.push(cellXml(2 + idx, excelRow, normalizeCellValue(val), styleId));
+      });
+      var cells = cellsArr.join("");
+      sheetRows.push('<row r="' + excelRow + '">' + cells + '</row>');
+    });
+
+    var lastRow = dataStartRow + rows.length - 1;
+    var lastCol = columnName(headers.length - 1);
+    var dimension = "A1:" + lastCol + (lastRow < 2 ? 2 : lastRow);
+
+    var sheetXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
+      '  <dimension ref="' + dimension + '"/>',
+      '  <sheetViews><sheetView workbookViewId="0"/></sheetViews>',
+      '  <sheetFormatPr defaultRowHeight="15"/>',
+      '  <sheetData>',
+            sheetRows.join(""),
+      '  </sheetData>',
+      '  <mergeCells count="1"><mergeCell ref="A1:' + lastCol + '1"/></mergeCells>',
+      '</worksheet>'
+    ].join("");
+
+    var stylesXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+      '  <fonts count="1"><font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/></font></fonts>',
+      '  <fills count="4">',
+      '    <fill><patternFill patternType="none"/></fill>',
+      '    <fill><patternFill patternType="gray125"/></fill>',
+      '    <fill><patternFill patternType="solid"><fgColor rgb="FFE7F2FF"/><bgColor indexed="64"/></patternFill></fill>', // sat
+      '    <fill><patternFill patternType="solid"><fgColor rgb="FFFFEFEF"/><bgColor indexed="64"/></patternFill></fill>', // sun
+      '  </fills>',
+      '  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>',
+      '  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>',
+      '  <cellXfs count="3">',
+      '    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>', // normal
+      '    <xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0"/>', // sat
+      '    <xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0"/>', // sun
+      '  </cellXfs>',
+      '  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>',
+      '</styleSheet>'
+    ].join("");
+
+    var workbookXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
+      '  <sheets>',
+      '    <sheet name="掃除シフト" sheetId="1" r:id="rId1"/>',
+      '  </sheets>',
+      '</workbook>'
+    ].join("");
+
+    var workbookRelsXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+      '  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>',
+      '  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>',
+      '</Relationships>'
+    ].join("");
+
+    var relsXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+      '  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>',
+      '  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>',
+      '  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>',
+      '</Relationships>'
+    ].join("");
+
+    var contentTypesXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
+      '  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
+      '  <Default Extension="xml" ContentType="application/xml"/>',
+      '  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>',
+      '  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>',
+      '  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>',
+      '  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>',
+      '  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>',
+      '</Types>'
+    ].join("");
+
+    var appXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">',
+      '  <Application>掃除シフトジェネレーター</Application>',
+      '</Properties>'
+    ].join("");
+
+    var coreXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">',
+      '  <dc:title>' + xmlEscape(title) + '</dc:title>',
+      '  <dc:creator>掃除シフトジェネレーター</dc:creator>',
+      '  <cp:lastModifiedBy>掃除シフトジェネレーター</cp:lastModifiedBy>',
+      '</cp:coreProperties>'
+    ].join("");
+
+    var files = [
+      { path: "[Content_Types].xml", data: contentTypesXml },
+      { path: "_rels/.rels", data: relsXml },
+      { path: "docProps/core.xml", data: coreXml },
+      { path: "docProps/app.xml", data: appXml },
+      { path: "xl/workbook.xml", data: workbookXml },
+      { path: "xl/_rels/workbook.xml.rels", data: workbookRelsXml },
+      { path: "xl/worksheets/sheet1.xml", data: sheetXml },
+      { path: "xl/styles.xml", data: stylesXml }
+    ];
+
+    return Promise.resolve(makeZip(files));
+  }
+
+  $("#exportXlsxBtn").on("click", function() {
+    if (!latestSchedule) {
+      $("#errorBox").text("先にシフトを生成してから出力してください。");
+      return;
+    }
+    $("#errorBox").text("");
+    scheduleToXlsx(latestSchedule).then(function(blob){
+      var y = latestSchedule.year;
+      var m = latestSchedule.month;
+      var filename = "掃除シフト_" + y + "年" + m + "月.xlsx";
+      var link = document.createElement("a");
+      var url = URL.createObjectURL(blob);
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(function(){
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 0);
+    }).catch(function(err){
+      $("#errorBox").text("XLSX出力でエラーが発生しました: " + (err && err.message ? err.message : err));
+    });
+  });
+
+  $("#exportHtmlBtn").on("click", function() {
+    if (!latestSchedule) {
+      $("#errorBox").text("先にシフトを生成してから出力してください。");
+      return;
+    }
+    var htmlStr = scheduleToHtml(latestSchedule);
+    var blob = new Blob([htmlStr], { type: "text/html;charset=utf-8;" });
+    var y = latestSchedule.year;
+    var m = latestSchedule.month;
+    var filename = "掃除シフト_" + y + "年" + m + "月.html";
+    var link = document.createElement("a");
+    var url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(function(){
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 0);
+  });
+
+});
+</script>
+</body>
+</html>
