@@ -1,0 +1,2219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>チャリ走風ランゲーム v3.0 - 無限モード</title>
+  <style>
+    :root{
+      --ui-bg: rgba(255,255,255,0.95);
+      --ui-border: #2c3e50;
+      --accent: #e74c3c;
+      --accent2: #27ae60;
+      --accent-glow: #ff6b81;
+      --text: #2c3e50;
+      --subtext:#7f8c8d;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #f0f0f0;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100vh;
+    }
+
+    #ui-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #score-display {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--text);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(245,245,245,0.9));
+      padding: 12px 20px;
+      border-radius: 16px;
+      border: 3px solid rgba(127,140,141,0.3);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15), inset 0 1px 2px rgba(255,255,255,0.8);
+      transition: all 0.3s ease;
+    }
+
+    #score-display:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.8);
+    }
+
+    #game-message {
+      background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,248,248,0.96));
+      padding: 30px 40px;
+      border-radius: 24px;
+      text-align: center;
+      border: 4px solid transparent;
+      background-clip: padding-box;
+      box-shadow:
+        0 20px 60px rgba(0,0,0,0.25),
+        0 0 0 1px rgba(127,140,141,0.2),
+        inset 0 1px 3px rgba(255,255,255,0.8);
+      pointer-events: auto;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      max-width: min(540px, calc(100vw - 40px));
+      backdrop-filter: blur(20px);
+    }
+
+    #game-message::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, #95a5a6, #7f8c8d, #5d6d7e);
+      z-index: -1;
+      opacity: 0.5;
+    }
+
+    h1 {
+      margin: 0 0 16px 0;
+      font-size: 36px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #2c3e50, #34495e, #5d6d7e);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 1px;
+      text-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      animation: titlePulse 2s ease-in-out infinite;
+    }
+
+    @keyframes titlePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    p {
+      margin: 10px 0;
+      font-size: 16px;
+      color: var(--subtext);
+      line-height: 1.6;
+      font-weight: 500;
+    }
+
+    .btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 16px 40px;
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: white;
+      font-size: 18px;
+      font-weight: 900;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #922b21, 0 8px 24px rgba(231,76,60,0.4);
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 0 #922b21, 0 12px 32px rgba(231,76,60,0.5);
+    }
+
+    .btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #922b21, 0 4px 16px rgba(231,76,60,0.3);
+    }
+
+    .subrow {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .records {
+      margin-top: 20px;
+      padding: 20px 24px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(149,165,166,0.12), rgba(127,140,141,0.08));
+      border: 2px solid rgba(127,140,141,0.25);
+      text-align: left;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.05), 0 2px 12px rgba(127,140,141,0.15);
+      transition: all 0.3s ease;
+    }
+
+    .records:hover {
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.08), 0 4px 16px rgba(127,140,141,0.2);
+    }
+
+    .records h2{
+      margin: 0 0 6px 0;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .records .best{
+      font-weight: 900;
+      color: #111;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .records ol{
+      margin: 0;
+      padding-left: 18px;
+      color: #444;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .records .muted{
+      color: #666;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    .records .mini-btn{
+      margin-top: 12px;
+      padding: 10px 20px;
+      border-radius: 999px;
+      border: 2px solid rgba(231,76,60,0.3);
+      background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,240,240,0.9));
+      cursor: pointer;
+      font-weight: 900;
+      font-size: 13px;
+      color: #e74c3c;
+      box-shadow: 0 2px 8px rgba(231,76,60,0.2), inset 0 1px 1px rgba(255,255,255,0.8);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .records .mini-btn:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(231,76,60,0.3), inset 0 1px 1px rgba(255,255,255,0.8);
+      border-color: rgba(231,76,60,0.5);
+    }
+
+    .records .mini-btn:active{
+      transform: translateY(1px);
+      box-shadow: 0 1px 4px rgba(231,76,60,0.2), inset 0 1px 1px rgba(255,255,255,0.8);
+    }
+
+    .chip {
+      background: linear-gradient(135deg, rgba(149,165,166,0.2), rgba(127,140,141,0.15));
+      border: 2px solid rgba(127,140,141,0.4);
+      color: #2c3e50;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: 0 2px 8px rgba(127,140,141,0.25), inset 0 1px 1px rgba(255,255,255,0.5);
+      transition: all 0.2s ease;
+    }
+
+    .chip:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(127,140,141,0.35), inset 0 1px 1px rgba(255,255,255,0.5);
+    }
+
+    .mobile-hint { display: none; font-size: 13px; color: #777; margin-top: 4px; }
+
+    @media (hover: none) and (pointer: coarse) {
+      .mobile-hint { display: block; }
+      .pc-hint { display: none; }
+    }
+
+    /* エントランスアニメーション */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInScale {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    #game-message {
+      animation: fadeInScale 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #score-display {
+      animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #hud {
+      animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.1s backwards;
+    }
+
+    /* 左上の小UI（音/一時停止） */
+    #hud {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .hud-btn{
+      width: 52px;
+      height: 52px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(245,245,245,0.9));
+      border: 3px solid rgba(127,140,141,0.25);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15), inset 0 1px 2px rgba(255,255,255,0.8);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      user-select: none;
+      backdrop-filter: blur(12px);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 900;
+      font-size: 20px;
+    }
+
+    .hud-btn:hover{
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.8);
+      border-color: rgba(127,140,141,0.4);
+    }
+
+    .hud-btn:active{
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15), inset 0 1px 2px rgba(255,255,255,0.8);
+    }
+
+    #toast{
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, rgba(30,30,30,0.95), rgba(50,50,50,0.95));
+      color: #fff;
+      padding: 14px 24px;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: 800;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(12px);
+      letter-spacing: 0.5px;
+    }
+
+    /* 簡易テスト結果表示 */
+    #test-status{
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      background: rgba(255,255,255,0.7);
+      border: 2px solid rgba(0,0,0,0.12);
+      border-radius: 12px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #111;
+      backdrop-filter: blur(4px);
+      display: none;
+      pointer-events: none;
+    }
+    #test-status.show{ display: inline-block; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="hud">
+    <div id="btnPause" class="hud-btn" title="一時停止/再開">⏸</div>
+    <div id="btnSound" class="hud-btn" title="サウンド">🔇</div>
+  </div>
+
+  <div id="ui-layer">
+    <div id="score-display">DISTANCE: 0m</div>
+
+    <div id="game-message">
+      <h1>激走！チャリライダー v3.0</h1>
+      <p class="pc-hint">スペースキーでジャンプ（5回まで）</p>
+      <p class="mobile-hint">画面タップでジャンプ（5回まで）</p>
+      <p>穴に落ちないように走り続けろ！</p>
+
+      <div class="subrow">
+        <span class="chip">P：一時停止</span>
+        <span class="chip">🔇/🔊：サウンド</span>
+        <span class="chip">コイン：+50m</span>
+      </div>
+
+      <div id="record-panel" class="records">
+        <h2>走行記録</h2>
+        <div class="best" id="best-record">最長: --m</div>
+        <ol id="last-records"></ol>
+        <div class="muted">過去5回分と最長記録を端末に保存します（localStorage）。</div>
+        <button id="reset-records" class="mini-btn" type="button">記録をリセット</button>
+      </div>
+
+      <button id="start-btn" class="btn">スタート</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <div id="test-status"></div>
+
+  <script>
+    /**
+     * チャリ走風ランゲーム v3.0
+     *
+     * 新機能：
+     * - スター、スロー、ロケットアイテム追加
+     * - 動く敵と動かない敵（色違い）
+     * - 民家とマンションの屋上を走行
+     * - 大きな家の斜め屋根
+     * - 距離に応じたアイテム出現率調整
+     * - パフォーマンス最適化
+     */
+
+    const CONFIG = {
+      // 記録保存
+      RECORDS_KEY: 'chari_run_records_v1',
+      MAX_RECORDS: 5,
+
+      GRAVITY: 0.6,
+      JUMP_FORCE: 10,
+      DOUBLE_JUMP_FORCE: 9,
+      MAX_JUMPS: 5,
+      SCROLL_SPEED_BASE: 2.5,
+      SCROLL_ACCELERATION: 0.0015,
+      BLOCK_WIDTH: 60,
+      PIT_WIDTH_MIN: 2,
+      PIT_WIDTH_MAX: 5,
+      GOAL_DISTANCE: 5000,
+      COIN_BONUS_METERS: 50,
+      DASH_SPEED_MULTIPLIER: 1.3,
+      DASH_DURATION: 30,
+      MAX_LIVES: 3,
+      INVINCIBLE_DURATION: 180,
+      HIGH_JUMP_MULTIPLIER: 1.6,
+      HIGH_JUMP_DURATION: 180,
+      SLOW_DURATION: 240,
+      SLOW_SPEED_MULTIPLIER: 0.5,
+      ROCKET_DURATION: 120,
+      ROCKET_SPEED: 12,
+      ROCKET_DESCENT: 1,
+
+      // 簡易テスト（デバッグ用）
+      RUN_TESTS: true,
+    };
+
+    class AudioManager {
+      constructor() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.enabled = false;
+        this.bgmPlaying = false;
+        this.bgmGain = null;
+        this.bgmInterval = null;
+      }
+      enable() {
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        this.enabled = true;
+      }
+      setEnabled(on) {
+        this.enable();
+        this.enabled = !!on;
+        if (this.bgmGain) {
+          this.bgmGain.gain.value = on ? 0.15 : 0;
+        }
+      }
+
+      startBGM() {
+        if (this.bgmPlaying) return;
+        this.bgmPlaying = true;
+
+        this.bgmGain = this.ctx.createGain();
+        this.bgmGain.gain.value = this.enabled ? 0.15 : 0;
+        this.bgmGain.connect(this.ctx.destination);
+
+        // シンプルなループBGM
+        const notes = [
+          { freq: 261.63, dur: 0.15 }, // C4
+          { freq: 329.63, dur: 0.15 }, // E4
+          { freq: 392.00, dur: 0.15 }, // G4
+          { freq: 329.63, dur: 0.15 }, // E4
+          { freq: 293.66, dur: 0.15 }, // D4
+          { freq: 349.23, dur: 0.15 }, // F4
+          { freq: 392.00, dur: 0.15 }, // G4
+          { freq: 349.23, dur: 0.15 }, // F4
+        ];
+
+        let noteIndex = 0;
+        const playNote = () => {
+          if (!this.bgmPlaying) return;
+
+          const note = notes[noteIndex];
+          const osc = this.ctx.createOscillator();
+          const noteGain = this.ctx.createGain();
+
+          osc.type = 'square';
+          osc.frequency.value = note.freq;
+
+          noteGain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+          noteGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + note.dur * 0.9);
+
+          osc.connect(noteGain);
+          noteGain.connect(this.bgmGain);
+
+          osc.start();
+          osc.stop(this.ctx.currentTime + note.dur);
+
+          noteIndex = (noteIndex + 1) % notes.length;
+        };
+
+        playNote();
+        this.bgmInterval = setInterval(playNote, 150);
+      }
+
+      stopBGM() {
+        this.bgmPlaying = false;
+        if (this.bgmInterval) {
+          clearInterval(this.bgmInterval);
+          this.bgmInterval = null;
+        }
+      }
+      playJump() {
+        if (!this.enabled) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.1);
+      }
+      playCoin() {
+        if (!this.enabled) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(1800, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+      }
+      playCrash() {
+        if (!this.enabled) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(20, this.ctx.currentTime + 0.5);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.5);
+      }
+      playWin() {
+        if (!this.enabled) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        const now = this.ctx.currentTime;
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(659.25, now + 0.1);
+        osc.frequency.setValueAtTime(783.99, now + 0.2);
+        osc.frequency.setValueAtTime(1046.5, now + 0.3);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.8);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(now + 0.8);
+      }
+    }
+
+    class Player {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.prevY = y;
+        this.dy = 0;
+        this.jumpCount = 0;
+        this.grounded = false;
+        this.angle = 0;
+        this.spriteColor = '#2c3e50';
+        this.bikeColor = '#3498db';
+        this.accentColor = '#e74c3c';
+      }
+      jump(highJumpActive = false) {
+        if (this.jumpCount < CONFIG.MAX_JUMPS) {
+          let force = this.jumpCount === 0 ? CONFIG.JUMP_FORCE : CONFIG.DOUBLE_JUMP_FORCE;
+          if (highJumpActive) {
+            force *= CONFIG.HIGH_JUMP_MULTIPLIER;
+          }
+          this.dy = -force;
+          this.jumpCount++;
+          this.grounded = false;
+          return true;
+        }
+        return false;
+      }
+      update() {
+        this.prevY = this.y;
+        this.dy += CONFIG.GRAVITY;
+        this.y += this.dy;
+        this.angle += this.grounded ? 0.2 : 0.05;
+      }
+      draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // 自転車のフレーム
+        ctx.strokeStyle = this.bikeColor;
+        ctx.lineWidth = 3.5;
+
+        this.drawWheel(ctx, -15, 15, this.angle);
+        this.drawWheel(ctx, 25, 15, this.angle);
+
+        ctx.beginPath();
+        ctx.moveTo(-15, 15);
+        ctx.lineTo(5, 15);
+        ctx.lineTo(20, -5);
+        ctx.lineTo(25, 15);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(-15, 15);
+        ctx.lineTo(-5, -5);
+        ctx.lineTo(5, 15);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(-10, -5);
+        ctx.lineTo(0, -5);
+        ctx.stroke();
+
+        // サドル
+        ctx.fillStyle = '#c0392b';
+        ctx.beginPath();
+        ctx.ellipse(-5, -8, 8, 4, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // ライダー
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-5, -5);
+        ctx.lineTo(10, -25);
+        ctx.moveTo(15, -30);
+        ctx.arc(10, -30, 5, 0, Math.PI * 2);
+        ctx.moveTo(10, -25);
+        ctx.lineTo(20, -5);
+        const legOffset = Math.sin(this.angle) * 5;
+        ctx.moveTo(-5, -5);
+        ctx.lineTo(5, 10 + legOffset);
+        ctx.stroke();
+
+        // 髪の毛（なびく）
+        ctx.strokeStyle = this.accentColor;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(8, -25);
+        ctx.bezierCurveTo(-10, -25 - (this.dy * 2), -20, -20, -30, -25 + Math.sin(this.angle * 2) * 5);
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+
+        ctx.restore();
+      }
+      drawWheel(ctx, x, y, angle) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        // タイヤの外側
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // スポーク（8本）
+        ctx.strokeStyle = '#34495e';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 8; i++) {
+          const angle = (Math.PI * 2 * i) / 8;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(angle) * 9, Math.sin(angle) * 9);
+          ctx.stroke();
+        }
+
+        // ハブ（中心）
+        ctx.fillStyle = '#95a5a6';
+        ctx.beginPath();
+        ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+      getFeetY() { return this.y + 20; }
+      getPrevFeetY() { return this.prevY + 20; }
+    }
+
+    class TerrainManager {
+      constructor(canvasRef) {
+        this.canvasRef = canvasRef;
+        this.blocks = [];
+        this.items = [];
+        this.scrollSpeed = CONFIG.SCROLL_SPEED_BASE;
+        this.distance = 0;
+        this.lastBlockX = 0;
+        this.lastBlockY = 0;
+        this.generateInitialGround();
+      }
+
+      reset() {
+        this.blocks = [];
+        this.items = [];
+        this.scrollSpeed = CONFIG.SCROLL_SPEED_BASE;
+        this.distance = 0;
+        this.lastBlockX = 0;
+        this.lastBlockY = 0;
+        this.generateInitialGround();
+      }
+
+      applyResize() {
+        const groundY = window.innerHeight * 0.7;
+        const first = this.blocks.find(b => b.type === 'ground');
+        if (first) {
+          const diff = groundY - first.y;
+          for (const b of this.blocks) b.y += diff;
+          for (const it of this.items) it.y += diff;
+          this.lastBlockY += diff;
+        }
+      }
+
+      generateInitialGround() {
+        const groundY = window.innerHeight * 0.7;
+        this.addBlock(0, groundY, window.innerWidth + 400, window.innerHeight - groundY, 'ground');
+        this.lastBlockX = window.innerWidth + 400;
+        this.lastBlockY = groundY;
+      }
+
+      addBlock(x, y, w, h, type = 'ground', extraData = {}) {
+        this.blocks.push({ x, y, w, h, type, ...extraData });
+
+        if ((type === 'ground' || type === 'stair' || type === 'slopedRoof') && w > 60) {
+          // 距離に応じてアイテム出現率を調整
+          const currentDist = Math.floor(this.distance / 10);
+
+          // 基本出現率：最初30%、1000m以降60%まで徐々に増加
+          const baseRate = Math.min(0.3 + (currentDist / 2000) * 0.3, 0.6);
+
+          if (Math.random() > baseRate) return;
+
+          const roll = Math.random();
+          let itemType;
+
+          // 距離に応じて有利なアイテムの出現率を上げる
+          // 最初は敵が多く、距離が伸びるほど有利アイテムが増える
+          const itemBonus = Math.min(currentDist / 3000, 0.4); // 最大40%ボーナス
+
+          // 序盤（500m未満）はタイマー系アイテムなし、コイン多め
+          if (currentDist < 500) {
+            if (roll < 0.20) itemType = 'enemy'; // 動く敵
+            else if (roll < 0.40) itemType = 'staticEnemy'; // 動かない敵
+            else if (roll < 0.85) itemType = 'coin'; // コイン多め
+            else itemType = 'highJump';
+          }
+          // 中盤以降は全アイテム出現
+          else {
+            if (roll < 0.25 - itemBonus * 0.5) itemType = 'enemy'; // 動く敵
+            else if (roll < 0.50 - itemBonus) itemType = 'staticEnemy'; // 動かない敵
+            else if (roll < 0.60 + itemBonus * 0.2) itemType = 'coin';
+            else if (roll < 0.68 + itemBonus * 0.4) itemType = 'highJump';
+            else if (roll < 0.76 + itemBonus * 0.6) itemType = 'star';
+            else if (roll < 0.84 + itemBonus * 0.8) itemType = 'clock';
+            else itemType = 'rocket';
+          }
+
+          const itemX = x + w / 2;
+          let itemY;
+
+          // 斜め屋根の場合は中央の高さを計算
+          if (type === 'slopedRoof') {
+            const slopeY = y + ((extraData.endY || y) - y) * 0.5;
+            itemY = slopeY;
+          }
+
+          if (itemType === 'spike') {
+            itemY = y - 20;
+            this.items.push({ x: itemX, y: itemY, w: 20, h: 20, type: 'spike', active: true });
+          } else if (itemType === 'enemy') {
+            if (!itemY) itemY = y - 25;
+            else itemY -= 25;
+            const moveRange = Math.min(w * 0.3, 80);
+            this.items.push({
+              x: itemX,
+              y: itemY,
+              w: 30,
+              h: 30,
+              type: 'enemy',
+              active: true,
+              baseX: itemX,
+              moveRange: moveRange,
+              speed: 1.5 + Math.random() * 1.5,
+              direction: 1,
+              animAngle: 0
+            });
+          } else if (itemType === 'staticEnemy') {
+            if (!itemY) itemY = y - 25;
+            else itemY -= 25;
+            this.items.push({
+              x: itemX,
+              y: itemY,
+              w: 30,
+              h: 30,
+              type: 'staticEnemy',
+              active: true,
+              animAngle: 0
+            });
+          } else if (itemType === 'highJump') {
+            if (!itemY) itemY = y - 50;
+            else itemY -= 50;
+            this.items.push({ x: itemX, y: itemY, w: 28, h: 28, type: 'highJump', active: true, bounce: 0 });
+          } else if (itemType === 'star') {
+            if (!itemY) itemY = y - 50;
+            else itemY -= 50;
+            this.items.push({ x: itemX, y: itemY, w: 30, h: 30, type: 'star', active: true, angle: 0, pulse: 0 });
+          } else if (itemType === 'clock') {
+            if (!itemY) itemY = y - 50;
+            else itemY -= 50;
+            this.items.push({ x: itemX, y: itemY, w: 28, h: 28, type: 'clock', active: true, tick: 0 });
+          } else if (itemType === 'rocket') {
+            if (!itemY) itemY = y - 50;
+            else itemY -= 50;
+            this.items.push({ x: itemX, y: itemY, w: 26, h: 32, type: 'rocket', active: true, flame: 0 });
+          } else {
+            if (!itemY) {
+              const heightPattern = Math.random();
+              itemY = (heightPattern < 0.5) ? (y - 40) : (y - 100);
+            } else {
+              itemY -= 40;
+            }
+            this.items.push({ x: itemX, y: itemY, w: 25, h: 25, type: 'coin', active: true, angle: 0 });
+          }
+        }
+      }
+
+      update() {
+        this.scrollSpeed += CONFIG.SCROLL_ACCELERATION;
+        this.distance += this.scrollSpeed;
+
+        for (let i = this.blocks.length - 1; i >= 0; i--) {
+          const b = this.blocks[i];
+          b.x -= this.scrollSpeed;
+          if (b.x + b.w < -200) this.blocks.splice(i, 1);
+        }
+
+        for (let i = this.items.length - 1; i >= 0; i--) {
+          const it = this.items[i];
+          it.x -= this.scrollSpeed;
+          if (it.type === 'coin') it.angle += 0.1;
+          if (it.type === 'highJump') it.bounce += 0.12;
+          if (it.type === 'star') { it.angle += 0.15; it.pulse += 0.1; }
+          if (it.type === 'clock') it.tick += 0.08;
+          if (it.type === 'rocket') it.flame += 0.2;
+          if (it.type === 'staticEnemy') it.animAngle += 0.08;
+          if (it.type === 'enemy') {
+            it.baseX -= this.scrollSpeed;
+            it.x += it.speed * it.direction;
+            it.animAngle += 0.15;
+            if (it.x > it.baseX + it.moveRange || it.x < it.baseX - it.moveRange) {
+              it.direction *= -1;
+            }
+          }
+          if (it.x < -80 || !it.active) this.items.splice(i, 1);
+        }
+
+        if (this.lastBlockX < window.innerWidth + 300) {
+          this.generateNextSegment();
+        }
+
+        this.lastBlockX -= this.scrollSpeed;
+      }
+
+      generateNextSegment() {
+        const roll = Math.random();
+
+        // 大きな斜め屋根の家
+        if (roll < 0.2) {
+          this.createSlopedRoof();
+          return;
+        }
+
+        // 階段
+        if (roll < 0.5) {
+          this.createStairs();
+          return;
+        }
+
+        const minWidth = CONFIG.BLOCK_WIDTH * 2;
+        const maxWidth = CONFIG.BLOCK_WIDTH * 10;
+        const width = Math.floor(Math.random() * (maxWidth - minWidth + 1)) + minWidth;
+
+        const gapChance = 0.45 + Math.min(0.2, this.distance / 100000);
+        if (Math.random() < gapChance) {
+          const gapWidth = Math.floor(Math.random() * (CONFIG.PIT_WIDTH_MAX - CONFIG.PIT_WIDTH_MIN + 1) + CONFIG.PIT_WIDTH_MIN) * CONFIG.BLOCK_WIDTH;
+          this.lastBlockX += gapWidth;
+        }
+
+        const heightChange = (Math.floor(Math.random() * 5) - 2) * 60;
+        let newY = this.lastBlockY + heightChange;
+        const minY = window.innerHeight * 0.2;
+        const maxY = window.innerHeight * 0.85;
+        newY = Math.max(minY, Math.min(maxY, newY));
+
+        this.addBlock(this.lastBlockX, newY, width, window.innerHeight, 'ground');
+        this.lastBlockX += width;
+        this.lastBlockY = newY;
+      }
+
+      createSlopedRoof() {
+        const roofWidth = CONFIG.BLOCK_WIDTH * 8;
+        const roofHeight = 120;
+        const direction = Math.random() < 0.5 ? 1 : -1; // 1 = 上り, -1 = 下り
+
+        const startY = this.lastBlockY;
+        const endY = startY + (direction * roofHeight);
+
+        // 画面内に収める
+        const minY = window.innerHeight * 0.2;
+        const maxY = window.innerHeight * 0.85;
+        const adjustedEndY = Math.max(minY, Math.min(maxY, endY));
+
+        // 斜め屋根ブロック
+        this.addBlock(
+          this.lastBlockX,
+          startY,
+          roofWidth,
+          window.innerHeight,
+          'slopedRoof',
+          { endY: adjustedEndY, direction: direction }
+        );
+
+        this.lastBlockX += roofWidth;
+        this.lastBlockY = adjustedEndY;
+
+        // 屋根の後に平らな部分を追加
+        const flatWidth = CONFIG.BLOCK_WIDTH * 3;
+        this.addBlock(this.lastBlockX, this.lastBlockY, flatWidth, window.innerHeight, 'ground');
+        this.lastBlockX += flatWidth;
+      }
+
+      createStairs() {
+        const steps = Math.floor(Math.random() * 5) + 4;
+        const stepHeight = 45;
+        const stepWidth = CONFIG.BLOCK_WIDTH;
+
+        let direction;
+        const centerY = window.innerHeight * 0.6;
+        if (this.lastBlockY > centerY + 100) direction = Math.random() < 0.8 ? -1 : 1;
+        else if (this.lastBlockY < centerY - 100) direction = Math.random() < 0.8 ? 1 : -1;
+        else direction = Math.random() < 0.5 ? -1 : 1;
+
+        for (let i = 0; i < steps; i++) {
+          let newY = this.lastBlockY + (direction * stepHeight);
+          const minY = window.innerHeight * 0.2;
+          const maxY = window.innerHeight * 0.85;
+          newY = Math.max(minY, Math.min(maxY, newY));
+          this.addBlock(this.lastBlockX, newY, stepWidth, window.innerHeight, 'stair');
+          this.lastBlockX += stepWidth;
+          this.lastBlockY = newY;
+        }
+
+        const landingWidth = CONFIG.BLOCK_WIDTH * 3;
+        this.addBlock(this.lastBlockX, this.lastBlockY, landingWidth, window.innerHeight, 'stair');
+        this.lastBlockX += landingWidth;
+      }
+
+      draw(ctx) {
+        for (const b of this.blocks) {
+          const buildingHeight = b.h - (this.canvasRef.height - b.y);
+
+          if (b.type === 'slopedRoof') {
+            // 屋根の最も低い位置を計算
+            const roofBottom = Math.max(b.y, b.endY);
+            const houseHeight = 150;
+            const baseY = roofBottom + 15; // 屋根と建物の間に十分な隙間
+
+            // 大きな家の建物部分（屋根の下）
+            ctx.fillStyle = '#d4a574';
+            ctx.fillRect(b.x, baseY, b.w, houseHeight);
+
+            // 窓（大きな家）- 建物部分のみ、屋根より下
+            for (let row = 0; row < 4; row++) {
+              for (let col = 0; col < 6; col++) {
+                const wx = b.x + 20 + col * 60;
+                const wy = baseY + 20 + row * 30;
+                // 窓が建物の範囲内かつ屋根より下にあることを確認
+                if (wx + 20 < b.x + b.w && wy > baseY && wy + 20 < baseY + houseHeight - 10) {
+                  // 緩やかに光る窓
+                  const time = Date.now() / 1000;
+                  const offset = (row * 6 + col) * 0.4;
+                  const brightness = 0.4 + Math.sin(time * 0.6 + offset) * 0.6;
+
+                  const r = 255;
+                  const g = Math.floor(235 * brightness + 212 * (1 - brightness));
+                  const b_val = Math.floor(59 * brightness + 167 * (1 - brightness));
+                  ctx.fillStyle = `rgb(${r}, ${g}, ${b_val})`;
+                  ctx.fillRect(wx, wy, 20, 20);
+                }
+              }
+            }
+
+            // 斜め屋根（建物の上）
+            ctx.fillStyle = '#8d6e63';
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y);
+            ctx.lineTo(b.x + b.w, b.endY);
+            ctx.lineTo(b.x + b.w, baseY);
+            ctx.lineTo(b.x, baseY);
+            ctx.closePath();
+            ctx.fill();
+
+            // 屋根の上面（走行面）
+            ctx.strokeStyle = '#5d4037';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y);
+            ctx.lineTo(b.x + b.w, b.endY);
+            ctx.stroke();
+
+          } else if (b.type === 'stair') {
+            // 茶色い民家風
+            ctx.fillStyle = '#8d6e63';
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+
+            // 屋上の縁
+            ctx.fillStyle = '#6d4c41';
+            ctx.fillRect(b.x, b.y - 3, b.w, 3);
+
+            // 窓（小さい民家）
+            const windowCount = Math.floor(b.w / 25);
+            for (let i = 0; i < Math.min(windowCount, 3); i++) {
+              const wx = b.x + 10 + i * 25;
+              // 緩やかに光る窓（時間ベース）
+              const time = Date.now() / 1000;
+              const brightness = 0.5 + Math.sin(time + i * 1.5) * 0.5;
+              const r = 255;
+              const g = 235 + brightness * 20;
+              const b_val = 59 + brightness * 100;
+              ctx.fillStyle = `rgb(${r}, ${g}, ${b_val})`;
+              ctx.fillRect(wx, b.y + 10, 10, 12);
+              ctx.strokeStyle = '#5d4037';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(wx, b.y + 10, 10, 12);
+            }
+
+          } else {
+            // グレーのマンション風
+            ctx.fillStyle = '#546e7a';
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+
+            // 屋上の縁
+            ctx.fillStyle = '#607d8b';
+            ctx.fillRect(b.x, b.y - 4, b.w, 4);
+
+            // 窓（マンション）
+            const floors = Math.min(Math.floor(buildingHeight / 20), 8);
+            const windowsPerFloor = Math.floor(b.w / 20);
+
+            for (let floor = 0; floor < floors; floor++) {
+              for (let i = 0; i < windowsPerFloor; i++) {
+                const wx = b.x + 5 + i * 20;
+                const wy = b.y + 10 + floor * 20;
+
+                // 緩やかに光る窓（各窓で異なるタイミング）
+                const time = Date.now() / 1000;
+                const offset = (floor * windowsPerFloor + i) * 0.3;
+                const brightness = 0.3 + Math.sin(time * 0.5 + offset) * 0.7;
+
+                const r = 255;
+                const g = Math.floor(235 * brightness + 84 * (1 - brightness));
+                const b_val = Math.floor(59 * brightness + 122 * (1 - brightness));
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b_val})`;
+                ctx.fillRect(wx, wy, 10, 12);
+
+                ctx.strokeStyle = '#37474f';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(wx, wy, 10, 12);
+              }
+            }
+          }
+
+          // 屋上のライン（斜め屋根以外）
+          if (b.type !== 'slopedRoof') {
+            ctx.strokeStyle = b.type === 'stair' ? '#5d4037' : '#607d8b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y);
+            ctx.lineTo(b.x + b.w, b.y);
+            ctx.stroke();
+          }
+        }
+
+        for (const item of this.items) {
+          if (!item.active) continue;
+
+          if (item.type === 'spike') {
+            const cx = item.x + item.w / 2;
+            const cy = item.y + item.h / 2;
+            ctx.fillStyle = '#c0392b';
+            ctx.beginPath();
+            const numSpikes = 8;
+            const outerRadius = item.w * 0.8;
+            const innerRadius = item.w * 0.4;
+            for (let k = 0; k < numSpikes * 2; k++) {
+              const r = (k % 2 === 0) ? outerRadius : innerRadius;
+              const ang = (Math.PI * k) / numSpikes - Math.PI / 2;
+              const px = cx + Math.cos(ang) * r;
+              const py = cy + Math.sin(ang) * r;
+              if (k === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx - 4, cy - 2, 4, 0, Math.PI * 2);
+            ctx.arc(cx + 4, cy - 2, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(cx - 3, cy - 2, 1.5, 0, Math.PI * 2);
+            ctx.arc(cx + 3, cy - 2, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+
+          } else if (item.type === 'coin') {
+            const cx = item.x + item.w / 2;
+            const cy = item.y + item.h / 2;
+            const scale = Math.abs(Math.sin(item.angle));
+            const drawWidth = item.w * (0.4 + 0.6 * scale);
+
+            ctx.fillStyle = '#f1c40f';
+            ctx.strokeStyle = '#e67e22';
+            ctx.lineWidth = 2.5;
+
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, drawWidth / 2, item.h / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            if (scale > 0.5) {
+              ctx.fillStyle = '#d35400';
+              ctx.font = 'bold 18px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('$', cx, cy + 1);
+            }
+          } else if (item.type === 'highJump') {
+            const cx = item.x + item.w / 2;
+            const cy = item.y + item.h / 2 + Math.sin(item.bounce) * 5;
+
+            // 羽根付きブーツ
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.roundRect(cx - 10, cy - 5, 20, 18, 4);
+            ctx.fill();
+
+            // ブーツの先端
+            ctx.fillStyle = '#c0392b';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + 10, 12, 6, 0, 0, Math.PI);
+            ctx.fill();
+
+            // 羽根
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            const wingOffset = Math.sin(item.bounce * 2) * 3;
+            ctx.ellipse(cx - 14, cy - 5 + wingOffset, 8, 4, -0.3, 0, Math.PI * 2);
+            ctx.ellipse(cx + 14, cy - 5 - wingOffset, 8, 4, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 上矢印
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('↑', cx, cy - 12);
+
+          } else if (item.type === 'star') {
+            const cx = item.x + item.w / 2;
+            const cy = item.y + item.h / 2;
+            const pulseScale = 1 + Math.sin(item.pulse) * 0.15;
+
+            // 星を描画
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(item.angle);
+            ctx.scale(pulseScale, pulseScale);
+
+            ctx.fillStyle = '#ffd700';
+            ctx.strokeStyle = '#ffed4e';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+              const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+              const outerRadius = 14;
+              const innerRadius = 6;
+
+              const x1 = Math.cos(angle) * outerRadius;
+              const y1 = Math.sin(angle) * outerRadius;
+
+              const angle2 = angle + Math.PI / 5;
+              const x2 = Math.cos(angle2) * innerRadius;
+              const y2 = Math.sin(angle2) * innerRadius;
+
+              if (i === 0) ctx.moveTo(x1, y1);
+              else ctx.lineTo(x1, y1);
+              ctx.lineTo(x2, y2);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+
+          } else if (item.type === 'clock') {
+            const cx = item.x + item.w / 2;
+            const cy = item.y + item.h / 2;
+
+            // 時計の外枠
+            ctx.fillStyle = '#ecf0f1';
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // 時計の針
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+
+            // 短針
+            const hourAngle = item.tick;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(hourAngle - Math.PI / 2) * 6, cy + Math.sin(hourAngle - Math.PI / 2) * 6);
+            ctx.stroke();
+
+            // 長針
+            const minuteAngle = item.tick * 3;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(minuteAngle - Math.PI / 2) * 9, cy + Math.sin(minuteAngle - Math.PI / 2) * 9);
+            ctx.stroke();
+
+            // 中心の点
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.lineCap = 'butt';
+
+          } else if (item.type === 'rocket') {
+            const cx = item.x + item.w / 2;
+            const cy = item.y + item.h / 2;
+
+            // ロケット本体
+            ctx.fillStyle = '#e74c3c';
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - 14);
+            ctx.lineTo(cx - 6, cy + 8);
+            ctx.lineTo(cx + 6, cy + 8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // 窓
+            ctx.fillStyle = '#3498db';
+            ctx.beginPath();
+            ctx.arc(cx, cy - 4, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 羽
+            ctx.fillStyle = '#95a5a6';
+            ctx.beginPath();
+            ctx.moveTo(cx - 6, cy + 2);
+            ctx.lineTo(cx - 10, cy + 10);
+            ctx.lineTo(cx - 6, cy + 8);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(cx + 6, cy + 2);
+            ctx.lineTo(cx + 10, cy + 10);
+            ctx.lineTo(cx + 6, cy + 8);
+            ctx.fill();
+
+            // 炎のエフェクト
+            const flameOffset = Math.sin(item.flame) * 3;
+            ctx.fillStyle = '#ff6b35';
+            ctx.beginPath();
+            ctx.moveTo(cx - 4, cy + 8);
+            ctx.lineTo(cx, cy + 14 + flameOffset);
+            ctx.lineTo(cx + 4, cy + 8);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#ffd93d';
+            ctx.beginPath();
+            ctx.moveTo(cx - 2, cy + 8);
+            ctx.lineTo(cx, cy + 11 + flameOffset);
+            ctx.lineTo(cx + 2, cy + 8);
+            ctx.closePath();
+            ctx.fill();
+
+          } else if (item.type === 'enemy') {
+            const cx = item.x + item.w / 2;
+            const cy = item.y + item.h / 2;
+            const bounce = Math.sin(item.animAngle) * 3;
+
+            // 体
+            ctx.fillStyle = '#9b59b6';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + bounce, item.w / 2, item.h / 2.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 目（白）
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx - 6, cy - 4 + bounce, 6, 0, Math.PI * 2);
+            ctx.arc(cx + 6, cy - 4 + bounce, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 瞳（黒、移動方向を向く）
+            ctx.fillStyle = '#000';
+            const eyeOffsetX = item.direction * 2;
+            ctx.beginPath();
+            ctx.arc(cx - 6 + eyeOffsetX, cy - 4 + bounce, 3, 0, Math.PI * 2);
+            ctx.arc(cx + 6 + eyeOffsetX, cy - 4 + bounce, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // ハイライト
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.beginPath();
+            ctx.arc(cx - 7 + eyeOffsetX, cy - 5 + bounce, 1.5, 0, Math.PI * 2);
+            ctx.arc(cx + 5 + eyeOffsetX, cy - 5 + bounce, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 足（動く）
+            ctx.fillStyle = '#8e44ad';
+            const legOffset = Math.sin(item.animAngle * 2) * 4;
+            ctx.beginPath();
+            ctx.ellipse(cx - 8, cy + item.h / 2.5 + 4 + bounce, 5, 4, 0, 0, Math.PI * 2);
+            ctx.ellipse(cx + 8, cy + item.h / 2.5 + 4 + bounce + legOffset, 5, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+          } else if (item.type === 'staticEnemy') {
+            const cx = item.x + item.w / 2;
+            const cy = item.y + item.h / 2;
+            const bounce = Math.sin(item.animAngle) * 2;
+
+            // 体（赤/オレンジ色）
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + bounce, item.w / 2, item.h / 2.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 目（白）
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx - 6, cy - 4 + bounce, 6, 0, Math.PI * 2);
+            ctx.arc(cx + 6, cy - 4 + bounce, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 瞳（黒、正面を向く）
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(cx - 6, cy - 4 + bounce, 3, 0, Math.PI * 2);
+            ctx.arc(cx + 6, cy - 4 + bounce, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // ハイライト
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.beginPath();
+            ctx.arc(cx - 7, cy - 5 + bounce, 1.5, 0, Math.PI * 2);
+            ctx.arc(cx + 5, cy - 5 + bounce, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 足（動かない）
+            ctx.fillStyle = '#c0392b';
+            ctx.beginPath();
+            ctx.ellipse(cx - 8, cy + item.h / 2.5 + 4 + bounce, 5, 4, 0, 0, Math.PI * 2);
+            ctx.ellipse(cx + 8, cy + item.h / 2.5 + 4 + bounce, 5, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    class Game {
+      constructor() {
+        // --- Canvas ---
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+
+        // --- Audio ---
+        this.audio = new AudioManager();
+        this.soundOn = false;
+
+        // --- UI refs ---
+        this.scoreDisplay = document.getElementById('score-display');
+        this.messageBox = document.getElementById('game-message');
+        this.startBtn = document.getElementById('start-btn');
+        this.toastEl = document.getElementById('toast');
+        this.testStatusEl = document.getElementById('test-status');
+
+        this.btnPause = document.getElementById('btnPause');
+        this.btnSound = document.getElementById('btnSound');
+
+        this.bestRecordEl = document.getElementById('best-record');
+        this.lastRecordsEl = document.getElementById('last-records');
+        this.resetRecordsBtn = document.getElementById('reset-records');
+
+        // --- state ---
+        this.isPlaying = false;
+        this.isPaused = false;
+        this.isGameOver = false;
+        this.isGameClear = false;
+        this.animationId = null;
+        this.toastTimer = null;
+
+        this.bgOffset = 0;
+        this.bonusDistance = 0;
+        this.dashTimer = 0;
+        this.isDashing = false;
+        this.lives = CONFIG.MAX_LIVES;
+        this.invincibleTimer = 0;
+        this.highJumpTimer = 0;
+        this.slowTimer = 0;
+        this.rocketTimer = 0;
+        this.rocketActive = false;
+        this.isKeyDown = false;
+        this.isTouchDown = false;
+
+        // 記録読み込み
+        this.records = this.loadRecords();
+
+        // init
+        this.resize();
+        this.player = new Player(100, window.innerHeight * 0.5);
+        this.terrain = new TerrainManager(this.canvas);
+
+        // listeners
+        window.addEventListener('resize', () => {
+          this.resize();
+          this.terrain.applyResize();
+          if (!this.isPlaying) this.drawFrame();
+        });
+
+        const jumpAction = (e) => {
+          if (e?.type === 'touchstart') e.preventDefault();
+
+          if (this.isPaused) {
+            this.toast('一時停止中（P または ⏸ で再開）');
+            return;
+          }
+
+          if (!this.isPlaying && !this.isGameOver && !this.isGameClear) {
+            this.start();
+          } else if (this.isGameOver || this.isGameClear) {
+            this.reset();
+            this.loop();
+          } else {
+            if (this.rocketActive) {
+              // ロケットモード時は音だけ鳴らす（移動は loop で処理）
+              this.audio.playJump();
+            } else {
+              if (this.player.jump(this.highJumpTimer > 0)) this.audio.playJump();
+            }
+          }
+        };
+
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'Space') {
+            if (!this.isKeyDown) {
+              jumpAction(e);
+              this.isKeyDown = true;
+            }
+          }
+          if (e.code === 'KeyP') this.togglePause();
+        });
+
+        window.addEventListener('keyup', (e) => {
+          if (e.code === 'Space') {
+            this.isKeyDown = false;
+          }
+        });
+
+        this.canvas.addEventListener('touchstart', (e) => {
+          jumpAction(e);
+          this.isTouchDown = true;
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchend', () => {
+          this.isTouchDown = false;
+        }, { passive: false });
+
+        this.canvas.addEventListener('mousedown', (e) => {
+          jumpAction(e);
+          this.isTouchDown = true;
+        });
+
+        this.canvas.addEventListener('mouseup', () => {
+          this.isTouchDown = false;
+        });
+
+        this.startBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!this.isPlaying && !this.isGameOver && !this.isGameClear) {
+            this.start();
+          } else {
+            this.reset();
+            this.audio.enable();
+            this.loop();
+          }
+        });
+
+        this.btnPause.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.togglePause();
+        });
+
+        this.btnSound.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.soundOn = !this.soundOn;
+          this.audio.setEnabled(this.soundOn);
+          this.btnSound.textContent = this.soundOn ? '🔊' : '🔇';
+          this.toast(this.soundOn ? 'サウンドON' : 'サウンドOFF');
+        });
+
+        this.resetRecordsBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.records = [];
+          this.saveRecords(this.records);
+          this.renderRecords();
+          this.toast('記録をリセットしました');
+        });
+
+        this.renderRecords();
+        this.drawFrame();
+
+        if (CONFIG.RUN_TESTS) {
+          this.runTests();
+        }
+      }
+
+      resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+      }
+
+      toast(msg) {
+        this.toastEl.textContent = msg;
+        this.toastEl.style.opacity = '1';
+        if (this.toastTimer) clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => {
+          this.toastEl.style.opacity = '0';
+        }, 900);
+      }
+
+      ensureSingleLoop() {
+        if (this.animationId != null) {
+          cancelAnimationFrame(this.animationId);
+          this.animationId = null;
+        }
+      }
+
+      start() {
+        this.audio.enable();
+        this.isPlaying = true;
+        this.isPaused = false;
+        this.isGameOver = false;
+        this.isGameClear = false;
+
+        this.messageBox.style.opacity = '0';
+        this.messageBox.style.pointerEvents = 'none';
+
+        this.ensureSingleLoop();
+        this.loop();
+      }
+
+      reset() {
+        this.ensureSingleLoop();
+
+        this.player = new Player(100, window.innerHeight * 0.5);
+        this.terrain.reset();
+        this.bonusDistance = 0;
+        this.dashTimer = 0;
+        this.isDashing = false;
+        this.lives = CONFIG.MAX_LIVES;
+        this.invincibleTimer = 0;
+        this.highJumpTimer = 0;
+        this.slowTimer = 0;
+        this.rocketTimer = 0;
+        this.rocketActive = false;
+
+        this.isPlaying = true;
+        this.isPaused = false;
+        this.isGameOver = false;
+        this.isGameClear = false;
+
+        this.messageBox.style.opacity = '0';
+        this.messageBox.style.pointerEvents = 'none';
+      }
+
+      togglePause() {
+        if (!this.isPlaying || this.isGameOver || this.isGameClear) return;
+        this.isPaused = !this.isPaused;
+        this.btnPause.textContent = this.isPaused ? '▶' : '⏸';
+        this.toast(this.isPaused ? '一時停止' : '再開');
+        if (!this.isPaused) {
+          this.loop();
+        }
+      }
+
+      takeDamage() {
+        this.audio.playCrash();
+        this.gameOver();
+      }
+
+      gameOver() {
+        this.isPlaying = false;
+        this.isGameOver = true;
+        this.ensureSingleLoop();
+
+        this.pushRecord(this.getCurrentDistanceMeters());
+        this.audio.playCrash();
+
+        const title = this.messageBox.querySelector('h1');
+        title.textContent = 'GAME OVER';
+        title.style.color = '#ff4757';
+        this.startBtn.textContent = 'もう一度走る';
+
+        this.messageBox.style.opacity = '1';
+        this.messageBox.style.pointerEvents = 'auto';
+      }
+
+      gameClear() {
+        this.isPlaying = false;
+        this.isGameClear = true;
+        this.ensureSingleLoop();
+
+        this.pushRecord(this.getCurrentDistanceMeters());
+        this.audio.playWin();
+
+        const title = this.messageBox.querySelector('h1');
+        title.textContent = 'GOAL!!';
+        title.style.color = '#2ecc71';
+        this.startBtn.textContent = 'また走る';
+
+        this.messageBox.style.opacity = '1';
+        this.messageBox.style.pointerEvents = 'auto';
+      }
+
+      checkCollision() {
+        const p = this.player;
+
+        // ロケットモード中は落下死しない
+        if (p.y > this.canvas.height + 40 && !this.rocketActive) {
+          this.gameOver();
+          return;
+        }
+
+        // ロケットモード中は画面下限で止める
+        if (this.rocketActive && p.y > this.canvas.height * 0.85) {
+          p.y = this.canvas.height * 0.85;
+        }
+
+        p.grounded = false;
+
+        // --- items ---
+        const pCx = p.x;
+        const pCy = p.y - 15;
+        const pR = 15;
+
+        for (const item of this.terrain.items) {
+          if (!item.active) continue;
+          const iCx = item.x + item.w / 2;
+          const iCy = item.y + item.h / 2;
+          const dx = pCx - iCx;
+          const dy = pCy - iCy;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < pR + item.w / 2) {
+            if (item.type === 'coin') {
+              item.active = false;
+              this.audio.playCoin();
+              this.bonusDistance += CONFIG.COIN_BONUS_METERS * 10;
+              this.dashTimer = CONFIG.DASH_DURATION;
+              this.isDashing = true;
+              this.toast(`DASH! +${CONFIG.COIN_BONUS_METERS}m`);
+            } else if (item.type === 'highJump') {
+              item.active = false;
+              this.audio.playCoin();
+              this.highJumpTimer = CONFIG.HIGH_JUMP_DURATION;
+              this.toast('HIGH JUMP!');
+            } else if (item.type === 'star') {
+              item.active = false;
+              this.audio.playCoin();
+              this.invincibleTimer = CONFIG.INVINCIBLE_DURATION;
+              this.toast('⭐ INVINCIBLE!');
+            } else if (item.type === 'clock') {
+              item.active = false;
+              this.audio.playCoin();
+              this.slowTimer = CONFIG.SLOW_DURATION;
+              this.toast('⏰ SLOW MOTION!');
+            } else if (item.type === 'rocket') {
+              item.active = false;
+              this.audio.playCoin();
+              this.rocketTimer = CONFIG.ROCKET_DURATION;
+              this.rocketActive = true;
+              this.toast('🚀 長押しで上昇！');
+            } else if (item.type === 'spike' || item.type === 'enemy' || item.type === 'staticEnemy') {
+              if (this.invincibleTimer > 0) {
+                // 無敵中は敵を倒せる
+                item.active = false;
+                this.bonusDistance += 100;
+                this.audio.playCoin();
+              } else {
+                this.takeDamage();
+                if (!this.isPlaying) return;
+              }
+            }
+          }
+        }
+
+        // --- ground ---
+        const feetX = p.x;
+        const feetY = p.getFeetY();
+        const prevFeetY = p.getPrevFeetY();
+
+        for (const b of this.terrain.blocks) {
+          const withinX = (feetX + 10 > b.x) && (feetX - 10 < b.x + b.w);
+          if (!withinX) continue;
+
+          // 斜め屋根の判定
+          if (b.type === 'slopedRoof') {
+            // 斜面上のY座標を計算
+            const progress = Math.max(0, Math.min(1, (feetX - b.x) / b.w));
+            const slopeY = b.y + (b.endY - b.y) * progress;
+
+            const tolerance = 15;
+            const onSlope = (prevFeetY <= slopeY + tolerance) && (feetY >= slopeY - tolerance);
+            if (onSlope && p.dy >= -2) {
+              p.grounded = true;
+              p.jumpCount = 0;
+              p.dy = 0;
+              p.y = slopeY - 20;
+              return;
+            }
+            continue;
+          }
+
+          const crossingTop = (prevFeetY <= b.y) && (feetY >= b.y);
+          if (crossingTop && p.dy >= 0) {
+            p.grounded = true;
+            p.jumpCount = 0;
+            p.dy = 0;
+            p.y = b.y - 20;
+            return;
+          }
+
+          const hittingLeftWall = (feetY > b.y + 10) && (feetX + 15 > b.x) && (feetX < b.x + 20);
+          if (hittingLeftWall) {
+            const diffY = feetY - b.y;
+            // 階段は壁に当たっても死なない
+            if (diffY < 35 || b.type === 'stair') {
+              p.y = b.y - 20;
+              p.dy = 0;
+              p.grounded = true;
+              p.jumpCount = 0;
+              return;
+            } else {
+              this.gameOver();
+              return;
+            }
+          }
+        }
+      }
+
+      drawBackground() {
+        const dist = this.getCurrentDistanceMeters();
+        const dayCycleMeters = 2500;
+        const cycleDist = ((dist % dayCycleMeters) + dayCycleMeters) % dayCycleMeters;
+        const grad = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+
+        // 距離に応じて背景色を変化（昼→夕方→夜）をループさせる
+        let skyTop, skyBottom, buildingColor;
+        if (cycleDist < 500) {
+          // 昼
+          skyTop = '#87CEEB';
+          skyBottom = '#E0F7FA';
+          buildingColor = '#b2ebf2';
+        } else if (cycleDist < 1000) {
+          // 昼→夕方への遷移
+          const t = (cycleDist - 500) / 500;
+          skyTop = this.lerpColor('#87CEEB', '#FF7043', t);
+          skyBottom = this.lerpColor('#E0F7FA', '#FFB74D', t);
+          buildingColor = this.lerpColor('#b2ebf2', '#d4a574', t);
+        } else if (cycleDist < 1500) {
+          // 夕方
+          skyTop = '#FF7043';
+          skyBottom = '#FFB74D';
+          buildingColor = '#d4a574';
+        } else if (cycleDist < 2000) {
+          // 夕方→夜への遷移
+          const t = (cycleDist - 1500) / 500;
+          skyTop = this.lerpColor('#FF7043', '#1a1a2e', t);
+          skyBottom = this.lerpColor('#FFB74D', '#16213e', t);
+          buildingColor = this.lerpColor('#d4a574', '#2d3a4a', t);
+        } else {
+          // 夜
+          skyTop = '#1a1a2e';
+          skyBottom = '#16213e';
+          buildingColor = '#2d3a4a';
+        }
+
+        grad.addColorStop(0, skyTop);
+        grad.addColorStop(1, skyBottom);
+        this.ctx.fillStyle = grad;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // 夜は星を描画
+        if (cycleDist >= 1500) {
+          const starAlpha = cycleDist < 2000 ? (cycleDist - 1500) / 500 : 1;
+          this.ctx.fillStyle = `rgba(255, 255, 255, ${starAlpha * 0.8})`;
+          for (let i = 0; i < 50; i++) {
+            const sx = (i * 137 + this.bgOffset * 0.1) % this.canvas.width;
+            const sy = (i * 97) % (this.canvas.height * 0.5);
+            const size = (i % 3) + 1;
+            this.ctx.beginPath();
+            this.ctx.arc(sx, sy, size, 0, Math.PI * 2);
+            this.ctx.fill();
+          }
+        }
+
+        // 雲を描画
+        if (cycleDist < 1500) {
+          const cloudAlpha = cycleDist < 1000 ? 1 : 1 - ((cycleDist - 1000) / 500);
+          this.ctx.fillStyle = `rgba(255, 255, 255, ${cloudAlpha * 0.6})`;
+          for (let i = 0; i < 8; i++) {
+            const cx = ((i * 250 + this.bgOffset * 0.5) % (this.canvas.width + 200)) - 100;
+            const cy = (i * 47) % (this.canvas.height * 0.3) + 50;
+            this.drawCloud(cx, cy, 40 + (i % 3) * 15);
+          }
+        }
+
+        // ビルのシルエット
+        this.ctx.fillStyle = buildingColor;
+        this.bgOffset -= this.terrain.scrollSpeed * 0.2;
+        if (this.bgOffset < -100) this.bgOffset = 0;
+        for (let i = 0; i < this.canvas.width + 100; i += 100) {
+          const h = 50 + Math.sin(i) * 30;
+          this.ctx.fillRect(i + this.bgOffset, this.canvas.height - h - 50, 60, h + 50);
+
+          // ビルの窓
+          if (cycleDist >= 1500) {
+            this.ctx.fillStyle = 'rgba(255, 223, 138, 0.4)';
+            for (let wx = 0; wx < 3; wx++) {
+              for (let wy = 0; wy < Math.floor(h / 20); wy++) {
+                if (Math.random() > 0.3) {
+                  this.ctx.fillRect(
+                    i + this.bgOffset + 10 + wx * 15,
+                    this.canvas.height - h - 40 + wy * 15,
+                    8, 10
+                  );
+                }
+              }
+            }
+            this.ctx.fillStyle = buildingColor;
+          }
+        }
+      }
+
+      lerpColor(color1, color2, t) {
+        const c1 = this.hexToRgb(color1);
+        const c2 = this.hexToRgb(color2);
+        const r = Math.round(c1.r + (c2.r - c1.r) * t);
+        const g = Math.round(c1.g + (c2.g - c1.g) * t);
+        const b = Math.round(c1.b + (c2.b - c1.b) * t);
+        return `rgb(${r},${g},${b})`;
+      }
+
+      hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 0, g: 0, b: 0 };
+      }
+
+      drawCloud(x, y, size) {
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
+        this.ctx.arc(x + size * 0.4, y - size * 0.1, size * 0.4, 0, Math.PI * 2);
+        this.ctx.arc(x + size * 0.8, y, size * 0.35, 0, Math.PI * 2);
+        this.ctx.arc(x - size * 0.3, y, size * 0.4, 0, Math.PI * 2);
+        this.ctx.fill();
+      }
+
+      getCurrentDistanceMeters() {
+        return Math.floor((this.terrain.distance + this.bonusDistance) / 10);
+      }
+
+      loadRecords() {
+        try {
+          const raw = localStorage.getItem(CONFIG.RECORDS_KEY);
+          const arr = raw ? JSON.parse(raw) : [];
+          return Array.isArray(arr) ? arr.filter(n => Number.isFinite(n)) : [];
+        } catch {
+          return [];
+        }
+      }
+
+      saveRecords(arr) {
+        try {
+          localStorage.setItem(CONFIG.RECORDS_KEY, JSON.stringify(arr));
+        } catch {
+          // 保存できない環境でもゲームは続行
+        }
+      }
+
+      pushRecord(meters) {
+        const m = Math.max(0, Math.floor(meters));
+        const next = [m, ...this.records].slice(0, CONFIG.MAX_RECORDS);
+        this.records = next;
+        this.saveRecords(next);
+        this.renderRecords();
+      }
+
+      renderRecords() {
+        const best = this.records.length ? Math.max(...this.records) : null;
+        this.bestRecordEl.textContent = best == null ? '最長: --m' : `最長: ${best}m`;
+
+        this.lastRecordsEl.innerHTML = '';
+        if (!this.records.length) {
+          const li = document.createElement('li');
+          li.textContent = 'まだ記録がありません';
+          this.lastRecordsEl.appendChild(li);
+          return;
+        }
+        for (let i = 0; i < this.records.length; i++) {
+          const li = document.createElement('li');
+          li.textContent = `${this.records[i]}m`;
+          this.lastRecordsEl.appendChild(li);
+        }
+      }
+
+      drawFrame() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.drawBackground();
+        this.terrain.draw(this.ctx);
+        this.player.draw(this.ctx);
+      }
+
+      loop() {
+        if (!this.isPlaying || this.isPaused) return;
+
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // ダッシュ処理
+        if (this.dashTimer > 0) {
+          this.dashTimer--;
+          if (this.dashTimer <= 0) {
+            this.isDashing = false;
+          }
+        }
+
+        // 無敵時間処理
+        if (this.invincibleTimer > 0) {
+          this.invincibleTimer--;
+        }
+
+        // ハイジャンプ時間処理
+        if (this.highJumpTimer > 0) {
+          this.highJumpTimer--;
+        }
+
+        // スロー時間処理
+        if (this.slowTimer > 0) {
+          this.slowTimer--;
+        }
+
+        // ロケット時間処理
+        if (this.rocketTimer > 0) {
+          this.rocketTimer--;
+          if (this.rocketTimer <= 0) {
+            this.rocketActive = false;
+          }
+        }
+
+        const originalSpeed = this.terrain.scrollSpeed;
+
+        // スロー効果を適用
+        if (this.slowTimer > 0) {
+          this.terrain.scrollSpeed *= CONFIG.SLOW_SPEED_MULTIPLIER;
+        }
+
+        // ダッシュ効果を適用
+        if (this.isDashing) {
+          this.terrain.scrollSpeed *= CONFIG.DASH_SPEED_MULTIPLIER;
+        }
+
+        this.terrain.update();
+
+        // ロケットモードの処理
+        if (this.rocketActive) {
+          this.player.dy = 0;
+          this.player.grounded = false;
+
+          // スペース長押しまたはタッチ中は上昇
+          if (this.isKeyDown || this.isTouchDown) {
+            this.player.y -= CONFIG.ROCKET_SPEED;
+            // 画面上限チェック
+            if (this.player.y < 50) this.player.y = 50;
+          } else {
+            // 何も押していない時はゆっくり下降
+            this.player.y += CONFIG.ROCKET_DESCENT;
+          }
+
+          this.player.angle += 0.1;
+        } else {
+          this.player.update();
+        }
+
+        this.checkCollision();
+
+        // 速度を元に戻す
+        this.terrain.scrollSpeed = originalSpeed;
+
+        if (!this.isPlaying) return;
+
+        const currentDist = this.getCurrentDistanceMeters();
+
+        this.drawBackground();
+        this.terrain.draw(this.ctx);
+
+        // ダッシュエフェクト
+        if (this.isDashing) {
+          this.ctx.strokeStyle = 'rgba(52,152,219,0.3)';
+          this.ctx.lineWidth = 3;
+          this.ctx.lineCap = 'round';
+          for (let i = 0; i < 5; i++) {
+            const offset = i * 15;
+            const alpha = (5 - i) / 5;
+            this.ctx.globalAlpha = alpha * 0.5;
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.player.x - offset, this.player.y - 10);
+            this.ctx.lineTo(this.player.x - offset - 20, this.player.y - 5 + Math.sin(Date.now() / 100 + i) * 5);
+            this.ctx.stroke();
+          }
+          this.ctx.globalAlpha = 1.0;
+          this.ctx.lineCap = 'butt';
+        }
+
+        // スター無敵中は金色のオーラ
+        if (this.invincibleTimer > 0) {
+          const pulseSize = Math.sin(Date.now() / 80) * 4 + 6;
+          this.ctx.strokeStyle = 'rgba(255, 215, 0, 0.6)';
+          this.ctx.lineWidth = 4;
+          this.ctx.beginPath();
+          this.ctx.arc(this.player.x, this.player.y, 35 + pulseSize, 0, Math.PI * 2);
+          this.ctx.stroke();
+
+          this.ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+          this.ctx.lineWidth = 2;
+          this.ctx.beginPath();
+          this.ctx.arc(this.player.x, this.player.y, 45 + pulseSize, 0, Math.PI * 2);
+          this.ctx.stroke();
+        }
+
+        // ハイジャンプ時はオーラ
+        if (this.highJumpTimer > 0) {
+          const pulseSize = Math.sin(Date.now() / 100) * 3 + 5;
+          this.ctx.strokeStyle = 'rgba(231,76,60,0.4)';
+          this.ctx.lineWidth = 3;
+          this.ctx.beginPath();
+          this.ctx.arc(this.player.x, this.player.y, 40 + pulseSize, 0, Math.PI * 2);
+          this.ctx.stroke();
+        }
+
+        // ロケットモード時は炎のエフェクト
+        if (this.rocketActive) {
+          const flameFlicker = Math.random() * 5;
+          this.ctx.fillStyle = 'rgba(255, 107, 53, 0.7)';
+          this.ctx.beginPath();
+          this.ctx.ellipse(this.player.x, this.player.y + 25, 8, 12 + flameFlicker, 0, 0, Math.PI * 2);
+          this.ctx.fill();
+
+          this.ctx.fillStyle = 'rgba(255, 217, 61, 0.8)';
+          this.ctx.beginPath();
+          this.ctx.ellipse(this.player.x, this.player.y + 25, 5, 8 + flameFlicker, 0, 0, Math.PI * 2);
+          this.ctx.fill();
+
+          // ロケット操作ガイド
+          this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          this.ctx.font = 'bold 14px sans-serif';
+          this.ctx.textAlign = 'center';
+          this.ctx.fillText('↑ 長押しで上昇 ↑', this.player.x, this.player.y - 60);
+        }
+
+        this.player.draw(this.ctx);
+        this.ctx.globalAlpha = 1.0;
+
+        // スローモーション時は青いオーバーレイ
+        if (this.slowTimer > 0) {
+          this.ctx.fillStyle = 'rgba(52, 152, 219, 0.08)';
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        let statusStr = '';
+        if (this.isDashing) statusStr += ' DASH!';
+        if (this.highJumpTimer > 0) statusStr += ' HIGH JUMP!';
+        if (this.invincibleTimer > 0) statusStr += ' ⭐INVINCIBLE!';
+        if (this.slowTimer > 0) statusStr += ' ⏰SLOW!';
+        if (this.rocketActive) statusStr += ' 🚀ROCKET!';
+        this.scoreDisplay.textContent = `DISTANCE: ${currentDist}m${statusStr}`;
+
+        this.animationId = requestAnimationFrame(() => this.loop());
+      }
+
+      // --- Tests (run once at startup) ---
+      runTests() {
+        const status = { ok: 0, ng: 0, msgs: [] };
+        const assert = (name, cond) => {
+          if (cond) status.ok++;
+          else { status.ng++; status.msgs.push(name); }
+        };
+
+        // 1) 記録の最大件数が MAX_RECORDS を超えない
+        const originalKey = localStorage.getItem(CONFIG.RECORDS_KEY);
+        try {
+          localStorage.removeItem(CONFIG.RECORDS_KEY);
+          this.records = [];
+          for (let i = 1; i <= 10; i++) this.pushRecord(i * 100);
+          assert('records length <= MAX_RECORDS', this.records.length === CONFIG.MAX_RECORDS);
+
+          // 2) 最新が先頭に来る
+          assert('latest record at index 0', this.records[0] === 1000);
+
+          // 3) best が最大値
+          const best = Math.max(...this.records);
+          assert('best equals max', best === 1000);
+
+          // 4) 負の値は 0 に正規化
+          this.pushRecord(-5);
+          assert('negative normalized to 0', this.records[0] === 0);
+
+          // 5) JSONが壊れていても落ちない
+          localStorage.setItem(CONFIG.RECORDS_KEY, '{broken json');
+          const safe = this.loadRecords();
+          assert('loadRecords handles broken JSON', Array.isArray(safe));
+        } catch (e) {
+          status.ng++;
+          status.msgs.push('exception: ' + (e?.message || e));
+        } finally {
+          if (originalKey == null) localStorage.removeItem(CONFIG.RECORDS_KEY);
+          else localStorage.setItem(CONFIG.RECORDS_KEY, originalKey);
+        }
+
+        const ok = status.ng === 0;
+        this.testStatusEl.textContent = ok ? `TEST: OK (${status.ok})` : `TEST: NG (${status.ok} ok / ${status.ng} ng) ${status.msgs.join(', ')}`;
+        this.testStatusEl.classList.add('show');
+        setTimeout(() => this.testStatusEl.classList.remove('show'), ok ? 1400 : 6000);
+      }
+    }
+
+    // 起動処理：埋め込み環境だと window.onload が発火しない場合があるため、DOMContentLoaded + 即時起動で安全化
+    const boot = () => {
+      if (window.__chariRunGame) return;
+      window.__chariRunGame = new Game();
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+  </script>
+</body>
+</html>
