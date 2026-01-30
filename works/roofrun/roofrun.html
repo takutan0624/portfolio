@@ -1510,6 +1510,7 @@
 
         window.addEventListener('keydown', (e) => {
           if (e.code === 'Space') {
+            e.preventDefault(); // ブラウザのデフォルト動作（スクロール）を防止
             if (!this.isKeyDown) {
               jumpAction(e);
               this.isKeyDown = true;
