@@ -1,0 +1,2052 @@
+﻿<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>セルフケアシフト自動生成（Excel貼り付け対応）</title>
+  <style>
+    :root {
+      --bg: radial-gradient(circle at 20% 20%, rgba(88,130,235,0.18), rgba(0,0,0,0)) ,
+             radial-gradient(circle at 80% 10%, rgba(255,113,181,0.16), rgba(0,0,0,0)),
+             linear-gradient(135deg, #11121a, #1c1f2a);
+      --card: linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.08));
+      --card-border: rgba(255,255,255,0.22);
+      --accent: #22d3ee;
+      --accent-2: #a78bfa;
+      --text: #e5e7eb;
+      --muted: #d3c4d1;
+      --warn: #ca8a04;
+      --error: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Poppins","Noto Sans JP",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 28px 16px 48px;
+    }
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px 18px 28px;
+      box-shadow: 0 32px 90px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.45), 0 0 0 1px rgba(255,255,255,0.08);
+      backdrop-filter: blur(26px) saturate(155%);
+      position: relative;
+      overflow: hidden;
+    }
+    .page::before,
+    .page::after {
+      content: "";
+      position: absolute;
+      width: 210px;
+      height: 210px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.32), rgba(34,211,238,0.2), rgba(167,139,250,0.14));
+      filter: blur(56px);
+      z-index: 0;
+    }
+    .page::before { top: -60px; right: -40px; }
+    .page::after  { bottom: -70px; left: -60px; }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 1.35rem;
+      letter-spacing: 0.02em;
+      position: relative;
+      z-index: 1;
+    }
+    p.desc { margin: 0 0 14px; color: var(--muted); font-size: 0.95rem; position: relative; z-index: 1; }
+    p.desc.small { font-size: 0.85rem; margin-top: 4px; }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+    }
+    label { font-size: 0.95rem; color: var(--muted); }
+    select {
+      margin-left: 6px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      outline: none;
+    }
+    #gridWrap {
+      width: 100%;
+      height: 400px;
+      border: 1px solid rgba(255,255,255,0.32);
+      background: linear-gradient(160deg, rgba(255,255,255,0.85), rgba(255,255,255,0.62));
+      border-radius: 16px;
+      overflow: auto;
+      box-shadow: 0 16px 50px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.95);
+      position: relative;
+      z-index: 1;
+      backdrop-filter: blur(18px) saturate(135%);
+    }
+  table.excelGrid {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: max-content;
+    color: #0b1220;
+    font-size: 0.9rem;
+  }
+  table.excelGrid td {
+    width: 120px;
+    height: 28px;
+    border: 1px solid rgba(15,23,42,0.08);
+    padding: 2px 4px;
+    background: rgba(255,255,255,0.85);
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  table.excelGrid td[contenteditable="true"]:focus {
+    outline: 2px solid #22d3ee;
+    background: rgba(34,211,238,0.1);
+    box-shadow: 0 0 0 3px rgba(34,211,238,0.18);
+  }
+  table.excelGrid tr:first-child td {
+    background: rgba(255,255,255,0.75);
+    font-weight: 700;
+    border-color: rgba(15,23,42,0.12);
+  }
+    button {
+      margin-top: 12px;
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #0b1220;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 12px 30px rgba(34,211,238,0.35);
+      transition: transform 0.14s ease, box-shadow 0.2s ease;
+      position: relative;
+      z-index: 1;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 16px 40px rgba(167,139,250,0.35); }
+    button:active { transform: translateY(0); }
+    .ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.35);
+      box-shadow: none;
+      margin-top: 0;
+      padding: 10px 14px;
+    }
+    #error { color: var(--error); margin-top: 8px; font-weight: 600; min-height: 20px; position: relative; z-index: 1; }
+    #result { margin-top: 20px; position: relative; z-index: 1; }
+    #bgCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.55;
+    }
+    .sparkle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.4) 45%, rgba(255,255,255,0) 70%);
+      box-shadow: 0 0 12px rgba(255,255,255,0.9), 0 0 24px rgba(34,211,238,0.5);
+      pointer-events: none;
+      animation: sparklePop 0.7s ease-out forwards;
+      z-index: 20;
+    }
+    @keyframes sparklePop {
+      0% { transform: scale(0.4); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.9; }
+      100% { transform: scale(0.8) translateY(-8px); opacity: 0; }
+    }
+    table.result {
+      width: 100%;
+      border-collapse: collapse;
+      background: #ffffff;
+      border: 1px solid rgba(15,23,42,0.08);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 24px rgba(15,23,42,0.12);
+    }
+    table.result th, table.result td {
+      border: 1px solid rgba(15,23,42,0.08);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+      color: #0f172a;
+      font-size: 0.9rem;
+      background: #ffffff;
+    }
+    table.result th {
+      background: linear-gradient(135deg, #e2e8f0, #e0f2fe);
+      font-weight: 700;
+    }
+    table.result tbody tr:nth-child(odd) td { background: #f8fafc; }
+    table.result tr.sat td { background: #e0f2ff; color: #0f3c7a; }
+    table.result tr.sun td { background: #ffe4e6; color: #9f1239; }
+    .slot { white-space: pre-wrap; }
+    .note { color: var(--warn); font-size: 0.85rem; margin-top: 6px; }
+    .summary { margin-top: 16px; padding: 12px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(15,23,42,0.08); box-shadow: 0 8px 18px rgba(15,23,42,0.08); color: #0f172a; }
+    .summary h3 { margin: 0 0 8px; font-size: 1rem; }
+    .summary ul { margin: 0; padding-left: 18px; line-height: 1.6; }
+    #preferencePanel {
+      margin: 10px 0 6px;
+      padding: 12px 14px;
+      background: linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.08));
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 14px;
+      position: relative;
+      z-index: 1;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 10px 28px rgba(0,0,0,0.26);
+      backdrop-filter: blur(18px) saturate(150%);
+    }
+
+    /* 追加の微細な光沢レイヤーでガラス感を強調 */
+    .page::after {
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.06);
+    }
+    .page::before {
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
+    }
+    #preferencePanel h3 { margin: 0; font-size: 1rem; }
+    .pref-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .pref-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .pref-controls label { color: var(--muted); }
+    .pref-controls select { margin-left: 4px; }
+    #refreshPrefsBtn {
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      color: #0b1220;
+      border: none;
+      box-shadow: 0 10px 24px rgba(249,115,22,0.35);
+    }
+    .pref-list {
+      margin-top: 8px;
+      max-height: 240px;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 8px;
+    }
+    .pref-row {
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.05);
+    }
+    .pref-row .name { font-weight: 700; margin-bottom: 6px; }
+    .mentor-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .mentor-options label { color: var(--text); font-size: 0.9rem; }
+    .pref-empty { color: var(--muted); font-size: 0.9rem; }
+    #mentorAvailabilityPanel {
+      margin: 10px 0 6px;
+      padding: 12px 14px;
+      background: linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.08));
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 14px;
+      position: relative;
+      z-index: 1;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 10px 28px rgba(0,0,0,0.26);
+      backdrop-filter: blur(18px) saturate(150%);
+    }
+    .mentor-list {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+    }
+    .mentor-add {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.22);
+      background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05));
+      box-shadow: 0 10px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.6);
+      backdrop-filter: blur(20px) saturate(165%);
+      position: relative;
+      overflow: hidden;
+    }
+    .mentor-add::before {
+      content: "";
+      position: absolute;
+      inset: -40% -20% auto auto;
+      width: 220px;
+      height: 220px;
+      background: radial-gradient(circle, rgba(255,255,255,0.45), rgba(244,114,182,0.18), rgba(0,0,0,0));
+      filter: blur(28px);
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .mentor-add-row {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 10px 14px;
+      align-items: center;
+      overflow-x: auto;
+      position: relative;
+      z-index: 1;
+    }
+    .mentor-add input[type="text"] {
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      outline: none;
+      min-width: 160px;
+    }
+    .weekday-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .slot-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .availability-options {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .weekday-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+    }
+    .mentor-added-list {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .mentor-added-item {
+      display: grid;
+      grid-template-columns: minmax(120px, 1fr) 2fr auto;
+      gap: 8px 12px;
+      align-items: start;
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.22);
+      background: linear-gradient(145deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.45);
+      backdrop-filter: blur(16px) saturate(150%);
+    }
+    .mentor-added-item .tag {
+      font-weight: 700;
+    }
+    .mentor-added-item .edit-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 6px 10px;
+    }
+    .day-tag {
+      display: inline-block;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.18);
+      color: #0f172a;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+    }
+    .day-mon { background: rgba(147,197,253,0.25); }
+    .day-tue { background: rgba(167,243,208,0.25); }
+    .day-wed { background: rgba(196,181,253,0.25); }
+    .day-thu { background: rgba(253,224,71,0.25); }
+    .day-fri { background: rgba(251,207,232,0.25); }
+    .mentor-added-item button {
+      margin: 0;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.35);
+      box-shadow: none;
+    }
+    #mentorAddError {
+      color: var(--warn);
+      font-size: 0.85rem;
+      margin-top: 6px;
+      min-height: 18px;
+    }
+    #addMentorBtn {
+      background: linear-gradient(135deg, #f9a8d4, #f472b6);
+      color: #0b1220;
+      border: none;
+      box-shadow: 0 12px 28px rgba(244,114,182,0.25);
+    }
+    #addMentorBtn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 34px rgba(244,114,182,0.3);
+    }
+    @media (max-width: 720px) {
+      .mentor-added-item {
+        grid-template-columns: 1fr;
+      }
+      .mentor-add-row {
+        flex-wrap: wrap;
+      }
+      .availability-options {
+        flex-wrap: wrap;
+      }
+    }
+    .mentor-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.92rem;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(255,255,255,0.05);
+    }
+    @media (max-width: 720px) {
+      h1 { font-size: 1.1rem; }
+      #gridWrap { height: 240px; }
+      table.result th, table.result td { font-size: 0.85rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <h1>セルフケアシフト自動生成（Excel貼り付け対応）</h1>
+  <p class="desc">1行目:日付 / 2行目:曜日 / 3行目以降:アルファベットごとの出席（通, 通A, 通Pなど）をExcelから貼り付けてください。</p>
+
+  <div class="controls">
+    <label>年<select id="yearSelect"></select></label>
+    <label>月<select id="monthSelect"></select></label>
+  </div>
+
+  <p class="desc">下のExcel風のマス目に、Excelからそのまま貼り付けてください。</p>
+  <div id="gridWrap">
+    <table id="excelGrid" class="excelGrid"></table>
+  </div>
+  <p class="note">1行目:日付, 2行目:曜日, 3行目以降:名前と出席（通 / 通A / 通P など）</p>
+  <div id="preferencePanel">
+    <div class="pref-header">
+      <div>
+        <h3>セルフケア優先希望入力</h3>
+        <p class="desc small">Aさんから順に、希望するセルフケア担当者にチェックを入れてください。括弧や「さん」は内部で正規化して判定します。</p>
+      </div>
+      <div class="pref-controls">
+        <button type="button" id="refreshPrefsBtn" class="ghost">名前から希望欄を作成</button>
+      </div>
+    </div>
+    <div id="preferenceList" class="pref-list">
+      <div class="pref-empty">Excel表の1列目に名前を貼り付けてから「名前から希望欄を作成」を押してください。</div>
+    </div>
+  </div>
+  <div id="mentorAvailabilityPanel">
+    <div class="pref-header">
+      <div>
+        <h3>支援員の稼働設定（当月）</h3>
+        <p class="desc small">月ごとに休みの支援員をオフにすると、割当から除外されます。</p>
+      </div>
+    </div>
+    <div id="mentorAvailabilityList" class="mentor-list"></div>
+    <div class="mentor-add">
+      <div>
+        <h4 style="margin:0 0 6px;">固定支援員の曜日/時間</h4>
+        <p class="desc small">固定支援員の稼働曜日・時間帯を調整できます。</p>
+      </div>
+      <div id="fixedMentorList" class="mentor-added-list"></div>
+    </div>
+    <div class="mentor-add">
+      <div class="mentor-add-row">
+        <label>支援員名 <input type="text" id="newMentorName" placeholder="例：田中"></label>
+        <div class="availability-options" id="newMentorAvailability">
+          <label class="weekday-toggle"><input type="checkbox" value="平日毎日">平日毎日</label>
+          <label class="weekday-toggle"><input type="checkbox" value="月午前">月 午前</label>
+          <label class="weekday-toggle"><input type="checkbox" value="月午後">月 午後</label>
+          <label class="weekday-toggle"><input type="checkbox" value="火午前">火 午前</label>
+          <label class="weekday-toggle"><input type="checkbox" value="火午後">火 午後</label>
+          <label class="weekday-toggle"><input type="checkbox" value="水午前">水 午前</label>
+          <label class="weekday-toggle"><input type="checkbox" value="水午後">水 午後</label>
+          <label class="weekday-toggle"><input type="checkbox" value="木午前">木 午前</label>
+          <label class="weekday-toggle"><input type="checkbox" value="木午後">木 午後</label>
+          <label class="weekday-toggle"><input type="checkbox" value="金午前">金 午前</label>
+          <label class="weekday-toggle"><input type="checkbox" value="金午後">金 午後</label>
+        </div>
+        <button type="button" id="addMentorBtn" class="ghost">支援員を追加</button>
+      </div>
+      <div id="mentorAddError"></div>
+      <div id="customMentorList" class="mentor-added-list"></div>
+    </div>
+  </div>
+  <button id="generateBtn">セルフケアシフトを生成</button>
+  <button id="exportCsvBtn" style="margin-left:8px; background:linear-gradient(135deg,#34d399,#22c55e); box-shadow:0 12px 30px rgba(34,197,94,0.35); color:#0b1220;">Excel出力</button>
+  <div id="error"></div>
+  <h2 id="scheduleTitle" style="margin:10px 0 6px; font-size:1.05rem; font-weight:700; color:#e5e7eb;"></h2>
+
+  <div id="result"></div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+<script>
+(function(){
+  const yearSelect = document.getElementById("yearSelect");
+  const monthSelect = document.getElementById("monthSelect");
+  const grid = document.getElementById("excelGrid");
+  const result = document.getElementById("result");
+  const errorBox = document.getElementById("error");
+  const exportCsvBtn = document.getElementById("exportCsvBtn");
+  const scheduleTitle = document.getElementById("scheduleTitle");
+  const preferenceList = document.getElementById("preferenceList");
+  const refreshPrefsBtn = document.getElementById("refreshPrefsBtn");
+  const mentorAvailabilityList = document.getElementById("mentorAvailabilityList");
+  const newMentorNameInput = document.getElementById("newMentorName");
+  const addMentorBtn = document.getElementById("addMentorBtn");
+  const newMentorAvailability = document.getElementById("newMentorAvailability");
+  const customMentorList = document.getElementById("customMentorList");
+  const mentorAddError = document.getElementById("mentorAddError");
+  const fixedMentorList = document.getElementById("fixedMentorList");
+  let latestSchedule = null;
+  let preferenceSelections = {};
+  let preferenceWeight = 1;
+  let mentorAvailabilityByMonth = {};
+  let customMentors = [];
+  let fixedMentorAvailability = {};
+  const STORAGE_KEYS = {
+    customMentors: "selfcare_custom_mentors_v1",
+    availability: "selfcare_mentor_availability_v1",
+    fixedAvailability: "selfcare_fixed_mentor_availability_v1"
+  };
+
+  // 生成時のスパークル演出
+  function triggerSparkle(target) {
+    const rect = target.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2 + window.scrollX;
+    const cy = rect.top + rect.height / 2 + window.scrollY;
+    const count = 14;
+    for (let i = 0; i < count; i++) {
+      const sp = document.createElement("div");
+      sp.className = "sparkle";
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * 30;
+      sp.style.left = (cx + Math.cos(angle) * dist) + "px";
+      sp.style.top  = (cy + Math.sin(angle) * dist) + "px";
+      sp.style.transform = "rotate(" + (Math.random() * 360) + "deg)";
+      document.body.appendChild(sp);
+      setTimeout(function(){ sp.remove(); }, 750);
+    }
+  }
+
+  // 背景をASCIIアート猫がゆっくり漂う演出に変更（静的なアクセント用）
+  (function initAsciiCleaningBackground(){
+    const canvas = document.createElement("canvas");
+    canvas.id = "bgCanvas";
+    document.body.insertBefore(canvas, document.body.firstChild);
+    const ctx = canvas.getContext("2d");
+    let w = 0, h = 0;
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    const brooms = [];
+    let mouseX = 0, mouseY = 0;
+
+    document.addEventListener("mousemove", function(e){
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    function lerp(a, b, t) { return a + (b - a) * t; } // 緩やかな向き補間
+
+    const asciiTools = [
+      [" /\\_/\\","(=^・^=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=^ω^=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=^ェ^=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=^･^=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=^‥^=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=^▽^=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=｀ェ´=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=^ｘ^=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=^･ω･^=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=^w^=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=^◇^=)","(  )__"," /  つ","しーっ"],
+      [" /\\_/\\","(=^m^=)","(  )__"," /  つ","しーっ"]
+    ];
+
+    function resetBroom(b) {
+      // 猫１匹ぶんの初期化
+      b.x = Math.random() * w;
+      b.y = Math.random() * h;
+      b.scale = 1 + Math.random() * 0.6;
+      b.angle = Math.random() * Math.PI * 2;
+      b.speed = 0.35 + Math.random() * 0.55;
+      b.hue = 180 + Math.random() * 80;
+      b.alpha = 0.35 + Math.random() * 0.35;
+      b.offset = (Math.random() - 0.5) * 0.8;
+      b.tool = asciiTools[Math.floor(Math.random() * asciiTools.length)];
+    }
+    for (let i = 0; i < 18; i++) {
+      const b = {};
+      resetBroom(b);
+      brooms.push(b);
+    }
+
+    function drawBroom(b, t) {
+      // 猫の描画（少し傾ける程度で逆さにならない）
+      const baseHue = b.hue + Math.sin(t * 0.001 + b.offset) * 10;
+      const tilt = Math.sin(t * 0.0012 + b.offset) * 0.15; // 小さな傾きのみで逆さにならないように
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(tilt);
+      ctx.scale(b.scale, b.scale);
+      ctx.font = "16px 'Poppins', monospace";
+      ctx.textBaseline = "top";
+      ctx.globalAlpha = b.alpha;
+      ctx.fillStyle = `hsla(${baseHue}, 75%, 70%, 0.8)`;
+      const tool = b.tool;
+      for (let i = 0; i < tool.length; i++) {
+        ctx.fillText(tool[i], -24, -tool.length * 8 + i * 12);
+      }
+      ctx.restore();
+    }
+
+    function animate(ts) {
+      ctx.clearRect(0, 0, w, h);
+      ctx.globalCompositeOperation = "screen";
+
+      const targetAngle = Math.atan2(mouseY - h / 2, mouseX - w / 2) || 0;
+
+      // ASCII猫がゆっくり流れる
+      brooms.forEach(function(b){
+        const desired = targetAngle + b.offset;
+        b.angle = lerp(b.angle, desired, 0.035);
+        const sway = Math.sin(ts * 0.001 + b.offset) * 0.25;
+        b.x += Math.cos(b.angle + sway) * b.speed * 2.5; // slower
+        b.y += Math.sin(b.angle + sway) * b.speed * 2.5; // slower
+        if (b.x < -120 || b.x > w + 120 || b.y < -120 || b.y > h + 120) resetBroom(b);
+        drawBroom(b, ts);
+      });
+
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+  })();
+
+  function buildGrid(rows, cols) {
+    grid.innerHTML = "";
+    for (let r = 0; r < rows; r++) {
+      const tr = document.createElement("tr");
+      for (let c = 0; c < cols; c++) {
+        const td = document.createElement("td");
+        td.contentEditable = "true";
+        td.dataset.row = r;
+        td.dataset.col = c;
+        tr.appendChild(td);
+      }
+      grid.appendChild(tr);
+    }
+  }
+  buildGrid(60, 40);
+
+  grid.addEventListener("paste", function(e){
+    if (e.target.tagName !== "TD") return;
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData("text");
+    const rows = text.split(/\r?\n/);
+    const startRow = parseInt(e.target.dataset.row, 10) || 0;
+    const startCol = parseInt(e.target.dataset.col, 10) || 0;
+    rows.forEach(function(line, rIdx){
+      if (!line) return;
+      const cols = line.split(/\t/);
+      cols.forEach(function(cell, cIdx){
+        const tr = grid.rows[startRow + rIdx];
+        if (!tr) return;
+        const td = tr.cells[startCol + cIdx];
+        if (!td) return;
+        td.textContent = cell;
+      });
+    });
+  });
+
+  function readGrid() {
+    const table = [];
+    for (let r = 0; r < grid.rows.length; r++) {
+      const row = [];
+      const cells = grid.rows[r].cells;
+      for (let c = 0; c < cells.length; c++) {
+        row.push(cells[c].textContent.trim());
+      }
+      table.push(row);
+    }
+    return table;
+  }
+
+  function initYearMonth() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    for (let k = -1; k <= 5; k++) {
+      const opt = document.createElement("option");
+      opt.value = y + k;
+      opt.textContent = (y + k) + "年";
+      if (k === 0) opt.selected = true;
+      yearSelect.appendChild(opt);
+    }
+    for (let i = 1; i <= 12; i++) {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = i + "月";
+      if (i === m) opt.selected = true;
+      monthSelect.appendChild(opt);
+    }
+  }
+  initYearMonth();
+
+  function convertGridToAttendance(table) {
+    table = table.filter(function(row){
+      return row.some(function(cell){ return cell !== ""; });
+    });
+    if (table.length < 3) {
+      throw new Error("1行目:日付, 2行目:曜日, 3行目以降:名前と出席を貼り付けてください。");
+    }
+    const header = table[0].slice(1).filter(function(v){ return v !== ""; });
+    if (header.length === 0) throw new Error("1行目に日付がありません。");
+    const dates = header.map(function(v){
+      const n = parseInt(v, 10);
+      if (isNaN(n)) throw new Error("日付が数値で解釈できません: " + v);
+      return n;
+    });
+    const weekdayRow = table[1].slice(1);
+    const members = [];
+    const shifts = {};
+    for (let r = 2; r < table.length; r++) {
+      const name = table[r][0];
+      if (!name) continue;
+      if (members.indexOf(name) !== -1) continue;
+      members.push(name);
+      shifts[name] = {};
+      for (let c = 1; c < table[r].length && c <= dates.length; c++) {
+        shifts[name][dates[c-1]] = table[r][c] || "";
+      }
+    }
+    if (members.length === 0) throw new Error("メンバー行が見つかりませんでした。");
+    return { dates, weekdayRow, members, shifts };
+  }
+
+  function jpWeekday(y, m, d) {
+    const dt = new Date(y, m - 1, d);
+    return ["日","月","火","水","木","金","土"][dt.getDay()];
+  }
+
+  function normalizeWeekdayLabel(val) {
+    if (val == null) return "";
+    return String(val).trim().replace(/曜/g, "");
+  }
+
+  function validateWeekdayRow(att, year, month) {
+    if (!att || !att.dates || !att.weekdayRow) return [];
+    const mismatches = [];
+    att.dates.forEach(function(d, idx){
+      const expected = jpWeekday(year, month, d);
+      const actual = normalizeWeekdayLabel(att.weekdayRow[idx] || "");
+      if (actual && actual !== expected) {
+        mismatches.push({ day: d, expected: expected, actual: actual });
+      }
+    });
+    return mismatches;
+  }
+
+  // ISO週キー（週単位の制約用、月をまたぐ週も同じキー）
+  function weekKey(y, m, d) {
+    const dt = new Date(y, m - 1, d);
+    const day = dt.getDay(); // 0:日 … 6:土
+    const isoDay = (day + 6) % 7; // 0:月 … 6:日
+    const thursday = new Date(dt);
+    thursday.setDate(dt.getDate() - isoDay + 3); // その週の木曜
+    const firstJan = new Date(thursday.getFullYear(), 0, 1);
+    const week = Math.floor((thursday - firstJan) / 86400000 / 7) + 1;
+    return thursday.getFullYear() + "-W" + ("0" + week).slice(-2);
+  }
+
+  function inOfficeAm(shift) {
+    if (!shift) return false;
+    if (shift.indexOf("在") !== -1) return true; // 在宅も面談対象として割当可能
+    return shift === "通" || shift === "通A";
+  }
+  function inOfficePm(shift) {
+    if (!shift) return false;
+    if (shift.indexOf("在") !== -1) return true; // 在宅も面談対象として割当可能
+    return shift === "通" || shift === "通P";
+  }
+
+  function nameIs(name, target) {
+    if (!name || !target) return false;
+    return displayName(name).toUpperCase() === target.toUpperCase();
+  }
+
+  // 表示用に「（女）」フラグを除去
+  function displayName(name) {
+    if (name == null) return name;
+    return String(name).replace(/（女）/g, "");
+  }
+
+  // 希望メンター名などの比較用正規化（さん除去・空白除去・（女）除去）
+  function normalizeMentorName(name) {
+    if (!name) return "";
+    return displayName(name).replace(/さん/g, "").replace(/\s+/g, "");
+  }
+
+  // 在宅フラグ付与
+  function displayWithRemote(name, day, shiftsByName) {
+    var base = displayName(name);
+    if (!shiftsByName || !shiftsByName[name] || day == null) return base;
+    var shift = shiftsByName[name][day];
+    if (shift && /在/.test(shift)) {
+      return base + "（在）";
+    }
+    return base;
+  }
+
+  function isRemote(person, day, shiftsByName) {
+    if (!person || !shiftsByName || day == null) return false;
+    var shift = (shiftsByName[person] && shiftsByName[person][day]) || "";
+    return /在/.test(shift);
+  }
+
+  function extractMemberNamesFromGrid() {
+    const names = [];
+    for (let r = 2; r < grid.rows.length; r++) {
+      const row = grid.rows[r];
+      if (!row || !row.cells[0]) continue;
+      const name = displayName(row.cells[0].textContent.trim());
+      if (!name) continue;
+      if (names.indexOf(name) === -1) names.push(name);
+    }
+    return names.sort(function(a, b){ return a.localeCompare(b, "ja"); });
+  }
+
+  function monthKey(year, month) {
+    return year + "-" + month;
+  }
+
+  function selectedMonthKey() {
+    return monthKey(yearSelect.value || "", monthSelect.value || "");
+  }
+
+  function saveCustomMentors() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.customMentors, JSON.stringify(customMentors));
+    } catch (e) {
+      // storage may be blocked; ignore
+    }
+  }
+
+  function saveAvailability() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.availability, JSON.stringify(mentorAvailabilityByMonth));
+    } catch (e) {
+      // storage may be blocked; ignore
+    }
+  }
+
+  function saveFixedAvailability() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.fixedAvailability, JSON.stringify(fixedMentorAvailability));
+    } catch (e) {
+      // storage may be blocked; ignore
+    }
+  }
+
+  function defaultFixedAvailability() {
+    const availability = {};
+    const weekdays = ["月","火","水","木","金"];
+    baseMentors.forEach(function(name){
+      availability[name] = {};
+      weekdays.forEach(function(d){
+        availability[name][d] = { am: true, pm: true };
+      });
+    });
+    availability["大長"] = {};
+    weekdays.forEach(function(d){
+      availability["大長"][d] = { am: false, pm: false };
+    });
+    availability["大長"]["木"] = { am: true, pm: true };
+    availability["西崎"] = {};
+    weekdays.forEach(function(d){
+      availability["西崎"][d] = { am: false, pm: false };
+    });
+    availability["西崎"]["水"] = { am: true, pm: true };
+    availability["西崎"]["木"] = { am: false, pm: true };
+    return availability;
+  }
+
+  function ensureFixedAvailability() {
+    const base = defaultFixedAvailability();
+    fixedMentorAvailability = fixedMentorAvailability || {};
+    fixedMentors.forEach(function(name){
+      if (!fixedMentorAvailability[name]) fixedMentorAvailability[name] = {};
+      ["月","火","水","木","金"].forEach(function(d){
+        const current = fixedMentorAvailability[name][d];
+        if (!current) {
+          fixedMentorAvailability[name][d] = { am: base[name] && base[name][d] ? !!base[name][d].am : false, pm: base[name] && base[name][d] ? !!base[name][d].pm : false };
+        } else {
+          fixedMentorAvailability[name][d] = {
+            am: !!current.am,
+            pm: !!current.pm
+          };
+        }
+      });
+    });
+  }
+
+  function loadState() {
+    try {
+      const rawMentors = localStorage.getItem(STORAGE_KEYS.customMentors);
+      if (rawMentors) {
+        const parsed = JSON.parse(rawMentors);
+        if (Array.isArray(parsed)) {
+          customMentors = parsed.map(function(m){
+            const name = m && m.name ? displayName(m.name) : "";
+            let availability = null;
+            if (m && m.availability && typeof m.availability === "object") {
+              availability = {};
+              ["月","火","水","木","金"].forEach(function(d){
+                const day = m.availability[d] || {};
+                availability[d] = {
+                  am: !!day.am,
+                  pm: !!day.pm
+                };
+              });
+            } else {
+              const weekdays = Array.isArray(m.weekdays) ? m.weekdays.filter(function(d){
+                return ["月","火","水","木","金"].indexOf(d) !== -1;
+              }) : [];
+              let slots = Array.isArray(m.slots) ? m.slots.filter(function(s){
+                return ["午前","午後"].indexOf(s) !== -1;
+              }) : [];
+              if (!slots.length) slots = ["午前","午後"];
+              availability = {};
+              ["月","火","水","木","金"].forEach(function(d){
+                if (weekdays.indexOf(d) !== -1) {
+                  availability[d] = { am: slots.indexOf("午前") !== -1, pm: slots.indexOf("午後") !== -1 };
+                } else {
+                  availability[d] = { am: false, pm: false };
+                }
+              });
+            }
+            return { name: name, availability: availability };
+          }).filter(function(m){
+            if (!m.name || !m.availability) return false;
+            return ["月","火","水","木","金"].some(function(d){
+              return m.availability[d] && (m.availability[d].am || m.availability[d].pm);
+            });
+          });
+        }
+      }
+    } catch (e) {
+      customMentors = [];
+    }
+    try {
+      const rawFixed = localStorage.getItem(STORAGE_KEYS.fixedAvailability);
+      if (rawFixed) {
+        const parsedFixed = JSON.parse(rawFixed);
+        if (parsedFixed && typeof parsedFixed === "object") {
+          fixedMentorAvailability = parsedFixed;
+        }
+      }
+    } catch (e) {
+      fixedMentorAvailability = {};
+    }
+    ensureFixedAvailability();
+    try {
+      const rawAvail = localStorage.getItem(STORAGE_KEYS.availability);
+      if (rawAvail) {
+        const parsedAvail = JSON.parse(rawAvail);
+        if (parsedAvail && typeof parsedAvail === "object") {
+          mentorAvailabilityByMonth = parsedAvail;
+        }
+      }
+    } catch (e) {
+      mentorAvailabilityByMonth = {};
+    }
+  }
+
+  function ensureAvailabilityKeys(key) {
+    const availability = mentorAvailabilityByMonth[key] || {};
+    getAllMentorsRaw().forEach(function(name){
+      if (!(name in availability)) availability[name] = true;
+    });
+    mentorAvailabilityByMonth[key] = availability;
+    return availability;
+  }
+
+  function getMonthAvailability(key) {
+    if (!mentorAvailabilityByMonth[key]) mentorAvailabilityByMonth[key] = {};
+    return ensureAvailabilityKeys(key);
+  }
+
+  function isMentorActive(name, year, month) {
+    const key = (year && month) ? monthKey(year, month) : selectedMonthKey();
+    const availability = getMonthAvailability(key);
+    return availability[name] !== false;
+  }
+
+  function renderMentorAvailability() {
+    const key = selectedMonthKey();
+    const availability = getMonthAvailability(key);
+    const mentors = getAllMentorsRaw();
+    const html = mentors.map(function(name){
+      const checked = availability[name] !== false;
+      return "<label class='mentor-toggle'><input type='checkbox' data-mentor='" + name + "'" + (checked ? " checked" : "") + "> " + name + "</label>";
+    }).join("");
+    mentorAvailabilityList.innerHTML = html;
+  }
+
+  function renderPreferenceList(names) {
+    if (!names || names.length === 0) {
+      preferenceList.innerHTML = "<div class='pref-empty'>名前が見つかりません。Excelの1列目に名前を入れてください。</div>";
+      return;
+    }
+    const allMentors = getAllMentors(parseInt(yearSelect.value, 10), parseInt(monthSelect.value, 10));
+    const html = names.map(function(name){
+      const checked = preferenceSelections[name] || [];
+      const options = allMentors.map(function(m){
+        const id = "pref-" + name + "-" + m;
+        const isChecked = checked.indexOf(m) !== -1;
+        return "<label><input type='checkbox' data-person='" + name + "' data-mentor='" + m + "'" + (isChecked ? " checked" : "") + "> " + m + "</label>";
+      }).join("");
+      return "<div class='pref-row'><div class='name'>" + name + "</div><div class='mentor-options'>" + options + "</div></div>";
+    }).join("");
+    preferenceList.innerHTML = html;
+  }
+
+  function collectPreferenceSelections() {
+    const selections = {};
+    const inputs = preferenceList.querySelectorAll("input[type='checkbox']");
+    inputs.forEach(function(input){
+      if (!input.checked) return;
+      const person = input.dataset.person;
+      const mentor = input.dataset.mentor;
+      if (!person || !mentor) return;
+      if (!selections[person]) selections[person] = [];
+      if (selections[person].indexOf(mentor) === -1) selections[person].push(mentor);
+    });
+    return selections;
+  }
+
+  function refreshPreferenceListFromGrid() {
+    preferenceSelections = collectPreferenceSelections();
+    const names = extractMemberNamesFromGrid();
+    renderPreferenceList(names);
+  }
+
+  // 文字列のXMLエスケープ
+  function xmlEscape(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  // ZIP(STORE)ユーティリティ
+  const CRC_TABLE = (function(){
+    const t = [];
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) {
+        c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function crc32Uint8(arr) {
+    let crc = 0 ^ (-1);
+    for (let i = 0; i < arr.length; i++) {
+      crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ arr[i]) & 0xff];
+    }
+    return (crc ^ (-1)) >>> 0;
+  }
+
+  function toUint8(arrLike) {
+    if (arrLike instanceof Uint8Array) return arrLike;
+    return new Uint8Array(arrLike);
+  }
+
+  function numToBytesLE(num, bytes) {
+    const out = new Uint8Array(bytes);
+    for (let i = 0; i < bytes; i++) {
+      out[i] = num & 0xff;
+      num >>>= 8;
+    }
+    return out;
+  }
+
+  function currentOffset(parts) {
+    return parts.reduce(function(sum, p){ return sum + p.length; }, 0);
+  }
+
+  function encodeUtf8(str) {
+    return new TextEncoder().encode(str);
+  }
+
+  function concat(arrays) {
+    const total = arrays.reduce(function(s, a){ return s + a.length; }, 0);
+    const out = new Uint8Array(total);
+    let off = 0;
+    arrays.forEach(function(a){
+      const u = toUint8(a);
+      out.set(u, off);
+      off += u.length;
+    });
+    return out;
+  }
+
+  function makeZip(files) {
+    const parts = [];
+    const centralRecords = [];
+
+    files.forEach(function(file){
+      const fileNameBytes = encodeUtf8(file.path);
+      const dataBytes = (typeof file.data === "string") ? encodeUtf8(file.data) : toUint8(file.data);
+      const crc = crc32Uint8(dataBytes);
+      const compSize = dataBytes.length;
+      const uncompSize = dataBytes.length;
+      const modTime = 0;
+      const modDate = 0;
+
+      const localHeader = [];
+      localHeader.push(numToBytesLE(0x04034b50, 4));
+      localHeader.push(numToBytesLE(20, 2));
+      localHeader.push(numToBytesLE(0, 2));
+      localHeader.push(numToBytesLE(0, 2)); // store
+      localHeader.push(numToBytesLE(modTime, 2));
+      localHeader.push(numToBytesLE(modDate, 2));
+      localHeader.push(numToBytesLE(crc, 4));
+      localHeader.push(numToBytesLE(compSize, 4));
+      localHeader.push(numToBytesLE(uncompSize, 4));
+      localHeader.push(numToBytesLE(fileNameBytes.length, 2));
+      localHeader.push(numToBytesLE(0, 2)); // extra
+      localHeader.push(fileNameBytes);
+
+      const start = currentOffset(parts);
+      parts.push(concat(localHeader));
+      parts.push(dataBytes);
+
+      const central = [];
+      central.push(numToBytesLE(0x02014b50, 4));
+      central.push(numToBytesLE(0, 2));
+      central.push(numToBytesLE(20, 2));
+      central.push(numToBytesLE(0, 2));
+      central.push(numToBytesLE(0, 2));
+      central.push(numToBytesLE(modTime, 2));
+      central.push(numToBytesLE(modDate, 2));
+      central.push(numToBytesLE(crc, 4));
+      central.push(numToBytesLE(compSize, 4));
+      central.push(numToBytesLE(uncompSize, 4));
+      central.push(numToBytesLE(fileNameBytes.length, 2));
+      central.push(numToBytesLE(0, 2));
+      central.push(numToBytesLE(0, 2));
+      central.push(numToBytesLE(0, 2));
+      central.push(numToBytesLE(0, 2));
+      central.push(numToBytesLE(0, 4));
+      central.push(numToBytesLE(start, 4));
+      central.push(fileNameBytes);
+      centralRecords.push(concat(central));
+    });
+
+    const centralStart = currentOffset(parts);
+    centralRecords.forEach(function(rec){ parts.push(rec); });
+    const centralEnd = currentOffset(parts);
+
+    const end = [];
+    end.push(numToBytesLE(0x06054b50, 4));
+    end.push(numToBytesLE(0, 2));
+    end.push(numToBytesLE(0, 2));
+    end.push(numToBytesLE(files.length, 2));
+    end.push(numToBytesLE(files.length, 2));
+    end.push(numToBytesLE(centralEnd - centralStart, 4));
+    end.push(numToBytesLE(centralStart, 4));
+    end.push(numToBytesLE(0, 2));
+    parts.push(concat(end));
+
+    return new Blob(parts, { type: "application/zip" });
+  }
+
+  const baseMentors = ["重水","岩見","梅木","市川","佐藤"];
+  const fixedMentors = baseMentors.concat(["西崎","大長"]);
+
+  function nameExistsIn(list, name) {
+    const norm = normalizeMentorName(name);
+    return list.some(function(n){ return normalizeMentorName(n) === norm; });
+  }
+
+  function getCustomMentorByName(name) {
+    const norm = normalizeMentorName(name);
+    return customMentors.find(function(m){ return normalizeMentorName(m.name) === norm; }) || null;
+  }
+
+  function resolveFixedMentorName(name) {
+    const norm = normalizeMentorName(name);
+    return fixedMentors.find(function(n){ return normalizeMentorName(n) === norm; }) || null;
+  }
+
+  function isMentorAvailableForSlot(name, weekday, isPm, year, month) {
+    if (!isMentorActive(name, year, month)) return false;
+    const fixedName = resolveFixedMentorName(name);
+    if (fixedName) {
+      const day = fixedMentorAvailability[fixedName] && fixedMentorAvailability[fixedName][weekday];
+      if (!day) return false;
+      return isPm ? !!day.pm : !!day.am;
+    }
+    const custom = getCustomMentorByName(name);
+    if (custom) {
+      const day = custom.availability && custom.availability[weekday];
+      if (!day) return false;
+      return isPm ? !!day.pm : !!day.am;
+    }
+    return true;
+  }
+
+  function renderFixedMentorList() {
+    const dayClassMap = { "月":"day-mon", "火":"day-tue", "水":"day-wed", "木":"day-thu", "金":"day-fri" };
+    const html = fixedMentors.map(function(name){
+      const cells = [];
+      ["月","火","水","木","金"].forEach(function(d){
+        const day = fixedMentorAvailability[name] && fixedMentorAvailability[name][d];
+        const amChecked = day && day.am ? " checked" : "";
+        const pmChecked = day && day.pm ? " checked" : "";
+        cells.push(
+          "<div>" +
+          "<div style='margin-bottom:6px;'><span class='day-tag " + dayClassMap[d] + "'>" + d + "</span></div>" +
+          "<label class='weekday-toggle'><input type='checkbox' data-fixed-mentor='" + name + "' data-day='" + d + "' data-slot='am'" + amChecked + ">午前</label> " +
+          "<label class='weekday-toggle'><input type='checkbox' data-fixed-mentor='" + name + "' data-day='" + d + "' data-slot='pm'" + pmChecked + ">午後</label>" +
+          "</div>"
+        );
+      });
+      return "<div class='mentor-added-item'><span class='tag'>" + name + "</span><div class='edit-grid'>" + cells.join("") + "</div></div>";
+    }).join("");
+    fixedMentorList.innerHTML = html;
+  }
+
+  function renderCustomMentorList() {
+    if (!customMentors.length) {
+      customMentorList.innerHTML = "";
+      return;
+    }
+    const dayClassMap = { "月":"day-mon", "火":"day-tue", "水":"day-wed", "木":"day-thu", "金":"day-fri" };
+    const html = customMentors.map(function(m){
+      const cells = [];
+      ["月","火","水","木","金"].forEach(function(d){
+        const day = m.availability && m.availability[d];
+        const amChecked = day && day.am ? " checked" : "";
+        const pmChecked = day && day.pm ? " checked" : "";
+        cells.push(
+          "<div>" +
+          "<div style='margin-bottom:6px;'><span class='day-tag " + dayClassMap[d] + "'>" + d + "</span></div>" +
+          "<label class='weekday-toggle'><input type='checkbox' data-edit-mentor='" + m.name + "' data-day='" + d + "' data-slot='am'" + amChecked + ">午前</label> " +
+          "<label class='weekday-toggle'><input type='checkbox' data-edit-mentor='" + m.name + "' data-day='" + d + "' data-slot='pm'" + pmChecked + ">午後</label>" +
+          "</div>"
+        );
+      });
+      return "<div class='mentor-added-item'><span class='tag'>" + m.name + "</span><div class='edit-grid'>" + cells.join("") + "</div><button type='button' data-mentor='" + m.name + "'>削除</button></div>";
+    }).join("");
+    customMentorList.innerHTML = html;
+  }
+
+  function addOrUpdateCustomMentor(name, availability) {
+    const existing = getCustomMentorByName(name);
+    if (existing) {
+      ["月","火","水","木","金"].forEach(function(d){
+        const next = availability[d] || { am: false, pm: false };
+        if (!existing.availability[d]) existing.availability[d] = { am: false, pm: false };
+        existing.availability[d].am = existing.availability[d].am || !!next.am;
+        existing.availability[d].pm = existing.availability[d].pm || !!next.pm;
+      });
+      return "更新";
+    }
+    customMentors.push({ name: displayName(name), availability: availability });
+    return "追加";
+  }
+
+  function removeCustomMentor(name) {
+    const norm = normalizeMentorName(name);
+    customMentors = customMentors.filter(function(m){ return normalizeMentorName(m.name) !== norm; });
+  }
+
+  function getAllMentorsRaw() {
+    const customNames = customMentors.map(function(m){ return m.name; });
+    return Array.from(new Set(baseMentors.concat(["西崎","大長"]).concat(customNames)));
+  }
+  function getAllMentors(year, month) {
+    return getAllMentorsRaw().filter(function(name){ return isMentorActive(name, year, month); });
+  }
+  function mentorsFor(weekday, isPm, year, month) {
+    const list = [];
+    fixedMentors.forEach(function(name){
+      if (!isMentorAvailableForSlot(name, weekday, isPm, year, month)) return;
+      list.push(name);
+    });
+    customMentors.forEach(function(m){
+      if (!isMentorAvailableForSlot(m.name, weekday, isPm, year, month)) return;
+      if (!nameExistsIn(list, m.name)) list.push(m.name);
+    });
+    return list;
+  }
+
+  function assignSlot(attendees, mentors, weekday, load, realCount, shiftsByName, day, weekKeyStr, weeklyPairCount, prefMap, prefWeight, lastMentorByPerson, slotLabel, unmetPrefs) {
+    const assigns = {};
+    const prefLookup = prefMap || {};
+    mentors.forEach(function(m){ assigns[m] = []; });
+    if (mentors.length === 0) {
+      return { assigns, note: "担当者なし" };
+    }
+    weeklyPairCount = weeklyPairCount || {};
+
+    function currentPairCount(person, mentor) {
+      if (!weeklyPairCount[person] || !weeklyPairCount[person][mentor]) return 0;
+      return weeklyPairCount[person][mentor][weekKeyStr] || 0;
+    }
+    function canPairThisWeek(person, mentor) {
+      return currentPairCount(person, mentor) < 2; // 1週間で同じ組み合わせは2回まで
+    }
+    function recordPair(person, mentor) {
+      if (!weeklyPairCount[person]) weeklyPairCount[person] = {};
+      if (!weeklyPairCount[person][mentor]) weeklyPairCount[person][mentor] = {};
+      weeklyPairCount[person][mentor][weekKeyStr] = (weeklyPairCount[person][mentor][weekKeyStr] || 0) + 1;
+    }
+
+    // 希望がある人の割当（希望のみに限定）
+    function pickFromPreferred(person, availablePreferred, preferredList) {
+      const normPrefList = preferredList.map(normalizeMentorName);
+      const normAvailable = availablePreferred.map(normalizeMentorName);
+      if (normPrefList.indexOf(normalizeMentorName("西崎")) !== -1 && normAvailable.indexOf(normalizeMentorName("西崎")) !== -1) {
+        return availablePreferred[normAvailable.indexOf(normalizeMentorName("西崎"))];
+      }
+      const last = lastMentorByPerson ? lastMentorByPerson[person] : null;
+      let pool = availablePreferred.slice();
+      if (preferredList.length > 1 && last && pool.indexOf(last) !== -1 && pool.length > 1) {
+        // 複数希望時はなるべく前回と異なる担当を優先
+        pool = pool.filter(function(m){ return m !== last; });
+      } else if (last && pool.indexOf(last) !== -1) {
+        if (preferredList.length === 1 || Math.random() < 0.5) {
+          return last;
+        }
+      }
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    // 希望がない場合の通常割当
+    function pickWithoutPreferred(person, preferredList, remote) {
+      const wantsNishizaki = preferredList && preferredList.map(normalizeMentorName).includes(normalizeMentorName("西崎"));
+      const pool = mentors.filter(function(m){
+        if (!wantsNishizaki && nameIs(m, "西崎")) return false; // 西崎は希望なしでは割り当てない
+        if (remote && nameIs(m, "大長")) return false;
+        if (!canPairThisWeek(person, m)) return false;
+        return true;
+      });
+      const fallbackPool = mentors.filter(function(m){
+        if (!wantsNishizaki && nameIs(m, "西崎")) return false;
+        if (remote && nameIs(m, "大長")) return false;
+        if (!canPairThisWeek(person, m)) return false;
+        return true;
+      });
+      if ((!pool.length) && preferredList && preferredList.length) {
+        // 希望はあるが該当メンターが枠にいない
+        if (unmetPrefs) {
+          unmetPrefs.push({ person: displayName(person), preferred: preferredList.slice(), day: day, weekday: weekday, slot: slotLabel || "" });
+        }
+      }
+      const effectivePool = pool.length ? pool : (fallbackPool.length ? fallbackPool : mentors);
+      const preferredCount = preferredList ? preferredList.length : 0;
+      return effectivePool.slice().sort(function(a, b){
+        // 希望1件のみだった場合は連続回避ペナルティを外す
+        const prevPenaltyA = (preferredCount === 1 && lastMentorByPerson && lastMentorByPerson[person] === a) ? 0 : ((lastMentorByPerson && lastMentorByPerson[person] === a) ? 0.8 : 0);
+        const prevPenaltyB = (preferredCount === 1 && lastMentorByPerson && lastMentorByPerson[person] === b) ? 0 : ((lastMentorByPerson && lastMentorByPerson[person] === b) ? 0.8 : 0);
+        const ra = (load[a] || 0) + balanceOffset(a) + prevPenaltyA;
+        const rb = (load[b] || 0) + balanceOffset(b) + prevPenaltyB;
+        if (ra !== rb) return ra - rb;
+        return Math.random() - 0.5; // tie-break with slight randomness
+      })[0];
+    }
+
+    function balanceOffset(name) {
+      // 指定メンターの累計を平均に近づけるよう微調整
+      const targets = ["岩見","市川","重水","梅木","佐藤"];
+      if (!targets.some(function(t){ return nameIs(name, t); })) return 0;
+      const counts = targets.map(function(t){ return realCount[t] || 0; });
+      const sum = counts.reduce(function(s,v){ return s+v; }, 0);
+      const avg = sum / targets.length;
+      const self = realCount[name] || 0;
+      const diff = self - avg;
+      // 1件差で0.25ポイント程度のペナルティ/ボーナスを与える
+      return diff * 0.25;
+    }
+
+    function hasPreferredAvailable(person) {
+      const keyName = displayName(person);
+      const preferredListRaw = prefLookup[keyName] || [];
+      const preferredList = preferredListRaw.map(normalizeMentorName).filter(Boolean);
+      const normalizedMentors = mentors.map(normalizeMentorName);
+      return preferredList.some(function(m){ return normalizedMentors.indexOf(m) !== -1; });
+    }
+
+    const orderedAttendees = attendees.slice().sort(function(a, b){
+      const ha = hasPreferredAvailable(a) ? 1 : 0;
+      const hb = hasPreferredAvailable(b) ? 1 : 0;
+      if (ha !== hb) return hb - ha; // 希望ありの人を優先
+      return 0;
+    });
+
+    orderedAttendees.forEach(function(person){
+      const remote = isRemote(person, day, shiftsByName);
+      const keyName = displayName(person);
+      const preferredListRaw = prefLookup[keyName] || null;
+      const preferredList = preferredListRaw ? preferredListRaw.map(normalizeMentorName).filter(Boolean) : null;
+      const normalizedMentors = mentors.map(normalizeMentorName);
+      const availablePreferredAll = preferredList ? preferredList.filter(function(m){ return normalizedMentors.indexOf(m) !== -1; }).map(function(m){
+        return mentors[normalizedMentors.indexOf(m)];
+      }) : [];
+      // 優先チェックがある場合は週回数の上限を超えても許容
+      const availablePreferred = availablePreferredAll;
+
+      // 希望が存在し、担当がいる場合は必ず希望者へ。複数候補なら負荷が軽い人を優先。
+      let best;
+      if (availablePreferred.length > 0) {
+        best = pickFromPreferred(person, availablePreferred, preferredList);
+      } else {
+        best = pickWithoutPreferred(person, preferredList, remote);
+      }
+
+      assigns[best].push(person);
+      load[best] = (load[best] || 0) + 1;
+      realCount[best] = (realCount[best] || 0) + 1;
+      recordPair(person, best);
+    });
+    return { assigns, note: "" };
+  }
+
+  function buildSchedule(att, year, month, prefMap, prefWeight) {
+    const realCount = {};
+    const rows = [];
+    const preferences = prefMap || {};
+    const prefStrength = typeof prefWeight === "number" ? prefWeight : 0.75;
+    const lastMentorByPerson = {};
+    const unmetPrefs = [];
+    const weeklyPairCount = {};
+
+    function prefCount(name) {
+      const key = displayName(name);
+      const list = preferences[key];
+      if (!list || !list.length) return 999;
+      return list.length;
+    }
+
+    function ensurePreferredMentor(mentorList, namesForSlot, target, weekday, isPm, year, month) {
+      // 希望に合わせて足りないメンター（西崎）を枠に追加
+      const normTarget = normalizeMentorName(target);
+      if (!isMentorAvailableForSlot(target, weekday, isPm, year, month)) return;
+      const normMentors = mentorList.map(normalizeMentorName);
+      const need = namesForSlot.some(function(n){
+        const pref = preferences[displayName(n)];
+        if (!pref || !pref.length) return false;
+        const normPref = pref.map(normalizeMentorName).filter(Boolean);
+        return normPref.indexOf(normTarget) !== -1;
+      });
+      if (need && normMentors.indexOf(normTarget) === -1) {
+        mentorList.push(target);
+      }
+    }
+
+    // 今月の最終金曜日を取得
+    let lastFriday = null;
+    att.dates.forEach(function(d){
+      if (jpWeekday(year, month, d) === "金") {
+        if (lastFriday === null || d > lastFriday) lastFriday = d;
+      }
+    });
+
+    att.dates.forEach(function(d){
+      const wd = jpWeekday(year, month, d);
+      const amList = [];
+      const pmList = [];
+      const bothList = [];
+      const weekStr = weekKey(year, month, d);
+
+    function hasPreferredInSlot(name, mentorList) {
+      const pref = preferences[displayName(name)];
+      if (!pref || !pref.length) return false;
+      const normalizedPref = pref.map(normalizeMentorName).filter(Boolean);
+      const normalizedMentors = mentorList.map(normalizeMentorName);
+      return normalizedPref.some(function(m){ return normalizedMentors.indexOf(m) !== -1; });
+    }
+
+      // collect availability per slot with shift info
+      att.members.forEach(function(n){
+        const shift = att.shifts[n][d];
+        const am = inOfficeAm(shift);
+        const pm = inOfficePm(shift);
+        if (am && pm) bothList.push({ name: n });
+        else if (am) amList.push({ name: n });
+        else if (pm) pmList.push({ name: n });
+      });
+
+      const mentorsAm = mentorsFor(wd, false, year, month);
+      const mentorsPm = mentorsFor(wd, true, year, month);
+      const amCandidates = amList.concat(bothList).map(function(x){ return x.name; });
+      const pmCandidates = pmList.concat(bothList).map(function(x){ return x.name; });
+      // 希望に西崎が含まれている人がいる枠には、西崎をメンター候補に追加
+      ensurePreferredMentor(mentorsAm, amCandidates, "西崎", wd, false, year, month);
+      ensurePreferredMentor(mentorsPm, pmCandidates, "西崎", wd, true, year, month);
+
+      // 月末金曜は午前だけで全員面談
+      const isLastFriday = (lastFriday !== null && d === lastFriday && wd === "金");
+      if (isLastFriday) {
+        const allList = [];
+        // am/pmどちらかに出席していれば午前に集約
+        att.members.forEach(function(n){
+          const shift = att.shifts[n][d];
+          const available = inOfficeAm(shift) || inOfficePm(shift);
+          if (!available) return;
+          allList.push({ name: n });
+        });
+        const amNamesLf = allList.map(function(x){ return x.name; }).sort(function(a, b){
+          return prefCount(a) - prefCount(b);
+        });
+        const dayLoad = {};
+        const am = assignSlot(amNamesLf, mentorsAm, wd, dayLoad, realCount, att.shifts, d, weekStr, weeklyPairCount, preferences, prefStrength, lastMentorByPerson, "午前", unmetPrefs);
+        const pm = { assigns: {}, note: "月末金曜は午前のみ" };
+        // update last mentor memory
+        Object.keys(am.assigns).forEach(function(mentor){
+          am.assigns[mentor].forEach(function(person){
+            lastMentorByPerson[person] = mentor;
+          });
+        });
+        rows.push({
+          day: d,
+          weekday: wd,
+          am: am,
+          pm: pm,
+          amTotal: amNamesLf.length,
+          pmTotal: 0
+        });
+        return;
+      }
+
+      // distribute both-available members (prefer slot where preferred mentor exists)
+      bothList.forEach(function(item){
+        const prefersAm = hasPreferredInSlot(item.name, mentorsAm);
+        const prefersPm = hasPreferredInSlot(item.name, mentorsPm);
+        if (prefersAm && !prefersPm) { amList.push(item); return; }
+        if (prefersPm && !prefersAm) { pmList.push(item); return; }
+        if (amList.length <= pmList.length) amList.push(item);
+        else pmList.push(item);
+      });
+
+      const amNames = amList.map(function(x){ return x.name; }).sort(function(a, b){
+        const pa = hasPreferredInSlot(a, mentorsAm) ? 0 : 1;
+        const pb = hasPreferredInSlot(b, mentorsAm) ? 0 : 1;
+        if (pa !== pb) return pa - pb; // 希望が枠内にいる人を先頭に
+        return prefCount(a) - prefCount(b);
+      });
+      const pmNames = pmList.map(function(x){ return x.name; }).sort(function(a, b){
+        const pa = hasPreferredInSlot(a, mentorsPm) ? 0 : 1;
+        const pb = hasPreferredInSlot(b, mentorsPm) ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+        return prefCount(a) - prefCount(b);
+      });
+
+      // 1日の負荷を午前午後で共有してバランスを取る
+      const dayLoad = {};
+      const am = assignSlot(amNames, mentorsAm, wd, dayLoad, realCount, att.shifts, d, weekStr, weeklyPairCount, preferences, prefStrength, lastMentorByPerson, "午前", unmetPrefs);
+      const pm = assignSlot(pmNames, mentorsPm, wd, dayLoad, realCount, att.shifts, d, weekStr, weeklyPairCount, preferences, prefStrength, lastMentorByPerson, "午後", unmetPrefs);
+      [am, pm].forEach(function(slot){
+        Object.keys(slot.assigns || {}).forEach(function(mentor){
+          slot.assigns[mentor].forEach(function(person){
+            lastMentorByPerson[person] = mentor;
+          });
+        });
+      });
+      rows.push({
+        day: d,
+        weekday: wd,
+        am: am,
+        pm: pm,
+        amTotal: amNames.length,
+        pmTotal: pmNames.length
+      });
+    });
+
+    return { rows, realCount, shifts: att.shifts, year: year, month: month, preferences: preferences, preferenceWeight: prefStrength, unmetPrefs: unmetPrefs };
+  }
+
+  function scheduleToXlsx(schedule) {
+    function columnName(idx) {
+      let name = "";
+      let n = idx + 1;
+      while (n > 0) {
+        const rem = (n - 1) % 26;
+        name = String.fromCharCode(65 + rem) + name;
+        n = Math.floor((n - 1) / 26);
+      }
+      return name;
+    }
+    const shiftsByName = schedule.shifts || {};
+    function cellRef(colIdx, rowIdx) {
+      return columnName(colIdx) + rowIdx;
+    }
+    function slotToText(slot, day) {
+      const parts = [];
+      Object.keys(slot.assigns || {}).forEach(function(name){
+        if (!slot.assigns[name].length) return;
+        const mentor = displayWithRemote(name, day, shiftsByName);
+        const members = slot.assigns[name].map(function(n){ return displayWithRemote(n, day, shiftsByName); }).join(", ");
+        parts.push(mentor + "：" + members);
+      });
+      if (parts.length === 0) {
+        return slot.note || "-";
+      }
+      return parts.join("\n");
+    }
+    function cellXml(colIdx, rowIdx, value, styleId) {
+      const textVal = String(value == null ? "" : value);
+      const val = xmlEscape(textVal);
+      const styleAttr = (styleId != null) ? ' s="' + styleId + '"' : "";
+      return '<c r="' + cellRef(colIdx, rowIdx) + '" t="inlineStr"' + styleAttr + '><is><t xml:space="preserve">' + val + '</t></is></c>';
+    }
+    const headers = ["日付","曜日","午前","午後"];
+    const title = schedule.year + "年" + schedule.month + "月のセルフケアシフト";
+    const sheetRows = [];
+
+    sheetRows.push('<row r="1">' + cellXml(0, 1, title, 1) + '</row>');
+    const headerCells = headers.map(function(h, idx){ return cellXml(idx, 2, h, 2); }).join("");
+    sheetRows.push('<row r="2">' + headerCells + '</row>');
+
+    const dataStart = 3;
+    schedule.rows.forEach(function(r, i){
+      const excelRow = dataStart + i;
+      const styleId = (r.weekday === "土") ? 3 : (r.weekday === "日" ? 4 : 0);
+      const cells = [
+        cellXml(0, excelRow, r.day, styleId),
+        cellXml(1, excelRow, r.weekday, styleId),
+        cellXml(2, excelRow, slotToText(r.am, r.day), styleId),
+        cellXml(3, excelRow, slotToText(r.pm, r.day), styleId)
+      ].join("");
+      sheetRows.push('<row r="' + excelRow + '">' + cells + '</row>');
+    });
+
+    const lastRow = dataStart + schedule.rows.length - 1;
+    const dimension = "A1:D" + (lastRow < 2 ? 2 : lastRow);
+
+    const sheetXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
+      '  <dimension ref="' + dimension + '"/>',
+      '  <sheetViews><sheetView workbookViewId="0"/></sheetViews>',
+      '  <sheetFormatPr defaultRowHeight="15"/>',
+      '  <sheetData>',
+            sheetRows.join(""),
+      '  </sheetData>',
+      '  <mergeCells count="1"><mergeCell ref="A1:D1"/></mergeCells>',
+      '</worksheet>'
+    ].join("");
+
+    const stylesXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+      '  <fonts count="1"><font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/></font></fonts>',
+      '  <fills count="5">',
+      '    <fill><patternFill patternType="none"/></fill>',
+      '    <fill><patternFill patternType="gray125"/></fill>',
+      '    <fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/><bgColor indexed="64"/></patternFill></fill>',
+      '    <fill><patternFill patternType="solid"><fgColor rgb="FFE0F2FF"/><bgColor indexed="64"/></patternFill></fill>',
+      '    <fill><patternFill patternType="solid"><fgColor rgb="FFFFE4E6"/><bgColor indexed="64"/></patternFill></fill>',
+      '  </fills>',
+      '  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>',
+      '  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>',
+      '  <cellXfs count="5">',
+      '    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment wrapText="1"/></xf>', // normal
+      '    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment wrapText="1"/></xf>', // title
+      '    <xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0"><alignment wrapText="1"/></xf>', // header
+      '    <xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0"><alignment wrapText="1"/></xf>', // sat
+      '    <xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0"><alignment wrapText="1"/></xf>', // sun
+      '  </cellXfs>',
+      '  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>',
+      '</styleSheet>'
+    ].join("");
+
+    const workbookXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
+      '  <sheets>',
+      '    <sheet name="面談シフト" sheetId="1" r:id="rId1"/>',
+      '  </sheets>',
+      '</workbook>'
+    ].join("");
+
+    const workbookRelsXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+      '  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>',
+      '  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>',
+      '</Relationships>'
+    ].join("");
+
+    const relsXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+      '  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>',
+      '  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>',
+      '  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>',
+      '</Relationships>'
+    ].join("");
+
+    const contentTypesXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
+      '  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
+      '  <Default Extension="xml" ContentType="application/xml"/>',
+      '  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>',
+      '  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>',
+      '  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>',
+      '  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>',
+      '  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>',
+      '</Types>'
+    ].join("");
+
+    const appXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">',
+      '  <Application>面談シフトジェネレーター</Application>',
+      '</Properties>'
+    ].join("");
+
+    const coreXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">',
+      '  <dc:title>' + xmlEscape(title) + '</dc:title>',
+      '  <dc:creator>面談シフトジェネレーター</dc:creator>',
+      '  <cp:lastModifiedBy>面談シフトジェネレーター</cp:lastModifiedBy>',
+      '</cp:coreProperties>'
+    ].join("");
+
+    const files = [
+      { path: "[Content_Types].xml", data: contentTypesXml },
+      { path: "_rels/.rels", data: relsXml },
+      { path: "docProps/core.xml", data: coreXml },
+      { path: "docProps/app.xml", data: appXml },
+      { path: "xl/workbook.xml", data: workbookXml },
+      { path: "xl/_rels/workbook.xml.rels", data: workbookRelsXml },
+      { path: "xl/worksheets/sheet1.xml", data: sheetXml },
+      { path: "xl/styles.xml", data: stylesXml }
+    ];
+
+    return Promise.resolve(makeZip(files));
+  }
+
+  function render(schedule) {
+    const rows = schedule.rows;
+    const shiftsByName = schedule.shifts || {};
+    let html = "";
+    scheduleTitle.textContent = schedule.year + "年" + schedule.month + "月のセルフケアシフト";
+    html += "<table class='result'><thead><tr>";
+    html += "<th>日付</th><th>曜日</th><th>午前</th><th>午後</th>";
+    html += "</tr></thead><tbody>";
+
+    function formatSlot(slot, total, day) {
+      const parts = [];
+      Object.keys(slot.assigns).forEach(function(name){
+        if (slot.assigns[name].length === 0) return;
+        const cleanMentor = displayWithRemote(name, day, shiftsByName);
+        const cleanMembers = slot.assigns[name].map(function(n){ return displayWithRemote(n, day, shiftsByName); });
+        parts.push(cleanMentor + "：" + cleanMembers.join(", "));
+      });
+      if (parts.length === 0) {
+        if (total === 0) return "-";
+        return slot.note || "担当者に割り当てできません";
+      }
+      const assignedCount = Object.values(slot.assigns).reduce(function(sum, arr){ return sum + arr.length; }, 0);
+      if (assignedCount < total) parts.push("⚠ 未割り当てあり");
+      return parts.join("\n");
+    }
+
+    rows.forEach(function(r){
+      let cls = "";
+      if (r.weekday === "土") cls = "sat";
+      else if (r.weekday === "日") cls = "sun";
+      html += "<tr class='" + cls + "'>";
+      html += "<td>" + r.day + "</td>";
+      html += "<td>" + r.weekday + "</td>";
+      html += "<td class='slot'>" + formatSlot(r.am, r.amTotal, r.day) + "</td>";
+      html += "<td class='slot'>" + formatSlot(r.pm, r.pmTotal, r.day) + "</td>";
+      html += "</tr>";
+    });
+
+    html += "</tbody></table>";
+
+    // 希望が通らなかった人のリスト
+    if (schedule.unmetPrefs && schedule.unmetPrefs.length) {
+      html += "<div class='summary'><h3>希望メンターが不在で通常割り当てになった人</h3><ul>";
+      schedule.unmetPrefs.forEach(function(item){
+        const prefNames = item.preferred.map(displayName).join(", ");
+        html += "<li>" + displayName(item.person) + "：" + prefNames + "（" + item.day + "日 " + item.weekday + "曜 " + (item.slot || "") + "）</li>";
+      });
+      html += "</ul></div>";
+    }
+
+    html += "<div class='summary'><h3>担当回数（合計人数ベース）</h3><ul>";
+    Object.keys(schedule.realCount).sort(function(a, b){ return a.localeCompare(b, "ja"); }).forEach(function(name){
+      html += "<li>" + displayName(name) + "：" + schedule.realCount[name] + "人</li>";
+    });
+    html += "</ul></div>";
+
+    result.innerHTML = html;
+    latestSchedule = schedule;
+  }
+
+  refreshPrefsBtn.addEventListener("click", function(){
+    refreshPreferenceListFromGrid();
+  });
+  addMentorBtn.addEventListener("click", function(){
+    mentorAddError.textContent = "";
+    const name = newMentorNameInput.value.trim();
+    const selected = Array.from(newMentorAvailability.querySelectorAll("input[type='checkbox']"))
+      .filter(function(i){ return i.checked; })
+      .map(function(i){ return i.value; });
+    if (!name) {
+      mentorAddError.textContent = "支援員名を入力してください。";
+      return;
+    }
+    if (!selected.length) {
+      mentorAddError.textContent = "稼働する曜日・時間を選択してください。";
+      return;
+    }
+    if (nameExistsIn(fixedMentors, name)) {
+      mentorAddError.textContent = "この支援員名は既に登録されています。";
+      return;
+    }
+    const availability = {
+      "月": { am: false, pm: false },
+      "火": { am: false, pm: false },
+      "水": { am: false, pm: false },
+      "木": { am: false, pm: false },
+      "金": { am: false, pm: false }
+    };
+    if (selected.indexOf("平日毎日") !== -1) {
+      ["月","火","水","木","金"].forEach(function(d){
+        availability[d].am = true;
+        availability[d].pm = true;
+      });
+    } else {
+      const map = {
+        "月午前": ["月","am"], "月午後": ["月","pm"],
+        "火午前": ["火","am"], "火午後": ["火","pm"],
+        "水午前": ["水","am"], "水午後": ["水","pm"],
+        "木午前": ["木","am"], "木午後": ["木","pm"],
+        "金午前": ["金","am"], "金午後": ["金","pm"]
+      };
+      selected.forEach(function(key){
+        const hit = map[key];
+        if (!hit) return;
+        availability[hit[0]][hit[1]] = true;
+      });
+    }
+    const action = addOrUpdateCustomMentor(name, availability);
+    Object.keys(mentorAvailabilityByMonth).forEach(function(key){
+      ensureAvailabilityKeys(key);
+    });
+    saveCustomMentors();
+    saveAvailability();
+    renderMentorAvailability();
+    refreshPreferenceListFromGrid();
+    renderCustomMentorList();
+    newMentorNameInput.value = "";
+    newMentorAvailability.querySelectorAll("input[type='checkbox']").forEach(function(i){ i.checked = false; });
+    mentorAddError.textContent = (action === "更新") ? "既存の支援員の曜日を更新しました。" : "支援員を追加しました。";
+  });
+  customMentorList.addEventListener("click", function(e){
+    const btn = e.target;
+    if (!btn || btn.tagName !== "BUTTON") return;
+    const mentor = btn.dataset.mentor;
+    if (!mentor) return;
+    removeCustomMentor(mentor);
+    Object.keys(mentorAvailabilityByMonth).forEach(function(key){
+      if (mentorAvailabilityByMonth[key]) delete mentorAvailabilityByMonth[key][mentor];
+    });
+    saveCustomMentors();
+    saveAvailability();
+    renderMentorAvailability();
+    refreshPreferenceListFromGrid();
+    renderCustomMentorList();
+  });
+  customMentorList.addEventListener("change", function(e){
+    const input = e.target;
+    if (!input || input.tagName !== "INPUT") return;
+    const mentor = input.dataset.editMentor;
+    const day = input.dataset.day;
+    const slot = input.dataset.slot;
+    if (!mentor || !day || !slot) return;
+    const target = getCustomMentorByName(mentor);
+    if (!target) return;
+    if (!target.availability[day]) target.availability[day] = { am: false, pm: false };
+    if (slot === "am") target.availability[day].am = !!input.checked;
+    if (slot === "pm") target.availability[day].pm = !!input.checked;
+    saveCustomMentors();
+    renderMentorAvailability();
+    refreshPreferenceListFromGrid();
+  });
+  fixedMentorList.addEventListener("change", function(e){
+    const input = e.target;
+    if (!input || input.tagName !== "INPUT") return;
+    const mentor = input.dataset.fixedMentor;
+    const day = input.dataset.day;
+    const slot = input.dataset.slot;
+    if (!mentor || !day || !slot) return;
+    if (!fixedMentorAvailability[mentor]) fixedMentorAvailability[mentor] = {};
+    if (!fixedMentorAvailability[mentor][day]) fixedMentorAvailability[mentor][day] = { am: false, pm: false };
+    if (slot === "am") fixedMentorAvailability[mentor][day].am = !!input.checked;
+    if (slot === "pm") fixedMentorAvailability[mentor][day].pm = !!input.checked;
+    saveFixedAvailability();
+    renderMentorAvailability();
+    refreshPreferenceListFromGrid();
+  });
+  mentorAvailabilityList.addEventListener("change", function(e){
+    const input = e.target;
+    if (!input || input.tagName !== "INPUT") return;
+    const mentor = input.dataset.mentor;
+    if (!mentor) return;
+    const key = selectedMonthKey();
+    const availability = getMonthAvailability(key);
+    availability[mentor] = !!input.checked;
+    saveAvailability();
+    refreshPreferenceListFromGrid();
+  });
+  yearSelect.addEventListener("change", function(){
+    renderMentorAvailability();
+    refreshPreferenceListFromGrid();
+  });
+  monthSelect.addEventListener("change", function(){
+    renderMentorAvailability();
+    refreshPreferenceListFromGrid();
+  });
+  document.getElementById("generateBtn").addEventListener("click", function(){
+    triggerSparkle(this);
+    errorBox.textContent = "";
+    result.innerHTML = "";
+    scheduleTitle.textContent = "";
+    try {
+      const year = parseInt(yearSelect.value, 10);
+      const month = parseInt(monthSelect.value, 10);
+      preferenceSelections = collectPreferenceSelections();
+      preferenceWeight = 1;
+      const table = readGrid();
+      const att = convertGridToAttendance(table);
+      const schedule = buildSchedule(att, year, month, preferenceSelections, preferenceWeight);
+      render(schedule);
+      const weekdayMismatches = validateWeekdayRow(att, year, month);
+      if (weekdayMismatches.length) {
+        const samples = weekdayMismatches.slice(0, 5).map(function(item){
+          return item.day + "日(" + item.actual + "→" + item.expected + ")";
+        }).join(" / ");
+        errorBox.textContent = "曜日が一致しない日付があります。選択した年月が合っているか確認してください。例: " + samples;
+      }
+    } catch (e) {
+      errorBox.textContent = e.message || String(e);
+      latestSchedule = null;
+    }
+  });
+
+  exportCsvBtn.addEventListener("click", function(){
+    if (!latestSchedule) {
+      errorBox.textContent = "先に面談シフトを生成してください。";
+      return;
+    }
+    scheduleToXlsx(latestSchedule).then(function(blob){
+      const y = latestSchedule.year;
+      const m = latestSchedule.month;
+      const filename = "面談シフト_" + y + "年" + m + "月.xlsx";
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(function(){
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 0);
+    }).catch(function(err){
+      errorBox.textContent = "Excel出力でエラーが発生しました: " + (err && err.message ? err.message : err);
+    });
+  });
+  loadState();
+  renderMentorAvailability();
+  renderFixedMentorList();
+  renderCustomMentorList();
+
+  if (window.anime) {
+    anime({
+      targets: ".mentor-add-row",
+      opacity: [0, 1],
+      translateX: [-18, 0],
+      duration: 600,
+      easing: "easeOutQuad"
+    });
+    anime({
+      targets: "#newMentorAvailability",
+      opacity: [0, 1],
+      translateX: [-10, 0],
+      delay: 120,
+      duration: 600,
+      easing: "easeOutQuad"
+    });
+  }
+})();
+</script>
+</body>
+</html>
+
+
+
