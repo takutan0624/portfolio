@@ -723,10 +723,19 @@
             this.scene.background.setHex(settings.bg);
             this.scene.fog.color.setHex(settings.fog);
 
-            // Update lights
+            // Update lights with weather modifier
             this.sunLight.color.setHex(settings.sunColor);
-            this.sunLight.intensity = settings.sunIntensity;
-            this.ambientLight.intensity = settings.ambientIntensity;
+
+            let weatherModifier = 1.0;
+            if (this.weather === 'cloudy') weatherModifier = 0.7;
+            if (this.weather === 'rainy') weatherModifier = 0.6;
+
+            this.sunLight.intensity = settings.sunIntensity * weatherModifier;
+            this.ambientLight.intensity = settings.ambientIntensity * weatherModifier;
+
+            // Update fog density based on weather
+            const weatherSettings = WEATHER[this.weather];
+            this.scene.fog.density = weatherSettings.fogDensity;
 
             // Update UI
             document.getElementById('time-icon').textContent = settings.icon;
@@ -743,14 +752,16 @@
             // Show/hide rain
             this.rain.visible = (weather === 'rainy');
 
-            // Reset time of day to update lighting properly
-            this.setTimeOfDay(this.timeOfDay);
+            // Get base lighting from current time of day
+            const timeSettings = TIME_OF_DAY[this.timeOfDay];
 
-            // Adjust lighting for cloudy/rainy weather
-            if (weather === 'cloudy' || weather === 'rainy') {
-                this.sunLight.intensity *= 0.7;
-                this.ambientLight.intensity *= 0.8;
-            }
+            // Apply weather modifier to lighting
+            let weatherModifier = 1.0;
+            if (weather === 'cloudy') weatherModifier = 0.7;
+            if (weather === 'rainy') weatherModifier = 0.6;
+
+            this.sunLight.intensity = timeSettings.sunIntensity * weatherModifier;
+            this.ambientLight.intensity = timeSettings.ambientIntensity * weatherModifier;
 
             // Update UI
             document.getElementById('weather-icon').textContent = settings.icon;
