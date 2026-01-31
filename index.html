@@ -2192,16 +2192,56 @@
       animate();
     }
 
+    // 8の字カーブクラス（レムニスケート曲線）
+    class Figure8Curve extends THREE.Curve {
+      constructor(scale = 1) {
+        super();
+        this.scale = scale;
+      }
+
+      getPoint(t) {
+        const angle = t * Math.PI * 2;
+        const scale = this.scale;
+        const denominator = 1 + Math.pow(Math.sin(angle), 2);
+        const x = (scale * Math.cos(angle)) / denominator;
+        const y = (scale * Math.sin(angle) * Math.cos(angle)) / denominator;
+        const z = 0;
+        return new THREE.Vector3(x, y, z);
+      }
+    }
+
     function addGeometricShapes() {
+      // 8の字ドーナツを作成
+      const figure8Curve1 = new Figure8Curve(80);
+      const figure8Geo1 = new THREE.TubeGeometry(figure8Curve1, 100, 12, 16, false);
+
+      const figure8Curve2 = new Figure8Curve(60);
+      const figure8Geo2 = new THREE.TubeGeometry(figure8Curve2, 100, 10, 16, false);
+
+      const figure8Curve3 = new Figure8Curve(70);
+      const figure8Geo3 = new THREE.TubeGeometry(figure8Curve3, 100, 11, 16, false);
+
       const shapes = [
         { geo: new THREE.TorusGeometry(80, 25, 16, 100), pos: [-500, 250, -600], color: 0x00d4ff, name: 'torus1' },
         { geo: new THREE.TorusGeometry(60, 20, 16, 100), pos: [500, -200, -500], color: 0xc4a35a, name: 'torus2' },
+        { geo: new THREE.TorusGeometry(70, 22, 16, 100), pos: [0, 350, -550], color: 0xffffff, name: 'torus3' },
+        { geo: new THREE.TorusGeometry(55, 18, 16, 100), pos: [-450, -250, -520], color: 0x00d4ff, name: 'torus4' },
+        { geo: new THREE.TorusGeometry(65, 20, 16, 100), pos: [450, 150, -480], color: 0xc4a35a, name: 'torus5' },
+        // 8の字ドーナツ
+        { geo: figure8Geo1, pos: [150, -300, -580], color: 0x00d4ff, name: 'figure8_1' },
+        { geo: figure8Geo2, pos: [-350, 350, -420], color: 0xc4a35a, name: 'figure8_2' },
+        { geo: figure8Geo3, pos: [400, 100, -520], color: 0xffffff, name: 'figure8_3' },
         { geo: new THREE.IcosahedronGeometry(70, 0), pos: [400, 300, -400], color: 0x00d4ff, name: 'ico1' },
         { geo: new THREE.IcosahedronGeometry(50, 0), pos: [-400, -300, -450], color: 0xc4a35a, name: 'ico2' },
+        { geo: new THREE.IcosahedronGeometry(60, 0), pos: [0, -200, -420], color: 0xffffff, name: 'ico3' },
+        { geo: new THREE.IcosahedronGeometry(55, 0), pos: [-300, 200, -480], color: 0x00d4ff, name: 'ico4' },
         { geo: new THREE.OctahedronGeometry(50, 0), pos: [-200, 400, -350], color: 0xffffff, name: 'oct1' },
         { geo: new THREE.OctahedronGeometry(40, 0), pos: [300, -400, -400], color: 0x00d4ff, name: 'oct2' },
+        { geo: new THREE.OctahedronGeometry(45, 0), pos: [200, 100, -460], color: 0xc4a35a, name: 'oct3' },
         { geo: new THREE.TetrahedronGeometry(60, 0), pos: [0, -350, -500], color: 0xc4a35a, name: 'tetra1' },
+        { geo: new THREE.TetrahedronGeometry(50, 0), pos: [-250, 0, -420], color: 0xffffff, name: 'tetra2' },
         { geo: new THREE.DodecahedronGeometry(45, 0), pos: [-350, 100, -380], color: 0xffffff, name: 'dodeca1' },
+        { geo: new THREE.DodecahedronGeometry(40, 0), pos: [350, 50, -440], color: 0x00d4ff, name: 'dodeca2' },
       ];
       
       shapes.forEach(shape => {
