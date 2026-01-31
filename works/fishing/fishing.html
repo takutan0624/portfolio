@@ -327,12 +327,12 @@
             </div>
         </div>
 
-        <div id="trivia-overlay" class="interactive" style="position: absolute; inset: 0; background: rgba(2, 6, 23, 0.85); display: none; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(12px);">
-            <div id="trivia-modal" class="glass-panel" style="width: 400px; padding: 40px; text-align: center;">
+        <div id="trivia-overlay" class="interactive" style="position: fixed; inset: 0; background: rgba(2, 6, 23, 0.9); display: none; justify-content: center; align-items: center; z-index: 250; backdrop-filter: blur(12px);">
+            <div id="trivia-modal" class="glass-panel" style="max-width: 500px; width: 90%; padding: 40px; text-align: center;">
                 <div style="font-size: 60px; margin-bottom: 10px;" id="trivia-icon">🐟</div>
                 <h3 style="font-size: 24px; font-weight: 900; margin-bottom: 10px;" id="trivia-name">クロマグロ</h3>
-                <div style="font-size: 14px; line-height: 1.6; color: #cbd5e1; margin-bottom: 20px; text-align: left;" id="trivia-text">トリビアがここに表示されます。</div>
-                <button class="close-btn" id="close-trivia">閉じる</button>
+                <div style="font-size: 15px; line-height: 1.8; color: #cbd5e1; margin-bottom: 25px; text-align: left; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px;" id="trivia-text">トリビアがここに表示されます。</div>
+                <button class="close-btn" id="close-trivia" style="pointer-events: auto;">閉じる</button>
             </div>
         </div>
     </div>
