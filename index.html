@@ -180,31 +180,119 @@
 
     .loading-bar-container {
       width: 300px;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.1);
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
       border-radius: 100px;
-      overflow: hidden;
+      overflow: visible;
       margin: 0 auto 30px;
+      position: relative;
+      box-shadow:
+        inset 0 1px 3px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(0, 212, 255, 0.2);
     }
 
     .loading-bar-fill {
       width: 0%;
       height: 100%;
-      background: linear-gradient(90deg, var(--color-accent-cyan), var(--color-accent-warm));
+      /* 虹色のプリズムグラデーション */
+      background: linear-gradient(
+        90deg,
+        #ff0080 0%,
+        #ff0080 14%,
+        #ff8c00 28%,
+        #ffd700 42%,
+        #00ff00 56%,
+        #00d4ff 70%,
+        #8b00ff 85%,
+        #ff0080 100%
+      );
+      background-size: 200% 100%;
       border-radius: 100px;
       position: relative;
+      box-shadow:
+        0 0 10px rgba(0, 212, 255, 0.5),
+        0 0 20px rgba(255, 0, 128, 0.3),
+        0 0 30px rgba(139, 0, 255, 0.2);
+      will-change: width;
+      transition: width 0.1s linear;
     }
 
+    /* 幅が設定されている時のみアニメーション */
+    .loading-bar-fill[style*="width"] {
+      animation: prismaticFlow 3s linear infinite;
+    }
+
+    @keyframes prismaticFlow {
+      0% {
+        background-position: 0% 0%;
+        filter: hue-rotate(0deg) brightness(1.2);
+      }
+      50% {
+        background-position: -100% 0%;
+        filter: hue-rotate(30deg) brightness(1.4);
+      }
+      100% {
+        background-position: -200% 0%;
+        filter: hue-rotate(0deg) brightness(1.2);
+      }
+    }
+
+    /* プリズムの光の屈折効果 */
+    .loading-bar-fill::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.8) 50%,
+        transparent 100%
+      );
+      animation: prismRefraction 2s ease-in-out infinite;
+      border-radius: 100px;
+    }
+
+    @keyframes prismRefraction {
+      0%, 100% {
+        transform: translateX(-100%);
+        opacity: 0;
+      }
+      50% {
+        transform: translateX(100%);
+        opacity: 0.6;
+      }
+    }
+
+    /* 虹色のグロー */
     .loading-bar-fill::after {
       content: '';
       position: absolute;
-      top: 0;
-      right: 0;
-      width: 30px;
-      height: 100%;
-      background: white;
-      filter: blur(8px);
-      opacity: 0.8;
+      top: -2px;
+      right: -5px;
+      width: 40px;
+      height: calc(100% + 4px);
+      background: radial-gradient(
+        ellipse,
+        rgba(255, 255, 255, 0.9) 0%,
+        rgba(0, 212, 255, 0.6) 30%,
+        rgba(255, 0, 128, 0.4) 60%,
+        transparent 100%
+      );
+      filter: blur(10px);
+      opacity: 0.9;
+      animation: prismGlow 1.5s ease-in-out infinite;
+      border-radius: 50%;
+    }
+
+    @keyframes prismGlow {
+      0%, 100% {
+        opacity: 0.7;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.2);
+      }
     }
 
     .loading-text {
@@ -229,10 +317,30 @@
 
     .loading-particle {
       position: absolute;
-      width: 4px;
-      height: 4px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       opacity: 0;
+      box-shadow:
+        0 0 10px currentColor,
+        0 0 20px currentColor,
+        0 0 30px currentColor;
+      animation: rainbowPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes rainbowPulse {
+      0%, 100% {
+        filter: hue-rotate(0deg) brightness(1.2);
+      }
+      25% {
+        filter: hue-rotate(90deg) brightness(1.5);
+      }
+      50% {
+        filter: hue-rotate(180deg) brightness(1.8);
+      }
+      75% {
+        filter: hue-rotate(270deg) brightness(1.5);
+      }
     }
 
     /* ================================
@@ -2183,9 +2291,10 @@
       
       particleSystem = new THREE.Points(geometry, material);
       scene.add(particleSystem);
-      
+
       addGeometricShapes();
-      
+      addHeroPrisms();
+
       document.addEventListener('mousemove', onDocumentMouseMove);
       window.addEventListener('resize', onWindowResize);
       
@@ -2263,6 +2372,113 @@
       });
     }
 
+    function addHeroPrisms() {
+      // プリズム用のライトを追加
+      const prismLight1 = new THREE.PointLight(0xffffff, 2, 500);
+      prismLight1.position.set(-200, 100, 100);
+      scene.add(prismLight1);
+
+      const prismLight2 = new THREE.PointLight(0x00d4ff, 1.5, 500);
+      prismLight2.position.set(200, 100, 100);
+      scene.add(prismLight2);
+
+      // プリズム形状（三角柱）を作成
+      const prismShape = new THREE.Shape();
+      prismShape.moveTo(0, 30);
+      prismShape.lineTo(-25, -15);
+      prismShape.lineTo(25, -15);
+      prismShape.lineTo(0, 30);
+
+      const extrudeSettings = {
+        depth: 8,
+        bevelEnabled: true,
+        bevelThickness: 2,
+        bevelSize: 1,
+        bevelSegments: 3
+      };
+
+      const prismGeo = new THREE.ExtrudeGeometry(prismShape, extrudeSettings);
+
+      // 虹色のプリズムを3つ作成
+      const prisms = [
+        { pos: [-180, 80, -200], rotation: [0.3, 0.5, 0.2], scale: 1.2 },
+        { pos: [200, 60, -180], rotation: [-0.2, 0.8, 0.4], scale: 1.0 },
+        { pos: [-50, 120, -220], rotation: [0.5, -0.3, 0.6], scale: 0.8 }
+      ];
+
+      prisms.forEach((config, index) => {
+        // 虹色のグラデーションマテリアル（r128互換）
+        const rainbowColors = [0xff0080, 0xff8c00, 0x00d4ff, 0x8b00ff];
+        const prismColor = rainbowColors[index % rainbowColors.length];
+
+        const prismMaterial = new THREE.MeshPhongMaterial({
+          color: prismColor,
+          transparent: true,
+          opacity: 0.4,
+          shininess: 100,
+          specular: 0xffffff,
+          emissive: prismColor,
+          emissiveIntensity: 0.3,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending
+        });
+
+        const prism = new THREE.Mesh(prismGeo, prismMaterial);
+        prism.position.set(...config.pos);
+        prism.rotation.set(...config.rotation);
+        prism.scale.setScalar(config.scale);
+        prism.name = `prism_${index + 1}`;
+        prism.userData = {
+          rotationSpeed: { x: 0.002, y: 0.003, z: 0.001 },
+          floatOffset: Math.random() * Math.PI * 2,
+          floatAmplitude: 15
+        };
+
+        scene.add(prism);
+        geometricObjects.push(prism);
+      });
+
+      // 追加の虹色パーティクル効果
+      const particleCount = 50;
+      const particleGeo = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+      const colors = new Float32Array(particleCount * 3);
+
+      for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 400;
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 200 + 50;
+        positions[i * 3 + 2] = -200 + (Math.random() - 0.5) * 100;
+
+        // 虹色
+        const hue = Math.random();
+        const color = new THREE.Color().setHSL(hue, 1.0, 0.7);
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+      }
+
+      particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const particleMaterial = new THREE.PointsMaterial({
+        size: 3,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+      });
+
+      const particles = new THREE.Points(particleGeo, particleMaterial);
+      particles.name = 'rainbow_particles';
+      particles.userData = {
+        rotationSpeed: { x: 0.0005, y: 0.001, z: 0.0005 },
+        floatOffset: Math.random() * Math.PI * 2,
+        floatAmplitude: 10
+      };
+      scene.add(particles);
+      geometricObjects.push(particles);
+    }
+
     function onDocumentMouseMove(event) {
       targetMouseX = (event.clientX - windowHalfX);
       targetMouseY = (event.clientY - windowHalfY);
@@ -2289,12 +2505,16 @@
       const time = Date.now() * 0.001;
       
       geometricObjects.forEach(obj => {
-        obj.rotation.x += obj.userData.rotationSpeed.x;
-        obj.rotation.y += obj.userData.rotationSpeed.y;
-        obj.rotation.z += obj.userData.rotationSpeed.z;
-        
-        // Floating animation
-        obj.position.y += Math.sin(time + obj.userData.floatOffset) * 0.3;
+        // userDataが存在するオブジェクトのみアニメーション
+        if (obj.userData && obj.userData.rotationSpeed) {
+          obj.rotation.x += obj.userData.rotationSpeed.x;
+          obj.rotation.y += obj.userData.rotationSpeed.y;
+          obj.rotation.z += obj.userData.rotationSpeed.z;
+
+          // Floating animation
+          const amplitude = obj.userData.floatAmplitude || 20;
+          obj.position.y += Math.sin(time + obj.userData.floatOffset) * 0.3;
+        }
       });
       
       camera.position.x += (mouseX * 0.2 - camera.position.x) * 0.02;
@@ -2309,14 +2529,27 @@
     // ================================
     function createLoadingParticles() {
       const container = document.getElementById('loadingParticles');
-      const particleCount = 50;
-      
+      const particleCount = 70;
+
+      // 虹色のカラーパレット（プリズムの7色）
+      const rainbowColors = [
+        '#ff0080', // マゼンタ
+        '#ff8c00', // オレンジ
+        '#ffd700', // イエロー
+        '#00ff00', // グリーン
+        '#00d4ff', // シアン
+        '#0080ff', // ブルー
+        '#8b00ff'  // バイオレット
+      ];
+
       for (let i = 0; i < particleCount; i++) {
         const particle = document.createElement('div');
         particle.className = 'loading-particle';
         particle.style.left = Math.random() * 100 + '%';
         particle.style.top = Math.random() * 100 + '%';
-        particle.style.background = Math.random() > 0.5 ? 'var(--color-accent-cyan)' : 'var(--color-accent-warm)';
+        // ランダムに虹色を選択
+        particle.style.background = rainbowColors[Math.floor(Math.random() * rainbowColors.length)];
+        particle.style.animationDelay = Math.random() * 3 + 's';
         container.appendChild(particle);
       }
       
