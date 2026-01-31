@@ -416,7 +416,7 @@
             reel.rotation.z = Math.PI / 2;
             this.rodGroup.add(reel);
 
-            this.rodGroup.position.set(-5, 0, 6);
+            this.rodGroup.position.set(-3, 0, 6);
             this.rodGroup.rotation.set(0.3, 0.4, 0.15);
             this.rodGroup.scale.set(0.5, 0.5, 0.5); // 半分のサイズに縮小
             this.scene.add(this.rodGroup);
@@ -546,7 +546,7 @@
             this.btn.disabled = true;
             this.btnText.textContent = '待機中...';
             this.bobberData = {
-                start: new THREE.Vector3(-6, 6, 4),
+                start: new THREE.Vector3(-4, 6, 4),
                 target: new THREE.Vector3((Math.random()-0.5)*12, 0, -8 - (p*30)),
                 progress: 0
             };
@@ -569,7 +569,7 @@
                 }
             }
 
-            setTimeout(() => { if (this.state === GAME_STATE.WAITING) this.triggerBite(); }, 2000 + Math.random()*5000);
+            setTimeout(() => { if (this.state === GAME_STATE.WAITING) this.triggerBite(); }, 3000 + Math.random()*12000);
         }
 
         triggerBite() {
