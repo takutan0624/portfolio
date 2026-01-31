@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Twilight Fishing - Cinematic Edition</title>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --primary: #4cc9f0;
+            --secondary: #4361ee;
+            --accent: #f72585;
+            --gold: #f59e0b;
+            --bg-dark: #020617;
+            --glass: rgba(15, 23, 42, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-light: #f8fafc;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            height: 100%;
+            max-height: 700px;
+            background: #020617;
+            border-radius: 32px;
+            box-shadow: 0 0 80px rgba(0, 0, 0, 0.9);
+            overflow: hidden;
+            margin: 10px;
+            border: 1px solid var(--glass-border);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- UI OVERLAY --- */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Stats Panel */
+        #stats-bar {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            right: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 12px 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #94a3b8;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--primary);
+            text-shadow: 0 0 12px rgba(76, 201, 240, 0.4);
+        }
+
+        /* 改良された図鑑ボタン */
+        #book-btn {
+            height: 54px;
+            padding: 0 20px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #fbbf24, #d97706);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            pointer-events: auto;
+            color: #fff;
+            font-weight: 900;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(217, 119, 6, 0.4);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #book-btn:hover {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 6px 20px rgba(217, 119, 6, 0.5);
+        }
+
+        #book-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Controls */
+        #controls {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #power-meter {
+            width: 200px;
+            height: 8px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 10px;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #power-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            box-shadow: 0 0 15px var(--primary);
+        }
+
+        #action-btn {
+            width: 200px;
+            height: 64px;
+            border-radius: 32px;
+            border: none;
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            color: white;
+            font-size: 20px;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(67, 97, 238, 0.5);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            letter-spacing: 1px;
+        }
+
+        #action-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 35px rgba(67, 97, 238, 0.6);
+        }
+
+        #action-btn:active { transform: scale(0.95); }
+        #action-btn:disabled { background: #1e293b; opacity: 0.7; cursor: not-allowed; }
+
+        /* Catch Modal */
+        #modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        #catch-modal {
+            width: 340px;
+            padding: 40px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .modal-icon { font-size: 80px; margin-bottom: 10px; }
+        .modal-rarity {
+            display: inline-block;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 900;
+            margin-bottom: 15px;
+        }
+        .rarity-common { background: #475569; }
+        .rarity-uncommon { background: #16a34a; }
+        .rarity-rare { background: #2563eb; }
+        .rarity-epic { background: #9333ea; }
+        .rarity-legendary { background: #eab308; color: #000; box-shadow: 0 0 25px #eab308; }
+
+        .modal-title { font-size: 28px; font-weight: 900; margin-bottom: 5px; }
+        .modal-value { font-size: 22px; color: #fcd34d; margin-bottom: 25px; font-weight: 900; display: block; }
+        .close-btn { width: 100%; padding: 16px; border-radius: 12px; border: none; background: var(--primary); color: white; font-weight: 800; cursor: pointer; font-size: 16px; }
+
+        #collection-view { position: absolute; inset: 20px; background: rgba(15, 23, 42, 0.98); border-radius: 28px; padding: 30px; z-index: 200; display: none; flex-direction: column; border: 1px solid var(--glass-border); }
+        #collection-view.show { display: flex; }
+        .collection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; overflow-y: auto; padding: 10px; margin-top: 20px; }
+        .fish-card { background: rgba(255,255,255,0.05); border-radius: 20px; padding: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        .fish-card.locked { opacity: 0.2; }
+        .toast { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); padding: 12px 24px; background: var(--accent); border-radius: 10px; font-weight: 900; display: none; z-index: 50; box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
+        .shake { animation: shake 0.4s infinite; }
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(-4px, 2px); }
+            50% { transform: translate(4px, -2px); }
+            75% { transform: translate(-4px, -2px); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <div id="canvas-container" style="width: 100%; height: 100%;"></div>
+
+    <div class="overlay">
+        <div id="stats-bar">
+            <div class="glass-panel" style="display: flex; gap: 30px;">
+                <div class="stat-item">
+                    <span class="stat-label">所持金</span>
+                    <span class="stat-value">¥<span id="ui-money">0</span></span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">釣果</span>
+                    <span class="stat-value"><span id="ui-caught">0</span> 匹</span>
+                </div>
+            </div>
+            <div id="book-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                <span>図鑑</span>
+            </div>
+        </div>
+
+        <div id="toast" class="toast">逃げられた！</div>
+
+        <div id="controls" class="interactive">
+            <div id="power-meter"><div id="power-fill"></div></div>
+            <button id="action-btn"><span id="btn-text">投げる</span></button>
+        </div>
+
+        <div id="collection-view" class="interactive">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="font-size: 24px; font-weight: 900;">おさかな図鑑</h2>
+                <button id="close-collection" style="background:none; border:none; color:white; cursor:pointer; padding: 10px;">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="collection-grid" id="collection-grid"></div>
+        </div>
+
+        <div id="modal-overlay" class="interactive">
+            <div id="catch-modal" class="glass-panel">
+                <div class="modal-icon" id="res-icon">🐟</div>
+                <div class="modal-rarity rarity-rare" id="res-rarity">RARE</div>
+                <h3 class="modal-title" id="res-name">クロマグロ</h3>
+                <span class="modal-value" id="res-value">+¥500</span>
+                <button class="close-btn" id="close-modal">確認</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const FISH_DATA = [
+        { id: 1, name: 'アジ', icon: '🐟', rarity: 'common', value: 50, chance: 40, rarityJp: 'コモン' },
+        { id: 2, name: 'イワシ', icon: '🐟', rarity: 'common', value: 40, chance: 35, rarityJp: 'コモン' },
+        { id: 3, name: 'サバ', icon: '🐠', rarity: 'common', value: 60, chance: 30, rarityJp: 'コモン' },
+        { id: 4, name: 'マダイ', icon: '🐟', rarity: 'uncommon', value: 180, chance: 20, rarityJp: 'アンコモン' },
+        { id: 5, name: 'サケ', icon: '🍣', rarity: 'uncommon', value: 220, chance: 15, rarityJp: 'アンコモン' },
+        { id: 6, name: 'クロマグロ', icon: '🐟', rarity: 'rare', value: 800, chance: 8, rarityJp: 'レア' },
+        { id: 7, name: 'ハリセンボン', icon: '🐡', rarity: 'rare', value: 600, chance: 8, rarityJp: 'レア' },
+        { id: 8, name: 'カジキ', icon: '🗡️', rarity: 'epic', value: 2500, chance: 4, rarityJp: 'エピック' },
+        { id: 9, name: 'チョウチンアンコウ', icon: '🏮', rarity: 'epic', value: 3000, chance: 3, rarityJp: 'エピック' },
+        { id: 10, name: 'シーラカンス', icon: '🐉', rarity: 'legendary', value: 10000, chance: 1, rarityJp: 'レジェンダリー' }
+    ];
+
+    const GAME_STATE = { IDLE: 'idle', CHARGING: 'charging', FLYING: 'flying', WAITING: 'waiting', BITE: 'bite', REELING: 'reeling' };
+
+    class FishingExperience {
+        constructor() {
+            this.container = document.getElementById('canvas-container');
+            this.btn = document.getElementById('action-btn');
+            this.btnText = document.getElementById('btn-text');
+            this.powerMeter = document.getElementById('power-meter');
+            this.powerFill = document.getElementById('power-fill');
+            this.wrapper = document.getElementById('game-wrapper');
+
+            this.state = GAME_STATE.IDLE;
+            this.money = 0;
+            this.caughtCount = 0;
+            this.collection = new Set();
+            this.charge = 0;
+            this.mousePos = { x: 0, y: 0 };
+            
+            this.initThree();
+            this.initEvents();
+            this.animate();
+        }
+
+        initThree() {
+            this.scene = new THREE.Scene();
+            this.scene.background = new THREE.Color(0x020617);
+            this.scene.fog = new THREE.FogExp2(0x0a192f, 0.025);
+
+            this.camera = new THREE.PerspectiveCamera(60, this.container.clientWidth / this.container.clientHeight, 0.1, 1000);
+            this.camera.position.set(0, 5, 12);
+            this.camera.lookAt(0, 2, 0);
+
+            this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+            this.renderer.setPixelRatio(window.devicePixelRatio);
+            this.container.appendChild(this.renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0x4040ff, 0.6);
+            this.scene.add(ambientLight);
+            const sunLight = new THREE.DirectionalLight(0xffaa00, 1.0);
+            sunLight.position.set(10, 20, 10);
+            this.scene.add(sunLight);
+
+            const seaGeo = new THREE.PlaneGeometry(200, 200, 100, 100);
+            this.seaMat = new THREE.MeshPhongMaterial({ color: 0x0ea5e9, transparent: true, opacity: 0.8, shininess: 80, specular: 0xffffff });
+            this.sea = new THREE.Mesh(seaGeo, this.seaMat);
+            this.sea.rotation.x = -Math.PI / 2;
+            this.scene.add(this.sea);
+
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshBasicMaterial({ color: 0x040d1a }));
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -10;
+            this.scene.add(floor);
+
+            // 3D Rod（改善版）
+            this.rodGroup = new THREE.Group();
+
+            // ハンドル（グリップ部分）- より太く、明るく
+            const rodHandleGeo = new THREE.CylinderGeometry(0.15, 0.18, 2, 12);
+            const handleMat = new THREE.MeshPhongMaterial({
+                color: 0x8B4513,
+                shininess: 30,
+                specular: 0x222222
+            });
+            const handle = new THREE.Mesh(rodHandleGeo, handleMat);
+            handle.position.y = 1;
+            this.rodGroup.add(handle);
+
+            // 竿の本体（メインロッド）- より太く、目立つ色
+            const mainRodGeo = new THREE.CylinderGeometry(0.08, 0.15, 4, 12);
+            const mainRodMat = new THREE.MeshPhongMaterial({
+                color: 0xCD853F,
+                shininess: 50,
+                specular: 0x444444
+            });
+            const mainRod = new THREE.Mesh(mainRodGeo, mainRodMat);
+            mainRod.position.y = 4;
+            this.rodGroup.add(mainRod);
+
+            // 竿の先端部分 - 細く、しなやかに
+            const tipGeo = new THREE.CylinderGeometry(0.03, 0.08, 3, 12);
+            const tipMat = new THREE.MeshPhongMaterial({
+                color: 0xD2691E,
+                shininess: 60,
+                specular: 0x666666
+            });
+            const tip = new THREE.Mesh(tipGeo, tipMat);
+            tip.position.y = 7.5;
+            this.rodGroup.add(tip);
+
+            // リールの装飾
+            const reelGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.3, 16);
+            const reelMat = new THREE.MeshPhongMaterial({
+                color: 0x696969,
+                metalness: 0.8,
+                shininess: 100,
+                specular: 0xaaaaaa
+            });
+            const reel = new THREE.Mesh(reelGeo, reelMat);
+            reel.position.y = 2;
+            reel.rotation.z = Math.PI / 2;
+            this.rodGroup.add(reel);
+
+            this.rodGroup.position.set(-5, 0, 6);
+            this.rodGroup.rotation.set(0.3, 0.4, 0.15);
+            this.rodGroup.scale.set(0.5, 0.5, 0.5); // 半分のサイズに縮小
+            this.scene.add(this.rodGroup);
+
+            this.bobberMesh = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), new THREE.MeshPhongMaterial({ color: 0x4cc9f0, emissive: 0x4cc9f0, emissiveIntensity: 0.4 }));
+            this.bobberMesh.visible = false;
+            this.scene.add(this.bobberMesh);
+
+            this.fishingLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 }));
+            this.fishingLine.visible = false;
+            this.scene.add(this.fishingLine);
+
+            // 3D Fish Mesh
+            this.fishGroup = new THREE.Group();
+            const fishBodyGeo = new THREE.SphereGeometry(0.4, 16, 12);
+            fishBodyGeo.scale(1.5, 0.8, 0.8);
+            const fishMat = new THREE.MeshPhongMaterial({ color: 0x4fc3f7, shininess: 80, specular: 0xffffff });
+            const fishBody = new THREE.Mesh(fishBodyGeo, fishMat);
+            this.fishGroup.add(fishBody);
+
+            const tailGeo = new THREE.ConeGeometry(0.3, 0.5, 8);
+            tailGeo.rotateZ(Math.PI / 2);
+            const tail = new THREE.Mesh(tailGeo, fishMat);
+            tail.position.set(-0.6, 0, 0);
+            this.fishGroup.add(tail);
+
+            const finGeo = new THREE.ConeGeometry(0.15, 0.3, 6);
+            finGeo.rotateZ(Math.PI / 2);
+            const topFin = new THREE.Mesh(finGeo, new THREE.MeshPhongMaterial({ color: 0x0288d1 }));
+            topFin.position.set(0.1, 0.4, 0);
+            topFin.rotation.z = -Math.PI / 2;
+            this.fishGroup.add(topFin);
+
+            const eyeGeo = new THREE.SphereGeometry(0.08, 8, 8);
+            const eyeMat = new THREE.MeshPhongMaterial({ color: 0x000000 });
+            const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye1.position.set(0.4, 0.15, 0.2);
+            this.fishGroup.add(eye1);
+            const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye2.position.set(0.4, 0.15, -0.2);
+            this.fishGroup.add(eye2);
+
+            this.fishGroup.visible = false;
+            this.scene.add(this.fishGroup);
+
+            const pCount = 800;
+            const pGeo = new THREE.BufferGeometry();
+            const pPos = new Float32Array(pCount * 3);
+            for(let i=0; i<pCount*3; i++) pPos[i] = (Math.random()-0.5)*80;
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+            this.bubbles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.04, transparent: true, opacity: 0.3 }));
+            this.scene.add(this.bubbles);
+
+            window.addEventListener('resize', () => {
+                this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+            });
+        }
+
+        initEvents() {
+            const down = () => {
+                if (this.state === GAME_STATE.IDLE) this.startCharge();
+                else if (this.state === GAME_STATE.BITE) this.catch();
+            };
+            const up = () => { if (this.state === GAME_STATE.CHARGING) this.cast(); };
+
+            this.btn.addEventListener('mousedown', down);
+            window.addEventListener('mouseup', up);
+            this.btn.addEventListener('touchstart', (e) => { e.preventDefault(); down(); });
+            window.addEventListener('touchend', up);
+
+            this.container.addEventListener('mousemove', (e) => {
+                const r = this.container.getBoundingClientRect();
+                this.mousePos.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+                this.mousePos.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+            });
+
+            document.getElementById('close-modal').onclick = () => document.getElementById('modal-overlay').style.display = 'none';
+            document.getElementById('book-btn').onclick = () => this.toggleCollection(true);
+            document.getElementById('close-collection').onclick = () => this.toggleCollection(false);
+        }
+
+        startCharge() {
+            this.state = GAME_STATE.CHARGING;
+            this.charge = 0;
+            this.powerMeter.style.opacity = '1';
+            this.btnText.textContent = '力をためる...';
+        }
+
+        cast() {
+            const p = this.charge / 100;
+            this.state = GAME_STATE.FLYING;
+            this.powerMeter.style.opacity = '0';
+            this.btn.disabled = true;
+            this.btnText.textContent = '待機中...';
+            this.bobberData = {
+                start: new THREE.Vector3(-6, 6, 4),
+                target: new THREE.Vector3((Math.random()-0.5)*12, 0, -8 - (p*30)),
+                progress: 0
+            };
+            this.bobberMesh.visible = true;
+            this.fishingLine.visible = true;
+        }
+
+        startWaiting() {
+            this.state = GAME_STATE.WAITING;
+            setTimeout(() => { if (this.state === GAME_STATE.WAITING) this.triggerBite(); }, 2000 + Math.random()*5000);
+        }
+
+        triggerBite() {
+            this.state = GAME_STATE.BITE;
+            this.startTime = Date.now();
+            this.btn.disabled = false;
+            this.btnText.textContent = 'ヒット！！';
+            this.btn.style.background = 'linear-gradient(135deg, var(--accent), #ff0055)';
+            this.wrapper.classList.add('shake');
+            this.bobberMesh.material.color.set(0xf72585);
+            this.biteTimeout = setTimeout(() => { if (this.state === GAME_STATE.BITE) this.miss(); }, 1200);
+        }
+
+        miss() {
+            this.wrapper.classList.remove('shake');
+            this.state = GAME_STATE.IDLE;
+            this.reset();
+            this.showToast('逃げられた！');
+        }
+
+        catch() {
+            clearTimeout(this.biteTimeout);
+            this.wrapper.classList.remove('shake');
+            this.state = GAME_STATE.REELING;
+            this.btn.disabled = true;
+            this.btnText.textContent = 'リールを巻く';
+            const bonus = Math.max(0, (1200 - (Date.now() - this.startTime)) / 1200);
+
+            // Show fish jumping
+            this.fishGroup.visible = true;
+            this.fishGroup.position.copy(this.bobberMesh.position);
+            this.fishJumpData = {
+                startTime: Date.now(),
+                duration: 800,
+                startY: this.bobberMesh.position.y,
+                jumpHeight: 3
+            };
+
+            setTimeout(() => {
+                const f = this.selectFish(bonus);
+                this.showResult(f);
+                this.money += f.value; this.caughtCount++; this.collection.add(f.id);
+                this.updateUI(); this.state = GAME_STATE.IDLE; this.reset();
+            }, 800);
+        }
+
+        selectFish(luck) {
+            const p = FISH_DATA.map(f => ({ ...f, w: f.chance * (1 + luck * (f.rarity === 'legendary' ? 10 : 2)) }));
+            const t = p.reduce((s, f) => s + f.w, 0);
+            let r = Math.random() * t;
+            for(const f of p) { if(r < f.w) return f; r -= f.w; }
+            return p[0];
+        }
+
+        reset() {
+            this.btn.disabled = false; this.btnText.textContent = '投げる'; this.btn.style.background = '';
+            this.bobberMesh.visible = false; this.fishingLine.visible = false;
+            this.bobberMesh.material.color.set(0x4cc9f0);
+            this.fishGroup.visible = false;
+        }
+
+        showResult(f) {
+            document.getElementById('res-icon').textContent = f.icon;
+            document.getElementById('res-name').textContent = f.name;
+            document.getElementById('res-value').textContent = `+¥${f.value.toLocaleString()}`;
+            const rarityEl = document.getElementById('res-rarity');
+            rarityEl.className = `modal-rarity rarity-${f.rarity}`;
+            rarityEl.textContent = f.rarityJp;
+            document.getElementById('modal-overlay').style.display = 'flex';
+        }
+
+        updateUI() { document.getElementById('ui-money').textContent = this.money.toLocaleString(); document.getElementById('ui-caught').textContent = this.caughtCount; }
+
+        toggleCollection(s) {
+            const v = document.getElementById('collection-view');
+            if (s) {
+                const g = document.getElementById('collection-grid'); g.innerHTML = '';
+                FISH_DATA.forEach(f => {
+                    const found = this.collection.has(f.id);
+                    const c = document.createElement('div'); c.className = `fish-card ${found?'found':'locked'}`;
+                    c.innerHTML = `<div style="font-size:40px;">${found?f.icon:'？'}</div><div style="font-size:14px; font-weight:900; margin-top:8px;">${found?f.name:'未発見'}</div><div style="font-size:10px; opacity:0.6; margin-top:4px;">${f.rarityJp}</div>`;
+                    g.appendChild(c);
+                });
+                v.style.display = 'flex'; setTimeout(() => v.classList.add('show'), 10);
+            } else { v.classList.remove('show'); setTimeout(() => v.style.display = 'none', 300); }
+        }
+
+        showToast(m) { const t = document.getElementById('toast'); t.textContent = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 2000); }
+
+        animate() {
+            const t = Date.now() * 0.001;
+            this.camera.position.x += (this.mousePos.x * 3 - this.camera.position.x) * 0.05;
+            this.camera.lookAt(0, 1, -5);
+
+            const v = this.sea.geometry.attributes.position.array;
+            for(let i=0; i<v.length; i+=3) { v[i+2] = Math.sin(v[i]*0.15 + t)*0.4 + Math.cos(v[i+1]*0.15 + t)*0.4; }
+            this.sea.geometry.attributes.position.needsUpdate = true;
+            this.bubbles.position.y += 0.01; if(this.bubbles.position.y > 5) this.bubbles.position.y = -5;
+
+            if (this.state === GAME_STATE.CHARGING) { this.charge = (this.charge + 2.0) % 100; this.powerFill.style.width = `${this.charge}%`; }
+            
+            if (this.bobberMesh.visible) {
+                if (this.state === GAME_STATE.FLYING && this.bobberData) {
+                    this.bobberData.progress += 0.035; const p = this.bobberData.progress;
+                    this.bobberMesh.position.lerpVectors(this.bobberData.start, this.bobberData.target, p);
+                    this.bobberMesh.position.y += Math.sin(p * Math.PI) * 5;
+                    if (p >= 1) { this.state = GAME_STATE.WAITING; this.startWaiting(); }
+                    this.rodGroup.rotation.x = 0.6 - Math.sin(p*Math.PI)*0.4;
+                } else {
+                    this.bobberMesh.position.y = Math.sin(t*4)*0.15;
+                    if(this.state === GAME_STATE.BITE) this.bobberMesh.position.y += Math.sin(t*30)*0.5;
+                }
+                const rodTip = new THREE.Vector3().setFromMatrixPosition(this.rodGroup.children[2].matrixWorld);
+                this.fishingLine.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([rodTip.x, rodTip.y, rodTip.z, this.bobberMesh.position.x, this.bobberMesh.position.y, this.bobberMesh.position.z]), 3));
+            } else {
+                this.rodGroup.rotation.x = 0.6 + Math.sin(t)*0.02;
+            }
+
+            // Animate jumping fish
+            if (this.fishGroup.visible && this.fishJumpData) {
+                const elapsed = Date.now() - this.fishJumpData.startTime;
+                const progress = Math.min(elapsed / this.fishJumpData.duration, 1);
+                const jumpArc = Math.sin(progress * Math.PI);
+                this.fishGroup.position.y = this.fishJumpData.startY + jumpArc * this.fishJumpData.jumpHeight;
+                this.fishGroup.rotation.y = t * 5;
+                this.fishGroup.rotation.x = Math.sin(progress * Math.PI * 2) * 0.5;
+                if (progress >= 1) this.fishJumpData = null;
+            }
+
+            this.renderer.render(this.scene, this.camera);
+            requestAnimationFrame(() => this.animate());
+        }
+    }
+    window.onload = () => new FishingExperience();
+</script>
+</body>
+</html>
