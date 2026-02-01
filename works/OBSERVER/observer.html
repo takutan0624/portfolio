@@ -1,3 +1,11 @@
+<!--
+    PROJECT OBSERVER v0.5.1 [Portfolio Edition]
+    =========================================
+    Fixes:
+    - Auto-select available model via models.list (prevents 404 model-not-found)
+    - Use REST field names (camelCase) for structured JSON output
+    - Harden XSS: remove innerHTML usage for dynamic log header
+-->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -33,7 +41,6 @@
       background-size: 30px 30px;
     }
 
-    /* --- CRT & NOISE EFFECTS --- */
     .crt-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       pointer-events: none; z-index: 999;
@@ -52,24 +59,21 @@
     }
     @keyframes scanline { 0% { bottom: 100%; } 100% { bottom: -100%; } }
 
-    /* --- BOOT SEQUENCE --- */
     #boot-screen {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: #000; z-index: 1000;
       padding: 40px;
       display: flex; flex-direction: column; justify-content: center; align-items: center;
       font-size: 1rem;
-      transition: opacity 0.8s ease;
     }
     #boot-log {
       font-family: var(--font-main);
-      width: 100%; max-width: 720px;
+      width: 100%; max-width: 600px;
       color: var(--main-color);
     }
     .boot-line { margin-bottom: 5px; opacity: 0; }
     .boot-highlight { color: var(--alert-color); }
 
-    /* --- LAYOUT --- */
     .app-container {
       display: grid;
       grid-template-columns: 300px 1fr;
@@ -78,23 +82,20 @@
       padding: 20px;
       gap: 15px;
       opacity: 0;
-      transition: opacity 1.2s ease;
+      transition: opacity 2s;
       position: relative;
     }
 
-    /* Corner Brackets Decoration */
     .deco-bracket {
       position: absolute; width: 20px; height: 20px;
       border: 2px solid var(--main-color);
       transition: all 0.3s;
-      pointer-events: none;
     }
     .tl { top: 10px; left: 10px; border-right: none; border-bottom: none; }
     .tr { top: 10px; right: 10px; border-left: none; border-bottom: none; }
     .bl { bottom: 10px; left: 10px; border-right: none; border-top: none; }
     .br { bottom: 10px; right: 10px; border-left: none; border-top: none; }
 
-    /* Header */
     header {
       grid-column: 1 / -1;
       border-bottom: 1px solid var(--main-color);
@@ -119,40 +120,30 @@
     .blink { animation: blink 2s infinite; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-    /* Sidebar */
     .sidebar {
       grid-row: 2 / -1;
       border: 1px solid var(--sub-color);
       padding: 20px;
-      display: flex; flex-direction: column; gap: 18px;
+      display: flex; flex-direction: column; gap: 25px;
       background: rgba(0, 0, 0, 0.4);
       position: relative;
-      min-height: 0;
     }
-    .sidebar::before { content: "MONITORING..."; position: absolute; top: -10px; left: 10px; background: var(--bg-color); font-size: 0.7rem; padding: 0 5px; color: var(--main-color); }
+    .sidebar::before {
+      content: "MONITORING...";
+      position: absolute; top: -10px; left: 10px;
+      background: var(--bg-color); font-size: 0.7rem; padding: 0 5px; color: var(--main-color);
+    }
 
-    .stat-circle-container {
-      display: flex; justify-content: space-around; gap: 10px;
-    }
+    .stat-circle-container { display: flex; justify-content: space-around; }
     .stat-box { text-align: center; }
     .stat-label { font-size: 0.7rem; color: var(--sub-color); margin-bottom: 5px; }
     .stat-val { font-size: 1.5rem; color: var(--alert-color); border: 1px solid var(--sub-color); padding: 5px 10px; display: inline-block; min-width: 60px; }
 
-    /* Heatmap */
-    .heatmap-grid {
-      display: flex; flex-wrap: wrap; gap: 2px;
-      justify-content: center;
-      align-content: flex-start;
-      min-height: 0;
-    }
-    .heat-cell {
-      width: 12px; height: 12px; background: #0a1a10;
-      border: 1px solid #1a3a2a;
-    }
+    .heatmap-grid { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; }
+    .heat-cell { width: 12px; height: 12px; background: #0a1a10; border: 1px solid #1a3a2a; }
     .heat-cell.active { background: var(--main-color); box-shadow: 0 0 5px var(--main-color); }
     .heat-cell.super { background: var(--alert-color); box-shadow: 0 0 8px var(--alert-color); }
 
-    /* Main Log */
     .main-log {
       grid-column: 2; grid-row: 2;
       border-left: 1px solid var(--sub-color);
@@ -160,23 +151,18 @@
       overflow-y: auto;
       display: flex; flex-direction: column; gap: 10px;
       font-size: 0.9rem;
-      min-height: 0;
     }
     .log-entry {
       display: grid; grid-template-columns: 80px 1fr;
       border-bottom: 1px dotted var(--sub-color);
       padding-bottom: 10px;
-      animation: fadeIn 0.35s ease;
-      gap: 10px;
+      animation: fadeIn 0.5s;
     }
-    .log-time { color: var(--sub-color); font-size: 0.8rem; line-height: 1.2; }
-
-    .log-sys-msg { color: var(--main-color); font-weight: bold; margin-bottom: 4px; white-space: pre-wrap; }
-    .log-user-txt { color: #888; font-size: 0.8rem; font-style: italic; white-space: pre-wrap; }
-
+    .log-time { color: var(--sub-color); font-size: 0.8rem; }
+    .log-sys-msg { color: var(--main-color); font-weight: bold; margin-bottom: 4px; }
+    .log-user-txt { color: #888; font-size: 0.8rem; font-style: italic; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Input */
     .input-area {
       grid-column: 2; grid-row: 3;
       border: 1px solid var(--main-color);
@@ -196,44 +182,25 @@
       color: var(--main-color); font-family: var(--font-main); font-size: 1rem;
       resize: none; height: 50px;
     }
-
     button {
       background: var(--main-color); color: #000; border: none;
       padding: 0 20px; height: 50px;
       font-weight: bold; cursor: pointer;
       clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
       transition: all 0.2s;
-      user-select: none;
     }
     button:hover { background: #fff; box-shadow: 0 0 15px var(--main-color); }
     button:disabled { background: var(--sub-color); color: #888; cursor: not-allowed; }
 
-    .tiny-btn {
-      height: 30px;
-      font-size: 0.7rem;
-      background: transparent;
-      color: var(--sub-color);
-      border: 1px solid var(--sub-color);
-      clip-path: none;
-      padding: 0 10px;
-    }
-    .tiny-btn:hover {
-      background: rgba(94, 255, 206, 0.08);
-      box-shadow: 0 0 12px rgba(94, 255, 206, 0.25);
-    }
-
-    /* Mobile */
     @media (max-width: 768px) {
-      body { overflow: hidden; }
-      .app-container { grid-template-columns: 1fr; grid-template-rows: 60px 110px 1fr 80px; }
-      .sidebar { grid-row: 2; flex-direction: row; align-items: center; padding: 10px; overflow-x: auto; }
+      .app-container { grid-template-columns: 1fr; grid-template-rows: 60px 100px 1fr 80px; }
+      .sidebar { grid-row: 2; flex-direction: row; align-items: center; padding: 10px; }
       .stat-circle-container { gap: 10px; }
       .heatmap-grid { display: none; }
-      .main-log { grid-column: 1; grid-row: 3; border-left: none; padding: 0 10px; }
+      .main-log { grid-column: 1; grid-row: 3; border-left: none; }
       .input-area { grid-column: 1; grid-row: 4; }
     }
 
-    /* Modal */
     #settings-modal {
       display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
       width: 90%; max-width: 520px;
@@ -242,38 +209,25 @@
       box-shadow: 0 0 50px rgba(255, 157, 0, 0.2);
     }
     .modal-header { color: var(--alert-color); border-bottom: 1px solid var(--alert-color); margin-bottom: 20px; padding-bottom: 5px; }
-    .muted { color: #9aa; font-size: 0.78rem; line-height: 1.4; }
-
-    .field {
+    .modal-row { margin-top: 12px; }
+    .small { font-size: 0.75rem; color: var(--sub-color); line-height: 1.4; }
+    .input {
       width: 100%;
       background: #111;
       border: 1px solid var(--main-color);
       color: var(--main-color);
       padding: 10px;
-      margin-bottom: 12px;
-      font-family: var(--font-main);
-      outline: none;
+      margin-top: 8px;
     }
-
-    .row { display:flex; gap:10px; align-items:center; justify-content: space-between; flex-wrap: wrap; }
+    select.input { appearance: none; }
     .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      border: 1px solid rgba(94, 255, 206, 0.35);
-      background: rgba(0, 20, 10, 0.35);
-      color: var(--main-color);
-      font-size: 0.7rem;
-      padding: 6px 10px;
+      display: inline-block;
+      border: 1px solid var(--sub-color);
+      padding: 2px 8px;
+      font-size: 0.75rem;
+      color: var(--sub-color);
+      margin-left: 8px;
     }
-
-    .danger {
-      border-color: rgba(255, 157, 0, 0.6);
-      color: var(--alert-color);
-      background: rgba(255, 157, 0, 0.06);
-    }
-
-    .divider { height: 1px; background: rgba(94, 255, 206, 0.15); margin: 14px 0; }
   </style>
 </head>
 <body>
@@ -287,7 +241,6 @@
 
   <!-- MAIN APP -->
   <div class="app-container" id="app">
-    <!-- Decoration -->
     <div class="deco-bracket tl"></div>
     <div class="deco-bracket tr"></div>
     <div class="deco-bracket bl"></div>
@@ -300,7 +253,8 @@
       </div>
       <div class="sys-info">
         <div id="conn-status" class="blink">OFFLINE MODE</div>
-        <div style="cursor:pointer; text-decoration:underline;" id="config-btn">[CONFIG]</div>
+        <div id="model-badge" class="pill" style="display:none;"></div>
+        <div style="cursor:pointer; text-decoration:underline;" onclick="openSettings()">[CONFIG]</div>
       </div>
     </header>
 
@@ -320,74 +274,74 @@
         </div>
       </div>
 
-      <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:flex-start; gap:8px; min-height:0;">
-        <div class="stat-label">ACTIVITY TRACE (LAST 42D)</div>
+      <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:center;">
+        <div class="stat-label">ACTIVITY TRACE</div>
         <div class="heatmap-grid" id="heatmap"></div>
-        <div class="muted">Tip: 1 log = active, 4+ logs = super.</div>
       </div>
 
-      <div class="row">
-        <button class="tiny-btn" id="purge-logs-btn" title="Remove logs & stats">PURGE MEMORY</button>
-        <button class="tiny-btn" id="purge-key-btn" title="Remove stored API Key">PURGE KEY</button>
-      </div>
+      <button onclick="resetData()" style="height:30px; font-size:0.7rem; background:transparent; color:var(--sub-color); border:1px solid var(--sub-color);">
+        PURGE MEMORY
+      </button>
     </aside>
 
     <main class="main-log" id="log-container"></main>
 
     <div class="input-area">
       <textarea id="input-text" placeholder="GHOST DUBBING IN PROGRESS..."></textarea>
-      <button id="send-btn">SEND</button>
+      <button id="send-btn" onclick="commitLog()">SEND</button>
     </div>
   </div>
 
   <!-- SETTINGS -->
-  <div id="settings-modal" role="dialog" aria-modal="true" aria-label="Secure connection setup">
+  <div id="settings-modal">
     <div class="modal-header">SECURE CONNECTION SETUP</div>
 
-    <p class="muted" style="margin-bottom:12px;">
-      [SECURITY NOTICE] This system uses a BYOK (Bring Your Own Key) architecture.<br>
-      Your Gemini API Key is stored only in your browser storage (Local/Session).<br>
-      It is sent directly to Google's endpoint.
+    <p class="small" style="margin-bottom:10px; color:var(--main-color);">
+      [SECURITY NOTICE] BYOK (Bring Your Own Key). Key is stored ONLY in LocalStorage.
+      It is sent directly to Google's endpoint and nowhere else.
     </p>
 
-    <div class="row" style="margin-bottom:10px;">
-      <div class="pill">MODE: <span id="mode-pill">LOCAL ONLY</span></div>
-      <label class="pill danger" style="cursor:pointer;">
-        <input type="checkbox" id="remember-key" style="accent-color: var(--alert-color);" />
-        Remember key (LocalStorage)
-      </label>
+    <div class="modal-row">
+      <div class="small">Gemini API Key</div>
+      <input type="password" id="api-key-input" class="input" placeholder="Paste your Gemini API Key here..." autocomplete="off" />
+      <div class="small" style="margin-top:8px;">
+        TIP: キーを入れたあと「REFRESH MODELS」であなたのキーで使えるモデル一覧を取得します。
+      </div>
     </div>
 
-    <input type="password" id="api-key-input" class="field" placeholder="Paste your Gemini API Key here..." autocomplete="off" />
-
-    <div class="muted">
-      Recommended if you publish this page: do NOT remember key; use Session-only.
+    <div class="modal-row">
+      <div class="small">Model (auto-detected)</div>
+      <select id="model-select" class="input">
+        <option value="">(refresh to load models)</option>
+      </select>
+      <div class="small" style="margin-top:8px;">
+        404が出る場合、ここに出てくるモデル以外は使えません（キーごとに異なります）。
+      </div>
     </div>
 
-    <div class="divider"></div>
-
-    <div class="row" style="justify-content:flex-end;">
-      <button id="cancel-btn" style="background:transparent; color:var(--main-color); border:1px solid var(--main-color);">CANCEL</button>
-      <button id="save-btn">ESTABLISH LINK</button>
+    <div class="modal-row" style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+      <button onclick="closeSettings()" style="background:transparent; color:var(--main-color); border:1px solid var(--main-color);">CANCEL</button>
+      <button onclick="refreshModelsFromModal()" style="background:transparent; color:var(--alert-color); border:1px solid var(--alert-color);">REFRESH MODELS</button>
+      <button onclick="saveSettings()">ESTABLISH LINK</button>
     </div>
+
+    <div class="modal-row small" id="settings-status" style="margin-top:14px; color:var(--sub-color);"></div>
   </div>
 
   <script>
-    // =========================================================
-    // PROJECT OBSERVER v0.5.1
-    // - Fix: remove unsafe innerHTML in log rendering
-    // - Fix: Gemini JSON mode field names (responseMimeType)
-    // - Hardening: stat normalization, schema guard, parse fallback
-    // - Heatmap: map last 42 days
-    // - Key storage: Session default + optional Remember(Local)
-    // =========================================================
-
     // --- CONSTANTS ---
     const STORAGE_KEY = 'observer_gits_data';
     const API_KEY_KEY = 'observer_api_key';
-    const API_KEY_SCOPE_KEY = 'observer_api_key_scope'; // 'local' or 'session'
+    const MODEL_KEY = 'observer_model';
+    const MODELS_CACHE_KEY = 'observer_models_cache';
 
-    const MAX_LOGS = 500;
+    // Prefer "flash" for speed/cost. We won't hardcode a specific version as availability differs by key.
+    const MODEL_PREFERENCE = [
+      /flash/i,
+      /2\.5/i,
+      /2\.0/i,
+      /pro/i
+    ];
 
     let state = {
       stats: { vit: 0, int: 0, mnd: 0 },
@@ -396,6 +350,7 @@
     };
 
     let apiKey = "";
+    let selectedModel = ""; // normalized model id, e.g. "gemini-2.0-flash" or full "models/gemini-2.0-flash"
 
     // --- BOOT SEQUENCE ---
     const bootMessages = [
@@ -414,12 +369,12 @@
       const log = document.getElementById('boot-log');
 
       const fastBoot = localStorage.getItem(STORAGE_KEY) !== null;
-      const delay = fastBoot ? 45 : 260;
+      const delay = fastBoot ? 50 : 400;
 
-      for (const msg of bootMessages) {
+      for (let msg of bootMessages) {
         const div = document.createElement('div');
         div.className = 'boot-line';
-        // Boot is internal constant strings only.
+        // constant strings only (no user input)
         div.innerHTML = `> ${msg}`;
         log.appendChild(div);
 
@@ -427,85 +382,83 @@
         await new Promise(r => setTimeout(r, delay));
       }
 
-      await new Promise(r => setTimeout(r, fastBoot ? 180 : 420));
+      await new Promise(r => setTimeout(r, fastBoot ? 200 : 600));
       screen.style.opacity = 0;
       setTimeout(() => {
         screen.style.display = 'none';
         document.getElementById('app').style.opacity = 1;
-      }, 850);
+      }, 1000);
     }
 
-    // --- UTIL: SAFE PARSE / NORMALIZE ---
-    function safeJsonParse(str) {
-      try { return JSON.parse(str); } catch { return null; }
+    // --- UTIL ---
+    function safeUpper(s) {
+      return String(s || '').toUpperCase().replace(/[^A-Z0-9_\-]/g, '');
     }
-
-    function normalizeStat(s) {
-      return (s === 'vit' || s === 'int' || s === 'mnd') ? s : 'mnd';
+    function normalizeModelName(name) {
+      // Accept "models/gemini-2.0-flash" or "gemini-2.0-flash"
+      const n = String(name || '').trim();
+      if (!n) return "";
+      if (n.startsWith('models/')) return n; // keep full path
+      return `models/${n}`;
     }
-
-    function clampInt(n, min, max) {
-      const x = Number(n);
-      if (!Number.isFinite(x)) return min;
-      return Math.max(min, Math.min(max, Math.trunc(x)));
+    function modelIdFromPath(modelPath) {
+      // "models/gemini-2.0-flash" -> "gemini-2.0-flash"
+      const s = String(modelPath || '');
+      return s.startsWith('models/') ? s.slice('models/'.length) : s;
     }
 
     // --- MAIN LOGIC ---
     function init() {
-      // Load state from LocalStorage (client-side only)
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const parsed = safeJsonParse(saved);
-        if (parsed && typeof parsed === 'object') {
-          // minimal schema guard
-          state = {
-            stats: {
-              vit: clampInt(parsed?.stats?.vit ?? 0, 0, 9999),
-              int: clampInt(parsed?.stats?.int ?? 0, 0, 9999),
-              mnd: clampInt(parsed?.stats?.mnd ?? 0, 0, 9999)
-            },
-            logs: Array.isArray(parsed?.logs) ? parsed.logs : [],
-            heatmap: (parsed?.heatmap && typeof parsed.heatmap === 'object') ? parsed.heatmap : {}
-          };
-        }
+        try { state = JSON.parse(saved); } catch(e) { /* ignore */ }
       }
 
-      // Load key scope + key
-      const scope = localStorage.getItem(API_KEY_SCOPE_KEY) || 'session';
-      if (scope === 'local') {
-        apiKey = localStorage.getItem(API_KEY_KEY) || '';
-      } else {
-        apiKey = sessionStorage.getItem(API_KEY_KEY) || '';
-      }
+      apiKey = localStorage.getItem(API_KEY_KEY) || "";
+      selectedModel = localStorage.getItem(MODEL_KEY) || "";
 
-      wireUI();
+      // preload modal fields
+      document.getElementById('api-key-input').value = apiKey || "";
+
       updateStatus();
       render();
+
+      // If we have a key, try to ensure a valid model is selected (prevents 404)
+      if (apiKey) {
+        bootstrapModelSelection().catch(() => {
+          // keep local-only if fails
+          updateStatus();
+        });
+      } else {
+        // optionally fill select from cache so UI isn't empty
+        populateModelSelectFromCache();
+      }
     }
 
-    function wireUI() {
-      document.getElementById('config-btn').addEventListener('click', openSettings);
-      document.getElementById('cancel-btn').addEventListener('click', closeSettings);
-      document.getElementById('save-btn').addEventListener('click', saveSettings);
-      document.getElementById('send-btn').addEventListener('click', commitLog);
+    async function bootstrapModelSelection() {
+      const cached = loadModelsCache();
+      if (cached && cached.models && cached.models.length) {
+        populateModelSelect(cached.models);
+      }
 
-      document.getElementById('purge-logs-btn').addEventListener('click', resetData);
-      document.getElementById('purge-key-btn').addEventListener('click', purgeKey);
-
-      // Enter to send (Ctrl+Enter)
-      const input = document.getElementById('input-text');
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-          e.preventDefault();
-          commitLog();
+      // If we don't have a model yet, try to auto-select (from cached, then network)
+      if (!selectedModel) {
+        if (cached && cached.models && cached.models.length) {
+          selectedModel = pickPreferredModel(cached.models);
+          if (selectedModel) localStorage.setItem(MODEL_KEY, selectedModel);
         }
-      });
+      }
 
-      // Modal: escape to close
-      window.addEventListener('keydown', (e) => {
-        const modal = document.getElementById('settings-modal');
-        if (modal.style.display === 'block' && e.key === 'Escape') closeSettings();
-      });
+      // If still none, fetch live models list
+      if (!selectedModel) {
+        const models = await listModels(apiKey);
+        saveModelsCache(models);
+        populateModelSelect(models);
+        selectedModel = pickPreferredModel(models);
+        if (selectedModel) localStorage.setItem(MODEL_KEY, selectedModel);
+      }
+
+      updateStatus();
     }
 
     async function commitLog() {
@@ -514,8 +467,8 @@
       const text = input.value.trim();
       if (!text) return;
 
-      input.value = '';
-      btn.textContent = 'SYNCING...';
+      input.value = "";
+      btn.textContent = "SYNCING...";
       btn.disabled = true;
 
       const tempId = Date.now();
@@ -524,22 +477,24 @@
       if (apiKey) {
         try {
           result = await callGemini(text);
-        } catch (e) {
-          console.error('AI Error:', e);
+        } catch(e) {
+          console.error("AI Error:", e);
           result = localFallback(text);
-          const errCode = (e && e.message) ? e.message : 'NET_ERR';
-          result.msg += ` [SYSTEM ALERT: ${errCode}]`;
+
+          const msg = String(e && e.message ? e.message : 'NET_ERR');
+          // show a compact error tag
+          const code = (msg.match(/API Status\s+(\d+)/i) || [])[1] || (msg.includes('BLOCKED') ? 'BLOCKED' : 'ERR');
+          result.msg += ` [SYSTEM ALERT: ${code}]`;
         }
       } else {
         result = localFallback(text);
       }
 
-      // Normalize and guard
-      result.stat = normalizeStat(result.stat);
-      if (typeof result.msg !== 'string') result.msg = String(result.msg ?? '');
+      // normalize stat
+      if (!['vit','int','mnd'].includes(result.stat)) result.stat = 'mnd';
 
       const now = new Date();
-      const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
       const dateStr = now.toISOString().split('T')[0];
 
       state.logs.unshift({
@@ -550,129 +505,219 @@
         stat: result.stat
       });
 
-      if (state.logs.length > MAX_LOGS) state.logs.length = MAX_LOGS;
-
       state.stats[result.stat] = (state.stats[result.stat] || 0) + 1;
       state.heatmap[dateStr] = (state.heatmap[dateStr] || 0) + 1;
 
       saveData();
       render();
 
-      btn.textContent = 'SEND';
+      btn.textContent = "SEND";
       btn.disabled = false;
     }
 
-    // --- AI & LOGIC ---
+    // --- LOCAL FALLBACK ---
     function localFallback(text) {
       const rules = [
         { k: ['寝','休','食','眠'], s: 'vit', m: '生体部品のメンテナンス完了。' },
         { k: ['書','作','学','読','コード'], s: 'int', m: '外部記憶へのデータ出力を確認。' },
         { k: ['辛','死','鬱','嫌'], s: 'mnd', m: 'ゴーストのストレス値上昇。防壁による隔離を実行。' }
       ];
-      for (const r of rules) {
+      for (let r of rules) {
         if (r.k.some(key => text.includes(key))) return { msg: r.m, stat: r.s };
       }
       return { msg: '生存シグナルを確認。ログに記録。', stat: 'mnd' };
     }
 
+    // --- GEMINI MODELS ---
+    async function listModels(key) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`;
+      const res = await fetch(url, { method: 'GET' });
+
+      if (!res.ok) {
+        let errData = {};
+        try { errData = await res.json(); } catch(e) {}
+        const code = errData.error?.code || res.status;
+        const msg = errData.error?.message || res.statusText;
+        throw new Error(`API Status ${code}: ${msg}`);
+      }
+
+      const data = await res.json();
+      const raw = Array.isArray(data.models) ? data.models : [];
+
+      // Map to simplified array: [{ name, actions }]
+      return raw.map(m => ({
+        name: m.name || '',
+        // official docs show supportedActions in some SDKs; REST may include supportedGenerationMethods or supportedActions.
+        actions: m.supportedActions || m.supported_actions || m.supportedGenerationMethods || m.supported_generation_methods || []
+      }));
+    }
+
+    function pickPreferredModel(models) {
+      // Keep only models that support generateContent
+      const candidates = (models || []).filter(m => {
+        const actions = Array.isArray(m.actions) ? m.actions : [];
+        return actions.includes('generateContent') || actions.includes('generate_content') || actions.includes('generate');
+      });
+
+      if (!candidates.length) return "";
+
+      // Score by preference patterns
+      const scored = candidates.map(m => {
+        const id = modelIdFromPath(m.name);
+        let score = 0;
+        for (let i = 0; i < MODEL_PREFERENCE.length; i++) {
+          if (MODEL_PREFERENCE[i].test(id)) score += (MODEL_PREFERENCE.length - i) * 10;
+        }
+        // slight bias against non-gemini models if any
+        if (/^gemini/i.test(id)) score += 5;
+        return { model: normalizeModelName(m.name), score };
+      });
+
+      scored.sort((a,b) => b.score - a.score);
+      return scored[0].model;
+    }
+
+    function saveModelsCache(models) {
+      const payload = { ts: Date.now(), models: models || [] };
+      localStorage.setItem(MODELS_CACHE_KEY, JSON.stringify(payload));
+    }
+
+    function loadModelsCache() {
+      const s = localStorage.getItem(MODELS_CACHE_KEY);
+      if (!s) return null;
+      try {
+        const obj = JSON.parse(s);
+        // cache TTL: 7 days
+        if (obj && obj.ts && (Date.now() - obj.ts) < (7 * 24 * 60 * 60 * 1000)) return obj;
+      } catch(e) {}
+      return null;
+    }
+
+    function populateModelSelectFromCache() {
+      const cached = loadModelsCache();
+      if (cached && cached.models) populateModelSelect(cached.models);
+    }
+
+    function populateModelSelect(models) {
+      const sel = document.getElementById('model-select');
+      sel.innerHTML = '';
+      const opt0 = document.createElement('option');
+      opt0.value = '';
+      opt0.textContent = '(auto)';
+      sel.appendChild(opt0);
+
+      (models || []).forEach(m => {
+        const id = modelIdFromPath(m.name);
+        const actions = Array.isArray(m.actions) ? m.actions : [];
+        const supports = actions.includes('generateContent') ? 'generateContent' : '';
+        const opt = document.createElement('option');
+        opt.value = normalizeModelName(m.name);
+        opt.textContent = supports ? `${id}  [${supports}]` : id;
+        sel.appendChild(opt);
+      });
+
+      // set current selection if any
+      if (selectedModel) sel.value = normalizeModelName(selectedModel);
+    }
+
+    // --- GEMINI CALL ---
     async function callGemini(text) {
-      // Using header-based API key and correct field names
-      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+      // Ensure a valid model path
+      const modelPath = normalizeModelName(selectedModel || localStorage.getItem(MODEL_KEY) || '');
+      if (!modelPath) {
+        // If no model set, attempt a one-shot model refresh
+        const models = await listModels(apiKey);
+        saveModelsCache(models);
+        selectedModel = pickPreferredModel(models);
+        if (selectedModel) localStorage.setItem(MODEL_KEY, selectedModel);
+      }
+
+      const finalModelPath = normalizeModelName(selectedModel || localStorage.getItem(MODEL_KEY) || '');
+      if (!finalModelPath) throw new Error('NO_AVAILABLE_MODEL');
+
+      // Endpoint: /v1beta/models/<model>:generateContent?key=...
+      const url = `https://generativelanguage.googleapis.com/v1beta/${finalModelPath}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+      // Structured output (JSON) — stable parsing
+      const responseSchema = {
+        type: "object",
+        properties: {
+          msg: { type: "string" },
+          stat: { type: "string", enum: ["vit", "int", "mnd"] }
+        },
+        required: ["msg", "stat"]
+      };
+
+      const prompt = [
+        "Role: You are a tactical support AI from a cyberpunk anime (like Ghost in the Shell).",
+        `User Input: "${text}"`,
+        "Task: Reframe this into a cool, objective tactical log. Keep it short (<= 60 JP chars if possible).",
+        "Output: JSON only."
+      ].join("\n");
 
       const body = {
-        systemInstruction: {
-          parts: [{
-            text: [
-              'You are a tactical support AI from a cyberpunk anime (Ghost in the Shell vibe).',
-              'Reframe the user input into a cool, objective tactical log.',
-              'Return ONLY JSON with schema: {"msg": string, "stat": "vit"|"int"|"mnd"}.',
-              'No markdown, no extra keys.'
-            ].join('\n')
-          }]
-        },
-        contents: [{ role: 'user', parts: [{ text }] }],
+        contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'object',
-            properties: {
-              msg: { type: 'string' },
-              stat: { type: 'string', enum: ['vit','int','mnd'] }
-            },
-            required: ['msg','stat']
-          }
+          responseMimeType: "application/json",
+          responseSchema: responseSchema,
+          temperature: 0.7
         },
-        // Relaxed safety (still blocks only high)
         safetySettings: [
-          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' }
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
         ]
       };
 
       const res = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey
-        },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(body)
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        const code = errData?.error?.code || res.status;
-        const msg = errData?.error?.message || res.statusText;
+        const code = errData.error?.code || res.status;
+        const msg = errData.error?.message || res.statusText;
         throw new Error(`API Status ${code}: ${msg}`);
       }
 
       const data = await res.json();
 
-      const txt = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!txt) {
-        if (data?.promptFeedback) throw new Error('BLOCKED_BY_SAFETY_FILTER');
-        throw new Error('NO_RESPONSE_CANDIDATES');
+      if (!data.candidates || !data.candidates[0]) {
+        if (data.promptFeedback) throw new Error("BLOCKED_BY_SAFETY_FILTER");
+        throw new Error("NO_RESPONSE_CANDIDATES");
       }
 
-      const raw = String(txt).trim();
-      let parsed = safeJsonParse(raw);
-      if (!parsed) {
-        const cleaned = raw.replace(/```json|```/g, '').trim();
-        parsed = safeJsonParse(cleaned);
+      const part = data.candidates[0].content?.parts?.[0];
+      const jsonText = String(part?.text || '').replace(/```json|```/g, '').trim();
+      try {
+        const parsed = JSON.parse(jsonText);
+        return {
+          msg: String(parsed.msg || '').slice(0, 400),
+          stat: String(parsed.stat || 'mnd').toLowerCase()
+        };
+      } catch(e) {
+        // fallback: try to extract {...} if model wrapped extra text
+        const m = jsonText.match(/\{[\s\S]*\}/);
+        if (m) {
+          const parsed2 = JSON.parse(m[0]);
+          return {
+            msg: String(parsed2.msg || '').slice(0, 400),
+            stat: String(parsed2.stat || 'mnd').toLowerCase()
+          };
+        }
+        throw new Error('JSON_PARSE_FAILED');
       }
-      if (!parsed) throw new Error('JSON_PARSE_FAILED');
-
-      // Guard & normalize
-      parsed.stat = normalizeStat(parsed.stat);
-      if (typeof parsed.msg !== 'string') parsed.msg = String(parsed.msg ?? '');
-      return parsed;
     }
 
     // --- RENDER (SECURE) ---
-    function renderLogHeader(l) {
-      const headerDiv = document.createElement('div');
-      headerDiv.className = 'log-time';
-
-      const timeDiv = document.createElement('div');
-      timeDiv.textContent = l.time;
-
-      const statDiv = document.createElement('div');
-      statDiv.style.color = 'var(--alert-color)';
-      statDiv.textContent = normalizeStat(l.stat).toUpperCase();
-
-      headerDiv.appendChild(timeDiv);
-      headerDiv.appendChild(statDiv);
-      return headerDiv;
-    }
-
     function render() {
-      // Stats
-      document.getElementById('val-vit').innerText = String(state.stats.vit).padStart(2, '0');
-      document.getElementById('val-int').innerText = String(state.stats.int).padStart(2, '0');
-      document.getElementById('val-mnd').innerText = String(state.stats.mnd).padStart(2, '0');
+      document.getElementById('val-vit').innerText = String(state.stats.vit || 0).padStart(2, '0');
+      document.getElementById('val-int').innerText = String(state.stats.int || 0).padStart(2, '0');
+      document.getElementById('val-mnd').innerText = String(state.stats.mnd || 0).padStart(2, '0');
 
-      // Logs
       const cont = document.getElementById('log-container');
       cont.innerHTML = '';
 
@@ -680,67 +725,71 @@
         const div = document.createElement('div');
         div.className = 'log-entry';
 
-        // 1) Header (NO innerHTML)
-        const headerDiv = renderLogHeader(l);
+        // Time & Stat Header (NO innerHTML for dynamic values)
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'log-time';
 
-        // 2) Body
+        const t1 = document.createElement('div');
+        t1.textContent = String(l.time || '--:--');
+
+        const statSpan = document.createElement('span');
+        statSpan.style.color = 'var(--alert-color)';
+        statSpan.textContent = safeUpper(l.stat);
+
+        headerDiv.appendChild(t1);
+        headerDiv.appendChild(document.createElement('br'));
+        headerDiv.appendChild(statSpan);
+
+        // Body
         const bodyDiv = document.createElement('div');
         bodyDiv.className = 'log-body';
 
-        // 3) System Message
         const sysMsgDiv = document.createElement('div');
         sysMsgDiv.className = 'log-sys-msg';
-        sysMsgDiv.textContent = `>> ${String(l.sysMsg ?? '')}`;
+        sysMsgDiv.textContent = `>> ${String(l.sysMsg || '')}`;
 
-        // 4) Original
         const userTxtDiv = document.createElement('div');
         userTxtDiv.className = 'log-user-txt';
-        userTxtDiv.textContent = `SRC: "${String(l.original ?? '')}"`;
+        userTxtDiv.textContent = `SRC: "${String(l.original || '')}"`;
 
         bodyDiv.appendChild(sysMsgDiv);
         bodyDiv.appendChild(userTxtDiv);
 
         div.appendChild(headerDiv);
         div.appendChild(bodyDiv);
-
         cont.appendChild(div);
       });
 
-      renderHeatmap();
-    }
-
-    function renderHeatmap() {
+      // Heatmap
       const heat = document.getElementById('heatmap');
       heat.innerHTML = '';
-
-      const days = 42;
-      const now = new Date();
-
-      // 41 days ago -> today
-      for (let i = days - 1; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(now.getDate() - i);
-        const key = d.toISOString().split('T')[0];
-        const count = state.heatmap[key] || 0;
-
+      for (let i = 0; i < 42; i++) {
         const cell = document.createElement('div');
         cell.className = 'heat-cell';
-        if (count >= 1) cell.classList.add('active');
-        if (count >= 4) cell.classList.add('super');
-        cell.title = `${key} : ${count}`;
-
         heat.appendChild(cell);
       }
+      const today = new Date().toISOString().split('T')[0];
+      if (state.heatmap[today]) heat.lastElementChild.classList.add('super');
     }
 
     function updateStatus() {
       const el = document.getElementById('conn-status');
+      const badge = document.getElementById('model-badge');
+
       if (apiKey) {
-        el.innerText = 'LINK: SECURE (AI)';
-        el.style.color = 'var(--main-color)';
+        el.innerText = "LINK: SECURE (AI)";
+        el.style.color = "var(--main-color)";
+        const mp = selectedModel || localStorage.getItem(MODEL_KEY) || "";
+        if (mp) {
+          badge.style.display = 'inline-block';
+          badge.textContent = modelIdFromPath(mp);
+        } else {
+          badge.style.display = 'none';
+        }
       } else {
-        el.innerText = 'LINK: LOCAL ONLY';
-        el.style.color = 'var(--alert-color)';
+        el.innerText = "LINK: LOCAL ONLY";
+        el.style.color = "var(--alert-color)";
+        badge.style.display = 'none';
       }
     }
 
@@ -750,75 +799,60 @@
 
     function resetData() {
       localStorage.removeItem(STORAGE_KEY);
-      // keep key by default
       location.reload();
-    }
-
-    function purgeKey() {
-      localStorage.removeItem(API_KEY_KEY);
-      localStorage.removeItem(API_KEY_SCOPE_KEY);
-      sessionStorage.removeItem(API_KEY_KEY);
-      apiKey = '';
-      updateStatus();
-      render();
-      // If modal open, refresh it
-      const modal = document.getElementById('settings-modal');
-      if (modal.style.display === 'block') {
-        document.getElementById('api-key-input').value = '';
-        document.getElementById('remember-key').checked = false;
-        document.getElementById('mode-pill').textContent = 'LOCAL ONLY';
-      }
     }
 
     // --- SETTINGS MODAL ---
     function openSettings() {
-      const modal = document.getElementById('settings-modal');
-      modal.style.display = 'block';
+      document.getElementById('settings-modal').style.display = 'block';
 
-      // Pre-fill
-      const scope = localStorage.getItem(API_KEY_SCOPE_KEY) || 'session';
-      document.getElementById('remember-key').checked = (scope === 'local');
+      // fill select from cache or current
+      populateModelSelectFromCache();
+      const sel = document.getElementById('model-select');
+      const current = localStorage.getItem(MODEL_KEY) || selectedModel || "";
+      if (current) sel.value = normalizeModelName(current);
 
-      const key = (scope === 'local') ? (localStorage.getItem(API_KEY_KEY) || '') : (sessionStorage.getItem(API_KEY_KEY) || '');
-      document.getElementById('api-key-input').value = key;
-
-      document.getElementById('mode-pill').textContent = key ? 'AI LINK READY' : 'LOCAL ONLY';
-
-      // focus
-      setTimeout(() => document.getElementById('api-key-input').focus(), 10);
+      document.getElementById('settings-status').textContent = '';
     }
-
     function closeSettings() {
       document.getElementById('settings-modal').style.display = 'none';
     }
 
-    function saveSettings() {
+    async function refreshModelsFromModal() {
+      const status = document.getElementById('settings-status');
       const key = document.getElementById('api-key-input').value.trim();
-      const remember = document.getElementById('remember-key').checked;
-
-      // clear both then set chosen
-      localStorage.removeItem(API_KEY_KEY);
-      sessionStorage.removeItem(API_KEY_KEY);
-
-      if (key) {
-        if (remember) {
-          localStorage.setItem(API_KEY_SCOPE_KEY, 'local');
-          localStorage.setItem(API_KEY_KEY, key);
-        } else {
-          localStorage.setItem(API_KEY_SCOPE_KEY, 'session');
-          sessionStorage.setItem(API_KEY_KEY, key);
-        }
-      } else {
-        // no key => local-only
-        localStorage.setItem(API_KEY_SCOPE_KEY, 'session');
+      if (!key) {
+        status.textContent = 'STATUS: API key required.';
+        return;
       }
+      status.textContent = 'STATUS: Fetching models.list ...';
+      try {
+        const models = await listModels(key);
+        saveModelsCache(models);
+        populateModelSelect(models);
 
-      // apply
-      const scope = localStorage.getItem(API_KEY_SCOPE_KEY) || 'session';
-      apiKey = (scope === 'local') ? (localStorage.getItem(API_KEY_KEY) || '') : (sessionStorage.getItem(API_KEY_KEY) || '');
+        const auto = pickPreferredModel(models);
+        status.textContent = auto
+          ? `STATUS: Models loaded. Auto pick = ${modelIdFromPath(auto)}`
+          : 'STATUS: Models loaded, but no generateContent-capable model found.';
+      } catch (e) {
+        status.textContent = `STATUS: FAILED (${String(e.message || 'ERR')})`;
+      }
+    }
 
-      closeSettings();
-      updateStatus();
+    function saveSettings() {
+      apiKey = document.getElementById('api-key-input').value.trim();
+      localStorage.setItem(API_KEY_KEY, apiKey);
+
+      // model selection from modal
+      const sel = document.getElementById('model-select');
+      const chosen = sel.value.trim(); // may be "" for auto
+      if (chosen) {
+        localStorage.setItem(MODEL_KEY, normalizeModelName(chosen));
+      } else {
+        localStorage.removeItem(MODEL_KEY); // force auto-pick on init
+      }
+      location.reload();
     }
 
     // --- START ---
