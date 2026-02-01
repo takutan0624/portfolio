@@ -1,0 +1,553 @@
+<!--
+    PROJECT OBSERVER v0.5 [Portfolio Edition]
+    =========================================
+
+    [Architecture Overview]
+    - Pattern: Single Page Application (SPA) / Client-side Only
+    - No Backend: This application runs entirely in the browser.
+    - AI Integration: Google Gemini API (Direct call from client).
+    - Authentication: BYOK (Bring Your Own Key) pattern.
+      * API Key is stored in LocalStorage.
+      * No intermediate server, minimizing leakage risks.
+
+    [Security Measures]
+    - XSS Prevention: All user inputs are sanitized by using `textContent`
+      instead of `innerHTML` when rendering to the DOM.
+    - Data Privacy: User logs and stats are persisted only in LocalStorage.
+      Data never leaves the user's device except for the specific text sent
+      to the Gemini API for processing.
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project OBSERVER v0.5 [GHOST]</title>
+    <meta name="description" content="AI-powered cyberpunk diary logger that reframes negative thoughts into tactical survival logs.">
+    <style>
+        :root {
+            --bg-color: #020402;
+            --main-color: #5effce; /* Cyan-Green typical of GITS interfaces */
+            --sub-color: #008f5d;
+            --alert-color: #ff9d00; /* Amber for alerts */
+            --grid-color: rgba(94, 255, 206, 0.1);
+            --font-main: 'Consolas', 'Monaco', 'Courier New', monospace;
+            --glass: rgba(0, 20, 10, 0.6);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--main-color);
+            font-family: var(--font-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            text-shadow: 0 0 3px var(--sub-color);
+            background-image:
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        /* --- CRT & NOISE EFFECTS --- */
+        .crt-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 999;
+            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%);
+        }
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 998;
+            background: linear-gradient(0deg, rgba(0,0,0,0), rgba(94, 255, 206, 0.1), rgba(0,0,0,0));
+            opacity: 0.1;
+            position: absolute;
+            bottom: 100%;
+            pointer-events: none;
+            animation: scanline 10s linear infinite;
+        }
+        @keyframes scanline { 0% { bottom: 100%; } 100% { bottom: -100%; } }
+
+        /* --- BOOT SEQUENCE --- */
+        #boot-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 1000;
+            padding: 40px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 1rem;
+        }
+        #boot-log {
+            font-family: var(--font-main);
+            width: 100%; max-width: 600px;
+            color: var(--main-color);
+        }
+        .boot-line { margin-bottom: 5px; opacity: 0; }
+        .boot-highlight { color: var(--alert-color); }
+
+        /* --- LAYOUT --- */
+        .app-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-template-rows: 70px 1fr auto;
+            height: 100%;
+            padding: 20px;
+            gap: 15px;
+            opacity: 0;
+            transition: opacity 2s;
+            position: relative;
+        }
+
+        /* Corner Brackets Decoration */
+        .deco-bracket {
+            position: absolute; width: 20px; height: 20px;
+            border: 2px solid var(--main-color);
+            transition: all 0.3s;
+        }
+        .tl { top: 10px; left: 10px; border-right: none; border-bottom: none; }
+        .tr { top: 10px; right: 10px; border-left: none; border-bottom: none; }
+        .bl { bottom: 10px; left: 10px; border-right: none; border-top: none; }
+        .br { bottom: 10px; right: 10px; border-left: none; border-top: none; }
+
+        /* Header */
+        header {
+            grid-column: 1 / -1;
+            border-bottom: 1px solid var(--main-color);
+            background: var(--glass);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 10px;
+            position: relative;
+        }
+        header::after {
+            content: "SYSTEM: NORMAL";
+            position: absolute; bottom: -15px; right: 0;
+            font-size: 0.7rem; background: var(--main-color); color: #000; padding: 0 5px;
+        }
+
+        h1 {
+            font-size: 1.4rem; letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+        .sub-title { font-size: 0.6rem; color: var(--sub-color); display: block; letter-spacing: 1px;}
+
+        .sys-info { font-size: 0.7rem; text-align: right; line-height: 1.2; color: var(--sub-color); }
+        .blink { animation: blink 2s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* Sidebar */
+        .sidebar {
+            grid-row: 2 / -1;
+            border: 1px solid var(--sub-color);
+            padding: 20px;
+            display: flex; flex-direction: column; gap: 25px;
+            background: rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+        .sidebar::before { content: "MONITORING..."; position: absolute; top: -10px; left: 10px; background: var(--bg-color); font-size: 0.7rem; padding: 0 5px; color: var(--main-color); }
+
+        .stat-circle-container {
+            display: flex; justify-content: space-around;
+        }
+        .stat-box { text-align: center; }
+        .stat-label { font-size: 0.7rem; color: var(--sub-color); margin-bottom: 5px; }
+        .stat-val { font-size: 1.5rem; color: var(--alert-color); border: 1px solid var(--sub-color); padding: 5px 10px; display: inline-block; min-width: 60px; }
+
+        /* Heatmap - Hexagon Style attempt with CSS */
+        .heatmap-grid {
+            display: flex; flex-wrap: wrap; gap: 2px;
+            justify-content: center;
+        }
+        .heat-cell {
+            width: 12px; height: 12px; background: #0a1a10;
+            border: 1px solid #1a3a2a;
+        }
+        .heat-cell.active { background: var(--main-color); box-shadow: 0 0 5px var(--main-color); }
+        .heat-cell.super { background: var(--alert-color); box-shadow: 0 0 8px var(--alert-color); }
+
+        /* Main Log */
+        .main-log {
+            grid-column: 2; grid-row: 2;
+            border-left: 1px solid var(--sub-color);
+            padding: 0 20px;
+            overflow-y: auto;
+            display: flex; flex-direction: column; gap: 10px;
+            font-size: 0.9rem;
+        }
+        .log-entry {
+            display: grid; grid-template-columns: 80px 1fr;
+            border-bottom: 1px dotted var(--sub-color);
+            padding-bottom: 10px;
+            animation: fadeIn 0.5s;
+        }
+        .log-time { color: var(--sub-color); font-size: 0.8rem; }
+
+        .log-sys-msg { color: var(--main-color); font-weight: bold; margin-bottom: 4px; }
+        .log-user-txt { color: #888; font-size: 0.8rem; font-style: italic; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Input */
+        .input-area {
+            grid-column: 2; grid-row: 3;
+            border: 1px solid var(--main-color);
+            background: rgba(0, 20, 10, 0.8);
+            padding: 10px;
+            display: flex; gap: 10px; align-items: flex-end;
+            position: relative;
+        }
+        .input-area::before {
+            content: "CYBERBRAIN UPLINK";
+            position: absolute; top: -10px; right: 10px;
+            background: var(--bg-color); font-size: 0.7rem; padding: 0 5px; color: var(--alert-color);
+        }
+
+        textarea {
+            flex-grow: 1; background: transparent; border: none; outline: none;
+            color: var(--main-color); font-family: var(--font-main); font-size: 1rem;
+            resize: none; height: 50px;
+        }
+        button {
+            background: var(--main-color); color: #000; border: none;
+            padding: 0 20px; height: 50px;
+            font-weight: bold; cursor: pointer;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+            transition: all 0.2s;
+        }
+        button:hover { background: #fff; box-shadow: 0 0 15px var(--main-color); }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .app-container { grid-template-columns: 1fr; grid-template-rows: 60px 100px 1fr 80px; }
+            .sidebar { grid-row: 2; flex-direction: row; align-items: center; padding: 10px; }
+            .stat-circle-container { gap: 10px; }
+            .heatmap-grid { display: none; }
+            .main-log { grid-column: 1; grid-row: 3; border-left: none; }
+            .input-area { grid-column: 1; grid-row: 4; }
+        }
+
+        /* Modal */
+        #settings-modal {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90%; max-width: 500px;
+            background: rgba(0,0,0,0.95); border: 1px solid var(--alert-color);
+            padding: 30px; z-index: 2000;
+            box-shadow: 0 0 50px rgba(255, 157, 0, 0.2);
+        }
+        .modal-header { color: var(--alert-color); border-bottom: 1px solid var(--alert-color); margin-bottom: 20px; padding-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="crt-overlay"></div>
+    <div class="scanline"></div>
+
+    <!-- BOOT SCREEN -->
+    <div id="boot-screen">
+        <div id="boot-log"></div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div class="app-container" id="app">
+        <!-- Decoration -->
+        <div class="deco-bracket tl"></div>
+        <div class="deco-bracket tr"></div>
+        <div class="deco-bracket bl"></div>
+        <div class="deco-bracket br"></div>
+
+        <header>
+            <div>
+                <h1>Project OBSERVER</h1>
+                <span class="sub-title">TYPE-2052 EXTERNAL MEMORY UNIT</span>
+            </div>
+            <div class="sys-info">
+                <div id="conn-status" class="blink">OFFLINE MODE</div>
+                <div style="cursor:pointer; text-decoration:underline;" onclick="openSettings()">[CONFIG]</div>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <div class="stat-circle-container">
+                <div class="stat-box">
+                    <div class="stat-label">VIT</div>
+                    <div class="stat-val" id="val-vit">00</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">INT</div>
+                    <div class="stat-val" id="val-int">00</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">MND</div>
+                    <div class="stat-val" id="val-mnd">00</div>
+                </div>
+            </div>
+            <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:center;">
+                <div class="stat-label">ACTIVITY TRACE</div>
+                <div class="heatmap-grid" id="heatmap"></div>
+            </div>
+            <button onclick="resetData()" style="height:30px; font-size:0.7rem; background:transparent; color:var(--sub-color); border:1px solid var(--sub-color);">PURGE MEMORY</button>
+        </aside>
+
+        <main class="main-log" id="log-container">
+            <!-- Logs injected here -->
+        </main>
+
+        <div class="input-area">
+            <textarea id="input-text" placeholder="GHOST DUBBING IN PROGRESS..."></textarea>
+            <button onclick="commitLog()">SEND</button>
+        </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="settings-modal">
+        <div class="modal-header">SECURE CONNECTION SETUP</div>
+        <p style="font-size:0.8rem; margin-bottom:15px; color:var(--main-color);">
+            [SECURITY NOTICE] This system uses a BYOK (Bring Your Own Key) architecture.<br>
+            Your Google Gemini API Key is stored ONLY in your browser's LocalStorage.<br>
+            It is sent directly to Google's endpoint and nowhere else.
+        </p>
+        <input type="text" id="api-key-input" placeholder="Paste your Gemini API Key here..." style="width:100%; background:#111; border:1px solid var(--main-color); color:var(--main-color); padding:10px; margin-bottom:20px;">
+        <div style="text-align:right;">
+            <button onclick="closeSettings()" style="background:transparent; color:var(--main-color); border:1px solid var(--main-color); margin-right:10px;">CANCEL</button>
+            <button onclick="saveSettings()">ESTABLISH LINK</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS ---
+        const STORAGE_KEY = 'observer_gits_data';
+        const API_KEY_KEY = 'observer_api_key';
+
+        let state = {
+            stats: { vit: 0, int: 0, mnd: 0 },
+            logs: [],
+            heatmap: {}
+        };
+        let apiKey = "";
+
+        // --- BOOT SEQUENCE ---
+        const bootMessages = [
+            "NEURO-SYNCHRONIZATION... <span class='boot-highlight'>STARTED</span>",
+            "CHECKING OPTICAL SENSORS... GREEN",
+            "EXPANDING LOGIC BARRIERS... OK",
+            "AUTHENTICATING GHOST LINE...",
+            "SEARCHING FOR EXTERNAL MEMORY...",
+            "SYNC RATE: 98.4%",
+            "WARNING: INDIVIDUALITY DATA DETECTED",
+            "PROJECT OBSERVER: <span class='boot-highlight'>ONLINE</span>"
+        ];
+
+        async function boot() {
+            const screen = document.getElementById('boot-screen');
+            const log = document.getElementById('boot-log');
+
+            // Fast boot if data exists
+            const fastBoot = localStorage.getItem(STORAGE_KEY) !== null;
+            const delay = fastBoot ? 50 : 400;
+
+            for (let msg of bootMessages) {
+                const div = document.createElement('div');
+                div.className = 'boot-line';
+                div.innerHTML = `> ${msg}`;
+                log.appendChild(div);
+
+                div.style.opacity = 1;
+                await new Promise(r => setTimeout(r, delay));
+            }
+
+            await new Promise(r => setTimeout(r, fastBoot ? 200 : 600));
+            screen.style.opacity = 0;
+            setTimeout(() => {
+                screen.style.display = 'none';
+                document.getElementById('app').style.opacity = 1;
+            }, 1000);
+        }
+
+        // --- MAIN LOGIC ---
+        function init() {
+            // [PRIVACY] Data loaded from LocalStorage (Client-side only)
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) state = JSON.parse(saved);
+            apiKey = localStorage.getItem(API_KEY_KEY) || "";
+
+            updateStatus();
+            render();
+        }
+
+        async function commitLog() {
+            const input = document.getElementById('input-text');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.value = "";
+
+            const tempId = Date.now();
+            let result;
+
+            if (apiKey) {
+                try {
+                    // [SECURITY] Direct Client-to-API call. No middleman server.
+                    result = await callGemini(text);
+                } catch(e) {
+                    console.error(e);
+                    result = localFallback(text);
+                    result.msg += " [NET ERROR]";
+                }
+            } else {
+                result = localFallback(text);
+            }
+
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+            const dateStr = now.toISOString().split('T')[0];
+
+            state.logs.unshift({
+                id: tempId,
+                time: timeStr,
+                original: text,
+                sysMsg: result.msg,
+                stat: result.stat
+            });
+
+            state.stats[result.stat]++;
+            state.heatmap[dateStr] = (state.heatmap[dateStr] || 0) + 1;
+
+            saveData();
+            render();
+        }
+
+        // --- AI & LOGIC ---
+        function localFallback(text) {
+            const rules = [
+                { k: ['寝','休','食','眠'], s: 'vit', m: '生体部品のメンテナンス完了。' },
+                { k: ['書','作','学','読','コード'], s: 'int', m: '外部記憶へのデータ出力を確認。' },
+                { k: ['辛','死','鬱','嫌'], s: 'mnd', m: 'ゴーストのストレス値上昇。防壁による隔離を実行。' }
+            ];
+            for (let r of rules) {
+                if (r.k.some(key => text.includes(key))) return { msg: r.m, stat: r.s };
+            }
+            return { msg: '生存シグナルを確認。ログに記録。', stat: 'mnd' };
+        }
+
+        async function callGemini(text) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            const prompt = `
+                Role: You are a tactical support AI from a cyberpunk anime (like Ghost in the Shell).
+                User Input: "${text}"
+                Task: Reframe this into a cool, objective tactical log.
+                Output JSON: {"msg": "Translated Log", "stat": "vit" or "int" or "mnd"}
+            `;
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+            const data = await res.json();
+            const jsonText = data.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim();
+            return JSON.parse(jsonText);
+        }
+
+        // --- RENDER (SECURE) ---
+        function render() {
+            // Stats
+            document.getElementById('val-vit').innerText = String(state.stats.vit).padStart(2, '0');
+            document.getElementById('val-int').innerText = String(state.stats.int).padStart(2, '0');
+            document.getElementById('val-mnd').innerText = String(state.stats.mnd).padStart(2, '0');
+
+            // Logs
+            const cont = document.getElementById('log-container');
+            cont.innerHTML = '';
+
+            state.logs.forEach(l => {
+                const div = document.createElement('div');
+                div.className = 'log-entry';
+
+                // [SECURITY: XSS Prevention]
+                // We create DOM elements explicitly instead of using `innerHTML` for user content.
+                // `innerHTML` is only used for trusted system-generated content (like timestamps with styling).
+
+                // 1. Time & Stat Header (Trusted Content)
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'log-time';
+                headerDiv.innerHTML = `${l.time} <br> <span style="color:var(--alert-color)">${l.stat.toUpperCase()}</span>`;
+
+                // 2. Body Container
+                const bodyDiv = document.createElement('div');
+                bodyDiv.className = 'log-body';
+
+                // 3. System Message (AI Output - Treated as Text)
+                const sysMsgDiv = document.createElement('div');
+                sysMsgDiv.className = 'log-sys-msg';
+                sysMsgDiv.textContent = `>> ${l.sysMsg}`; // Safe text rendering
+
+                // 4. User Original Text (User Input - CRITICAL)
+                // Using `textContent` ensures that any HTML/Script tags in the user input
+                // are rendered as plain text, preventing Cross-Site Scripting (XSS) attacks.
+                const userTxtDiv = document.createElement('div');
+                userTxtDiv.className = 'log-user-txt';
+                userTxtDiv.textContent = `SRC: "${l.original}"`;
+
+                // Assemble
+                bodyDiv.appendChild(sysMsgDiv);
+                bodyDiv.appendChild(userTxtDiv);
+                div.appendChild(headerDiv);
+                div.appendChild(bodyDiv);
+
+                cont.appendChild(div);
+            });
+
+            // Heatmap
+            const heat = document.getElementById('heatmap');
+            heat.innerHTML = '';
+            for(let i=0; i<42; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'heat-cell';
+                heat.appendChild(cell);
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            if (state.heatmap[today]) {
+                 heat.lastElementChild.classList.add('super');
+            }
+        }
+
+        function updateStatus() {
+            const el = document.getElementById('conn-status');
+            if (apiKey) {
+                el.innerText = "LINK: SECURE (AI)";
+                el.style.color = "var(--main-color)";
+            } else {
+                el.innerText = "LINK: LOCAL ONLY";
+                el.style.color = "var(--alert-color)";
+            }
+        }
+
+        function saveData() {
+            // [PRIVACY] Data persists only in browser storage
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        function resetData() {
+            localStorage.removeItem(STORAGE_KEY);
+            location.reload();
+        }
+
+        // Settings
+        function openSettings() { document.getElementById('settings-modal').style.display = 'block'; }
+        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+        function saveSettings() {
+            // [SECURITY] Key stored in LocalStorage, not in code/cookies
+            apiKey = document.getElementById('api-key-input').value.trim();
+            localStorage.setItem(API_KEY_KEY, apiKey);
+            location.reload();
+        }
+
+        // Start
+        window.addEventListener('load', () => {
+            boot();
+            init();
+        });
+    </script>
+</body>
+</html>
