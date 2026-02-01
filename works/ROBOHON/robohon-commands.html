@@ -920,26 +920,42 @@ const commands = [
             } else {
                 emptyState.classList.add('hidden');
                 grid.innerHTML = '';
-                
-                data.forEach((item, index) => {
+
+                // モバイル検出
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+                // モバイルでは表示数を制限（最初の50件のみ）
+                const displayData = isMobile ? data.slice(0, 50) : data;
+
+                displayData.forEach((item, index) => {
                     grid.appendChild(createCard(item, index));
                 });
-                
-                // Init Tilt on new elements
-                VanillaTilt.init(document.querySelectorAll(".glass-card"), {
-                    max: 10,
-                    speed: 400,
-                    glare: true,
-                    "max-glare": 0.2,
-                    scale: 1.02
-                });
+
+                // モバイルで残りがある場合、メッセージを表示
+                if (isMobile && data.length > 50) {
+                    const message = document.createElement('div');
+                    message.className = 'col-span-full text-center text-gray-400 py-8';
+                    message.textContent = `表示: ${displayData.length}件 / 全${data.length}件（モバイルでは最初の50件のみ表示）`;
+                    grid.appendChild(message);
+                }
+
+                // Init Tilt on new elements (モバイルでは無効化)
+                if (!isMobile) {
+                    VanillaTilt.init(document.querySelectorAll(".glass-card"), {
+                        max: 10,
+                        speed: 400,
+                        glare: true,
+                        "max-glare": 0.2,
+                        scale: 1.02
+                    });
+                }
 
                 // Stagger Animation
                 anime({
                     targets: '.glass-card',
                     opacity: [0, 1],
                     translateY: [50, 0],
-                    delay: anime.stagger(20), // Reduced delay for large list
+                    delay: anime.stagger(isMobile ? 10 : 20), // モバイルではさらに短縮
                     easing: 'easeOutQuint'
                 });
             }
