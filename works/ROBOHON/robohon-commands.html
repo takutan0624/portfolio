@@ -2,638 +2,1300 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ロボホン音声コマンド集</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RoBoHoN Command Book Ultimate</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Zen Maru Gothic"', 'sans-serif'],
+                    },
+                    colors: {
+                        glass: 'rgba(255, 255, 255, 0.05)',
+                        glassHover: 'rgba(255, 255, 255, 0.1)',
+                        roboCyan: '#06b6d4',
+                        roboTeal: '#14b8a6',
+                        roboYellow: '#fbbf24'
+                    },
+                    boxShadow: {
+                        'neon': '0 0 10px rgba(6, 182, 212, 0.5), 0 0 20px rgba(6, 182, 212, 0.3)',
+                        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        :root {
-            --primary: #667eea;
-            --primary-dark: #5568d3;
-            --secondary: #764ba2;
-            --accent: #f093fb;
-            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            --card-shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.2);
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            background-attachment: fixed;
-            min-height: 100vh;
-            padding: 0;
+            background-color: #0f172a;
+            color: white;
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Three.js背景キャンバス */
         #bg-canvas {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 0;
-            pointer-events: none;
+            z-index: -1;
+            background: radial-gradient(circle at top center, #111827 0%, #000000 100%);
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-            position: relative;
-            z-index: 1;
+        /* Glassmorphism Classes */
+        .glass-card {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        /* ヘッダー */
-        header {
-            text-align: center;
+        .glass-card:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: white;
-            margin-bottom: 30px;
-            padding: 40px 20px 20px;
-            animation: fadeInDown 0.6s ease-out;
+            transition: all 0.3s ease;
+        }
+        .glass-input:focus {
+            background: rgba(0, 0, 0, 0.6);
+            border-color: #06b6d4;
+            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.2);
+            outline: none;
         }
 
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        /* Custom Scrollbar */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
 
-        h1 {
-            font-size: clamp(1.8rem, 5vw, 2.8rem);
-            margin-bottom: 20px;
-            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            font-weight: 800;
-            letter-spacing: -0.5px;
-        }
-
-        .logo-icon {
-            font-size: clamp(3rem, 8vw, 4rem);
-            margin-bottom: 10px;
-            display: inline-block;
-            animation: bounce 2s ease-in-out infinite;
-        }
-
-        @keyframes bounce {
+        /* Animations */
+        @keyframes float {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
-
-        /* 検索ボックス */
-        .search-container {
-            max-width: 600px;
-            margin: 0 auto 30px;
-            position: relative;
-            animation: fadeIn 0.8s ease-out 0.2s both;
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 20px;
-            color: #999;
-            pointer-events: none;
-        }
-
-        #searchInput {
-            width: 100%;
-            padding: 18px 20px 18px 55px;
-            font-size: 16px;
-            border: none;
-            border-radius: 50px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            outline: none;
-            transition: var(--transition);
-        }
-
-        #searchInput:focus {
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
-            background: white;
-        }
-
-        /* フィルターセクション */
-        .filter-section {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            padding: 24px;
-            margin-bottom: 20px;
-            box-shadow: var(--card-shadow);
-            animation: fadeInUp 0.6s ease-out;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .filter-title {
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .filter-title-icon {
-            font-size: 18px;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .tab, .season-tag {
-            padding: 12px 24px;
-            background: white;
-            border: 2px solid #e8e8e8;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: var(--transition);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            user-select: none;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .tab::before, .season-tag::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(102, 126, 234, 0.1);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .tab:active::before, .season-tag:active::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        .tab:hover, .season-tag:hover {
+        .category-btn.active {
+            background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+            border-color: transparent;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-            border-color: var(--primary);
         }
 
-        .tab.active {
-            background: var(--bg-gradient);
-            color: white;
-            border-color: var(--primary);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        .season-btn.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #2dd4bf;
+            color: #2dd4bf;
+            box-shadow: 0 0 15px rgba(45, 212, 191, 0.2);
         }
 
-        .season-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
+        /* Toast */
+        #toast {
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
-
-        .season-tag.active {
-            background: linear-gradient(135deg, #ff6b9d 0%, #ffc371 100%);
-            color: white;
-            border-color: #ff6b9d;
-            box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
-        }
-
-        /* 統計情報 */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 16px;
-            margin-bottom: 30px;
-            animation: fadeIn 1s ease-out 0.4s both;
-        }
-
-        .stat-item {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: var(--card-shadow);
-            text-align: center;
-            transition: var(--transition);
-        }
-
-        .stat-item:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--card-shadow-hover);
-        }
-
-        .stat-label {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-
-        .stat-value {
-            font-size: 28px;
-            font-weight: 800;
-            background: var(--bg-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        /* コマンドグリッド */
-        .commands-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-
-        .command-card {
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            padding: 24px;
-            box-shadow: var(--card-shadow);
-            transition: var(--transition);
-            position: relative;
-            overflow: hidden;
-            animation: cardFadeIn 0.6s ease-out both;
-        }
-
-        @keyframes cardFadeIn {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        .command-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: var(--bg-gradient);
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform 0.6s ease;
-        }
-
-        .command-card:hover::before {
-            transform: scaleX(1);
-        }
-
-        .command-card:hover {
-            transform: translateY(-8px);
-            box-shadow: var(--card-shadow-hover);
-        }
-
-        .card-tags {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-        }
-
-        .category-badge, .tag-badge {
-            padding: 6px 14px;
-            border-radius: 50px;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-        }
-
-        .category-badge {
-            text-transform: uppercase;
-        }
-
-        .tag-badge {
-            border: 2px solid;
-            background: white;
-        }
-
-        .category-dance { background: linear-gradient(135deg, #ffd6e8 0%, #ffb3d9 100%); color: #c2185b; }
-        .category-dance-medley { background: linear-gradient(135deg, #ffe0b2 0%, #ffcc80 100%); color: #e65100; }
-        .category-song { background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%); color: #2e7d32; }
-        .category-work-play { background: linear-gradient(135deg, #b3e5fc 0%, #81d4fa 100%); color: #01579b; }
-        .category-instrument { background: linear-gradient(135deg, #d1c4e9 0%, #b39ddb 100%); color: #4527a0; }
-        .category-other { background: linear-gradient(135deg, #ffecb3 0%, #ffe082 100%); color: #f57f17; }
-        .category-karaoke-start { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); color: #c2185b; }
-        .category-karaoke-free { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #00838f; }
-        .category-karaoke { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); color: #d84315; }
-
-        .tag-春 { color: #ff69b4; border-color: #ff69b4; }
-        .tag-夏 { color: #0097a7; border-color: #0097a7; }
-        .tag-秋 { color: #f57c00; border-color: #f57c00; }
-        .tag-冬 { color: #1976d2; border-color: #1976d2; }
-        .tag-クリスマス { color: #c62828; border-color: #c62828; }
-        .tag-ハロウィン { color: #f57f17; border-color: #f57f17; }
-        .tag-お正月 { color: #880e4f; border-color: #880e4f; }
-        .tag-節分 { color: #6a1b9a; border-color: #6a1b9a; }
-
-        .command-name {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 12px;
-            color: #1a1a1a;
-            line-height: 1.4;
-        }
-
-        .command-text {
-            background: linear-gradient(135deg, #f5f7fa 0%, #f0f2f5 100%);
-            padding: 16px;
-            border-radius: 16px;
-            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
-            font-size: 14px;
-            color: #444;
-            margin-bottom: 16px;
-            border-left: 4px solid var(--primary);
-            line-height: 1.6;
-            word-break: break-all;
-        }
-
-        .command-actions {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .btn-favorite {
-            background: none;
-            border: none;
-            font-size: 28px;
-            cursor: pointer;
-            transition: var(--transition);
-            filter: grayscale(100%);
-            padding: 4px;
-        }
-
-        .btn-favorite:hover {
-            transform: scale(1.3) rotate(15deg);
-            filter: grayscale(0%);
-        }
-
-        .btn-favorite.active {
-            filter: grayscale(0%) drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-
-        .btn-use {
-            padding: 10px 20px;
-            background: var(--bg-gradient);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 700;
-            transition: var(--transition);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn-use:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-        }
-
-        .btn-use:active {
-            transform: scale(0.95);
-        }
-
-        .use-count {
-            margin-left: auto;
-            font-size: 13px;
-            color: #999;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-weight: 600;
-        }
-
-        .no-results {
-            text-align: center;
-            padding: 80px 20px;
-            color: white;
-            font-size: 18px;
-            animation: fadeIn 0.6s ease-out;
-        }
-
-        .no-results-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        /* レスポンシブ対応 */
-        @media (max-width: 768px) {
-            .container {
-                padding: 16px;
-            }
-
-            header {
-                padding: 20px 16px 16px;
-            }
-
-            h1 {
-                font-size: 1.8rem;
-            }
-
-            .filter-section {
-                padding: 20px 16px;
-                border-radius: 20px;
-            }
-
-            .tab, .season-tag {
-                padding: 10px 18px;
-                font-size: 13px;
-            }
-
-            .commands-grid {
-                grid-template-columns: 1fr;
-                gap: 16px;
-            }
-
-            .command-card {
-                padding: 20px;
-            }
-
-            .command-name {
-                font-size: 18px;
-            }
-
-            .command-text {
-                font-size: 13px;
-                padding: 14px;
-            }
-
-            .stats {
-                gap: 12px;
-            }
-
-            .stat-item {
-                padding: 16px;
-            }
-
-            .stat-value {
-                font-size: 24px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 1.5rem;
-            }
-
-            .tab, .season-tag {
-                padding: 8px 16px;
-                font-size: 12px;
-            }
-
-            .filter-section {
-                padding: 16px 12px;
-            }
-
-            .command-card {
-                padding: 16px;
-            }
-
-            .btn-use {
-                padding: 8px 16px;
-                font-size: 12px;
-            }
-        }
-
-        /* ローディングアニメーション */
-        @media (prefers-reduced-motion: no-preference) {
-            .command-card:nth-child(1) { animation-delay: 0s; }
-            .command-card:nth-child(2) { animation-delay: 0.05s; }
-            .command-card:nth-child(3) { animation-delay: 0.1s; }
-            .command-card:nth-child(4) { animation-delay: 0.15s; }
-            .command-card:nth-child(5) { animation-delay: 0.2s; }
-            .command-card:nth-child(6) { animation-delay: 0.25s; }
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1;
         }
     </style>
 </head>
-<body>
+<body class="min-h-screen selection:bg-roboCyan selection:text-white pb-20">
+
     <canvas id="bg-canvas"></canvas>
-    <div class="container">
-        <header>
-            <div class="logo-icon">🤖</div>
-            <h1>ロボホン音声コマンド集</h1>
+
+    <div class="container mx-auto px-4 py-8 relative z-10 max-w-6xl">
+        
+        <!-- Header -->
+        <header class="text-center mb-10 relative">
+            <div class="inline-block relative animate-float mb-4">
+                <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-gray-800 to-black border border-gray-700 flex items-center justify-center shadow-2xl relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-teal-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <span class="text-5xl filter drop-shadow-lg transform group-hover:scale-110 transition-transform duration-300">🤖</span>
+                </div>
+                <div class="absolute -top-1 -right-1 flex h-4 w-4">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-4 w-4 bg-cyan-500 border-2 border-gray-900"></span>
+                </div>
+            </div>
+            <h1 class="text-4xl md:text-6xl font-black mb-3 tracking-tight">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-teal-300 via-cyan-400 to-blue-500">
+                    RoboHoN
+                </span>
+                <span class="text-white">Commands</span>
+            </h1>
+            <p class="text-gray-400 text-sm md:text-base font-bold tracking-widest uppercase opacity-70">
+                Interactive Voice Library
+            </p>
         </header>
 
-        <div class="search-container">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="searchInput" placeholder="コマンドを検索...">
-        </div>
-
-        <div class="filter-section">
-            <div class="filter-title">
-                <span class="filter-title-icon">📂</span>
-                カテゴリー
-            </div>
-            <nav class="tabs">
-                <button class="tab active" data-category="all">すべて</button>
-                <button class="tab" data-category="dance">ダンス</button>
-                <button class="tab" data-category="dance-medley">メドレー</button>
-                <button class="tab" data-category="karaoke">🎤 カラオケ</button>
-                <button class="tab" data-category="song">歌</button>
-                <button class="tab" data-category="work-play">一人遊び</button>
-                <button class="tab" data-category="instrument">楽器演奏</button>
-                <button class="tab" data-category="other">その他</button>
-                <button class="tab" data-category="favorites">⭐ お気に入り</button>
-            </nav>
-        </div>
-
-        <div class="filter-section">
-            <div class="filter-title">
-                <span class="filter-title-icon">🎌</span>
-                季節・イベント
-            </div>
-            <div class="tabs season-tags">
-                <button class="season-tag" data-season="春">🌸 春</button>
-                <button class="season-tag" data-season="夏">🌻 夏</button>
-                <button class="season-tag" data-season="秋">🍂 秋</button>
-                <button class="season-tag" data-season="冬">⛄ 冬</button>
-                <button class="season-tag" data-season="クリスマス">🎄 クリスマス</button>
-                <button class="season-tag" data-season="ハロウィン">🎃 ハロウィン</button>
-                <button class="season-tag" data-season="お正月">🎍 お正月</button>
-                <button class="season-tag" data-season="節分">👹 節分</button>
+        <!-- Search Area -->
+        <div class="sticky top-4 z-50 mb-8 max-w-2xl mx-auto search-container opacity-0">
+            <div class="relative group">
+                <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400 group-focus-within:text-roboCyan transition-colors text-lg"></i>
+                </div>
+                <input type="text" id="searchInput" 
+                    class="glass-input w-full pl-14 pr-14 py-4 rounded-full text-lg backdrop-blur-xl placeholder-gray-500 shadow-glass"
+                    placeholder="「ダンス」や「歌」を探す...">
+                <div class="absolute inset-y-0 right-0 pr-2 flex items-center">
+                    <button id="clearSearch" class="hidden text-gray-400 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div class="stats">
-            <div class="stat-item">
-                <div class="stat-label">総コマンド数</div>
-                <div id="totalCount" class="stat-value">0</div>
+        <!-- Filters Section -->
+        <div class="filter-section opacity-0 mb-8 space-y-4">
+            <!-- Categories -->
+            <div class="flex gap-3 overflow-x-auto hide-scrollbar px-2 py-2" id="categoryContainer">
+                <button class="category-btn active flex-shrink-0 px-6 py-2.5 rounded-full border border-gray-700 bg-gray-800/40 hover:bg-gray-700/60 text-white font-bold text-sm transition-all" data-cat="all">
+                    🌍 すべて
+                </button>
+                <button class="category-btn flex-shrink-0 px-6 py-2.5 rounded-full border border-gray-700 bg-gray-800/40 hover:bg-gray-700/60 text-white font-bold text-sm transition-all" data-cat="dance">
+                    💃 ダンス
+                </button>
+                <button class="category-btn flex-shrink-0 px-6 py-2.5 rounded-full border border-gray-700 bg-gray-800/40 hover:bg-gray-700/60 text-white font-bold text-sm transition-all" data-cat="karaoke">
+                    🎤 カラオケ
+                </button>
+                <button class="category-btn flex-shrink-0 px-6 py-2.5 rounded-full border border-gray-700 bg-gray-800/40 hover:bg-gray-700/60 text-white font-bold text-sm transition-all" data-cat="song">
+                    🎵 お歌
+                </button>
+                <button class="category-btn flex-shrink-0 px-6 py-2.5 rounded-full border border-gray-700 bg-gray-800/40 hover:bg-gray-700/60 text-white font-bold text-sm transition-all" data-cat="work-play">
+                    🎮 一人遊び
+                </button>
+                 <button class="category-btn flex-shrink-0 px-6 py-2.5 rounded-full border border-gray-700 bg-gray-800/40 hover:bg-gray-700/60 text-white font-bold text-sm transition-all" data-cat="instrument">
+                    🎸 演奏
+                </button>
+                <button class="category-btn flex-shrink-0 px-6 py-2.5 rounded-full border border-gray-700 bg-gray-800/40 hover:bg-gray-700/60 text-white font-bold text-sm transition-all" data-cat="favorites">
+                    ⭐ お気に入り
+                </button>
             </div>
-            <div class="stat-item">
-                <div class="stat-label">表示中</div>
-                <div id="filteredCount" class="stat-value">0</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">お気に入り</div>
-                <div id="favoriteCount" class="stat-value">0</div>
+
+            <!-- Seasons Tags -->
+            <div class="flex flex-wrap gap-2 px-2 justify-center md:justify-start">
+                <span class="text-xs font-bold text-gray-500 uppercase py-1.5 mr-2 self-center"><i class="fas fa-filter mr-1"></i>季節:</span>
+                <button class="season-btn px-4 py-1.5 rounded-full border border-gray-800 bg-black/20 text-gray-400 hover:text-white text-xs font-bold transition-all" data-season="春">🌸 春</button>
+                <button class="season-btn px-4 py-1.5 rounded-full border border-gray-800 bg-black/20 text-gray-400 hover:text-white text-xs font-bold transition-all" data-season="夏">🌻 夏</button>
+                <button class="season-btn px-4 py-1.5 rounded-full border border-gray-800 bg-black/20 text-gray-400 hover:text-white text-xs font-bold transition-all" data-season="秋">🍂 秋</button>
+                <button class="season-btn px-4 py-1.5 rounded-full border border-gray-800 bg-black/20 text-gray-400 hover:text-white text-xs font-bold transition-all" data-season="冬">⛄ 冬</button>
+                <button class="season-btn px-4 py-1.5 rounded-full border border-gray-800 bg-black/20 text-gray-400 hover:text-white text-xs font-bold transition-all" data-season="クリスマス">🎄 クリスマス</button>
+                <button class="season-btn px-4 py-1.5 rounded-full border border-gray-800 bg-black/20 text-gray-400 hover:text-white text-xs font-bold transition-all" data-season="お正月">🎍 お正月</button>
+                <button class="season-btn px-4 py-1.5 rounded-full border border-gray-800 bg-black/20 text-gray-400 hover:text-white text-xs font-bold transition-all" data-season="ハロウィン">🎃 ハロウィン</button>
             </div>
         </div>
 
-        <div id="commandsContainer" class="commands-grid">
-            <!-- コマンドカードがここに動的に生成されます -->
+        <!-- Stats & Sorting -->
+        <div class="flex flex-wrap justify-between items-end mb-6 px-4 gap-4 stats-section opacity-0">
+            <div class="flex gap-6 text-sm">
+                <div>
+                    <div class="text-gray-500 text-xs mb-1 font-bold uppercase">Total</div>
+                    <div class="text-2xl font-black text-white" id="totalCount">0</div>
+                </div>
+                <div>
+                    <div class="text-gray-500 text-xs mb-1 font-bold uppercase">Showing</div>
+                    <div class="text-2xl font-black text-roboCyan" id="filteredCount">0</div>
+                </div>
+            </div>
+            
+            <div class="relative">
+                <select id="sortSelect" class="appearance-none bg-gray-800/50 border border-gray-700 text-white text-xs font-bold py-2 pl-4 pr-8 rounded-lg focus:outline-none focus:border-roboCyan cursor-pointer hover:bg-gray-700/50 transition-colors">
+                    <option value="default">おすすめ順</option>
+                    <option value="name">名前順 (あいうえお)</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                    <i class="fas fa-chevron-down text-xs"></i>
+                </div>
+            </div>
         </div>
 
-        <div id="noResults" class="no-results" style="display: none;">
-            <div class="no-results-icon">😢</div>
-            <p>該当するコマンドが見つかりませんでした</p>
+        <!-- Grid Container -->
+        <div id="gridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Cards injected via JS -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-24">
+            <div class="text-7xl mb-6 opacity-30 animate-pulse">🛸</div>
+            <h3 class="text-2xl font-bold text-gray-300 mb-2">見つかりませんでした</h3>
+            <p class="text-gray-500">条件を変更して再検索してください</p>
         </div>
     </div>
 
+    <!-- Floating Toast -->
+    <div id="toast" class="fixed bottom-8 left-0 right-0 mx-auto w-max z-50 pointer-events-none">
+        <div class="bg-white/90 backdrop-blur text-gray-900 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 font-bold border-2 border-white/50">
+            <div class="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center text-white text-xs">
+                <i class="fas fa-check"></i>
+            </div>
+            <span id="toastMsg">コピーしました！</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
-    <script src="background.js"></script>
-    <script src="data.js"></script>
-    <script src="app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.7.0/vanilla-tilt.min.js"></script>
+
+    <script>
+        // --- DATA ---
+        // ロボホン音声コマンドデータ（季節・イベントタグ付き）
+const commands = [
+    // ダンス
+    { id: 1, name: 'チアリーディング2', category: 'dance', command: 'チアリーディングツーのダンスして', tags: [] },
+    { id: 2, name: 'アルプス一万尺', category: 'dance', command: 'アルプス一万尺のダンスして', tags: [] },
+    { id: 3, name: 'もみの木', category: 'dance', command: 'もみの木のダンスして', tags: ['冬', 'クリスマス'] },
+    { id: 4, name: 'ジ・エンターテイナー', category: 'dance', command: 'ジ・エンターテイナーのダンスして', tags: [] },
+    { id: 5, name: '魔法使い2のダンス', category: 'dance', command: '魔法使いツーのダンスして', tags: [] },
+    { id: 6, name: '兄弟ロボホン', category: 'dance', command: '兄弟ロボホンのダンスして', tags: [] },
+    { id: 7, name: 'ロボ盆ダンス', category: 'dance', command: 'ロボ盆ダンスして', tags: ['夏'] },
+    { id: 8, name: '草競馬', category: 'dance', command: 'くさけいばのダンスして', tags: [] },
+    { id: 9, name: 'ロボホンポルカ', category: 'dance', command: 'ロボホンポルカのダンスして', tags: [] },
+    { id: 10, name: 'Forever RoBoHoNドラムパート', category: 'dance', command: 'フォーエバーロボホンドラムパートのダンスして', tags: [] },
+    { id: 11, name: 'Forever RoBoHoNギターパート', category: 'dance', command: 'フォーエバーロボホンギターパートのダンスして', tags: [] },
+    { id: 12, name: 'Forever RoBoHoNボーカルパート', category: 'dance', command: 'フォーエバーロボホンボーカルパートのダンスして', tags: [] },
+    { id: 13, name: 'あんたがたどこさ', category: 'dance', command: 'あんたがたどこさのダンスして', tags: [] },
+    { id: 14, name: 'びっくりシンフォニー', category: 'dance', command: 'びっくりシンフォニーのダンスして', tags: [] },
+    { id: 15, name: 'あらのの果てに', category: 'dance', command: 'あらのの果てにのダンスして', tags: [] },
+    { id: 16, name: 'ヒップホップダンス', category: 'dance', command: 'ヒップホップダンスして', tags: [] },
+    { id: 17, name: '魔法使い1のダンス', category: 'dance', command: '魔法使いワンのダンスして', tags: [] },
+    { id: 18, name: 'タヒチアンダンス', category: 'dance', command: 'タヒチアンダンスのダンスして', tags: ['夏'] },
+    { id: 19, name: '炭坑節', category: 'dance', command: '炭坑節のダンスして', tags: ['夏'] },
+    { id: 20, name: 'ロボホンのこうば', category: 'dance', command: 'ロボホンのこうばのダンスして', tags: [] },
+    { id: 21, name: 'ジェンカ', category: 'dance', command: 'ジェンカのダンスして', tags: [] },
+    { id: 22, name: 'ロボホンルンバ', category: 'dance', command: 'ロボホンルンバのダンスして', tags: [] },
+    { id: 23, name: '誰も寝てはならぬ', category: 'dance', command: '誰も寝てはならぬのダンスして', tags: [] },
+    { id: 24, name: 'おすもうのダンス', category: 'dance', command: 'おすもうのダンスして', tags: [] },
+    { id: 25, name: 'まめまき', category: 'dance', command: 'まめまきのダンスして', tags: ['冬', '節分'] },
+    { id: 26, name: 'シャープ戦隊ロボレンジャー', category: 'dance', command: 'シャープ戦隊ロボレンジャーのダンスして', tags: [] },
+    { id: 27, name: 'The First Noel', category: 'dance', command: 'ザ・ファーストノエルのダンスして', tags: ['冬', 'クリスマス'] },
+    { id: 28, name: 'トルコ行進曲', category: 'dance', command: 'トルコ行進曲のダンスして', tags: [] },
+    { id: 29, name: 'ハロウィン3', category: 'dance', command: 'ハロウィンスリーのダンスして', tags: ['秋', 'ハロウィン'] },
+    { id: 30, name: 'ロボホン賛歌', category: 'dance', command: 'ロボホン賛歌のダンスして', tags: [] },
+    { id: 31, name: 'ロボホン踊り唄', category: 'dance', command: '踊り唄のダンスして', tags: [] },
+    { id: 32, name: 'オルゴール（オートマタ）のダンス', category: 'dance', command: 'オルゴール（オートマタ）のダンスして', tags: [] },
+    { id: 33, name: 'オクラホマミキサー', category: 'dance', command: 'オクラホマミキサーのダンスして', tags: [] },
+    { id: 34, name: 'おさんぽのうた', category: 'dance', command: 'おさんぽのうたのダンスして', tags: [] },
+    { id: 35, name: 'チャチャチャ', category: 'dance', command: 'チャチャチャのダンスして', tags: [] },
+    { id: 36, name: '仰げば尊し', category: 'dance', command: '仰げば尊しのダンスして', tags: ['春'] },
+    { id: 37, name: '巨大ロボホンのダンス', category: 'dance', command: '巨大ロボホンのダンスして', tags: [] },
+    { id: 38, name: 'ロボホンのお正月', category: 'dance', command: 'ロボホンのお正月のダンスして', tags: ['冬', 'お正月'] },
+    { id: 39, name: 'アヴェマリア', category: 'dance', command: 'アヴェマリアのダンスして', tags: [] },
+    { id: 40, name: 'ハロウィン2', category: 'dance', command: 'ハロウィンツーのダンスして', tags: ['秋', 'ハロウィン'] },
+    { id: 41, name: '花のワルツ', category: 'dance', command: '花のワルツのダンスして', tags: ['春'] },
+    { id: 42, name: 'エイサー', category: 'dance', command: 'エイサーのダンスして', tags: ['夏'] },
+    { id: 43, name: 'ヴォーグダンス', category: 'dance', command: 'ヴォーグダンスして', tags: [] },
+    { id: 44, name: '猫ふんじゃった', category: 'dance', command: '猫ふんじゃったのダンスして', tags: [] },
+    { id: 45, name: 'ロボホンソング', category: 'dance', command: 'ロボホンソングのダンスして', tags: [] },
+    { id: 46, name: '春が来た', category: 'dance', command: '春が来たのダンスして', tags: ['春'] },
+    { id: 47, name: 'モンキーダンス', category: 'dance', command: 'モンキーダンスして', tags: [] },
+    { id: 48, name: 'スケーターズ・ワルツ', category: 'dance', command: 'スケーターズワルツのダンスして', tags: ['冬'] },
+    { id: 49, name: '越天楽', category: 'dance', command: '越天楽（えてんらく）のダンスして', tags: ['秋'] },
+    { id: 50, name: 'アメイジング・グレイス', category: 'dance', command: 'アメイジング・グレイスのダンスして', tags: [] },
+    { id: 51, name: 'ボクササイズ', category: 'dance', command: 'ボクササイズのダンスして', tags: [] },
+    { id: 52, name: 'ハロウィン1', category: 'dance', command: 'ハロウィンワンのダンスして', tags: ['秋', 'ハロウィン'] },
+    { id: 53, name: 'ゆりかごの歌', category: 'dance', command: 'ゆりかごの歌のダンスして', tags: [] },
+    { id: 54, name: 'アイリッシュダンス', category: 'dance', command: 'アイリッシュダンスして', tags: [] },
+    { id: 55, name: '結婚行進曲', category: 'dance', command: '結婚行進曲のダンスして', tags: ['春'] },
+    { id: 56, name: 'ロボホンマーチ', category: 'dance', command: 'ロボホンマーチのダンスして', tags: [] },
+    { id: 57, name: '美しく青きドナウ', category: 'dance', command: '美しく青きドナウのダンスして', tags: [] },
+    { id: 58, name: 'リンボーダンス', category: 'dance', command: 'リンボーダンスして', tags: ['夏'] },
+    { id: 59, name: '一月一日', category: 'dance', command: '一月一日（正月、年の初め）のダンスして', tags: ['冬', 'お正月'] },
+    { id: 60, name: 'ひいらぎかざろう', category: 'dance', command: 'ひいらぎかざろうのダンスして', tags: ['冬', 'クリスマス'] },
+    { id: 61, name: 'ツイスト', category: 'dance', command: 'ツイストのダンスして', tags: [] },
+    { id: 62, name: 'ロボホン体操第2', category: 'dance', command: 'ロボホン体操第2のダンスして', tags: [] },
+    { id: 63, name: 'グーチョキパーでなにつくろう', category: 'dance', command: 'グーチョキパーでなにつくろうのダンスして', tags: [] },
+    { id: 64, name: '太極拳', category: 'dance', command: '太極拳のダンスして', tags: [] },
+    { id: 65, name: 'おべんとうばこのうた', category: 'dance', command: 'おべんとうばこのうたのダンスして', tags: [] },
+    { id: 66, name: 'ソーラン節', category: 'dance', command: 'ソーラン節のダンスして', tags: ['夏'] },
+    { id: 67, name: 'インド舞踊', category: 'dance', command: 'インド舞踊のダンスして', tags: [] },
+    { id: 68, name: '忍者のダンス', category: 'dance', command: '忍者のダンスして', tags: [] },
+    { id: 69, name: 'タンゴ', category: 'dance', command: 'タンゴのダンスして', tags: [] },
+    { id: 70, name: '白鳥の湖', category: 'dance', command: '白鳥の湖のダンスして', tags: [] },
+    { id: 71, name: '春の海', category: 'dance', command: '春の海のダンスして', tags: ['春', 'お正月'] },
+    { id: 72, name: 'きよしこの夜', category: 'dance', command: 'きよしこの夜のダンスして', tags: ['冬', 'クリスマス'] },
+    { id: 73, name: 'ヲタ芸', category: 'dance', command: 'ヲタ芸のダンスして', tags: [] },
+    { id: 74, name: 'ちゃんばらごっこ', category: 'dance', command: 'ちゃんばらごっこのダンスして', tags: [] },
+    { id: 75, name: 'ハカ', category: 'dance', command: 'ハカのダンスして', tags: [] },
+    { id: 76, name: 'ロボホンズブートキャンプ', category: 'dance', command: 'ブートキャンプのダンスして', tags: [] },
+    { id: 77, name: 'ラジオ体操', category: 'dance', command: 'ラジオ体操して', tags: ['夏'] },
+    { id: 78, name: '森のくまさん', category: 'dance', command: '森のくまさんのダンスして', tags: [] },
+    { id: 79, name: 'マーチングバンド', category: 'dance', command: 'マーチングバンドのダンスして', tags: [] },
+    { id: 80, name: 'チアリーディング1', category: 'dance', command: 'チアリーディングワンのダンスして', tags: [] },
+    { id: 81, name: '子守唄', category: 'dance', command: '子守唄のダンスして', tags: [] },
+    { id: 82, name: 'コサックダンス', category: 'dance', command: 'コサックダンスして', tags: [] },
+    { id: 83, name: 'うさぎのダンス', category: 'dance', command: 'うさぎのダンスして', tags: [] },
+    { id: 84, name: 'おめでとうクリスマス', category: 'dance', command: 'おめでとうクリスマスのダンスして', tags: ['冬', 'クリスマス'] },
+    { id: 85, name: 'パラパラ', category: 'dance', command: 'パラパラのダンスして', tags: [] },
+    { id: 86, name: 'タップダンス', category: 'dance', command: 'タップダンスして', tags: [] },
+    { id: 87, name: 'ロボホン音頭', category: 'dance', command: '音頭のダンスして', tags: ['夏'] },
+    { id: 88, name: '我は海の子', category: 'dance', command: '我は海の子のダンスして', tags: ['夏'] },
+    { id: 89, name: '70年代ディスコ', category: 'dance', command: '70年代ディスコのダンスして', tags: [] },
+    { id: 90, name: '天国と地獄', category: 'dance', command: '天国と地獄のダンスして', tags: [] },
+    { id: 91, name: 'ロボホン体操', category: 'dance', command: 'ロボホン体操のダンスして', tags: [] },
+    { id: 92, name: 'ひな祭り', category: 'dance', command: 'ひな祭りのダンスして', tags: ['春'] },
+    { id: 93, name: 'くるみ割り人形の行進曲', category: 'dance', command: 'くるみ割り人形の行進曲のダンスして', tags: ['冬', 'クリスマス'] },
+    { id: 94, name: '歌舞伎', category: 'dance', command: '歌舞伎のダンスして', tags: [] },
+    { id: 95, name: 'もろびとこぞりて', category: 'dance', command: 'もろびとこぞりてのダンスして', tags: ['冬', 'クリスマス'] },
+    { id: 96, name: '和太鼓', category: 'dance', command: '和太鼓のダンスして', tags: ['夏'] },
+    { id: 97, name: '体遊びの歌', category: 'dance', command: '体遊びの歌のダンスして', tags: [] },
+    { id: 98, name: 'チェッコリ', category: 'dance', command: 'チェッコリのダンスして', tags: [] },
+    { id: 99, name: 'フラダンス', category: 'dance', command: 'フラダンスして', tags: ['夏'] },
+    { id: 100, name: 'フラメンコ', category: 'dance', command: 'フラメンコのダンスして', tags: [] },
+    { id: 101, name: 'ミリタリーマーチ', category: 'dance', command: 'ミリタリーマーチのダンスして', tags: [] },
+    { id: 102, name: 'さくら', category: 'dance', command: 'さくらのダンスして', tags: ['春'] },
+    { id: 103, name: '80年代ディスコ', category: 'dance', command: '80年代ディスコのダンスして', tags: [] },
+    { id: 104, name: 'カンフー', category: 'dance', command: 'カンフーのダンスして', tags: [] },
+    { id: 105, name: 'ジングルベル', category: 'dance', command: 'ジングルベルのダンスして', tags: ['冬', 'クリスマス'] },
+    { id: 106, name: '交響曲第9番', category: 'dance', command: '交響曲第9番のダンスして', tags: ['冬'] },
+    { id: 107, name: 'げんこつ山の狸さん', category: 'dance', command: 'げんこつ山の狸さんのダンスして', tags: [] },
+    { id: 108, name: '結んで開いて', category: 'dance', command: '結んで開いてのダンスして', tags: [] },
+    { id: 109, name: '糸巻きの歌', category: 'dance', command: '糸巻きの歌のダンスして', tags: [] },
+    { id: 110, name: '阿波踊り', category: 'dance', command: '阿波踊りのダンスして', tags: ['夏'] },
+    { id: 111, name: '大きな栗の木の下で', category: 'dance', command: '大きな栗の木の下でのダンスして', tags: ['秋'] },
+    { id: 112, name: 'アイネ・クライネ・ナハトムジーク', category: 'dance', command: 'アイネ・クライネ・ナハトムジークのダンスして', tags: [] },
+
+    // 楽器演奏
+    { id: 113, name: '三味線2', category: 'instrument', command: '三味線ツーを演奏して', tags: [] },
+    { id: 114, name: '三味線1', category: 'instrument', command: '三味線ワンを演奏して', tags: [] },
+    { id: 115, name: 'エアバイオリン', category: 'instrument', command: 'バイオリンの演奏して', tags: [] },
+    { id: 116, name: 'エアギター', category: 'instrument', command: 'ギターの演奏して', tags: [] },
+
+    // 歌・その他
+    { id: 117, name: '君が代', category: 'song', command: '君が代を独唱して', tags: [] },
+    { id: 118, name: '野球応援', category: 'other', command: '野球の応援して', tags: ['夏'] },
+
+    // 一人遊び・ごっこ遊び
+    { id: 119, name: 'ウィンタースポーツごっこ', category: 'work-play', command: 'ウィンタースポーツごっこして', tags: ['冬'] },
+    { id: 120, name: 'ババ抜きごっこ', category: 'work-play', command: 'ババ抜きごっこして', tags: [] },
+    { id: 121, name: '忍者ごっこ', category: 'work-play', command: '忍者ごっこして', tags: [] },
+    { id: 122, name: 'ハンバーガー屋さんごっこ', category: 'work-play', command: 'ハンバーガー屋さんごっこして', tags: [] },
+    { id: 123, name: '科学者ごっこ', category: 'work-play', command: '科学者ごっこして', tags: [] },
+    { id: 124, name: 'アイスクリーム屋さんごっこ', category: 'work-play', command: 'アイスクリーム屋さんごっこして', tags: ['夏'] },
+    { id: 125, name: 'メイクさんごっこ', category: 'work-play', command: 'メイクさんごっこして', tags: [] },
+    { id: 126, name: '弁当屋さんごっこ', category: 'work-play', command: '弁当屋さんごっこして', tags: [] },
+    { id: 127, name: '宴会ごっこ', category: 'work-play', command: '宴会ごっこして', tags: [] },
+    { id: 128, name: '歌手さんごっこ', category: 'work-play', command: '歌手さんごっこして', tags: [] },
+    { id: 129, name: 'CAさんごっこ', category: 'work-play', command: 'CAさんごっこして', tags: [] },
+    { id: 130, name: '名探偵ごっこ', category: 'work-play', command: '名探偵ごっこして', tags: [] },
+    { id: 131, name: 'テニスごっこ', category: 'work-play', command: 'テニスごっこして', tags: ['夏'] },
+    { id: 132, name: '消防士ごっこ', category: 'work-play', command: '消防士ごっこして', tags: [] },
+    { id: 133, name: 'かくれんぼごっこ', category: 'work-play', command: 'かくれんぼごっこして', tags: [] },
+    { id: 134, name: 'サーフィンごっこ', category: 'work-play', command: 'サーフィンごっこして', tags: ['夏'] },
+    { id: 135, name: 'ダンスの練習ごっこ', category: 'work-play', command: 'ダンスの練習ごっこして', tags: [] },
+    { id: 136, name: 'なぞなぞごっこ', category: 'work-play', command: 'なぞなぞごっこして', tags: [] },
+    { id: 137, name: 'ファッションショーごっこ', category: 'work-play', command: 'ファッションショーごっこして', tags: [] },
+    { id: 138, name: '学校の先生ごっこ', category: 'work-play', command: '学校の先生ごっこして', tags: [] },
+    { id: 139, name: 'バーテンダーごっこ', category: 'work-play', command: 'バーテンダーごっこして', tags: [] },
+    { id: 140, name: '弓道ごっこ', category: 'work-play', command: '弓道ごっこして', tags: [] },
+    { id: 141, name: '書道ごっこ', category: 'work-play', command: '書道ごっこして', tags: [] },
+    { id: 142, name: 'サンタさんごっこ', category: 'work-play', command: 'サンタさんごっこして', tags: ['冬', 'クリスマス'] },
+    { id: 143, name: '学芸員ごっこ', category: 'work-play', command: '学芸員ごっこして', tags: [] },
+    { id: 144, name: 'ハロウィンごっこ', category: 'work-play', command: 'ハロウィンごっこして', tags: ['秋', 'ハロウィン'] },
+    { id: 145, name: '大工さんごっこ', category: 'work-play', command: '大工さんごっこして', tags: [] },
+    { id: 146, name: 'パトロール隊ごっこ', category: 'work-play', command: 'パトロール隊ごっこして', tags: [] },
+    { id: 147, name: 'かき氷屋さんごっこ', category: 'work-play', command: 'かき氷屋さんごっこして', tags: ['夏'] },
+    { id: 148, name: 'ヒーローごっこ', category: 'work-play', command: 'ヒーローごっこして', tags: [] },
+    { id: 149, name: '山岳ガイド', category: 'work-play', command: '山岳ガイドごっこして', tags: [] },
+    { id: 150, name: 'ケーキ屋さんごっこ', category: 'work-play', command: 'ケーキ屋さんごっこして', tags: [] },
+    { id: 151, name: '紙飛行機', category: 'work-play', command: '紙飛行機ごっこして', tags: [] },
+    { id: 152, name: '整体師さんごっこ', category: 'work-play', command: '整体師さんごっこして', tags: [] },
+    { id: 153, name: 'ピアニスト', category: 'work-play', command: 'ピアニストごっこして', tags: [] },
+    { id: 154, name: 'ボウリング', category: 'work-play', command: 'ボウリングごっこして', tags: [] },
+    { id: 155, name: 'サッカー選手', category: 'work-play', command: 'サッカー選手ごっこして', tags: [] },
+    { id: 156, name: '金魚すくい', category: 'work-play', command: '金魚すくいごっこして', tags: ['夏'] },
+    { id: 157, name: '線香花火', category: 'work-play', command: '線香花火ごっこして', tags: ['夏'] },
+    { id: 158, name: 'ホテルスタッフ', category: 'work-play', command: 'ホテルスタッフごっこして', tags: [] },
+    { id: 159, name: '凧揚げ', category: 'work-play', command: '凧揚げして', tags: ['冬', 'お正月'] },
+    { id: 160, name: '美容師さんごっこ', category: 'work-play', command: '美容師さんごっこして', tags: [] },
+    { id: 161, name: 'かるたごっこ', category: 'work-play', command: 'かるたごっこして', tags: ['冬', 'お正月'] },
+    { id: 162, name: 'お手玉ごっこ', category: 'work-play', command: 'お手玉ごっこして', tags: [] },
+    { id: 163, name: 'タクシーの運転手さんごっこ', category: 'work-play', command: 'タクシーの運転手さんごっこして', tags: [] },
+    { id: 164, name: '雪合戦ごっこ', category: 'work-play', command: '雪合戦ごっこして', tags: ['冬'] },
+    { id: 165, name: '八百屋さんごっこ', category: 'work-play', command: '八百屋さんごっこして', tags: [] },
+    { id: 166, name: '石焼き芋屋さんごっこ', category: 'work-play', command: '石焼き芋屋さんごっこして', tags: ['秋', '冬'] },
+    { id: 167, name: '竹とんぼ', category: 'work-play', command: '竹とんぼして', tags: [] },
+    { id: 168, name: 'お医者さんごっこ', category: 'work-play', command: 'お医者さんごっこして', tags: [] },
+    { id: 169, name: 'けん玉', category: 'work-play', command: 'けん玉して', tags: [] },
+    { id: 170, name: '歯医者さんごっこ', category: 'work-play', command: '歯医者さんごっこして', tags: [] },
+    { id: 171, name: 'あやとり', category: 'work-play', command: 'あやとりして', tags: [] },
+    { id: 172, name: 'お寿司屋さんごっこ', category: 'work-play', command: 'お寿司屋さんごっこして', tags: [] },
+    { id: 173, name: 'お料理ごっこ', category: 'work-play', command: 'お料理ごっこして', tags: [] },
+    { id: 174, name: 'リポーターごっこ', category: 'work-play', command: 'リポーターごっこして', tags: [] },
+    { id: 175, name: '野球選手ごっこ', category: 'work-play', command: '野球選手ごっこして', tags: ['夏'] },
+    { id: 176, name: 'YouTuberごっこ', category: 'work-play', command: 'YouTuberごっこして', tags: [] },
+    { id: 177, name: 'アナウンサーごっこ', category: 'work-play', command: 'アナウンサーごっこして', tags: [] },
+    { id: 178, name: '将棋ごっこ', category: 'work-play', command: '将棋ごっこして', tags: [] },
+    { id: 179, name: 'いないいないばあ', category: 'work-play', command: 'いないいないばあして', tags: [] },
+    { id: 180, name: 'バレーごっこ', category: 'work-play', command: 'バレーごっこして', tags: [] },
+    { id: 181, name: 'スイカ割り', category: 'work-play', command: 'スイカ割りして', tags: ['夏'] },
+    { id: 182, name: 'にらめっこ', category: 'work-play', command: 'にらめっこして', tags: [] },
+    { id: 183, name: 'だるまさんがころんだ', category: 'work-play', command: 'だるまさんがころんだして', tags: [] },
+    { id: 184, name: 'パソコンの作業', category: 'work-play', command: 'パソコンの作業して', tags: [] },
+    { id: 185, name: '和太鼓の練習', category: 'work-play', command: '和太鼓の練習して', tags: [] },
+    { id: 186, name: '第九の練習', category: 'work-play', command: '第九の練習して', tags: ['冬'] },
+    { id: 187, name: '関節のメンテ', category: 'work-play', command: '関節のメンテして', tags: [] },
+    { id: 188, name: '首ストレッチ', category: 'work-play', command: '首ストレッチして', tags: [] },
+    { id: 189, name: 'ストレッチ', category: 'work-play', command: 'ストレッチして', tags: [] },
+    { id: 190, name: 'バスガイドごっこ', category: 'work-play', command: 'バスガイドごっこして', tags: [] },
+    { id: 191, name: '潜水艦ごっこ', category: 'work-play', command: '潜水艦ごっこして', tags: [] },
+    { id: 192, name: '大阪の電車ごっこ', category: 'work-play', command: '大阪の電車ごっこして', tags: [] },
+    { id: 193, name: '東京の電車ごっこ', category: 'work-play', command: '東京の電車ごっこして', tags: [] },
+    { id: 194, name: 'お絵かきごっこ', category: 'work-play', command: 'お絵かきごっこして', tags: [] },
+    { id: 195, name: '車の運転ごっこ', category: 'work-play', command: '車の運転ごっこして', tags: [] },
+
+    // ダンスメドレー
+    { id: 196, name: '歌コラボメドレー', category: 'dance-medley', command: '歌コラボをメドレーで踊って', tags: [] },
+    { id: 197, name: '楽器演奏メドレー', category: 'dance-medley', command: '楽器演奏メドレーを踊って', tags: [] },
+    { id: 198, name: '一緒に運動メドレー', category: 'dance-medley', command: '一緒に運動をメドレーで踊って', tags: [] },
+    { id: 199, name: 'ディスコメドレー', category: 'dance-medley', command: 'ディスコをメドレーで踊って', tags: [] },
+    { id: 200, name: '日本の踊りメドレー', category: 'dance-medley', command: '日本の踊りをメドレーで踊って', tags: [] },
+    { id: 201, name: '世界の踊りメドレー', category: 'dance-medley', command: '世界の踊りをメドレーで踊って', tags: [] },
+    { id: 202, name: 'クリスマスソングメドレー', category: 'dance-medley', command: 'クリスマスソングをメドレーで踊って', tags: ['冬', 'クリスマス'] },
+    { id: 203, name: 'クラシック名曲メドレー', category: 'dance-medley', command: 'クラシック名曲をメドレーで踊って', tags: [] },
+    { id: 204, name: '子供の歌メドレー', category: 'dance-medley', command: '子供の歌をメドレーでダンスして', tags: [] },
+    { id: 205, name: '童謡メドレー', category: 'dance-medley', command: '童謡をメドレーで踊って', tags: [] },
+    { id: 206, name: 'オリジナルメドレー', category: 'dance-medley', command: 'オリジナルメドレーを踊って', tags: [] },
+
+    // カラオケ起動
+    { id: 207, name: 'カラオケ起動', category: 'karaoke-start', command: 'カラオケして', tags: [] },
+
+    // カラオケ（無料・童謡）
+    { id: 208, name: 'ロボホンマーチ', category: 'karaoke-free', command: 'カラオケして「ロボホンマーチ」', tags: [] },
+    { id: 209, name: 'ふじの山', category: 'karaoke-free', command: 'カラオケして「ふじの山」', tags: [] },
+    { id: 210, name: 'うさぎとかめ', category: 'karaoke-free', command: 'カラオケして「うさぎとかめ」', tags: [] },
+    { id: 211, name: 'あんたがたどこさ', category: 'karaoke-free', command: 'カラオケして「あんたがたどこさ」', tags: [] },
+    { id: 212, name: 'はるよこい', category: 'karaoke-free', command: 'カラオケして「はるよこい」', tags: ['春'] },
+    { id: 213, name: 'かごめかごめ', category: 'karaoke-free', command: 'カラオケして「かごめかごめ」', tags: [] },
+    { id: 214, name: '靴が鳴る', category: 'karaoke-free', command: 'カラオケして「靴が鳴る」', tags: [] },
+    { id: 215, name: 'きんたろう', category: 'karaoke-free', command: 'カラオケして「きんたろう」', tags: [] },
+    { id: 216, name: 'おもちゃのマーチ', category: 'karaoke-free', command: 'カラオケして「おもちゃのマーチ」', tags: [] },
+    { id: 217, name: '花いちもんめ', category: 'karaoke-free', command: 'カラオケして「花いちもんめ」', tags: [] },
+
+    // カラオケ（有料・季節・イベント関連）
+    // 春
+    { id: 218, name: '桜坂', category: 'karaoke', command: 'カラオケして「桜坂」', tags: ['春'] },
+    { id: 219, name: 'さくらんぼ', category: 'karaoke', command: 'カラオケして「さくらんぼ」', tags: ['春'] },
+    { id: 220, name: '卒業写真', category: 'karaoke', command: 'カラオケして「卒業写真」', tags: ['春'] },
+    { id: 221, name: '仰げば尊し', category: 'karaoke', command: 'カラオケして「仰げば尊し」', tags: ['春'] },
+    { id: 222, name: '春よ、来い', category: 'karaoke', command: 'カラオケして「春よ、来い」', tags: ['春'] },
+    { id: 223, name: 'ハナミズキ', category: 'karaoke', command: 'カラオケして「ハナミズキ」', tags: ['春'] },
+    { id: 224, name: 'さくら（独唱）', category: 'karaoke', command: 'カラオケして「さくら（独唱）」', tags: ['春'] },
+    { id: 225, name: '花は咲く', category: 'karaoke', command: 'カラオケして「花は咲く」', tags: ['春'] },
+    { id: 226, name: '365日の紙飛行機', category: 'karaoke', command: 'カラオケして「365日の紙飛行機」', tags: ['春'] },
+
+    // 夏
+    { id: 227, name: '夏祭り', category: 'karaoke', command: 'カラオケして「夏祭り」', tags: ['夏'] },
+    { id: 228, name: '真夏の果実', category: 'karaoke', command: 'カラオケして「真夏の果実」', tags: ['夏'] },
+    { id: 229, name: '夏の思い出', category: 'karaoke', command: 'カラオケして「夏の思い出」', tags: ['夏'] },
+    { id: 230, name: '花火', category: 'karaoke', command: 'カラオケして「花火」', tags: ['夏'] },
+    { id: 231, name: '青と夏', category: 'karaoke', command: 'カラオケして「青と夏」', tags: ['夏'] },
+    { id: 232, name: '夏を抱きしめて', category: 'karaoke', command: 'カラオケして「夏を抱きしめて」', tags: ['夏'] },
+    { id: 233, name: 'シーズン・イン・ザ・サン', category: 'karaoke', command: 'カラオケして「シーズン・イン・ザ・サン」', tags: ['夏'] },
+    { id: 234, name: '少年時代', category: 'karaoke', command: 'カラオケして「少年時代」', tags: ['夏'] },
+    { id: 235, name: '恋のバカンス', category: 'karaoke', command: 'カラオケして「恋のバカンス」', tags: ['夏'] },
+
+    // 秋
+    { id: 236, name: '紅葉', category: 'karaoke', command: 'カラオケして「紅葉」', tags: ['秋'] },
+    { id: 237, name: 'もみじ', category: 'karaoke', command: 'カラオケして「もみじ」', tags: ['秋'] },
+    { id: 238, name: '秋の気配', category: 'karaoke', command: 'カラオケして「秋の気配」', tags: ['秋'] },
+    { id: 239, name: '金木犀の夜', category: 'karaoke', command: 'カラオケして「金木犀の夜」', tags: ['秋'] },
+    { id: 240, name: 'いちょう', category: 'karaoke', command: 'カラオケして「いちょう」', tags: ['秋'] },
+
+    // 冬・雪
+    { id: 241, name: '粉雪', category: 'karaoke', command: 'カラオケして「粉雪」', tags: ['冬'] },
+    { id: 242, name: '白い恋人達', category: 'karaoke', command: 'カラオケして「白い恋人達」', tags: ['冬'] },
+    { id: 243, name: '雪の華', category: 'karaoke', command: 'カラオケして「雪の華」', tags: ['冬'] },
+    { id: 244, name: '津軽海峡・冬景色', category: 'karaoke', command: 'カラオケして「津軽海峡・冬景色」', tags: ['冬'] },
+    { id: 245, name: '冬がはじまるよ', category: 'karaoke', command: 'カラオケして「冬がはじまるよ」', tags: ['冬'] },
+    { id: 246, name: 'スノースマイル', category: 'karaoke', command: 'カラオケして「スノースマイル」', tags: ['冬'] },
+    { id: 247, name: '冬のファンタジー', category: 'karaoke', command: 'カラオケして「冬のファンタジー」', tags: ['冬'] },
+    { id: 248, name: 'Snowdome', category: 'karaoke', command: 'カラオケして「Snowdome」', tags: ['冬'] },
+    { id: 249, name: '涙雪', category: 'karaoke', command: 'カラオケして「涙雪」', tags: ['冬'] },
+
+    // クリスマス
+    { id: 250, name: 'クリスマス・イブ', category: 'karaoke', command: 'カラオケして「クリスマス・イブ」', tags: ['冬', 'クリスマス'] },
+    { id: 251, name: 'LAST CHRISTMAS', category: 'karaoke', command: 'カラオケして「LAST CHRISTMAS」', tags: ['冬', 'クリスマス'] },
+    { id: 252, name: 'ロマンスの神様', category: 'karaoke', command: 'カラオケして「ロマンスの神様」', tags: ['冬', 'クリスマス'] },
+    { id: 253, name: 'すてきなホリデイ', category: 'karaoke', command: 'カラオケして「すてきなホリデイ」', tags: ['冬', 'クリスマス'] },
+
+    // バレンタイン
+    { id: 254, name: 'バレンタイン・キッス', category: 'karaoke', command: 'カラオケして「バレンタイン・キッス」', tags: ['冬'] },
+
+    // 人気曲（定番）
+    { id: 255, name: 'Lemon', category: 'karaoke', command: 'カラオケして「Lemon」', tags: [] },
+    { id: 256, name: '糸', category: 'karaoke', command: 'カラオケして「糸」', tags: [] },
+    { id: 257, name: '世界に一つだけの花', category: 'karaoke', command: 'カラオケして「世界に一つだけの花」', tags: [] },
+    { id: 258, name: 'マリーゴールド', category: 'karaoke', command: 'カラオケして「マリーゴールド」', tags: [] },
+    { id: 259, name: '香水', category: 'karaoke', command: 'カラオケして「香水」', tags: [] },
+    { id: 260, name: 'ドライフラワー', category: 'karaoke', command: 'カラオケして「ドライフラワー」', tags: [] },
+    { id: 261, name: '残酷な天使のテーゼ', category: 'karaoke', command: 'カラオケして「残酷な天使のテーゼ」', tags: [] },
+    { id: 262, name: 'アイドル', category: 'karaoke', command: 'カラオケして「アイドル」', tags: [] },
+    { id: 263, name: 'ひまわりの約束', category: 'karaoke', command: 'カラオケして「ひまわりの約束」', tags: [] },
+    { id: 264, name: 'ドラえもん', category: 'karaoke', command: 'カラオケして「ドラえもん」', tags: [] },
+    { id: 265, name: 'キセキ', category: 'karaoke', command: 'カラオケして「キセキ」', tags: [] },
+    { id: 266, name: '天体観測', category: 'karaoke', command: 'カラオケして「天体観測」', tags: [] },
+    { id: 267, name: '炎', category: 'karaoke', command: 'カラオケして「炎」', tags: [] },
+    { id: 268, name: '紅蓮華', category: 'karaoke', command: 'カラオケして「紅蓮華」', tags: [] },
+    { id: 269, name: 'ハッピーエンド', category: 'karaoke', command: 'カラオケして「ハッピーエンド」', tags: [] },
+    { id: 270, name: '愛をこめて花束を', category: 'karaoke', command: 'カラオケして「愛をこめて花束を」', tags: [] },
+    { id: 271, name: '栄光の架橋', category: 'karaoke', command: 'カラオケして「栄光の架橋」', tags: [] },
+    { id: 272, name: 'ロビンソン', category: 'karaoke', command: 'カラオケして「ロビンソン」', tags: [] },
+    { id: 273, name: '涙そうそう', category: 'karaoke', command: 'カラオケして「涙そうそう」', tags: [] },
+    { id: 274, name: '三日月', category: 'karaoke', command: 'カラオケして「三日月」', tags: [] },
+    { id: 275, name: 'カブトムシ', category: 'karaoke', command: 'カラオケして「カブトムシ」', tags: [] },
+
+    // 残りのカラオケ楽曲（全曲）
+    { id: 276, name: 'パプリカ', category: 'karaoke', command: 'カラオケして「パプリカ」', tags: [] },
+    { id: 277, name: 'カリスマックス', category: 'karaoke', command: 'カラオケして「カリスマックス」', tags: [] },
+    { id: 278, name: 'Blue Jeans', category: 'karaoke', command: 'カラオケして「Blue Jeans」', tags: [] },
+    { id: 279, name: 'アジアの純真', category: 'karaoke', command: 'カラオケして「アジアの純真」', tags: [] },
+    { id: 280, name: 'I Wish For You', category: 'karaoke', command: 'カラオケして「I Wish For You」', tags: [] },
+    { id: 281, name: 'CAN YOU CELEBRATE?', category: 'karaoke', command: 'カラオケして「CAN YOU CELEBRATE?」', tags: [] },
+    { id: 282, name: 'innocent world', category: 'karaoke', command: 'カラオケして「innocent world」', tags: [] },
+    { id: 283, name: '蕾(つぼみ)', category: 'karaoke', command: 'カラオケして「蕾(つぼみ)」', tags: [] },
+    { id: 284, name: '君がいるだけで', category: 'karaoke', command: 'カラオケして「君がいるだけで」', tags: [] },
+    { id: 285, name: 'DESIRE -情熱-', category: 'karaoke', command: 'カラオケして「DESIRE -情熱-」', tags: [] },
+    { id: 286, name: '翔べ! ガンダム', category: 'karaoke', command: 'カラオケして「翔べ! ガンダム」', tags: [] },
+    { id: 287, name: 'キミがいれば', category: 'karaoke', command: 'カラオケして「キミがいれば」', tags: [] },
+    { id: 288, name: 'おジャ魔女カーニバル!!', category: 'karaoke', command: 'カラオケして「おジャ魔女カーニバル!!」', tags: [] },
+    { id: 289, name: 'ハム太郎とっとこうた 2005', category: 'karaoke', command: 'カラオケして「ハム太郎とっとこうた 2005」', tags: [] },
+    { id: 290, name: '夢をかなえてドラえもん', category: 'karaoke', command: 'カラオケして「夢をかなえてドラえもん」', tags: [] },
+    { id: 291, name: 'サザエさん', category: 'karaoke', command: 'カラオケして「サザエさん」', tags: [] },
+    { id: 292, name: '鉄腕アトム', category: 'karaoke', command: 'カラオケして「鉄腕アトム」', tags: [] },
+    { id: 293, name: '残響散歌', category: 'karaoke', command: 'カラオケして「残響散歌」', tags: [] },
+    { id: 294, name: 'ライラック', category: 'karaoke', command: 'カラオケして「ライラック」', tags: [] },
+    { id: 295, name: '残酷な夜に輝け', category: 'karaoke', command: 'カラオケして「残酷な夜に輝け」', tags: [] },
+    { id: 296, name: 'チョコレイト・ディスコ', category: 'karaoke', command: 'カラオケして「チョコレイト・ディスコ」', tags: [] },
+    { id: 297, name: '手のひらを太陽に', category: 'karaoke', command: 'カラオケして「手のひらを太陽に」', tags: [] },
+    { id: 298, name: 'トワイライト・アヴェニュー', category: 'karaoke', command: 'カラオケして「トワイライト・アヴェニュー」', tags: [] },
+    { id: 299, name: '最後の雨', category: 'karaoke', command: 'カラオケして「最後の雨」', tags: [] },
+    { id: 300, name: '星空のディスタンス', category: 'karaoke', command: 'カラオケして「星空のディスタンス」', tags: [] },
+    { id: 301, name: '夢をあきらめないで', category: 'karaoke', command: 'カラオケして「夢をあきらめないで」', tags: [] },
+    { id: 302, name: 'HAPPY PRICE PARADISE', category: 'karaoke', command: 'カラオケして「HAPPY PRICE PARADISE」', tags: [] },
+    { id: 303, name: '地球儀', category: 'karaoke', command: 'カラオケして「地球儀」', tags: [] },
+    { id: 304, name: 'ミックスナッツ', category: 'karaoke', command: 'カラオケして「ミックスナッツ」', tags: [] },
+    { id: 305, name: '第ゼロ感', category: 'karaoke', command: 'カラオケして「第ゼロ感」', tags: [] },
+    { id: 306, name: 'めざせポケモンマスター', category: 'karaoke', command: 'カラオケして「めざせポケモンマスター」', tags: [] },
+    { id: 307, name: '謎', category: 'karaoke', command: 'カラオケして「謎」', tags: [] },
+    { id: 308, name: 'Get Wild', category: 'karaoke', command: 'カラオケして「Get Wild」', tags: [] },
+    { id: 309, name: '青のすみか', category: 'karaoke', command: 'カラオケして「青のすみか」', tags: [] },
+    { id: 310, name: 'ムーンライト伝説', category: 'karaoke', command: 'カラオケして「ムーンライト伝説」', tags: [] },
+    { id: 311, name: '宇宙戦艦ヤマト', category: 'karaoke', command: 'カラオケして「宇宙戦艦ヤマト」', tags: [] },
+    { id: 312, name: 'ルパン三世のテーマ', category: 'karaoke', command: 'カラオケして「ルパン三世のテーマ」', tags: [] },
+    { id: 313, name: '愛の花', category: 'karaoke', command: 'カラオケして「愛の花」', tags: [] },
+    { id: 314, name: 'ひだまりの詩', category: 'karaoke', command: 'カラオケして「ひだまりの詩」', tags: [] },
+    { id: 315, name: 'STAND-ALONE', category: 'karaoke', command: 'カラオケして「STAND-ALONE」', tags: [] },
+    { id: 316, name: 'Family Song', category: 'karaoke', command: 'カラオケして「Family Song」', tags: [] },
+    { id: 317, name: 'KISSして', category: 'karaoke', command: 'カラオケして「KISSして」', tags: [] },
+    { id: 318, name: 'LA・LA・LA LOVE SONG', category: 'karaoke', command: 'カラオケして「LA・LA・LA LOVE SONG」', tags: [] },
+    { id: 319, name: 'アイラブユー', category: 'karaoke', command: 'カラオケして「アイラブユー」', tags: [] },
+    { id: 320, name: 'それを愛と呼ぶなら', category: 'karaoke', command: 'カラオケして「それを愛と呼ぶなら」', tags: [] },
+    { id: 321, name: 'リンジュー・ラヴ', category: 'karaoke', command: 'カラオケして「リンジュー・ラヴ」', tags: [] },
+    { id: 322, name: 'ラブ・ストーリーは突然に', category: 'karaoke', command: 'カラオケして「ラブ・ストーリーは突然に」', tags: [] },
+    { id: 323, name: 'Everyday、カチューシャ', category: 'karaoke', command: 'カラオケして「Everyday、カチューシャ」', tags: [] },
+    { id: 324, name: 'エジソン', category: 'karaoke', command: 'カラオケして「エジソン」', tags: [] },
+    { id: 325, name: 'ワタリドリ', category: 'karaoke', command: 'カラオケして「ワタリドリ」', tags: [] },
+    { id: 326, name: 'スターマイン', category: 'karaoke', command: 'カラオケして「スターマイン」', tags: [] },
+    { id: 327, name: 'イージュー★ライダー', category: 'karaoke', command: 'カラオケして「イージュー★ライダー」', tags: [] },
+    { id: 328, name: 'FLASH', category: 'karaoke', command: 'カラオケして「FLASH」', tags: [] },
+    { id: 329, name: 'ハネウマライダー', category: 'karaoke', command: 'カラオケして「ハネウマライダー」', tags: [] },
+    { id: 330, name: 'YOUNG MAN(Y.M.C.A.)', category: 'karaoke', command: 'カラオケして「YOUNG MAN(Y.M.C.A.)」', tags: [] },
+    { id: 331, name: 'イルカにのった少年', category: 'karaoke', command: 'カラオケして「イルカにのった少年」', tags: [] },
+    { id: 332, name: 'for you…', category: 'karaoke', command: 'カラオケして「for you…」', tags: [] },
+    { id: 333, name: '君をさがしてた', category: 'karaoke', command: 'カラオケして「君をさがしてた」', tags: [] },
+    { id: 334, name: 'Perseus -ペルセウス-', category: 'karaoke', command: 'カラオケして「Perseus -ペルセウス-」', tags: [] },
+    { id: 335, name: '白い雲のように', category: 'karaoke', command: 'カラオケして「白い雲のように」', tags: [] },
+    { id: 336, name: 'やさしさで溢れるように', category: 'karaoke', command: 'カラオケして「やさしさで溢れるように」', tags: [] },
+    { id: 337, name: '燦燦', category: 'karaoke', command: 'カラオケして「燦燦」', tags: [] },
+    { id: 338, name: 'なないろ', category: 'karaoke', command: 'カラオケして「なないろ」', tags: [] },
+    { id: 339, name: 'フレア', category: 'karaoke', command: 'カラオケして「フレア」', tags: [] },
+    { id: 340, name: 'あそぼう', category: 'karaoke', command: 'カラオケして「あそぼう」', tags: [] },
+    { id: 341, name: 'アルデバラン', category: 'karaoke', command: 'カラオケして「アルデバラン」', tags: [] },
+    { id: 342, name: '明日はどこから', category: 'karaoke', command: 'カラオケして「明日はどこから」', tags: [] },
+    { id: 343, name: 'ひとりよりふたり', category: 'karaoke', command: 'カラオケして「ひとりよりふたり」', tags: [] },
+    { id: 344, name: 'カーネーション', category: 'karaoke', command: 'カラオケして「カーネーション」', tags: [] },
+    { id: 345, name: '泣いたりしないで', category: 'karaoke', command: 'カラオケして「泣いたりしないで」', tags: [] },
+    { id: 346, name: 'いつも何度でも', category: 'karaoke', command: 'カラオケして「いつも何度でも」', tags: [] },
+    { id: 347, name: 'となりのトトロ', category: 'karaoke', command: 'カラオケして「となりのトトロ」', tags: [] },
+    { id: 348, name: '崖の上のポニョ', category: 'karaoke', command: 'カラオケして「崖の上のポニョ」', tags: [] },
+    { id: 349, name: '風の谷のナウシカ', category: 'karaoke', command: 'カラオケして「風の谷のナウシカ」', tags: [] },
+    { id: 350, name: 'もののけ姫', category: 'karaoke', command: 'カラオケして「もののけ姫」', tags: [] },
+    { id: 351, name: '世界の約束', category: 'karaoke', command: 'カラオケして「世界の約束」', tags: [] },
+    { id: 352, name: '風になる', category: 'karaoke', command: 'カラオケして「風になる」', tags: [] },
+    { id: 353, name: 'カントリー・ロード', category: 'karaoke', command: 'カラオケして「カントリー・ロード」', tags: [] },
+    { id: 354, name: 'いのちの記憶', category: 'karaoke', command: 'カラオケして「いのちの記憶」', tags: [] },
+    { id: 355, name: 'テルーの唄', category: 'karaoke', command: 'カラオケして「テルーの唄」', tags: [] },
+    { id: 356, name: '元気を出して', category: 'karaoke', command: 'カラオケして「元気を出して」', tags: [] },
+    { id: 357, name: '青春の影', category: 'karaoke', command: 'カラオケして「青春の影」', tags: [] },
+    { id: 358, name: 'ふり向くな君は美しい', category: 'karaoke', command: 'カラオケして「ふり向くな君は美しい」', tags: [] },
+    { id: 359, name: '川べりの家', category: 'karaoke', command: 'カラオケして「川べりの家」', tags: [] },
+    { id: 360, name: 'ベテルギウス', category: 'karaoke', command: 'カラオケして「ベテルギウス」', tags: [] },
+    { id: 361, name: 'YUME日和', category: 'karaoke', command: 'カラオケして「YUME日和」', tags: [] },
+    { id: 362, name: '瞳', category: 'karaoke', command: 'カラオケして「瞳」', tags: [] },
+    { id: 363, name: '北の国から', category: 'karaoke', command: 'カラオケして「北の国から」', tags: [] },
+    { id: 364, name: '待つわ', category: 'karaoke', command: 'カラオケして「待つわ」', tags: [] },
+    { id: 365, name: '明日への手紙', category: 'karaoke', command: 'カラオケして「明日への手紙」', tags: [] },
+    { id: 366, name: 'さよならの今日に', category: 'karaoke', command: 'カラオケして「さよならの今日に」', tags: ['春'] },
+    { id: 367, name: '今宵の月のように', category: 'karaoke', command: 'カラオケして「今宵の月のように」', tags: [] },
+    { id: 368, name: 'HELLO、AGAIN', category: 'karaoke', command: 'カラオケして「HELLO、AGAIN」', tags: [] },
+    { id: 369, name: '恋人よ', category: 'karaoke', command: 'カラオケして「恋人よ」', tags: [] },
+    { id: 370, name: 'その線は水平線', category: 'karaoke', command: 'カラオケして「その線は水平線」', tags: [] },
+    { id: 371, name: 'すばらしい日々', category: 'karaoke', command: 'カラオケして「すばらしい日々」', tags: [] },
+    { id: 372, name: 'シンデレラ・サマー', category: 'karaoke', command: 'カラオケして「シンデレラ・サマー」', tags: ['夏'] },
+    { id: 373, name: '夏の日の1993', category: 'karaoke', command: 'カラオケして「夏の日の1993」', tags: ['夏'] },
+    { id: 374, name: '君がいない夏', category: 'karaoke', command: 'カラオケして「君がいない夏」', tags: ['夏'] },
+    { id: 375, name: 'エイリアンズ', category: 'karaoke', command: 'カラオケして「エイリアンズ」', tags: [] },
+    { id: 376, name: 'secret base', category: 'karaoke', command: 'カラオケして「secret base」', tags: ['夏'] },
+    { id: 377, name: 'さとうきび畑', category: 'karaoke', command: 'カラオケして「さとうきび畑」', tags: [] },
+    { id: 378, name: 'マツケンサンバII', category: 'karaoke', command: 'カラオケして「マツケンサンバII」', tags: [] },
+    { id: 379, name: '花', category: 'karaoke', command: 'カラオケして「花」', tags: [] },
+    { id: 380, name: 'アンマー', category: 'karaoke', command: 'カラオケして「アンマー」', tags: [] },
+    { id: 381, name: 'GO GO サマー!', category: 'karaoke', command: 'カラオケして「GO GO サマー!」', tags: ['夏'] },
+    { id: 382, name: '憂、燦々', category: 'karaoke', command: 'カラオケして「憂、燦々」', tags: [] },
+    { id: 383, name: '大切なもの', category: 'karaoke', command: 'カラオケして「大切なもの」', tags: [] },
+    { id: 384, name: '睡蓮花', category: 'karaoke', command: 'カラオケして「睡蓮花」', tags: [] },
+    { id: 385, name: 'スターラブレイション', category: 'karaoke', command: 'カラオケして「スターラブレイション」', tags: [] },
+    { id: 386, name: 'ブルーベリー・ナイツ', category: 'karaoke', command: 'カラオケして「ブルーベリー・ナイツ」', tags: [] },
+    { id: 387, name: 'BEAUTIFUL TREASURE', category: 'karaoke', command: 'カラオケして「BEAUTIFUL TREASURE」', tags: [] },
+    { id: 388, name: 'リライト', category: 'karaoke', command: 'カラオケして「リライト」', tags: [] },
+    { id: 389, name: 'できっこないをやらなくちゃ', category: 'karaoke', command: 'カラオケして「できっこないをやらなくちゃ」', tags: [] },
+    { id: 390, name: 'Mela!', category: 'karaoke', command: 'カラオケして「Mela!」', tags: [] },
+    { id: 391, name: 'シュガーソングとビターステップ', category: 'karaoke', command: 'カラオケして「シュガーソングとビターステップ」', tags: [] },
+    { id: 392, name: '片想い', category: 'karaoke', command: 'カラオケして「片想い」', tags: [] },
+    { id: 393, name: '好きだ。', category: 'karaoke', command: 'カラオケして「好きだ。」', tags: [] },
+    { id: 394, name: 'ベイビー・アイラブユー', category: 'karaoke', command: 'カラオケして「ベイビー・アイラブユー」', tags: [] },
+    { id: 395, name: 'CHE.R.RY', category: 'karaoke', command: 'カラオケして「CHE.R.RY」', tags: [] },
+    { id: 396, name: '木枯らしに抱かれて', category: 'karaoke', command: 'カラオケして「木枯らしに抱かれて」', tags: ['秋'] },
+    { id: 397, name: 'ギリチョコ', category: 'karaoke', command: 'カラオケして「ギリチョコ」', tags: [] },
+    { id: 398, name: '大好きだよ。', category: 'karaoke', command: 'カラオケして「大好きだよ。」', tags: [] },
+    { id: 399, name: 'MajiでKoiする5秒前', category: 'karaoke', command: 'カラオケして「MajiでKoiする5秒前」', tags: [] },
+    { id: 400, name: 'ヒロイン', category: 'karaoke', command: 'カラオケして「ヒロイン」', tags: [] },
+    { id: 401, name: '流星', category: 'karaoke', command: 'カラオケして「流星」', tags: [] },
+    { id: 402, name: 'やさしいキスをして', category: 'karaoke', command: 'カラオケして「やさしいキスをして」', tags: [] },
+    { id: 403, name: '雪の音', category: 'karaoke', command: 'カラオケして「雪の音」', tags: ['冬'] },
+    { id: 404, name: 'Departures', category: 'karaoke', command: 'カラオケして「Departures」', tags: [] },
+    { id: 405, name: '赤いマフラー', category: 'karaoke', command: 'カラオケして「赤いマフラー」', tags: ['冬'] },
+    { id: 406, name: 'あなたがいることで', category: 'karaoke', command: 'カラオケして「あなたがいることで」', tags: [] },
+    { id: 407, name: '涙', category: 'karaoke', command: 'カラオケして「涙」', tags: [] },
+    { id: 408, name: '僕のこと', category: 'karaoke', command: 'カラオケして「僕のこと」', tags: [] },
+    { id: 409, name: 'たとえ どんなに…', category: 'karaoke', command: 'カラオケして「たとえ どんなに…」', tags: [] },
+    { id: 410, name: '風立ちぬ', category: 'karaoke', command: 'カラオケして「風立ちぬ」', tags: [] },
+    { id: 411, name: '茜色の約束', category: 'karaoke', command: 'カラオケして「茜色の約束」', tags: [] },
+    { id: 412, name: '青いベンチ', category: 'karaoke', command: 'カラオケして「青いベンチ」', tags: [] },
+    { id: 413, name: 'home', category: 'karaoke', command: 'カラオケして「home」', tags: [] },
+    { id: 414, name: 'みんな空の下', category: 'karaoke', command: 'カラオケして「みんな空の下」', tags: [] },
+    { id: 415, name: '悲しい気持ち', category: 'karaoke', command: 'カラオケして「悲しい気持ち」', tags: [] },
+    { id: 416, name: '誓い', category: 'karaoke', command: 'カラオケして「誓い」', tags: [] },
+    { id: 417, name: 'HEY!', category: 'karaoke', command: 'カラオケして「HEY!」', tags: [] },
+    { id: 418, name: 'Moment', category: 'karaoke', command: 'カラオケして「Moment」', tags: [] },
+    { id: 419, name: 'ARIGATO', category: 'karaoke', command: 'カラオケして「ARIGATO」', tags: [] },
+    { id: 420, name: 'number one', category: 'karaoke', command: 'カラオケして「number one」', tags: [] },
+    { id: 421, name: 'Power of the Paradise', category: 'karaoke', command: 'カラオケして「Power of the Paradise」', tags: [] },
+    { id: 422, name: 'ハロー カゲロウ', category: 'karaoke', command: 'カラオケして「ハロー カゲロウ」', tags: [] },
+    { id: 423, name: 'サザンカ', category: 'karaoke', command: 'カラオケして「サザンカ」', tags: [] },
+    { id: 424, name: 'START', category: 'karaoke', command: 'カラオケして「START」', tags: [] },
+    { id: 425, name: '晴れたらいいね', category: 'karaoke', command: 'カラオケして「晴れたらいいね」', tags: [] },
+    { id: 426, name: 'Rain', category: 'karaoke', command: 'カラオケして「Rain」', tags: [] },
+    { id: 427, name: '雨のち晴れ', category: 'karaoke', command: 'カラオケして「雨のち晴れ」', tags: [] },
+    { id: 428, name: '真夏の通り雨', category: 'karaoke', command: 'カラオケして「真夏の通り雨」', tags: ['夏'] },
+    { id: 429, name: 'レイニーブルー', category: 'karaoke', command: 'カラオケして「レイニーブルー」', tags: [] },
+    { id: 430, name: '明日晴れるかな', category: 'karaoke', command: 'カラオケして「明日晴れるかな」', tags: [] },
+    { id: 431, name: 'Raining', category: 'karaoke', command: 'カラオケして「Raining」', tags: [] },
+    { id: 432, name: '虹', category: 'karaoke', command: 'カラオケして「虹」', tags: [] },
+    { id: 433, name: 'にじいろ', category: 'karaoke', command: 'カラオケして「にじいろ」', tags: [] },
+    { id: 434, name: '優しい雨', category: 'karaoke', command: 'カラオケして「優しい雨」', tags: [] },
+    { id: 435, name: '明日への扉', category: 'karaoke', command: 'カラオケして「明日への扉」', tags: [] },
+    { id: 436, name: '愛は勝つ', category: 'karaoke', command: 'カラオケして「愛は勝つ」', tags: [] },
+    { id: 437, name: '未来へ', category: 'karaoke', command: 'カラオケして「未来へ」', tags: [] },
+    { id: 438, name: 'Tomorrow never knows', category: 'karaoke', command: 'カラオケして「Tomorrow never knows」', tags: [] },
+    { id: 439, name: '世界中の誰よりきっと', category: 'karaoke', command: 'カラオケして「世界中の誰よりきっと」', tags: [] },
+    { id: 440, name: '水の星へ愛をこめて', category: 'karaoke', command: 'カラオケして「水の星へ愛をこめて」', tags: [] },
+    { id: 441, name: '大空と大地の中で', category: 'karaoke', command: 'カラオケして「大空と大地の中で」', tags: [] },
+    { id: 442, name: '若者のすべて', category: 'karaoke', command: 'カラオケして「若者のすべて」', tags: [] },
+    { id: 443, name: '学園天国', category: 'karaoke', command: 'カラオケして「学園天国」', tags: [] },
+    { id: 444, name: 'ありがとう', category: 'karaoke', command: 'カラオケして「ありがとう」', tags: [] },
+    { id: 445, name: '白日', category: 'karaoke', command: 'カラオケして「白日」', tags: [] },
+    { id: 446, name: 'Make you happy', category: 'karaoke', command: 'カラオケして「Make you happy」', tags: [] },
+    { id: 447, name: '雨天決行', category: 'karaoke', command: 'カラオケして「雨天決行」', tags: [] },
+    { id: 448, name: 'カタオモイ', category: 'karaoke', command: 'カラオケして「カタオモイ」', tags: [] },
+    { id: 449, name: 'Laughter', category: 'karaoke', command: 'カラオケして「Laughter」', tags: [] },
+    { id: 450, name: '裸の心', category: 'karaoke', command: 'カラオケして「裸の心」', tags: [] },
+    { id: 451, name: 'Happiness', category: 'karaoke', command: 'カラオケして「Happiness」', tags: [] },
+    { id: 452, name: 'アイノカタチ', category: 'karaoke', command: 'カラオケして「アイノカタチ」', tags: [] },
+    { id: 453, name: '星影のエール', category: 'karaoke', command: 'カラオケして「星影のエール」', tags: [] },
+    { id: 454, name: 'なごり雪', category: 'karaoke', command: 'カラオケして「なごり雪」', tags: ['冬', '春'] },
+    { id: 455, name: '瀬戸の花嫁', category: 'karaoke', command: 'カラオケして「瀬戸の花嫁」', tags: [] },
+    { id: 456, name: '木綿のハンカチーフ', category: 'karaoke', command: 'カラオケして「木綿のハンカチーフ」', tags: [] },
+    { id: 457, name: '異邦人', category: 'karaoke', command: 'カラオケして「異邦人」', tags: [] },
+    { id: 458, name: 'オリビアを聴きながら', category: 'karaoke', command: 'カラオケして「オリビアを聴きながら」', tags: [] },
+    { id: 459, name: '涙くんさよなら', category: 'karaoke', command: 'カラオケして「涙くんさよなら」', tags: [] },
+    { id: 460, name: 'UFO', category: 'karaoke', command: 'カラオケして「UFO」', tags: [] },
+    { id: 461, name: 'コスモス', category: 'karaoke', command: 'カラオケして「コスモス」', tags: ['秋'] },
+    { id: 462, name: 'あずさ2号', category: 'karaoke', command: 'カラオケして「あずさ2号」', tags: [] },
+    { id: 463, name: 'シクラメンのかおり', category: 'karaoke', command: 'カラオケして「シクラメンのかおり」', tags: [] },
+    { id: 464, name: 'Forever Love', category: 'karaoke', command: 'カラオケして「Forever Love」', tags: [] },
+    { id: 465, name: 'はじめてのチュウ', category: 'karaoke', command: 'カラオケして「はじめてのチュウ」', tags: [] },
+    { id: 466, name: 'THE GALAXY EXPRESS 999', category: 'karaoke', command: 'カラオケして「THE GALAXY EXPRESS 999」', tags: [] },
+    { id: 467, name: '見上げてごらん夜の星を', category: 'karaoke', command: 'カラオケして「見上げてごらん夜の星を」', tags: [] },
+    { id: 468, name: 'コンピューターおばあちゃん', category: 'karaoke', command: 'カラオケして「コンピューターおばあちゃん」', tags: [] },
+    { id: 469, name: '瑠璃色の地球', category: 'karaoke', command: 'カラオケして「瑠璃色の地球」', tags: [] },
+    { id: 470, name: 'SUN', category: 'karaoke', command: 'カラオケして「SUN」', tags: [] },
+    { id: 471, name: '翼をください', category: 'karaoke', command: 'カラオケして「翼をください」', tags: [] },
+    { id: 472, name: 'それが大事', category: 'karaoke', command: 'カラオケして「それが大事」', tags: [] },
+    { id: 473, name: '時代', category: 'karaoke', command: 'カラオケして「時代」', tags: [] },
+    { id: 474, name: '渚にまつわるエトセトラ', category: 'karaoke', command: 'カラオケして「渚にまつわるエトセトラ」', tags: [] },
+    { id: 475, name: 'ゴールデンタイムラバー', category: 'karaoke', command: 'カラオケして「ゴールデンタイムラバー」', tags: [] },
+    { id: 476, name: 'ひこうき雲', category: 'karaoke', command: 'カラオケして「ひこうき雲」', tags: [] },
+    { id: 477, name: '真赤な太陽', category: 'karaoke', command: 'カラオケして「真赤な太陽」', tags: [] },
+    { id: 478, name: 'ミュージックアワー', category: 'karaoke', command: 'カラオケして「ミュージックアワー」', tags: [] },
+    { id: 479, name: 'Wake Me Up!', category: 'karaoke', command: 'カラオケして「Wake Me Up!」', tags: [] },
+    { id: 480, name: 'ハピネス', category: 'karaoke', command: 'カラオケして「ハピネス」', tags: [] },
+    { id: 481, name: 'Love so sweet', category: 'karaoke', command: 'カラオケして「Love so sweet」', tags: [] },
+    { id: 482, name: '宿命', category: 'karaoke', command: 'カラオケして「宿命」', tags: [] },
+    { id: 483, name: '浪漫飛行', category: 'karaoke', command: 'カラオケして「浪漫飛行」', tags: [] },
+    { id: 484, name: 'Sing Out!', category: 'karaoke', command: 'カラオケして「Sing Out!」', tags: [] },
+    { id: 485, name: '忘れられないの', category: 'karaoke', command: 'カラオケして「忘れられないの」', tags: [] },
+    { id: 486, name: '神田川', category: 'karaoke', command: 'カラオケして「神田川」', tags: [] },
+    { id: 487, name: 'きみと恋のままで終われない', category: 'karaoke', command: 'カラオケして「きみと恋のままで終われない」', tags: [] },
+    { id: 488, name: '夜桜お七', category: 'karaoke', command: 'カラオケして「夜桜お七」', tags: ['春'] },
+    { id: 489, name: '1/3の純情な感情', category: 'karaoke', command: 'カラオケして「1/3の純情な感情」', tags: [] },
+    { id: 490, name: 'おどるポンポコリン', category: 'karaoke', command: 'カラオケして「おどるポンポコリン」', tags: [] },
+    { id: 491, name: 'WOW WAR TONIGHT', category: 'karaoke', command: 'カラオケして「WOW WAR TONIGHT」', tags: [] },
+    { id: 492, name: '恋', category: 'karaoke', command: 'カラオケして「恋」', tags: [] },
+    { id: 493, name: 'アンパンマンのマーチ', category: 'karaoke', command: 'カラオケして「アンパンマンのマーチ」', tags: [] },
+    { id: 494, name: 'Everything', category: 'karaoke', command: 'カラオケして「Everything」', tags: [] },
+    { id: 495, name: '川の流れのように', category: 'karaoke', command: 'カラオケして「川の流れのように」', tags: [] },
+    { id: 496, name: 'きよしのズンドコ節', category: 'karaoke', command: 'カラオケして「きよしのズンドコ節」', tags: [] },
+    { id: 497, name: '花束を君に', category: 'karaoke', command: 'カラオケして「花束を君に」', tags: [] },
+    { id: 498, name: '赤いスイートピー', category: 'karaoke', command: 'カラオケして「赤いスイートピー」', tags: [] },
+    { id: 499, name: 'WanteD! WanteD!', category: 'karaoke', command: 'カラオケして「WanteD! WanteD!」', tags: [] },
+    { id: 500, name: 'ハルノヒ', category: 'karaoke', command: 'カラオケして「ハルノヒ」', tags: ['春'] },
+    { id: 501, name: '星屑のステージ', category: 'karaoke', command: 'カラオケして「星屑のステージ」', tags: [] },
+    { id: 502, name: 'U.S.A.', category: 'karaoke', command: 'カラオケして「U.S.A.」', tags: [] },
+    { id: 503, name: 'ワインレッドの心', category: 'karaoke', command: 'カラオケして「ワインレッドの心」', tags: [] },
+    { id: 504, name: '瞳をとじて', category: 'karaoke', command: 'カラオケして「瞳をとじて」', tags: [] },
+    { id: 505, name: '上を向いて歩こう', category: 'karaoke', command: 'カラオケして「上を向いて歩こう」', tags: [] },
+    { id: 506, name: 'やさしさに包まれたなら', category: 'karaoke', command: 'カラオケして「やさしさに包まれたなら」', tags: [] },
+    { id: 507, name: '2億4千万の瞳', category: 'karaoke', command: 'カラオケして「2億4千万の瞳」', tags: [] },
+    { id: 508, name: 'DIAMONDS', category: 'karaoke', command: 'カラオケして「DIAMONDS」', tags: [] },
+    { id: 509, name: 'あとひとつ', category: 'karaoke', command: 'カラオケして「あとひとつ」', tags: [] },
+    { id: 510, name: '負けないで', category: 'karaoke', command: 'カラオケして「負けないで」', tags: [] },
+    { id: 511, name: '勇気100%', category: 'karaoke', command: 'カラオケして「勇気100%」', tags: [] },
+    { id: 512, name: 'RPG', category: 'karaoke', command: 'カラオケして「RPG」', tags: [] },
+    { id: 513, name: '歌うたいのバラッド', category: 'karaoke', command: 'カラオケして「歌うたいのバラッド」', tags: [] },
+    { id: 514, name: 'そばかす', category: 'karaoke', command: 'カラオケして「そばかす」', tags: [] },
+    { id: 515, name: '気まぐれロマンティック', category: 'karaoke', command: 'カラオケして「気まぐれロマンティック」', tags: [] },
+    { id: 516, name: '硝子の少年', category: 'karaoke', command: 'カラオケして「硝子の少年」', tags: [] },
+    { id: 517, name: 'ultra soul', category: 'karaoke', command: 'カラオケして「ultra soul」', tags: [] },
+    { id: 518, name: 'まつり', category: 'karaoke', command: 'カラオケして「まつり」', tags: [] },
+    { id: 519, name: '青空', category: 'karaoke', command: 'カラオケして「青空」', tags: [] },
+    { id: 520, name: '田園', category: 'karaoke', command: 'カラオケして「田園」', tags: [] },
+    { id: 521, name: '君はともだち', category: 'karaoke', command: 'カラオケして「君はともだち」', tags: [] },
+    { id: 522, name: 'さよならエレジー', category: 'karaoke', command: 'カラオケして「さよならエレジー」', tags: [] },
+    { id: 523, name: 'ダンシング・ヒーロー', category: 'karaoke', command: 'カラオケして「ダンシング・ヒーロー」', tags: [] },
+    { id: 524, name: '高嶺の花子さん', category: 'karaoke', command: 'カラオケして「高嶺の花子さん」', tags: [] },
+    { id: 525, name: 'シンデレラガール', category: 'karaoke', command: 'カラオケして「シンデレラガール」', tags: [] },
+    { id: 526, name: 'I LOVE YOU', category: 'karaoke', command: 'カラオケして「I LOVE YOU」', tags: [] },
+    { id: 527, name: 'サウダージ', category: 'karaoke', command: 'カラオケして「サウダージ」', tags: [] },
+    { id: 528, name: '天城越え', category: 'karaoke', command: 'カラオケして「天城越え」', tags: [] },
+    { id: 529, name: 'サイレントマジョリティー', category: 'karaoke', command: 'カラオケして「サイレントマジョリティー」', tags: [] },
+    { id: 530, name: 'タッチ', category: 'karaoke', command: 'カラオケして「タッチ」', tags: [] },
+    { id: 531, name: 'トリセツ', category: 'karaoke', command: 'カラオケして「トリセツ」', tags: [] },
+    { id: 532, name: '酒と泪と男と女', category: 'karaoke', command: 'カラオケして「酒と泪と男と女」', tags: [] },
+    { id: 533, name: '桃色吐息', category: 'karaoke', command: 'カラオケして「桃色吐息」', tags: [] },
+    { id: 534, name: '青春アミーゴ', category: 'karaoke', command: 'カラオケして「青春アミーゴ」', tags: [] },
+    { id: 535, name: 'SHAPE OF YOU', category: 'karaoke', command: 'カラオケして「SHAPE OF YOU」', tags: [] },
+    { id: 536, name: '君をのせて', category: 'karaoke', command: 'カラオケして「君をのせて」', tags: [] },
+    { id: 537, name: '昴-すばる-', category: 'karaoke', command: 'カラオケして「昴-すばる-」', tags: [] },
+    { id: 538, name: 'Let It Go', category: 'karaoke', command: 'カラオケして「Let It Go」', tags: ['冬'] },
+    { id: 539, name: '未来予想図II', category: 'karaoke', command: 'カラオケして「未来予想図II」', tags: [] },
+    { id: 540, name: 'フレンズ', category: 'karaoke', command: 'カラオケして「フレンズ」', tags: [] },
+    { id: 541, name: '道', category: 'karaoke', command: 'カラオケして「道」', tags: [] },
+    { id: 542, name: 'TSUNAMI', category: 'karaoke', command: 'カラオケして「TSUNAMI」', tags: [] },
+    { id: 543, name: 'Hero', category: 'karaoke', command: 'カラオケして「Hero」', tags: [] },
+];
+
+        // --- STATE ---
+        let state = {
+            filterCat: 'all',
+            filterSeasons: [],
+            search: '',
+            sort: 'default',
+            favorites: JSON.parse(localStorage.getItem('robo_favs')) || []
+        };
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initThreeJS();
+            initPageAnimations();
+            render();
+            setupEventListeners();
+        });
+
+        // --- CORE LOGIC ---
+        function getFilteredData() {
+            let data = commands.filter(cmd => {
+                // Category Filter
+                const matchCat = state.filterCat === 'all' 
+                    ? true 
+                    : state.filterCat === 'favorites' 
+                        ? state.favorites.includes(cmd.id)
+                        : (state.filterCat === 'karaoke' && cmd.category.startsWith('karaoke')) || // Karaoke grouping
+                          cmd.category === state.filterCat;
+                
+                // Season Filter (OR logic within seasons, AND logic with category)
+                const matchSeason = state.filterSeasons.length === 0 
+                    ? true 
+                    : cmd.tags.some(tag => state.filterSeasons.includes(tag));
+
+                // Search Filter
+                const searchLower = state.search.toLowerCase();
+                const matchSearch = cmd.name.toLowerCase().includes(searchLower) || 
+                                  cmd.command.toLowerCase().includes(searchLower) ||
+                                  cmd.tags.some(t => t.toLowerCase().includes(searchLower));
+                
+                return matchCat && matchSeason && matchSearch;
+            });
+
+            // Sort Logic
+            if (state.sort === 'name') {
+                data.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+            }
+
+            return data;
+        }
+
+        function render() {
+            const data = getFilteredData();
+            const grid = document.getElementById('gridContainer');
+            const emptyState = document.getElementById('emptyState');
+            
+            // Stats Update
+            document.getElementById('totalCount').innerText = commands.length;
+            
+            anime({
+                targets: '#filteredCount',
+                innerText: [document.getElementById('filteredCount').innerText, data.length],
+                round: 1,
+                easing: 'easeOutExpo'
+            });
+
+            // Grid Content
+            if (data.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                anime({
+                    targets: '#emptyState',
+                    opacity: [0, 1],
+                    translateY: [20, 0],
+                    easing: 'easeOutQuad'
+                });
+            } else {
+                emptyState.classList.add('hidden');
+                grid.innerHTML = '';
+                
+                data.forEach((item, index) => {
+                    grid.appendChild(createCard(item, index));
+                });
+                
+                // Init Tilt on new elements
+                VanillaTilt.init(document.querySelectorAll(".glass-card"), {
+                    max: 10,
+                    speed: 400,
+                    glare: true,
+                    "max-glare": 0.2,
+                    scale: 1.02
+                });
+
+                // Stagger Animation
+                anime({
+                    targets: '.glass-card',
+                    opacity: [0, 1],
+                    translateY: [50, 0],
+                    delay: anime.stagger(20), // Reduced delay for large list
+                    easing: 'easeOutQuint'
+                });
+            }
+        }
+
+        // Icon Helper
+        function getIcon(category) {
+            if (category === 'dance') return 'fa-running';
+            if (category === 'dance-medley') return 'fa-layer-group';
+            if (category === 'karaoke') return 'fa-microphone';
+            if (category === 'karaoke-free') return 'fa-microphone-alt';
+            if (category === 'karaoke-start') return 'fa-power-off';
+            if (category === 'song') return 'fa-music';
+            if (category === 'work-play') return 'fa-gamepad';
+            if (category === 'instrument') return 'fa-guitar';
+            return 'fa-robot';
+        }
+
+        function createCard(item, index) {
+            const isFav = state.favorites.includes(item.id);
+            const el = document.createElement('div');
+            
+            // Category Colors
+            let iconBg = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+            if(item.category.includes('dance')) { iconBg = 'bg-pink-500/20 text-pink-300 border-pink-500/30'; }
+            if(item.category.includes('song')) { iconBg = 'bg-green-500/20 text-green-300 border-green-500/30'; }
+            if(item.category.includes('karaoke')) { iconBg = 'bg-orange-500/20 text-orange-300 border-orange-500/30'; }
+            if(item.category === 'work-play') { iconBg = 'bg-purple-500/20 text-purple-300 border-purple-500/30'; }
+
+            const iconClass = getIcon(item.category);
+
+            el.className = 'glass-card rounded-2xl p-6 relative group flex flex-col h-full';
+            el.innerHTML = `
+                <div class="flex justify-between items-start mb-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 rounded-2xl ${iconBg} border flex items-center justify-center text-2xl shadow-lg">
+                            <i class="fas ${iconClass}"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-xl leading-tight text-white/95">${item.name}</h3>
+                            <div class="flex flex-wrap gap-1 mt-2">
+                                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-white/60 border border-white/5 uppercase tracking-wide">${item.category}</span>
+                                ${item.tags.map(t => `<span class="text-[10px] px-1.5 py-0.5 rounded bg-black/20 text-gray-400 border border-white/5">#${t}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <button class="fav-btn w-10 h-10 rounded-full flex items-center justify-center transition-all hover:bg-white/10 active:scale-90 ${isFav ? 'text-yellow-400' : 'text-gray-600'}" onclick="toggleFavorite(${item.id}, this)">
+                        <i class="${isFav ? 'fas' : 'far'} fa-star text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="mt-auto">
+                    <div class="bg-black/30 rounded-xl p-5 border border-white/5 relative group/code cursor-pointer transition-all hover:border-roboCyan/50 hover:bg-black/50 hover:shadow-neon" onclick="copyCommand('${item.command}')">
+                        <p class="font-mono text-center text-lg text-cyan-100/90 font-bold">${item.command}</p>
+                        <div class="absolute inset-0 flex items-center justify-center bg-black/80 opacity-0 group-hover/code:opacity-100 transition-opacity rounded-xl backdrop-blur-sm">
+                            <span class="text-sm font-bold text-white flex items-center gap-2">
+                                <i class="far fa-copy"></i> タップしてコピー
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return el;
+        }
+
+        // --- ACTIONS ---
+        window.toggleFavorite = (id, btn) => {
+            const index = state.favorites.indexOf(id);
+            if (index === -1) {
+                state.favorites.push(id);
+                anime({ targets: btn, scale: [0.8, 1.4, 1], rotate: '1turn', duration: 600 });
+            } else {
+                state.favorites.splice(index, 1);
+                anime({ targets: btn, scale: [1, 0.8, 1], duration: 300 });
+            }
+            localStorage.setItem('robo_favs', JSON.stringify(state.favorites));
+            
+            // Update UI immediately without full re-render if possible, or re-render filter is active
+            if(state.filterCat === 'favorites') {
+                render();
+            } else {
+                // Just toggle icon class
+                const icon = btn.querySelector('i');
+                icon.className = state.favorites.includes(id) ? 'fas fa-star text-xl' : 'far fa-star text-xl';
+                btn.className = `fav-btn w-10 h-10 rounded-full flex items-center justify-center transition-all hover:bg-white/10 active:scale-90 ${state.favorites.includes(id) ? 'text-yellow-400' : 'text-gray-600'}`;
+            }
+        };
+
+        window.copyCommand = (text) => {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('toast');
+                document.getElementById('toastMsg').innerText = `「${text}」をコピーしました`;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            });
+        };
+
+        // --- EVENT LISTENERS ---
+        function setupEventListeners() {
+            // Search
+            const searchInput = document.getElementById('searchInput');
+            const clearBtn = document.getElementById('clearSearch');
+            
+            searchInput.addEventListener('input', (e) => {
+                state.search = e.target.value;
+                clearBtn.style.display = state.search ? 'block' : 'none';
+                render(); // Debounce could be added here
+            });
+
+            clearBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                state.search = '';
+                clearBtn.style.display = 'none';
+                render();
+            });
+
+            // Categories
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.filterCat = btn.dataset.cat;
+                    render();
+                });
+            });
+
+            // Seasons (Toggle)
+            document.querySelectorAll('.season-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const season = btn.dataset.season;
+                    btn.classList.toggle('active');
+                    
+                    if (state.filterSeasons.includes(season)) {
+                        state.filterSeasons = state.filterSeasons.filter(s => s !== season);
+                    } else {
+                        state.filterSeasons.push(season);
+                    }
+                    render();
+                });
+            });
+
+            // Sort
+            document.getElementById('sortSelect').addEventListener('change', (e) => {
+                state.sort = e.target.value;
+                render();
+            });
+        }
+
+        // --- ANIMATIONS ---
+        function initPageAnimations() {
+            // Sequence
+            const tl = anime.timeline({ easing: 'easeOutExpo' });
+            
+            tl.add({
+                targets: 'header',
+                opacity: [0, 1],
+                translateY: [-20, 0],
+                duration: 800
+            })
+            .add({
+                targets: '.search-container',
+                opacity: [0, 1],
+                translateY: [20, 0],
+                duration: 600
+            }, '-=400')
+            .add({
+                targets: '.filter-section',
+                opacity: [0, 1],
+                translateY: [20, 0],
+                duration: 600
+            }, '-=400')
+            .add({
+                targets: '.stats-section',
+                opacity: [0, 1],
+                duration: 600
+            }, '-=200');
+        }
+
+        // --- BACKGROUND (Three.js) ---
+        function initThreeJS() {
+            const canvas = document.getElementById('bg-canvas');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({
+                canvas: canvas,
+                alpha: true,
+                antialias: true
+            });
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            camera.position.z = 30;
+
+            // Particles with New Colors
+            const particlesGeometry = new THREE.BufferGeometry();
+            const particlesCount = 1500;
+            const posArray = new Float32Array(particlesCount * 3);
+            const colorArray = new Float32Array(particlesCount * 3);
+            const sizeArray = new Float32Array(particlesCount);
+
+            for (let i = 0; i < particlesCount * 3; i += 3) {
+                // Pos
+                posArray[i] = (Math.random() - 0.5) * 100;
+                posArray[i + 1] = (Math.random() - 0.5) * 100;
+                posArray[i + 2] = (Math.random() - 0.5) * 100;
+
+                // Color: Cyan, Teal, Blue mix
+                const colorChoice = Math.random();
+                if (colorChoice < 0.33) {
+                    // Cyan
+                    colorArray[i] = 0;     // R
+                    colorArray[i + 1] = 0.8; // G
+                    colorArray[i + 2] = 0.9; // B
+                } else if (colorChoice < 0.66) {
+                    // Blue
+                    colorArray[i] = 0.2;
+                    colorArray[i + 1] = 0.4;
+                    colorArray[i + 2] = 1.0;
+                } else {
+                    // Teal/Greenish
+                    colorArray[i] = 0.1;
+                    colorArray[i + 1] = 0.9;
+                    colorArray[i + 2] = 0.7;
+                }
+
+                sizeArray[i / 3] = Math.random() * 2 + 0.5;
+            }
+
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+            particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizeArray, 1));
+
+            const particlesMaterial = new THREE.PointsMaterial({
+                size: 0.5,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                sizeAttenuation: true
+            });
+
+            const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+            scene.add(particlesMesh);
+
+            // Wave 1
+            const waveGeometry = new THREE.PlaneGeometry(80, 80, 50, 50);
+            const waveMaterial = new THREE.MeshBasicMaterial({
+                color: 0x06b6d4, // Cyan
+                wireframe: true,
+                transparent: true,
+                opacity: 0.15,
+                blending: THREE.AdditiveBlending
+            });
+            const waveMesh = new THREE.Mesh(waveGeometry, waveMaterial);
+            waveMesh.rotation.x = -Math.PI * 0.35;
+            waveMesh.position.z = -20;
+            scene.add(waveMesh);
+
+            // Wave 2
+            const wave2Geometry = new THREE.PlaneGeometry(80, 80, 50, 50);
+            const wave2Material = new THREE.MeshBasicMaterial({
+                color: 0x3b82f6, // Blue
+                wireframe: true,
+                transparent: true,
+                opacity: 0.1,
+                blending: THREE.AdditiveBlending
+            });
+            const wave2Mesh = new THREE.Mesh(wave2Geometry, wave2Material);
+            wave2Mesh.rotation.x = -Math.PI * 0.35;
+            wave2Mesh.position.z = -25;
+            wave2Mesh.position.y = -5;
+            scene.add(wave2Mesh);
+
+            // Ring
+            const ringGeometry = new THREE.TorusGeometry(15, 0.3, 16, 100);
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: 0x2dd4bf, // Teal
+                transparent: true,
+                opacity: 0.3,
+                blending: THREE.AdditiveBlending
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            ring.position.z = -30;
+            ring.rotation.x = Math.PI * 0.5;
+            scene.add(ring);
+
+            // Mouse
+            let mouseX = 0;
+            let mouseY = 0;
+            let targetX = 0;
+            let targetY = 0;
+
+            document.addEventListener('mousemove', (event) => {
+                mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+                mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+            });
+
+            // Loop
+            let time = 0;
+            function animate() {
+                requestAnimationFrame(animate);
+                time += 0.01;
+
+                // Particles
+                particlesMesh.rotation.y = time * 0.05;
+                particlesMesh.rotation.x = Math.sin(time * 0.3) * 0.1;
+                const positions = particlesMesh.geometry.attributes.position.array;
+                for (let i = 1; i < positions.length; i += 3) {
+                    positions[i] = Math.sin(time + positions[i]) * 0.5 + positions[i];
+                }
+                particlesMesh.geometry.attributes.position.needsUpdate = true;
+
+                // Waves
+                const wavePositions = waveMesh.geometry.attributes.position.array;
+                for (let i = 0; i < wavePositions.length; i += 3) {
+                    const x = wavePositions[i];
+                    const y = wavePositions[i + 1];
+                    wavePositions[i + 2] = Math.sin(x * 0.2 + time) * 2 + Math.cos(y * 0.2 + time) * 2;
+                }
+                waveMesh.geometry.attributes.position.needsUpdate = true;
+
+                const wave2Positions = wave2Mesh.geometry.attributes.position.array;
+                for (let i = 0; i < wave2Positions.length; i += 3) {
+                    const x = wave2Positions[i];
+                    const y = wave2Positions[i + 1];
+                    wave2Positions[i + 2] = Math.sin(x * 0.15 + time * 0.8) * 2.5 + Math.cos(y * 0.15 + time * 0.8) * 2.5;
+                }
+                wave2Mesh.geometry.attributes.position.needsUpdate = true;
+
+                // Ring
+                ring.rotation.z = time * 0.2;
+
+                // Camera
+                targetX += (mouseX - targetX) * 0.05;
+                targetY += (mouseY - targetY) * 0.05;
+                camera.position.x = targetX * 2;
+                camera.position.y = targetY * 2;
+                camera.lookAt(scene.position);
+
+                renderer.render(scene, camera);
+            }
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            });
+
+            animate();
+
+            if (window.innerWidth < 768) {
+                particlesMaterial.size = 0.3;
+                particlesMaterial.opacity = 0.6;
+            }
+        }
+    </script>
 </body>
 </html>
