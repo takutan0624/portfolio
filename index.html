@@ -2248,17 +2248,26 @@
 
     function initThree() {
       const canvas = document.getElementById('three-canvas');
-      
+
+      // モバイルデバイス検出
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 3000);
       camera.position.z = 1000;
-      
-      renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+
+      // モバイルではアンチエイリアスをオフ、解像度を下げる
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        alpha: true,
+        antialias: !isMobile,
+        powerPreference: isMobile ? 'low-power' : 'high-performance'
+      });
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      
-      // Enhanced Particles
-      const particleCount = 2000;
+      renderer.setPixelRatio(isMobile ? 1 : Math.min(window.devicePixelRatio, 2));
+
+      // モバイルではパーティクル数を大幅削減
+      const particleCount = isMobile ? 400 : 2000;
       const positions = new Float32Array(particleCount * 3);
       const colors = new Float32Array(particleCount * 3);
       const sizes = new Float32Array(particleCount);
@@ -2307,8 +2316,10 @@
       particleSystem = new THREE.Points(geometry, material);
       scene.add(particleSystem);
 
-      addGeometricShapes();
-      addHeroPrisms();
+      addGeometricShapes(isMobile);
+      if (!isMobile) {
+        addHeroPrisms(); // モバイルではプリズムを無効化
+      }
 
       document.addEventListener('mousemove', onDocumentMouseMove);
       window.addEventListener('resize', onWindowResize);
@@ -2334,39 +2345,53 @@
       }
     }
 
-    function addGeometricShapes() {
-      // 8の字ドーナツを作成
-      const figure8Curve1 = new Figure8Curve(80);
-      const figure8Geo1 = new THREE.TubeGeometry(figure8Curve1, 100, 12, 16, false);
+    function addGeometricShapes(isMobile = false) {
+      let shapes;
 
-      const figure8Curve2 = new Figure8Curve(60);
-      const figure8Geo2 = new THREE.TubeGeometry(figure8Curve2, 100, 10, 16, false);
+      if (isMobile) {
+        // モバイルでは最小限の形状のみ（5個）
+        shapes = [
+          { geo: new THREE.TorusGeometry(80, 25, 8, 50), pos: [-500, 250, -600], color: 0x00d4ff, name: 'torus1' },
+          { geo: new THREE.TorusGeometry(60, 20, 8, 50), pos: [500, -200, -500], color: 0xc4a35a, name: 'torus2' },
+          { geo: new THREE.IcosahedronGeometry(70, 0), pos: [400, 300, -400], color: 0x00d4ff, name: 'ico1' },
+          { geo: new THREE.IcosahedronGeometry(50, 0), pos: [-400, -300, -450], color: 0xc4a35a, name: 'ico2' },
+          { geo: new THREE.OctahedronGeometry(50, 0), pos: [-200, 400, -350], color: 0xffffff, name: 'oct1' },
+        ];
+      } else {
+        // デスクトップでは全形状
+        // 8の字ドーナツを作成
+        const figure8Curve1 = new Figure8Curve(80);
+        const figure8Geo1 = new THREE.TubeGeometry(figure8Curve1, 100, 12, 16, false);
 
-      const figure8Curve3 = new Figure8Curve(70);
-      const figure8Geo3 = new THREE.TubeGeometry(figure8Curve3, 100, 11, 16, false);
+        const figure8Curve2 = new Figure8Curve(60);
+        const figure8Geo2 = new THREE.TubeGeometry(figure8Curve2, 100, 10, 16, false);
 
-      const shapes = [
-        { geo: new THREE.TorusGeometry(80, 25, 16, 100), pos: [-500, 250, -600], color: 0x00d4ff, name: 'torus1' },
-        { geo: new THREE.TorusGeometry(60, 20, 16, 100), pos: [500, -200, -500], color: 0xc4a35a, name: 'torus2' },
-        { geo: new THREE.TorusGeometry(70, 22, 16, 100), pos: [0, 350, -550], color: 0xffffff, name: 'torus3' },
-        { geo: new THREE.TorusGeometry(55, 18, 16, 100), pos: [-450, -250, -520], color: 0x00d4ff, name: 'torus4' },
-        { geo: new THREE.TorusGeometry(65, 20, 16, 100), pos: [450, 150, -480], color: 0xc4a35a, name: 'torus5' },
-        // 8の字ドーナツ
-        { geo: figure8Geo1, pos: [150, -300, -580], color: 0x00d4ff, name: 'figure8_1' },
-        { geo: figure8Geo2, pos: [-350, 350, -420], color: 0xc4a35a, name: 'figure8_2' },
-        { geo: figure8Geo3, pos: [400, 100, -520], color: 0xffffff, name: 'figure8_3' },
-        { geo: new THREE.IcosahedronGeometry(70, 0), pos: [400, 300, -400], color: 0x00d4ff, name: 'ico1' },
-        { geo: new THREE.IcosahedronGeometry(50, 0), pos: [-400, -300, -450], color: 0xc4a35a, name: 'ico2' },
-        { geo: new THREE.IcosahedronGeometry(60, 0), pos: [0, -200, -420], color: 0xffffff, name: 'ico3' },
-        { geo: new THREE.IcosahedronGeometry(55, 0), pos: [-300, 200, -480], color: 0x00d4ff, name: 'ico4' },
-        { geo: new THREE.OctahedronGeometry(50, 0), pos: [-200, 400, -350], color: 0xffffff, name: 'oct1' },
-        { geo: new THREE.OctahedronGeometry(40, 0), pos: [300, -400, -400], color: 0x00d4ff, name: 'oct2' },
-        { geo: new THREE.OctahedronGeometry(45, 0), pos: [200, 100, -460], color: 0xc4a35a, name: 'oct3' },
-        { geo: new THREE.TetrahedronGeometry(60, 0), pos: [0, -350, -500], color: 0xc4a35a, name: 'tetra1' },
-        { geo: new THREE.TetrahedronGeometry(50, 0), pos: [-250, 0, -420], color: 0xffffff, name: 'tetra2' },
-        { geo: new THREE.DodecahedronGeometry(45, 0), pos: [-350, 100, -380], color: 0xffffff, name: 'dodeca1' },
-        { geo: new THREE.DodecahedronGeometry(40, 0), pos: [350, 50, -440], color: 0x00d4ff, name: 'dodeca2' },
-      ];
+        const figure8Curve3 = new Figure8Curve(70);
+        const figure8Geo3 = new THREE.TubeGeometry(figure8Curve3, 100, 11, 16, false);
+
+        shapes = [
+          { geo: new THREE.TorusGeometry(80, 25, 16, 100), pos: [-500, 250, -600], color: 0x00d4ff, name: 'torus1' },
+          { geo: new THREE.TorusGeometry(60, 20, 16, 100), pos: [500, -200, -500], color: 0xc4a35a, name: 'torus2' },
+          { geo: new THREE.TorusGeometry(70, 22, 16, 100), pos: [0, 350, -550], color: 0xffffff, name: 'torus3' },
+          { geo: new THREE.TorusGeometry(55, 18, 16, 100), pos: [-450, -250, -520], color: 0x00d4ff, name: 'torus4' },
+          { geo: new THREE.TorusGeometry(65, 20, 16, 100), pos: [450, 150, -480], color: 0xc4a35a, name: 'torus5' },
+          // 8の字ドーナツ
+          { geo: figure8Geo1, pos: [150, -300, -580], color: 0x00d4ff, name: 'figure8_1' },
+          { geo: figure8Geo2, pos: [-350, 350, -420], color: 0xc4a35a, name: 'figure8_2' },
+          { geo: figure8Geo3, pos: [400, 100, -520], color: 0xffffff, name: 'figure8_3' },
+          { geo: new THREE.IcosahedronGeometry(70, 0), pos: [400, 300, -400], color: 0x00d4ff, name: 'ico1' },
+          { geo: new THREE.IcosahedronGeometry(50, 0), pos: [-400, -300, -450], color: 0xc4a35a, name: 'ico2' },
+          { geo: new THREE.IcosahedronGeometry(60, 0), pos: [0, -200, -420], color: 0xffffff, name: 'ico3' },
+          { geo: new THREE.IcosahedronGeometry(55, 0), pos: [-300, 200, -480], color: 0x00d4ff, name: 'ico4' },
+          { geo: new THREE.OctahedronGeometry(50, 0), pos: [-200, 400, -350], color: 0xffffff, name: 'oct1' },
+          { geo: new THREE.OctahedronGeometry(40, 0), pos: [300, -400, -400], color: 0x00d4ff, name: 'oct2' },
+          { geo: new THREE.OctahedronGeometry(45, 0), pos: [200, 100, -460], color: 0xc4a35a, name: 'oct3' },
+          { geo: new THREE.TetrahedronGeometry(60, 0), pos: [0, -350, -500], color: 0xc4a35a, name: 'tetra1' },
+          { geo: new THREE.TetrahedronGeometry(50, 0), pos: [-250, 0, -420], color: 0xffffff, name: 'tetra2' },
+          { geo: new THREE.DodecahedronGeometry(45, 0), pos: [-350, 100, -380], color: 0xffffff, name: 'dodeca1' },
+          { geo: new THREE.DodecahedronGeometry(40, 0), pos: [350, 50, -440], color: 0x00d4ff, name: 'dodeca2' },
+        ];
+      }
       
       shapes.forEach(shape => {
         const material = new THREE.MeshBasicMaterial({ 
@@ -2507,18 +2532,33 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    function animate() {
+    // フレームレート制限用変数
+    let lastFrameTime = 0;
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+    const targetFPS = isMobileDevice ? 30 : 60;
+    const frameInterval = 1000 / targetFPS;
+
+    function animate(currentTime) {
       requestAnimationFrame(animate);
-      
+
+      // モバイルではフレームレートを制限
+      if (isMobileDevice) {
+        const elapsed = currentTime - lastFrameTime;
+        if (elapsed < frameInterval) {
+          return; // 次のフレームまでスキップ
+        }
+        lastFrameTime = currentTime - (elapsed % frameInterval);
+      }
+
       // Smooth mouse follow
       mouseX += (targetMouseX - mouseX) * 0.05;
       mouseY += (targetMouseY - mouseY) * 0.05;
-      
+
       particleSystem.rotation.y += 0.0003;
       particleSystem.rotation.x += 0.0001;
-      
+
       const time = Date.now() * 0.001;
-      
+
       geometricObjects.forEach(obj => {
         // userDataが存在するオブジェクトのみアニメーション
         if (obj.userData && obj.userData.rotationSpeed) {
@@ -2531,11 +2571,11 @@
           obj.position.y += Math.sin(time + obj.userData.floatOffset) * 0.3;
         }
       });
-      
+
       camera.position.x += (mouseX * 0.2 - camera.position.x) * 0.02;
       camera.position.y += (-mouseY * 0.2 - camera.position.y) * 0.02;
       camera.lookAt(scene.position);
-      
+
       renderer.render(scene, camera);
     }
 
