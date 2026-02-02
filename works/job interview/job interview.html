@@ -122,6 +122,15 @@
                             <input type="text" id="profName" class="w-full p-2 border border-slate-300 rounded-lg text-sm">
                         </div>
                         <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">学歴</label>
+                            <select id="profEducation" class="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white">
+                                <option value="">未選択</option>
+                                <option value="高卒">高卒</option>
+                                <option value="大卒">大卒</option>
+                                <option value="専門・短大卒">専門・短大卒</option>
+                            </select>
+                        </div>
+                        <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">障害・特性（AIへの共有事項）</label>
                             <textarea id="profDiagnosis" placeholder="例：うつ病。午前中の体調変化が大きい。" class="w-full p-2 border border-slate-300 rounded-lg text-sm h-20 resize-none"></textarea>
                         </div>
@@ -175,7 +184,7 @@
                     isLoading: false,
                     apiKey: '',
                     adminPin: '0000',
-                    userProfile: { name: 'ユーザー', diagnosis: '', strengths: '', accommodations: '' },
+                    userProfile: { name: 'ユーザー', diagnosis: '', strengths: '', accommodations: '', education: '' },
                     isAdminUnlocked: false
                 };
 
@@ -191,6 +200,7 @@
                     headerIcon: document.getElementById('headerIcon'),
                     // Settings
                     profName: document.getElementById('profName'),
+                    profEducation: document.getElementById('profEducation'),
                     profDiagnosis: document.getElementById('profDiagnosis'),
                     profAccommodations: document.getElementById('profAccommodations'),
                     apiKey: document.getElementById('apiKey'),
@@ -356,6 +366,7 @@
 
                     const hasProfileDetails =
                         (this.state.userProfile.name && this.state.userProfile.name !== 'ユーザー') ||
+                        (this.state.userProfile.education && this.state.userProfile.education.trim() !== '') ||
                         (this.state.userProfile.diagnosis && this.state.userProfile.diagnosis.trim() !== '') ||
                         (this.state.userProfile.accommodations && this.state.userProfile.accommodations.trim() !== '');
                     const maxOutputTokens = hasProfileDetails ? 1500 : 1000;
@@ -415,6 +426,7 @@
 
             loadProfileToUI() {
                 this.elements.profName.value = this.state.userProfile.name;
+                this.elements.profEducation.value = this.state.userProfile.education || '';
                 this.elements.profDiagnosis.value = this.state.userProfile.diagnosis;
                 this.elements.profAccommodations.value = this.state.userProfile.accommodations;
                 
@@ -426,8 +438,9 @@
             saveProfile() {
                 this.state.userProfile = {
                     name: this.elements.profName.value,
+                    education: this.elements.profEducation.value,
                     diagnosis: this.elements.profDiagnosis.value,
-                    strengths: '', 
+                    strengths: '',
                     accommodations: this.elements.profAccommodations.value
                 };
                 localStorage.setItem('user_profile', JSON.stringify(this.state.userProfile));
@@ -478,8 +491,14 @@
 
             generateSystemPrompt() {
                 const p = this.state.userProfile;
-                const profileText = `[応募者情報]\n名前:${p.name}\n特性:${p.diagnosis}\n配慮:${p.accommodations}`;
-                const base = `あなたは障害者雇用の専門家AIです。\n${profileText}`;
+                const profileText = `[応募者情報]\n名前:${p.name}\n学歴:${p.education || '未設定'}\n特性:${p.diagnosis}\n配慮:${p.accommodations}`;
+                const base = `あなたは障害者雇用の専門家AIです。\n${profileText}\n
+                この事業所の利用者は主に精神障害があり、高卒でアルバイト経験中心の方も多いです。
+                難しい言葉は避け、短く分かりやすい日本語で、安心感のある口調にしてください。
+                学歴（高卒/大卒/専門・短大卒）に合わせて質問や模範回答例を最適化してください。
+                学歴・職歴が短い場合でも答えやすい質問に言い換え、必要なら具体例を添えてください。
+                模範回答例は学歴に合わせて等身大で現実的な内容にしてください。
+                学歴が未設定の場合は、最初に「設定から最終学歴（高卒/大卒/専門・短大卒）を選択してください」と短く案内してから進めてください。`;
 
                 if (this.state.mode === 'translate') return `${base}\nユーザーのネガティブな本音を、面接で使える誠実かつポジティブな表現に変換して提案してください。「共感→提案→解説」の順で出力してください。`;
                 if (this.state.mode === 'reverse') return `${base}\nユーザーの「企業への率直な質問」を、意欲的かつ丁寧に聞こえる「逆質問」のフレーズに変換してください。`;
@@ -498,7 +517,14 @@
                 5. 最後に、当社を志望された理由（志望動機）をお願いします。
 
                 ※ユーザーの回答に対しては、まず「良い点」を具体的に褒めてください。その上で、もし改善点があれば「もっとこうすると伝わりやすい」と優しく1点だけアドバイスしてください。
-                アドバイスの後、「では次の質問です」と続けてください。`;
+                アドバイスの後、「では次の質問です」と続けてください。
+                さらに、各回答の後に「模範回答例」を1つだけ短く提示してください（3〜5文、ですます調、応募者の立場）。
+                模範回答例は以下のテンプレに沿ってください。
+                【テンプレ】
+                1文目: 自分の状況（学歴/職歴）を簡潔に述べる
+                2文目: 具体的な経験や工夫を1つ入れる
+                3文目: 仕事への意欲・安定して働く意志を伝える
+                4〜5文目: 必要に応じて強みや配慮希望を一言追加`;
             }
         }
 
