@@ -124,7 +124,7 @@
       grid-row: 2 / -1;
       border: 1px solid var(--sub-color);
       padding: 20px;
-      display: flex; flex-direction: column; gap: 25px;
+      display: flex; flex-direction: column; gap: 20px;
       background: rgba(0, 0, 0, 0.4);
       position: relative;
     }
@@ -139,10 +139,73 @@
     .stat-label { font-size: 0.7rem; color: var(--sub-color); margin-bottom: 5px; }
     .stat-val { font-size: 1.5rem; color: var(--alert-color); border: 1px solid var(--sub-color); padding: 5px 10px; display: inline-block; min-width: 60px; }
 
-    .heatmap-grid { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; }
-    .heat-cell { width: 12px; height: 12px; background: #0a1a10; border: 1px solid #1a3a2a; }
-    .heat-cell.active { background: var(--main-color); box-shadow: 0 0 5px var(--main-color); }
-    .heat-cell.super { background: var(--alert-color); box-shadow: 0 0 8px var(--alert-color); }
+    .total-logs { text-align: center; padding: 10px 0; }
+    .total-logs .stat-val { font-size: 2rem; }
+
+    .analysis-section {
+      border-top: 1px dotted var(--sub-color);
+      padding-top: 10px;
+    }
+
+    .trend-display {
+      font-size: 0.7rem;
+      color: var(--main-color);
+      line-height: 1.6;
+      margin-top: 5px;
+      min-height: 30px;
+    }
+
+    .emotion-tag {
+      display: inline-block;
+      background: rgba(94, 255, 206, 0.1);
+      border: 1px solid var(--sub-color);
+      padding: 2px 6px;
+      margin: 2px;
+      font-size: 0.65rem;
+      border-radius: 3px;
+    }
+
+    .time-bar {
+      display: flex;
+      align-items: center;
+      margin: 3px 0;
+      font-size: 0.65rem;
+    }
+
+    .time-label {
+      width: 50px;
+      color: var(--sub-color);
+    }
+
+    .time-bar-fill {
+      height: 8px;
+      background: var(--main-color);
+      margin-left: 5px;
+      box-shadow: 0 0 3px var(--main-color);
+    }
+
+    .sentiment-bar {
+      display: flex;
+      height: 15px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--sub-color);
+      margin-top: 5px;
+      overflow: hidden;
+    }
+
+    .sentiment-positive {
+      background: linear-gradient(90deg, #0a0, #0f0);
+      box-shadow: 0 0 5px #0f0;
+    }
+
+    .sentiment-neutral {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .sentiment-negative {
+      background: linear-gradient(90deg, #f00, #a00);
+      box-shadow: 0 0 5px #f00;
+    }
 
     .main-log {
       grid-column: 2; grid-row: 2;
@@ -161,6 +224,25 @@
     .log-time { color: var(--sub-color); font-size: 0.8rem; }
     .log-sys-msg { color: var(--main-color); font-weight: bold; margin-bottom: 4px; }
     .log-user-txt { color: #888; font-size: 0.8rem; font-style: italic; }
+    .log-emotions {
+      color: var(--accent-color);
+      font-size: 0.75rem;
+      margin-top: 4px;
+      padding: 4px 8px;
+      background: rgba(94, 255, 206, 0.05);
+      border-left: 2px solid var(--sub-color);
+      display: inline-block;
+    }
+    .log-ai-reply {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: linear-gradient(135deg, rgba(94, 255, 206, 0.15) 0%, rgba(94, 255, 206, 0.05) 100%);
+      border-left: 3px solid var(--main-color);
+      color: var(--main-color);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      border-radius: 0 8px 8px 0;
+    }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
     .input-area {
@@ -168,7 +250,9 @@
       border: 1px solid var(--main-color);
       background: rgba(0, 20, 10, 0.8);
       padding: 10px;
-      display: flex; gap: 10px; align-items: flex-end;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
       position: relative;
     }
     .input-area::before {
@@ -177,8 +261,10 @@
       background: var(--bg-color); font-size: 0.7rem; padding: 0 5px; color: var(--alert-color);
     }
 
+
     textarea {
-      flex-grow: 1; background: transparent; border: none; outline: none;
+      flex-grow: 1;
+      background: transparent; border: none; outline: none;
       color: var(--main-color); font-family: var(--font-main); font-size: 1rem;
       resize: none; height: 50px;
     }
@@ -257,8 +343,9 @@
         grid-row: 2;
         flex-direction: row;
         align-items: center;
+        justify-content: space-between;
         padding: 10px;
-        gap: 15px;
+        gap: 10px;
       }
 
       .sidebar::before {
@@ -284,7 +371,20 @@
         min-width: 50px;
       }
 
-      .heatmap-grid {
+      .total-logs {
+        padding: 0;
+        flex-shrink: 0;
+      }
+
+      .total-logs .stat-val {
+        font-size: 1.2rem;
+      }
+
+      .analysis-section {
+        display: none;
+      }
+
+      .sidebar button {
         display: none;
       }
 
@@ -313,6 +413,11 @@
         font-size: 0.75rem;
       }
 
+      .log-emotions {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+      }
+
       .input-area {
         grid-column: 1;
         grid-row: 4;
@@ -334,6 +439,11 @@
         width: 100%;
         height: 44px;
         font-size: 0.9rem;
+      }
+
+      .log-ai-reply {
+        font-size: 0.8rem;
+        padding: 8px 10px;
       }
 
       #settings-modal {
@@ -385,7 +495,7 @@
 
       .sidebar {
         padding: 8px;
-        gap: 10px;
+        gap: 8px;
       }
 
       .stat-circle-container {
@@ -400,6 +510,10 @@
         font-size: 1rem;
         padding: 3px 6px;
         min-width: 45px;
+      }
+
+      .total-logs .stat-val {
+        font-size: 1rem;
       }
 
       .main-log {
@@ -480,22 +594,37 @@
     <aside class="sidebar">
       <div class="stat-circle-container">
         <div class="stat-box">
-          <div class="stat-label">VIT</div>
+          <div class="stat-label">体力</div>
           <div class="stat-val" id="val-vit">00</div>
         </div>
         <div class="stat-box">
-          <div class="stat-label">INT</div>
+          <div class="stat-label">知力</div>
           <div class="stat-val" id="val-int">00</div>
         </div>
         <div class="stat-box">
-          <div class="stat-label">MND</div>
+          <div class="stat-label">精神</div>
           <div class="stat-val" id="val-mnd">00</div>
         </div>
       </div>
 
-      <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:center;">
-        <div class="stat-label">ACTIVITY TRACE</div>
-        <div class="heatmap-grid" id="heatmap"></div>
+      <div class="total-logs">
+        <div class="stat-label">TOTAL LOGS</div>
+        <div class="stat-val" id="total-logs-count">00</div>
+      </div>
+
+      <div class="analysis-section">
+        <div class="stat-label">感情トレンド</div>
+        <div id="sentiment-trend" class="trend-display"></div>
+      </div>
+
+      <div class="analysis-section">
+        <div class="stat-label">時間帯分析</div>
+        <div id="time-analysis" class="trend-display"></div>
+      </div>
+
+      <div class="analysis-section">
+        <div class="stat-label">感情分布</div>
+        <div id="emotion-dist" class="trend-display"></div>
       </div>
 
       <button onclick="resetData()" style="height:30px; font-size:0.7rem; background:transparent; color:var(--sub-color); border:1px solid var(--sub-color);">
@@ -565,7 +694,7 @@
     let state = {
       stats: { vit: 0, int: 0, mnd: 0 },
       logs: [],
-      heatmap: {}
+      emotions: {} // 感情タグの集計
     };
 
     let apiKey = "";
@@ -612,6 +741,10 @@
     // --- UTIL ---
     function safeUpper(s) {
       return String(s || '').toUpperCase().replace(/[^A-Z0-9_\-]/g, '');
+    }
+    function statToJapanese(stat) {
+      const map = { 'vit': '体力', 'int': '知力', 'mnd': '精神' };
+      return map[String(stat || '').toLowerCase()] || '精神';
     }
     function normalizeModelName(name) {
       // Accept "models/gemini-2.0-flash" or "gemini-2.0-flash"
@@ -686,6 +819,7 @@
       const text = input.value.trim();
       if (!text) return;
 
+      // 入力をクリアしてボタンを無効化
       input.value = "";
       btn.textContent = "SYNCING...";
       btn.disabled = true;
@@ -693,58 +827,79 @@
       const tempId = Date.now();
       let result;
 
-      if (apiKey) {
-        try {
-          result = await callGemini(text);
-        } catch(e) {
-          console.error("AI Error:", e);
+      try {
+        if (apiKey) {
+          try {
+            result = await callGemini(text);
+          } catch(e) {
+            console.error("AI Error:", e);
+            result = localFallback(text);
+
+            const msg = String(e && e.message ? e.message : 'NET_ERR');
+            const code = (msg.match(/API Status\s+(\d+)/i) || [])[1] || (msg.includes('BLOCKED') ? 'BLOCKED' : 'ERR');
+            result.msg += ` [SYSTEM ALERT: ${code}]`;
+          }
+        } else {
           result = localFallback(text);
-
-          const msg = String(e && e.message ? e.message : 'NET_ERR');
-          // show a compact error tag
-          const code = (msg.match(/API Status\s+(\d+)/i) || [])[1] || (msg.includes('BLOCKED') ? 'BLOCKED' : 'ERR');
-          result.msg += ` [SYSTEM ALERT: ${code}]`;
         }
-      } else {
-        result = localFallback(text);
+
+        // normalize stat
+        if (!['vit','int','mnd'].includes(result.stat)) result.stat = 'mnd';
+
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+        const hour = now.getHours();
+
+        state.logs.unshift({
+          id: tempId,
+          time: timeStr,
+          timestamp: now.toISOString(),
+          hour: hour,
+          original: text,
+          sysMsg: result.msg,
+          stat: result.stat,
+          sentiment: result.sentiment || 0,
+          emotions: result.emotions || [],
+          reply: result.reply || ''
+        });
+
+        state.stats[result.stat] = (state.stats[result.stat] || 0) + 1;
+
+        // 感情タグの集計
+        if (result.emotions && result.emotions.length > 0) {
+          result.emotions.forEach(emo => {
+            state.emotions[emo] = (state.emotions[emo] || 0) + 1;
+          });
+        }
+
+        saveData();
+        render();
+      } catch(error) {
+        console.error("Commit error:", error);
+      } finally {
+        // 必ずボタンを再有効化
+        btn.textContent = "SEND";
+        btn.disabled = false;
+        input.focus();
       }
-
-      // normalize stat
-      if (!['vit','int','mnd'].includes(result.stat)) result.stat = 'mnd';
-
-      const now = new Date();
-      const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-      const dateStr = now.toISOString().split('T')[0];
-
-      state.logs.unshift({
-        id: tempId,
-        time: timeStr,
-        original: text,
-        sysMsg: result.msg,
-        stat: result.stat
-      });
-
-      state.stats[result.stat] = (state.stats[result.stat] || 0) + 1;
-      state.heatmap[dateStr] = (state.heatmap[dateStr] || 0) + 1;
-
-      saveData();
-      render();
-
-      btn.textContent = "SEND";
-      btn.disabled = false;
     }
+
 
     // --- LOCAL FALLBACK ---
     function localFallback(text) {
       const rules = [
-        { k: ['寝','休','食','眠'], s: 'vit', m: '生体部品のメンテナンス完了。' },
-        { k: ['書','作','学','読','コード'], s: 'int', m: '外部記憶へのデータ出力を確認。' },
-        { k: ['辛','死','鬱','嫌'], s: 'mnd', m: 'ゴーストのストレス値上昇。防壁による隔離を実行。' }
+        { k: ['寝','休','食','眠'], s: 'vit', m: '生体部品のメンテナンス完了。', sent: 3, emo: ['安心'], r: '休息は大切です。しっかり回復しましょう。' },
+        { k: ['書','作','学','読','コード'], s: 'int', m: '外部記憶へのデータ出力を確認。', sent: 5, emo: ['達成感'], r: '良い活動ですね。成長が記録されています。' },
+        { k: ['辛','死','鬱','嫌'], s: 'mnd', m: 'ゴーストのストレス値上昇。防壁による隔離を実行。', sent: -7, emo: ['不安', '悲しみ'], r: '大丈夫。一緒に乗り越えましょう。' },
+        { k: ['嬉し','楽し','良い','最高'], s: 'mnd', m: 'ポジティブシグナル検出。精神状態：良好。', sent: 8, emo: ['喜び'], r: '素晴らしい！その調子です。' },
+        { k: ['疲れ','だるい','しんどい'], s: 'vit', m: 'エネルギー値低下を検出。休息を推奨。', sent: -3, emo: ['疲労'], r: '無理しないでください。休むことも大事です。' }
       ];
       for (let r of rules) {
-        if (r.k.some(key => text.includes(key))) return { msg: r.m, stat: r.s };
+        if (r.k.some(key => text.includes(key))) {
+          return { msg: r.m, stat: r.s, sentiment: r.sent, emotions: r.emo, reply: r.r };
+        }
       }
-      return { msg: '生存シグナルを確認。ログに記録。', stat: 'mnd' };
+      return { msg: '生存シグナルを確認。ログに記録。', stat: 'mnd', sentiment: 0, emotions: [], reply: '記録しました。また何かあれば話してください。' };
     }
 
     // --- GEMINI MODELS ---
@@ -862,15 +1017,29 @@
         type: "object",
         properties: {
           msg: { type: "string" },
-          stat: { type: "string", enum: ["vit", "int", "mnd"] }
+          stat: { type: "string", enum: ["vit", "int", "mnd"] },
+          sentiment: { type: "number", description: "Sentiment score from -10 (very negative) to +10 (very positive)" },
+          emotions: {
+            type: "array",
+            items: { type: "string", enum: ["不安", "喜び", "怒り", "悲しみ", "達成感", "疲労", "焦り", "安心", "期待", "後悔"] },
+            description: "Detected emotion tags (1-3 tags)"
+          },
+          reply: {
+            type: "string",
+            description: "A short, encouraging conversational reply from the AI (20-40 JP chars)"
+          }
         },
-        required: ["msg", "stat"]
+        required: ["msg", "stat", "sentiment", "emotions", "reply"]
       };
 
       const prompt = [
         "Role: You are a tactical support AI from a cyberpunk anime (like Ghost in the Shell).",
         `User Input: "${text}"`,
         "Task: Reframe this into a cool, objective tactical log. Keep it short (<= 60 JP chars if possible).",
+        "Also analyze:",
+        "- sentiment: score from -10 (very negative) to +10 (very positive)",
+        "- emotions: detect 1-3 emotion tags from the list",
+        "- reply: give a short, encouraging conversational response as a supportive AI companion (20-40 JP chars)",
         "Output: JSON only."
       ].join("\n");
 
@@ -915,7 +1084,10 @@
         const parsed = JSON.parse(jsonText);
         return {
           msg: String(parsed.msg || '').slice(0, 400),
-          stat: String(parsed.stat || 'mnd').toLowerCase()
+          stat: String(parsed.stat || 'mnd').toLowerCase(),
+          sentiment: Number(parsed.sentiment || 0),
+          emotions: Array.isArray(parsed.emotions) ? parsed.emotions : [],
+          reply: String(parsed.reply || '了解しました。').slice(0, 200)
         };
       } catch(e) {
         // fallback: try to extract {...} if model wrapped extra text
@@ -924,11 +1096,71 @@
           const parsed2 = JSON.parse(m[0]);
           return {
             msg: String(parsed2.msg || '').slice(0, 400),
-            stat: String(parsed2.stat || 'mnd').toLowerCase()
+            stat: String(parsed2.stat || 'mnd').toLowerCase(),
+            sentiment: Number(parsed2.sentiment || 0),
+            emotions: Array.isArray(parsed2.emotions) ? parsed2.emotions : [],
+            reply: String(parsed2.reply || '了解しました。').slice(0, 200)
           };
         }
         throw new Error('JSON_PARSE_FAILED');
       }
+    }
+
+    // --- ANALYSIS FUNCTIONS ---
+    function analyzeSentimentTrend() {
+      if (state.logs.length === 0) return '分析データなし';
+
+      const recent = state.logs.slice(0, 7); // 最新7件
+      const avgSentiment = recent.reduce((sum, log) => sum + (log.sentiment || 0), 0) / recent.length;
+
+      const positive = recent.filter(l => l.sentiment > 3).length;
+      const negative = recent.filter(l => l.sentiment < -3).length;
+      const neutral = recent.length - positive - negative;
+
+      const posPercent = Math.round((positive / recent.length) * 100);
+      const negPercent = Math.round((negative / recent.length) * 100);
+      const neuPercent = 100 - posPercent - negPercent;
+
+      return {
+        avg: avgSentiment.toFixed(1),
+        positive: posPercent,
+        negative: negPercent,
+        neutral: neuPercent,
+        trend: avgSentiment > 2 ? '良好' : avgSentiment < -2 ? '注意' : '安定'
+      };
+    }
+
+    function analyzeTimePatterns() {
+      if (state.logs.length === 0) return null;
+
+      const hourCounts = {};
+      const hourSentiments = {};
+
+      state.logs.forEach(log => {
+        const h = log.hour;
+        if (h !== undefined) {
+          hourCounts[h] = (hourCounts[h] || 0) + 1;
+          hourSentiments[h] = (hourSentiments[h] || []).concat(log.sentiment || 0);
+        }
+      });
+
+      // 最も活発な時間帯（上位3つ）
+      const topHours = Object.entries(hourCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([hour, count]) => {
+          const avgSent = hourSentiments[hour].reduce((a,b) => a+b, 0) / hourSentiments[hour].length;
+          return { hour: parseInt(hour), count, avgSent };
+        });
+
+      return topHours;
+    }
+
+    function getEmotionDistribution() {
+      const sorted = Object.entries(state.emotions)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+      return sorted;
     }
 
     // --- RENDER (SECURE) ---
@@ -936,6 +1168,7 @@
       document.getElementById('val-vit').innerText = String(state.stats.vit || 0).padStart(2, '0');
       document.getElementById('val-int').innerText = String(state.stats.int || 0).padStart(2, '0');
       document.getElementById('val-mnd').innerText = String(state.stats.mnd || 0).padStart(2, '0');
+      document.getElementById('total-logs-count').innerText = String(state.logs.length || 0).padStart(2, '0');
 
       const cont = document.getElementById('log-container');
       cont.innerHTML = '';
@@ -953,7 +1186,7 @@
 
         const statSpan = document.createElement('span');
         statSpan.style.color = 'var(--alert-color)';
-        statSpan.textContent = safeUpper(l.stat);
+        statSpan.textContent = statToJapanese(l.stat);
 
         headerDiv.appendChild(t1);
         headerDiv.appendChild(document.createElement('br'));
@@ -974,21 +1207,110 @@
         bodyDiv.appendChild(sysMsgDiv);
         bodyDiv.appendChild(userTxtDiv);
 
+        // 感情タグと感情スコア表示
+        if (l.emotions && l.emotions.length > 0) {
+          const emotionDiv = document.createElement('div');
+          emotionDiv.className = 'log-emotions';
+          const sentimentIcon = l.sentiment > 3 ? '😊' : l.sentiment < -3 ? '😔' : '😐';
+          emotionDiv.textContent = `${sentimentIcon} ${l.emotions.join(', ')} [${l.sentiment > 0 ? '+' : ''}${l.sentiment}]`;
+          bodyDiv.appendChild(emotionDiv);
+        }
+
+        // AI返信表示
+        if (l.reply) {
+          const replyDiv = document.createElement('div');
+          replyDiv.className = 'log-ai-reply';
+          replyDiv.textContent = `🤖 ${l.reply}`;
+          bodyDiv.appendChild(replyDiv);
+        }
+
         div.appendChild(headerDiv);
         div.appendChild(bodyDiv);
         cont.appendChild(div);
       });
 
-      // Heatmap
-      const heat = document.getElementById('heatmap');
-      heat.innerHTML = '';
-      for (let i = 0; i < 42; i++) {
-        const cell = document.createElement('div');
-        cell.className = 'heat-cell';
-        heat.appendChild(cell);
+      // 感情トレンド分析の表示
+      const sentimentData = analyzeSentimentTrend();
+      const sentimentEl = document.getElementById('sentiment-trend');
+      if (typeof sentimentData === 'string') {
+        sentimentEl.textContent = sentimentData;
+      } else {
+        sentimentEl.innerHTML = '';
+        const trendText = document.createElement('div');
+        trendText.textContent = `平均: ${sentimentData.avg} (${sentimentData.trend})`;
+        sentimentEl.appendChild(trendText);
+
+        const bar = document.createElement('div');
+        bar.className = 'sentiment-bar';
+
+        if (sentimentData.positive > 0) {
+          const posDiv = document.createElement('div');
+          posDiv.className = 'sentiment-positive';
+          posDiv.style.width = sentimentData.positive + '%';
+          posDiv.title = `ポジティブ ${sentimentData.positive}%`;
+          bar.appendChild(posDiv);
+        }
+        if (sentimentData.neutral > 0) {
+          const neuDiv = document.createElement('div');
+          neuDiv.className = 'sentiment-neutral';
+          neuDiv.style.width = sentimentData.neutral + '%';
+          neuDiv.title = `中立 ${sentimentData.neutral}%`;
+          bar.appendChild(neuDiv);
+        }
+        if (sentimentData.negative > 0) {
+          const negDiv = document.createElement('div');
+          negDiv.className = 'sentiment-negative';
+          negDiv.style.width = sentimentData.negative + '%';
+          negDiv.title = `ネガティブ ${sentimentData.negative}%`;
+          bar.appendChild(negDiv);
+        }
+        sentimentEl.appendChild(bar);
       }
-      const today = new Date().toISOString().split('T')[0];
-      if (state.heatmap[today]) heat.lastElementChild.classList.add('super');
+
+      // 時間帯分析の表示
+      const timeData = analyzeTimePatterns();
+      const timeEl = document.getElementById('time-analysis');
+      timeEl.innerHTML = '';
+      if (timeData && timeData.length > 0) {
+        timeData.forEach(t => {
+          const barDiv = document.createElement('div');
+          barDiv.className = 'time-bar';
+
+          const label = document.createElement('span');
+          label.className = 'time-label';
+          label.textContent = `${t.hour}時台`;
+
+          const fill = document.createElement('div');
+          fill.className = 'time-bar-fill';
+          const maxCount = timeData[0].count;
+          const width = Math.max(20, (t.count / maxCount) * 100);
+          fill.style.width = width + 'px';
+
+          const sentIcon = t.avgSent > 2 ? '😊' : t.avgSent < -2 ? '😔' : '😐';
+          fill.title = `${t.count}件 ${sentIcon}`;
+
+          barDiv.appendChild(label);
+          barDiv.appendChild(fill);
+          timeEl.appendChild(barDiv);
+        });
+      } else {
+        timeEl.textContent = '分析データなし';
+      }
+
+      // 感情分布の表示
+      const emotionData = getEmotionDistribution();
+      const emotionEl = document.getElementById('emotion-dist');
+      emotionEl.innerHTML = '';
+      if (emotionData.length > 0) {
+        emotionData.forEach(([emotion, count]) => {
+          const tag = document.createElement('span');
+          tag.className = 'emotion-tag';
+          tag.textContent = `${emotion} ${count}`;
+          emotionEl.appendChild(tag);
+        });
+      } else {
+        emotionEl.textContent = '分析データなし';
+      }
     }
 
     function updateStatus() {
