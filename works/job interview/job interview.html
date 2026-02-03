@@ -27,6 +27,8 @@
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        .header-title::before { content: attr(data-label); }
+        .header-subtitle::before { content: attr(data-label); }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-[100dvh] h-[100dvh] flex flex-col">
@@ -36,8 +38,8 @@
         <div class="flex items-center gap-3">
             <div class="bg-emerald-100 p-1.5 rounded-lg w-8 h-8 flex items-center justify-center flex-shrink-0" id="headerIcon"></div>
             <div>
-                <h1 class="font-bold text-lg leading-none text-slate-800">面接パートナーAI</h1>
-                <p class="text-[10px] font-bold text-emerald-600 mt-1 tracking-wide">障害者雇用特化 / 就労移行支援</p>
+                <h1 class="font-bold text-lg leading-none text-slate-800 header-title" data-label="面接パートナーAI" aria-label="面接パートナーAI"></h1>
+                <p class="text-[10px] font-bold text-emerald-600 mt-1 tracking-wide header-subtitle" data-label="障害者雇用特化 / 就労移行支援" aria-label="障害者雇用特化 / 就労移行支援"></p>
             </div>
         </div>
         <div class="flex gap-2">
