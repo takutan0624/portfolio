@@ -12,6 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Marked.js -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- DOMPurify (XSS対策) -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
 
     <style>
         body { font-family: 'Noto Sans JP', sans-serif; }
@@ -137,46 +139,6 @@
                     </div>
                 </div>
                 
-                <!-- 管理者エリア -->
-                <div class="bg-slate-100 p-6 border-t border-slate-200" id="adminSection">
-                    <div class="flex items-center gap-2 text-slate-700 mb-4 justify-between">
-                        <div class="flex items-center gap-2">
-                            <i data-lucide="shield" class="w-5 h-5"></i>
-                            <h3 class="font-bold">管理者設定（APIキー）</h3>
-                        </div>
-                        <button id="adminLogoutBtn" onclick="app.logoutAdmin()" class="hidden text-xs text-red-500 underline">ログアウト</button>
-                    </div>
-
-                    <!-- 1. 未ログイン -->
-                    <div id="adminLocked" class="space-y-3">
-                        <p class="text-xs text-slate-500">管理者としてログインすると、事業所全体のAPIキー設定を変更できます。</p>
-                        <!-- ここにヒントを追加 -->
-                        <div class="bg-blue-50 p-3 rounded-lg text-xs text-blue-800 border border-blue-100">
-                            <strong>💡 ヒント:</strong><br>
-                            ログインには <strong>Firebaseコンソールで作成したユーザー</strong> を使用します。<br>
-                            (Authentication &gt; Users &gt; ユーザーを追加)
-                        </div>
-                        <form onsubmit="event.preventDefault(); app.loginAdmin();" class="space-y-2">
-                            <input type="email" id="adminEmail" placeholder="管理者メールアドレス" class="w-full p-2 border border-slate-300 rounded-lg text-sm">
-                            <input type="password" id="adminPassword" placeholder="パスワード" class="w-full p-2 border border-slate-300 rounded-lg text-sm">
-                            <button type="submit" class="w-full bg-slate-700 text-white py-2 rounded-lg text-sm font-bold hover:bg-slate-600">管理者ログイン</button>
-                        </form>
-                        <p id="loginError" class="text-red-500 text-xs font-bold hidden"></p>
-                    </div>
-
-                    <!-- 2. ログイン済み -->
-                    <div id="adminUnlocked" class="space-y-4 hidden fade-in">
-                        <div class="bg-white p-4 rounded-lg border border-emerald-200 space-y-4 relative overflow-hidden">
-                            <div class="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
-                            <p class="text-xs text-emerald-700 font-bold">管理者権限で編集中</p>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 mb-1">Groq API Key (共有設定)</label>
-                                <input type="password" id="apiKey" placeholder="APIキーを入力" class="w-full p-2 border border-slate-300 rounded font-mono text-xs">
-                            </div>
-                            <button id="saveApiKeyBtn" onclick="app.saveAdminSettings()" class="w-full bg-slate-800 text-white py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors">クラウドに保存</button>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -184,8 +146,8 @@
     <!-- Firebase SDK (Modular) - Version 11.2.0 (Stable) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-analytics.js";
 
         // ==========================================
@@ -200,6 +162,10 @@
             appId: "1:649656476488:web:a37960764f9c169cb4097d",
             measurementId: "G-656YN92YLP"
         };
+
+        // Cloud Functions (Groq Proxy) Endpoint
+        // TODO: あなたのFunctions URLに置き換えてください
+        const GROQ_PROXY_URL = "https://<YOUR_REGION>-<YOUR_PROJECT>.cloudfunctions.net/chat";
 
         // --- アプリケーションロジック ---
         
@@ -226,9 +192,6 @@
             openSettings: () => instance.openSettings(),
             closeSettings: () => instance.closeSettings(),
             saveProfile: () => instance.saveProfile(),
-            loginAdmin: () => instance.loginAdmin(),
-            logoutAdmin: () => instance.logoutAdmin(),
-            saveAdminSettings: () => instance.saveAdminSettings(),
         };
 
         class InterviewPartnerApp {
@@ -237,10 +200,9 @@
                     messages: [],
                     mode: 'mock',
                     isLoading: false,
-                    apiKey: '', 
                     userProfile: { name: 'ユーザー', diagnosis: '', strengths: '', accommodations: '' },
                     currentUser: null,
-                    isAdmin: false
+                    isAuthReady: false
                 };
 
                 this.elements = {
@@ -257,24 +219,23 @@
                     profName: document.getElementById('profName'),
                     profDiagnosis: document.getElementById('profDiagnosis'),
                     profAccommodations: document.getElementById('profAccommodations'),
-                    apiKey: document.getElementById('apiKey'),
-                    adminLocked: document.getElementById('adminLocked'),
-                    adminUnlocked: document.getElementById('adminUnlocked'),
-                    adminEmail: document.getElementById('adminEmail'),
-                    adminPassword: document.getElementById('adminPassword'),
-                    loginError: document.getElementById('loginError'),
                     authStatus: document.getElementById('authStatus'),
-                    adminLogoutBtn: document.getElementById('adminLogoutBtn'),
                     firebaseWarning: document.getElementById('firebaseWarning'),
-                    firebaseErrorMessage: document.getElementById('firebaseErrorMessage'),
-                    saveApiKeyBtn: document.getElementById('saveApiKeyBtn')
+                    firebaseErrorMessage: document.getElementById('firebaseErrorMessage')
+                };
+
+                this.modeColor = {
+                    mock: { text: 'text-blue-600', bg: 'bg-blue-100' },
+                    accommodation: { text: 'text-emerald-600', bg: 'bg-emerald-100' },
+                    translate: { text: 'text-amber-500', bg: 'bg-amber-100' },
+                    reverse: { text: 'text-purple-600', bg: 'bg-purple-100' }
                 };
 
                 this.modes = [
-                    { id: 'mock', label: '基本コース', icon: 'list-checks', color: 'text-blue-600', desc: '自己紹介→障害特性→配慮→強み→志望動機の順で進みます' },
-                    { id: 'accommodation', label: '配慮相談', icon: 'heart', color: 'text-emerald-600', desc: '体調や配慮事項を深掘りします' },
-                    { id: 'translate', label: '本音翻訳', icon: 'sparkles', color: 'text-amber-500', desc: '不安や空白期間をポジティブに変換' },
-                    { id: 'reverse', label: '逆質問', icon: 'help-circle', color: 'text-purple-600', desc: '企業への逆質問を作ります' }
+                    { id: 'mock', label: '基本コース', icon: 'list-checks', desc: '自己紹介→障害特性→配慮→強み→志望動機の順で進みます' },
+                    { id: 'accommodation', label: '配慮相談', icon: 'heart', desc: '体調や配慮事項を深掘りします' },
+                    { id: 'translate', label: '本音翻訳', icon: 'sparkles', desc: '不安や空白期間をポジティブに変換' },
+                    { id: 'reverse', label: '逆質問', icon: 'help-circle', desc: '企業への逆質問を作ります' }
                 ];
                 
                 this.cuteRobotSvg = `
@@ -321,35 +282,14 @@
                     
                     if (user) {
                         this.state.currentUser = user;
+                        this.state.isAuthReady = true;
                         this.elements.authStatus.textContent = "接続中";
                         this.elements.authStatus.className = "text-xs font-normal ml-2 px-2 py-0.5 rounded bg-emerald-100 text-emerald-600";
                         this.elements.firebaseWarning.classList.add('hidden'); 
-
-                        // 管理者判定
-                        if (!user.isAnonymous) {
-                            console.log("Admin User Detected");
-                            this.state.isAdmin = true;
-                            this.renderAdminSection();
-                        } else {
-                            this.state.isAdmin = false;
-                            this.renderAdminSection();
-                        }
+                        this.updateSendButton();
 
                         // Firestoreからのデータ読み込み
                         try {
-                            onSnapshot(doc(db, "system", "config"), (snapshot) => {
-                                if (snapshot.exists()) {
-                                    const data = snapshot.data();
-                                    if(data && data.groqApiKey) {
-                                        this.state.apiKey = data.groqApiKey;
-                                        console.log("API Key loaded from Firestore");
-                                    }
-                                }
-                            }, (error) => {
-                                // 権限エラーなどはログに出すが、アプリは止めない
-                                console.log("Config read error (ignore if not admin):", error.code);
-                            });
-
                             const userDocRef = doc(db, "users", user.uid);
                             const userDoc = await getDoc(userDocRef);
                             
@@ -383,8 +323,6 @@
                         });
                     }
                 });
-                
-                this.addSystemMessage(this.getInitialGreeting('mock'));
             }
 
             showFirebaseWarning(message) {
@@ -393,7 +331,6 @@
             }
 
             fallbackToLocal() {
-                this.state.apiKey = localStorage.getItem('groq_api_key') || '';
                 const savedProfile = localStorage.getItem('user_profile');
                 if (savedProfile) this.state.userProfile = JSON.parse(savedProfile);
                 this.loadProfileToUI();
@@ -402,91 +339,11 @@
                 }
             }
 
-            async loginAdmin() {
-                if(!isFirebaseReady) return alert("Firebaseが設定されていません");
-                const email = this.elements.adminEmail.value;
-                const password = this.elements.adminPassword.value;
-                this.elements.loginError.classList.add('hidden');
-
-                try {
-                    await signInWithEmailAndPassword(auth, email, password);
-                    this.elements.adminEmail.value = '';
-                    this.elements.adminPassword.value = '';
-                } catch (error) {
-                    this.elements.loginError.textContent = "ログイン失敗: " + error.message;
-                    this.elements.loginError.classList.remove('hidden');
-                }
-            }
-
-            async logoutAdmin() {
-                await signOut(auth);
-                this.state.isAdmin = false;
-                this.renderAdminSection();
-            }
-
-            async saveAdminSettings() {
-                // デバッグログ
-                console.log("saveAdminSettings called");
-
-                if(!isFirebaseReady) {
-                    alert("Firebaseが初期化されていません。設定を確認してください。");
-                    return;
-                }
-                if(!this.state.isAdmin) {
-                    alert("管理者権限がありません。再ログインしてください。");
-                    return;
-                }
-                
-                const newKey = this.elements.apiKey.value.trim();
-                if (!newKey) {
-                    alert("APIキーを入力してください。");
-                    return;
-                }
-
-                // ボタンの状態変更（フィードバック）
-                const btn = this.elements.saveApiKeyBtn;
-                const originalText = btn.textContent;
-                btn.disabled = true;
-                btn.textContent = "保存中...";
-                btn.classList.add("opacity-50");
-
-                try {
-                    await setDoc(doc(db, "system", "config"), { groqApiKey: newKey }, { merge: true });
-                    alert("✅ システム設定(APIキー)をクラウドに保存しました。\n他の端末でもこのキーが自動的に適用されます。");
-                } catch (e) {
-                    console.error(e);
-                    
-                    let msg = `保存エラー: ${e.message}`;
-                    if (e.code === 'permission-denied') {
-                        msg = "【権限エラー】\nFirestoreのセキュリティルールにより書き込みが拒否されました。\n\nFirebaseコンソール > Firestore Database > ルール タブを開き、以下のルールを設定してください:\n\nallow read, write: if true;";
-                    }
-                    
-                    alert(msg);
-                } finally {
-                    btn.disabled = false;
-                    btn.textContent = originalText;
-                    btn.classList.remove("opacity-50");
-                }
-            }
-
-            renderAdminSection() {
-                if (this.state.isAdmin) {
-                    this.elements.adminLocked.classList.add('hidden');
-                    this.elements.adminUnlocked.classList.remove('hidden');
-                    this.elements.adminLogoutBtn.classList.remove('hidden');
-                    this.elements.apiKey.value = this.state.apiKey;
-                } else {
-                    this.elements.adminLocked.classList.remove('hidden');
-                    this.elements.adminUnlocked.classList.add('hidden');
-                    this.elements.adminLogoutBtn.classList.add('hidden');
-                }
-            }
-
             renderTabs() {
                 this.elements.modeTabs.innerHTML = this.modes.map(m => `
                     <button onclick="app.changeMode('${m.id}')" 
                         class="flex-1 min-w-[80px] py-3 px-1 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 text-[10px] sm:text-sm font-bold transition-all border-b-2 
-                        ${this.state.mode === m.id ? `${m.color} border-current bg-slate-50` : 'text-slate-400 border-transparent hover:text-slate-600'}">
+                        ${this.state.mode === m.id ? `${this.modeColor[m.id]?.text || 'text-emerald-600'} border-current bg-slate-50` : 'text-slate-400 border-transparent hover:text-slate-600'}">
                         <i data-lucide="${m.icon}" class="w-4 h-4 sm:w-5 sm:h-5"></i>
                         <span class="whitespace-nowrap">${m.label}</span>
                     </button>
@@ -497,20 +354,29 @@
             addMessageToDOM(role, text) {
                 const div = document.createElement('div');
                 div.className = `flex w-full ${role === 'user' ? 'justify-end' : 'justify-start'} fade-in`;
-                const currentModeConfig = this.modes.find(m => m.id === this.state.mode);
                 let iconHtml = '', iconBg = '';
 
                 if (role === 'user') {
                     iconBg = 'bg-slate-200 text-slate-500';
                     iconHtml = `<i data-lucide="user" class="w-5 h-5"></i>`;
                 } else {
-                    const colorClass = currentModeConfig.color; 
-                    const bgClass = `bg-${colorClass.split('-')[1]}-100`; 
-                    iconBg = `${bgClass}`;
-                    iconHtml = this.cuteRobotSvg.replace('text-emerald-600', colorClass);
+                    const modeColors = this.modeColor[this.state.mode] || { text: 'text-emerald-600', bg: 'bg-emerald-100' };
+                    iconBg = modeColors.bg;
+                    iconHtml = this.cuteRobotSvg.replace('text-emerald-600', modeColors.text);
                 }
 
-                const parsedText = role === 'assistant' ? marked.parse(text) : text.replace(/\n/g, '<br>');
+                let parsedText;
+                if (role === 'assistant') {
+                    const raw = marked.parse(text);
+                    parsedText = DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
+                } else {
+                    // ユーザー入力はHTML化しない（安全側）
+                    parsedText = text
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")
+                        .replace(/\n/g, "<br>");
+                }
 
                 div.innerHTML = `
                     <div class="flex max-w-[90%] sm:max-w-[80%] ${role === 'user' ? 'flex-row-reverse' : 'flex-row'} gap-2">
@@ -543,7 +409,7 @@
             updateSendButton() {
                 const text = this.elements.userInput.value.trim();
                 const btn = this.elements.sendBtn;
-                if (text && !this.state.isLoading) {
+                if (text && !this.state.isLoading && this.state.isAuthReady) {
                     btn.disabled = false;
                     btn.classList.remove('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
                     btn.classList.add('bg-emerald-600', 'text-white', 'hover:bg-emerald-700');
@@ -567,12 +433,16 @@
 
             async sendMessage() {
                 const text = this.elements.userInput.value.trim();
-                if (!text || !this.state.apiKey) {
-                    if(!this.state.apiKey) {
-                        alert('【準備中】\nAPIキーが設定されていません。管理者（あなた）がログインして設定する必要があります。');
-                        this.openSettings();
-                    }
+                if (!text) return;
+
+                if (!GROQ_PROXY_URL || GROQ_PROXY_URL.includes("<YOUR_REGION>") || GROQ_PROXY_URL.includes("<YOUR_PROJECT>")) {
+                    alert("GROQ_PROXY_URL が未設定です。FunctionsのURLに置き換えてください。");
                     return;
+                }
+
+                const user = auth.currentUser;
+                if (!user) {
+                    throw new Error("認証中です。数秒待ってから再試行してください。");
                 }
 
                 this.state.messages.push({ role: 'user', content: text });
@@ -591,13 +461,18 @@
                         content: m.content
                     }));
 
-                    // Groq OpenAI互換API
+                    // Groq Proxy (Cloud Functions) 経由
                     const modelId = "llama-3.3-70b-versatile";
-                    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    const idToken = await user.getIdToken();
+                    if (!idToken) {
+                        throw new Error("認証トークンが取得できませんでした。ログイン状態を確認してください。");
+                    }
+
+                    const response = await fetch(GROQ_PROXY_URL, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${this.state.apiKey}`
+                            'Authorization': `Bearer ${idToken}`
                         },
                         body: JSON.stringify({
                             model: modelId,
@@ -610,10 +485,24 @@
                         })
                     });
 
-                    const data = await response.json();
-                    if (data.error) throw new Error(data.error.message);
+                    // まずHTTPを確認
+                    if (!response.ok) {
+                        const text = await response.text().catch(() => "");
+                        const retryAfter = response.headers.get("retry-after");
+                        const status = response.status;
 
-                    const botResponse = data.choices[0].message.content;
+                        if (status === 401) {
+                            throw new Error("認証エラー（401）: APIキーが無効、または失効しています。");
+                        }
+                        if (status === 429) {
+                            throw new Error(`レート制限（429）: しばらく待って再試行してください。${retryAfter ? `（Retry-After: ${retryAfter}s）` : ""}`);
+                        }
+
+                        throw new Error(`HTTP ${status}: ${text.slice(0, 300)}`);
+                    }
+
+                    const data = await response.json();
+                    const botResponse = data?.content ?? "（応答が空でした）";
                     this.state.isLoading = false;
                     this.elements.loadingIndicator.classList.add('hidden');
                     this.addSystemMessage(botResponse);
@@ -624,8 +513,11 @@
                     this.elements.loadingIndicator.classList.add('hidden');
                     
                     let errorMsg = `エラーが発生しました: ${error.message}`;
-                    if (error.message.includes('Quota exceeded') || error.message.includes('429')) {
-                        errorMsg = "⚠️ **利用制限（クォータ）を超過しました**\n\nGoogle Gemini APIの無料枠の上限に達しました。しばらく時間（1分〜数分程度）を空けてから再試行してください。\n※短時間にメッセージを送りすぎると発生します。";
+                    if (String(error.message).includes('429')) {
+                        errorMsg =
+                            "⚠️ **Groqの利用制限（レート/日次上限など）に達しました**\n\n" +
+                            "少し時間を空けて再試行してください。\n" +
+                            "※モデルによって「1日あたりの回数(RPD)」と「トークン上限(TPD)」が違います。";
                     }
                     
                     this.addSystemMessage(errorMsg);
