@@ -312,6 +312,10 @@
                             console.error("Firestore Data Load Error:", e);
                         }
 
+                        if (this.state.messages.length === 0) {
+                            this.addSystemMessage(this.getInitialGreeting(this.state.mode));
+                        }
+
                     } else {
                         signInAnonymously(auth).catch((error) => {
                             console.error("Anon Auth Error", error);
