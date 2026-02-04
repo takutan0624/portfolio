@@ -428,8 +428,6 @@
             changeMode(newMode) {
                 if (this.state.mode === newMode) return;
                 this.state.mode = newMode;
-                this.state.messages = [];
-                this.elements.messageList.innerHTML = '';
                 this.renderTabs();
                 const modeConfig = this.modes.find(m => m.id === newMode);
                 this.elements.modeDescription.textContent = modeConfig.desc;
