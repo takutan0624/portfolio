@@ -86,7 +86,7 @@
     <div class="w-full bg-white border-t border-slate-200 p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex-shrink-0">
         <div class="max-w-4xl mx-auto relative flex items-end gap-2">
             <textarea id="userInput" 
-                placeholder="回答を入力... (Shift+Enterで改行)" 
+                placeholder="回答を入力... (Enterで改行 / Ctrl+Enterで送信)" 
                 class="w-full p-3 pr-12 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none h-14 max-h-32 transition-all"
                 rows="1"></textarea>
             <button id="sendBtn" onclick="app.sendMessage()" disabled
@@ -262,7 +262,7 @@
                 this.elements.headerIcon.innerHTML = this.cuteRobotSvg.replace('text-emerald-600', 'text-emerald-600');
                 this.elements.userInput.addEventListener('input', () => this.updateSendButton());
                 this.elements.userInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.key === 'Enter' && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
                         e.preventDefault();
                         this.sendMessage();
                     }
