@@ -199,6 +199,7 @@
             constructor() {
                 this.state = {
                     messages: [],
+                    messagesByMode: {},
                     mode: 'mock',
                     isLoading: false,
                     userProfile: { name: 'ユーザー', diagnosis: '', strengths: '', accommodations: '' },
@@ -404,6 +405,13 @@
                 this.addMessageToDOM('assistant', text);
             }
 
+            renderHistory() {
+                this.elements.messageList.innerHTML = '';
+                this.state.messages.forEach(m => {
+                    this.addMessageToDOM(m.role, m.content);
+                });
+            }
+
             scrollToBottom() {
                 const container = this.elements.chatContainer;
                 requestAnimationFrame(() => {
@@ -427,11 +435,16 @@
 
             changeMode(newMode) {
                 if (this.state.mode === newMode) return;
+                this.state.messagesByMode[this.state.mode] = this.state.messages;
                 this.state.mode = newMode;
+                this.state.messages = this.state.messagesByMode[newMode] || [];
                 this.renderTabs();
                 const modeConfig = this.modes.find(m => m.id === newMode);
                 this.elements.modeDescription.textContent = modeConfig.desc;
-                this.addSystemMessage(this.getInitialGreeting(newMode));
+                this.renderHistory();
+                if (this.state.messages.length === 0) {
+                    this.addSystemMessage(this.getInitialGreeting(newMode));
+                }
             }
 
             async sendMessage() {
@@ -530,6 +543,7 @@
             clearHistory() {
                 if(confirm('会話履歴をリセットしますか？')) {
                     this.state.messages = [];
+                    this.state.messagesByMode[this.state.mode] = this.state.messages;
                     this.elements.messageList.innerHTML = '';
                     this.addSystemMessage(this.getInitialGreeting(this.state.mode));
                 }
