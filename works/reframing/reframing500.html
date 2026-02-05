@@ -2,6 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'; upgrade-insecure-requests;">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reframe Master - 500 Patterns Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -73,6 +78,15 @@
 
     <!-- Data & Scripts -->
     <script>
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
         const CAPSULE_COLORS = [
             'bg-red-400', 'bg-blue-400', 'bg-yellow-400', 'bg-green-400', 
             'bg-orange-400', 'bg-pink-400', 'bg-purple-400', 'bg-cyan-400', 
@@ -684,7 +698,7 @@
                                     </div>
                                     ${completedPatterns[id] ? '<div class="bg-green-500 text-white p-1 rounded-full"><i data-lucide="check" class="w-4 h-4"></i></div>' : ''}
                                 </div>
-                                <h3 class="text-xl font-black text-slate-900 mb-1">${data.name}</h3>
+                                <h3 class="text-xl font-black text-slate-900 mb-1">${escapeHTML(data.name)}</h3>
                                 <p class="text-xs text-slate-400 font-bold mb-4 uppercase">50 Training Examples</p>
                                 <div class="flex items-center font-black text-sm text-orange-500 group-hover:translate-x-1 transition-transform">
                                     Start Training <i data-lucide="chevron-right" class="w-4 h-4"></i>
@@ -773,10 +787,10 @@
 
             content.innerHTML = `
                 <div class="mb-6 px-4 py-2 bg-orange-100 text-orange-600 rounded-full text-xs font-black uppercase tracking-widest">
-                    ${patternName}
+                    ${escapeHTML(patternName)}
                 </div>
                 <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Challenge: Reframe this Thought</h2>
-                <p class="text-2xl md:text-3xl font-black text-slate-900 leading-tight mb-12">「${question}」</p>
+                <p class="text-2xl md:text-3xl font-black text-slate-900 leading-tight mb-12">「${escapeHTML(question)}」</p>
                 <div id="modal-action">
                     <button onclick="revealAnswer('${answer.replace(/'/g, "\\'")}')" class="w-full bg-orange-500 text-white py-6 rounded-[2rem] font-black text-xl shadow-xl hover:bg-orange-600 transition-all active:scale-95 flex items-center justify-center gap-3">
                         カプセルを開ける！ <i data-lucide="eye"></i>
@@ -801,7 +815,7 @@
                         <div class="text-[10px] font-black text-green-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                             <i data-lucide="trophy" class="w-4 h-4"></i> Recommended Reframe
                         </div>
-                        <p class="text-xl font-bold text-green-900 leading-relaxed">${answer}</p>
+                        <p class="text-xl font-bold text-green-900 leading-relaxed">${escapeHTML(answer)}</p>
                     </div>
                     <button onclick="closeModal()" class="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-xl hover:bg-slate-800 transition-all active:scale-95">
                         次を引く
@@ -834,8 +848,8 @@
                     <div class="bg-slate-900 rounded-[3rem] p-10 md:p-14 text-white mb-12 shadow-2xl relative overflow-hidden">
                         <div class="relative z-10">
                             <div class="inline-block px-4 py-1.5 bg-orange-500 rounded-full text-white text-[10px] font-black uppercase tracking-widest mb-4">Intensive Training</div>
-                            <h2 class="text-5xl md:text-6xl font-black mb-6 tracking-tighter">${data.name}</h2>
-                            <p class="text-slate-400 text-xl max-w-2xl leading-relaxed font-medium">${data.description}</p>
+                            <h2 class="text-5xl md:text-6xl font-black mb-6 tracking-tighter">${escapeHTML(data.name)}</h2>
+                            <p class="text-slate-400 text-xl max-w-2xl leading-relaxed font-medium">${escapeHTML(data.description)}</p>
                         </div>
                     </div>
 
@@ -847,11 +861,11 @@
                                         ${idx + 1}
                                     </div>
                                     <div class="flex-1">
-                                        <p class="text-slate-800 text-lg font-bold leading-relaxed mb-4">${ex.q}</p>
+                                        <p class="text-slate-800 text-lg font-bold leading-relaxed mb-4">${escapeHTML(ex.q)}</p>
                                         <div id="ans-${id}-${idx}" class="hidden p-6 bg-green-50 rounded-[1.5rem] border border-green-100 text-green-900 mt-4 animate-in slide-in-from-top-2">
                                             <div class="flex gap-4 items-start">
                                                 <i data-lucide="lightbulb" class="text-orange-500 shrink-0 mt-1"></i>
-                                                <p class="text-lg font-bold leading-relaxed">${ex.a}</p>
+                                                <p class="text-lg font-bold leading-relaxed">${escapeHTML(ex.a)}</p>
                                             </div>
                                         </div>
                                         <button id="btn-${id}-${idx}" onclick="toggleAns('${id}', ${idx})" class="flex items-center gap-2 px-6 py-3 bg-orange-50 text-orange-600 rounded-2xl font-black text-sm hover:bg-orange-500 hover:text-white transition-all shadow-sm active:scale-95">

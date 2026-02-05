@@ -2,6 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'; upgrade-insecure-requests;">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>きらめき話題ガチャ - Ice Break Gacha</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -540,11 +545,13 @@
             history.unshift(text);
             if (history.length > 3) history.pop();
 
-            historyList.innerHTML = history.map(item => `
-                <li class="bg-white/40 rounded px-2 py-1 truncate animate-pop border-l-2 border-indigo-300">
-                    ${item}
-                </li>
-            `).join('');
+            historyList.innerHTML = '';
+            history.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'bg-white/40 rounded px-2 py-1 truncate animate-pop border-l-2 border-indigo-300';
+                li.textContent = item;
+                historyList.appendChild(li);
+            });
         }
 
         function createParticles(type) {

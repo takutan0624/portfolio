@@ -2,6 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'; upgrade-insecure-requests;">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>運命の少女漫画診断 - Shoujo Manga Sommelier Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -93,6 +98,15 @@
     </div>
 
     <script>
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
         // ==========================================
         // 1. Database (Same as before, abbreviated for brevity in diff but logic remains)
         // ==========================================
@@ -465,20 +479,20 @@
                             ${badgeText}
                         </div>
                         <div class="mt-4 text-center">
-                            <h3 class="text-xl font-bold text-gray-800 leading-tight mb-1">${item.title}</h3>
-                            <p class="text-xs text-gray-500 mb-3">${item.author} / <span class="text-pink-400 font-bold">マッチ度 ${result.score}pt</span></p>
+                            <h3 class="text-xl font-bold text-gray-800 leading-tight mb-1">${escapeHTML(item.title)}</h3>
+                            <p class="text-xs text-gray-500 mb-3">${escapeHTML(item.author)} / <span class="text-pink-400 font-bold">マッチ度 ${result.score}pt</span></p>
                             
                             <div class="bg-pink-50 rounded-xl p-4 text-left mb-3">
                                 <p class="text-gray-700 text-sm leading-relaxed">
                                     <span class="text-2xl float-left mr-2 text-pink-300">❝</span>
-                                    ${item.desc}
+                                    ${escapeHTML(item.desc)}
                                 </p>
                             </div>
-                             <p class="text-xs text-gray-500 italic mb-3">"${item.catch}"</p>
+                             <p class="text-xs text-gray-500 italic mb-3">"${escapeHTML(item.catch)}"</p>
                             
                             <!-- Tags Display -->
                             <div class="flex flex-wrap gap-1 justify-center">
-                                ${item.keywords.map(k => `<span class="tag-badge">${k}</span>`).join('')}
+                                ${item.keywords.map(k => `<span class="tag-badge">${escapeHTML(k)}</span>`).join('')}
                             </div>
                         </div>
                     </div>

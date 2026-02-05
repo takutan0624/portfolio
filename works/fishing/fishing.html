@@ -2,6 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'; upgrade-insecure-requests;">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Twilight Fishing - Cinematic Edition</title>
     <!-- Three.js Library -->
@@ -495,6 +500,15 @@
 </div>
 
 <script>
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
     const TIME_OF_DAY = {
         morning: { name: '朝', icon: '🌅', bg: 0x4a5f7f, fog: 0x8aa5c5, sunColor: 0xffa500, sunIntensity: 0.8, ambientIntensity: 0.5 },
         day: { name: '昼', icon: '☀️', bg: 0x87ceeb, fog: 0xadd8e6, sunColor: 0xffee88, sunIntensity: 1.2, ambientIntensity: 0.7 },
@@ -1125,7 +1139,7 @@
                     const record = this.maxRecords[f.id];
                     const recordText = found && record ? `<div style="font-size:10px; opacity:0.8; margin-top:4px; color:#4cc9f0;">最大: ${record.size}cm / ${record.weight}kg</div>` : '';
                     const c = document.createElement('div'); c.className = `fish-card ${found?'found':'locked'}`;
-                    c.innerHTML = `<div style="font-size:40px;">${found?f.icon:'？'}</div><div style="font-size:14px; font-weight:900; margin-top:8px;">${found?f.name:'未発見'}</div><div style="font-size:10px; opacity:0.6; margin-top:4px;">${f.rarityJp}</div>${recordText}`;
+                    c.innerHTML = `<div style="font-size:40px;">${found?f.icon:'？'}</div><div style="font-size:14px; font-weight:900; margin-top:8px;">${found?escapeHTML(f.name):'未発見'}</div><div style="font-size:10px; opacity:0.6; margin-top:4px;">${escapeHTML(f.rarityJp)}</div>${recordText}`;
                     if (found) {
                         c.style.cursor = 'pointer';
                         c.addEventListener('click', () => this.showTrivia(f));
@@ -1171,8 +1185,8 @@
 
                 card.innerHTML = `
                     <div style="font-size: 48px; margin-bottom: 10px;">${loc.icon}</div>
-                    <div style="font-size: 18px; font-weight: 900; margin-bottom: 5px;">${loc.name}</div>
-                    <div style="font-size: 12px; opacity: 0.7; margin-bottom: 10px;">${loc.description}</div>
+                    <div style="font-size: 18px; font-weight: 900; margin-bottom: 5px;">${escapeHTML(loc.name)}</div>
+                    <div style="font-size: 12px; opacity: 0.7; margin-bottom: 10px;">${escapeHTML(loc.description)}</div>
                     ${unlocked ?
                         (current ? '<div style="font-size: 14px; font-weight: 900; color: #4cc9f0;">✓ 現在地</div>' : '<div style="font-size: 14px; font-weight: 700;">移動する</div>') :
                         `<div style="font-size: 14px; font-weight: 900; color: #fbbf24;">¥${loc.cost.toLocaleString()}</div>`

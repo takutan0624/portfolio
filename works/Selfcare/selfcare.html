@@ -2,6 +2,11 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'; upgrade-insecure-requests;">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()">
+
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>セルフケアシフト自動生成（Excel貼り付け対応）</title>
   <style>
@@ -1035,8 +1040,9 @@
     const availability = getMonthAvailability(key);
     const mentors = getAllMentorsRaw();
     const html = mentors.map(function(name){
+      const safeName = xmlEscape(name);
       const checked = availability[name] !== false;
-      return "<label class='mentor-toggle'><input type='checkbox' data-mentor='" + name + "'" + (checked ? " checked" : "") + "> " + name + "</label>";
+      return "<label class='mentor-toggle'><input type='checkbox' data-mentor='" + safeName + "'" + (checked ? " checked" : "") + "> " + safeName + "</label>";
     }).join("");
     mentorAvailabilityList.innerHTML = html;
   }
@@ -1048,13 +1054,15 @@
     }
     const allMentors = getAllMentors(parseInt(yearSelect.value, 10), parseInt(monthSelect.value, 10));
     const html = names.map(function(name){
+      const safePerson = xmlEscape(name);
       const checked = preferenceSelections[name] || [];
       const options = allMentors.map(function(m){
-        const id = "pref-" + name + "-" + m;
+        const safeMentor = xmlEscape(m);
+        const id = "pref-" + safePerson + "-" + safeMentor;
         const isChecked = checked.indexOf(m) !== -1;
-        return "<label><input type='checkbox' data-person='" + name + "' data-mentor='" + m + "'" + (isChecked ? " checked" : "") + "> " + m + "</label>";
+        return "<label><input type='checkbox' data-person='" + safePerson + "' data-mentor='" + safeMentor + "'" + (isChecked ? " checked" : "") + "> " + safeMentor + "</label>";
       }).join("");
-      return "<div class='pref-row'><div class='name'>" + name + "</div><div class='mentor-options'>" + options + "</div></div>";
+      return "<div class='pref-row'><div class='name'>" + safePerson + "</div><div class='mentor-options'>" + options + "</div></div>";
     }).join("");
     preferenceList.innerHTML = html;
   }
@@ -1253,6 +1261,7 @@
   function renderFixedMentorList() {
     const dayClassMap = { "月":"day-mon", "火":"day-tue", "水":"day-wed", "木":"day-thu", "金":"day-fri" };
     const html = fixedMentors.map(function(name){
+      const safeName = xmlEscape(name);
       const cells = [];
       ["月","火","水","木","金"].forEach(function(d){
         const day = fixedMentorAvailability[name] && fixedMentorAvailability[name][d];
@@ -1261,12 +1270,12 @@
         cells.push(
           "<div>" +
           "<div style='margin-bottom:6px;'><span class='day-tag " + dayClassMap[d] + "'>" + d + "</span></div>" +
-          "<label class='weekday-toggle'><input type='checkbox' data-fixed-mentor='" + name + "' data-day='" + d + "' data-slot='am'" + amChecked + ">午前</label> " +
-          "<label class='weekday-toggle'><input type='checkbox' data-fixed-mentor='" + name + "' data-day='" + d + "' data-slot='pm'" + pmChecked + ">午後</label>" +
+          "<label class='weekday-toggle'><input type='checkbox' data-fixed-mentor='" + safeName + "' data-day='" + d + "' data-slot='am'" + amChecked + ">午前</label> " +
+          "<label class='weekday-toggle'><input type='checkbox' data-fixed-mentor='" + safeName + "' data-day='" + d + "' data-slot='pm'" + pmChecked + ">午後</label>" +
           "</div>"
         );
       });
-      return "<div class='mentor-added-item'><span class='tag'>" + name + "</span><div class='edit-grid'>" + cells.join("") + "</div></div>";
+      return "<div class='mentor-added-item'><span class='tag'>" + safeName + "</span><div class='edit-grid'>" + cells.join("") + "</div></div>";
     }).join("");
     fixedMentorList.innerHTML = html;
   }
@@ -1278,6 +1287,7 @@
     }
     const dayClassMap = { "月":"day-mon", "火":"day-tue", "水":"day-wed", "木":"day-thu", "金":"day-fri" };
     const html = customMentors.map(function(m){
+      const safeName = xmlEscape(m.name);
       const cells = [];
       ["月","火","水","木","金"].forEach(function(d){
         const day = m.availability && m.availability[d];
@@ -1286,12 +1296,12 @@
         cells.push(
           "<div>" +
           "<div style='margin-bottom:6px;'><span class='day-tag " + dayClassMap[d] + "'>" + d + "</span></div>" +
-          "<label class='weekday-toggle'><input type='checkbox' data-edit-mentor='" + m.name + "' data-day='" + d + "' data-slot='am'" + amChecked + ">午前</label> " +
-          "<label class='weekday-toggle'><input type='checkbox' data-edit-mentor='" + m.name + "' data-day='" + d + "' data-slot='pm'" + pmChecked + ">午後</label>" +
+          "<label class='weekday-toggle'><input type='checkbox' data-edit-mentor='" + safeName + "' data-day='" + d + "' data-slot='am'" + amChecked + ">午前</label> " +
+          "<label class='weekday-toggle'><input type='checkbox' data-edit-mentor='" + safeName + "' data-day='" + d + "' data-slot='pm'" + pmChecked + ">午後</label>" +
           "</div>"
         );
       });
-      return "<div class='mentor-added-item'><span class='tag'>" + m.name + "</span><div class='edit-grid'>" + cells.join("") + "</div><button type='button' data-mentor='" + m.name + "'>削除</button></div>";
+      return "<div class='mentor-added-item'><span class='tag'>" + safeName + "</span><div class='edit-grid'>" + cells.join("") + "</div><button type='button' data-mentor='" + safeName + "'>削除</button></div>";
     }).join("");
     customMentorList.innerHTML = html;
   }
@@ -1830,15 +1840,15 @@
     if (schedule.unmetPrefs && schedule.unmetPrefs.length) {
       html += "<div class='summary'><h3>希望メンターが不在で通常割り当てになった人</h3><ul>";
       schedule.unmetPrefs.forEach(function(item){
-        const prefNames = item.preferred.map(displayName).join(", ");
-        html += "<li>" + displayName(item.person) + "：" + prefNames + "（" + item.day + "日 " + item.weekday + "曜 " + (item.slot || "") + "）</li>";
+        const prefNames = item.preferred.map(function(n){ return xmlEscape(displayName(n)); }).join(", ");
+        html += "<li>" + xmlEscape(displayName(item.person)) + "：" + prefNames + "（" + item.day + "日 " + item.weekday + "曜 " + (item.slot || "") + "）</li>";
       });
       html += "</ul></div>";
     }
 
     html += "<div class='summary'><h3>担当回数（合計人数ベース）</h3><ul>";
     Object.keys(schedule.realCount).sort(function(a, b){ return a.localeCompare(b, "ja"); }).forEach(function(name){
-      html += "<li>" + displayName(name) + "：" + schedule.realCount[name] + "人</li>";
+      html += "<li>" + xmlEscape(displayName(name)) + "：" + schedule.realCount[name] + "人</li>";
     });
     html += "</ul></div>";
 
@@ -2047,6 +2057,5 @@
 </script>
 </body>
 </html>
-
 
 

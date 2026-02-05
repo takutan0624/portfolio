@@ -2,6 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'; upgrade-insecure-requests;">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ロボホン音声コマンド集</title>
     
@@ -264,6 +269,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.7.0/vanilla-tilt.min.js"></script>
 
     <script>
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
         // --- DATA ---
         // ロボホン音声コマンドデータ（季節・イベントタグ付き）
 const commands = [
@@ -977,6 +991,12 @@ const commands = [
         function createCard(item, index) {
             const isFav = state.favorites.includes(item.id);
             const el = document.createElement('div');
+            const safeName = escapeHTML(item.name);
+            const safeCategory = escapeHTML(item.category);
+            const safeTags = (item.tags || []).map(t => escapeHTML(t));
+            const rawCommand = String(item.command || '');
+            const safeCommandText = escapeHTML(rawCommand);
+            const safeCommandAttr = rawCommand.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
             
             // Category Colors
             let iconBg = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
@@ -995,10 +1015,10 @@ const commands = [
                             <i class="fas ${iconClass}"></i>
                         </div>
                         <div>
-                            <h3 class="font-bold text-xl leading-tight text-white/95">${item.name}</h3>
+                            <h3 class="font-bold text-xl leading-tight text-white/95">${safeName}</h3>
                             <div class="flex flex-wrap gap-1 mt-2">
-                                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-white/60 border border-white/5 uppercase tracking-wide">${item.category}</span>
-                                ${item.tags.map(t => `<span class="text-[10px] px-1.5 py-0.5 rounded bg-black/20 text-gray-400 border border-white/5">#${t}</span>`).join('')}
+                                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-white/60 border border-white/5 uppercase tracking-wide">${safeCategory}</span>
+                                ${safeTags.map(t => `<span class="text-[10px] px-1.5 py-0.5 rounded bg-black/20 text-gray-400 border border-white/5">#${t}</span>`).join('')}
                             </div>
                         </div>
                     </div>
@@ -1008,8 +1028,8 @@ const commands = [
                 </div>
 
                 <div class="mt-auto">
-                    <div class="bg-black/30 rounded-xl p-5 border border-white/5 relative group/code cursor-pointer transition-all hover:border-roboCyan/50 hover:bg-black/50 hover:shadow-neon" onclick="copyCommand('${item.command}')">
-                        <p class="font-mono text-center text-lg text-cyan-100/90 font-bold">${item.command}</p>
+                    <div class="bg-black/30 rounded-xl p-5 border border-white/5 relative group/code cursor-pointer transition-all hover:border-roboCyan/50 hover:bg-black/50 hover:shadow-neon" onclick="copyCommand('${safeCommandAttr}')">
+                        <p class="font-mono text-center text-lg text-cyan-100/90 font-bold">${safeCommandText}</p>
                         <div class="absolute inset-0 flex items-center justify-center bg-black/80 opacity-0 group-hover/code:opacity-100 transition-opacity rounded-xl backdrop-blur-sm">
                             <span class="text-sm font-bold text-white flex items-center gap-2">
                                 <i class="far fa-copy"></i> タップしてコピー

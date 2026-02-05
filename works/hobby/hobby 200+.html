@@ -2,6 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:; script-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'; upgrade-insecure-requests;">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VibeHobby 200+ - 究極の200趣味診断</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -143,6 +148,15 @@
     </div>
 
     <script>
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
         // FULL 200+ HOBBIES DATABASE
         const hobbies = [
             // --- ACTIVE (High Energy) ---
@@ -425,7 +439,7 @@
                     <div class="w-10 h-10 rounded-xl bg-gradient-to-br ${opt.color} flex items-center justify-center text-lg shadow-md text-white">
                         ${opt.icon}
                     </div>
-                    <div class="text-slate-900 font-bold text-sm md:text-base">${opt.label}</div>
+                    <div class="text-slate-900 font-bold text-sm md:text-base">${escapeHTML(opt.label)}</div>
                 `;
                 button.onclick = () => selectOption(opt.value);
                 container.appendChild(button);
@@ -473,10 +487,10 @@
                     <div class="flex-shrink-0 w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center font-black italic text-lg text-slate-300">${i+1}</div>
                     <div>
                         <div class="flex items-center gap-2 mb-0.5">
-                             <h3 class="text-lg font-black text-slate-900">${h.name}</h3>
-                             <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-400 font-bold uppercase">${h.cat}</span>
+                             <h3 class="text-lg font-black text-slate-900">${escapeHTML(h.name)}</h3>
+                             <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-400 font-bold uppercase">${escapeHTML(h.cat)}</span>
                         </div>
-                        <p class="text-xs text-slate-500 leading-tight font-medium">${h.desc}</p>
+                        <p class="text-xs text-slate-500 leading-tight font-medium">${escapeHTML(h.desc)}</p>
                     </div>
                 `;
                 container.appendChild(div);
