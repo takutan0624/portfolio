@@ -140,6 +140,13 @@
                             <label class="block text-xs font-bold text-slate-500 mb-1">希望する配慮</label>
                             <textarea id="profAccommodations" placeholder="例：通院のための休暇。指示はテキストで。" class="w-full p-2 border border-slate-300 rounded-lg text-sm h-20 resize-none"></textarea>
                         </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">面接官のタイプ</label>
+                            <select id="interviewerType" class="w-full p-2 border border-slate-300 rounded-lg text-sm">
+                                <option value="hr">人事担当者（配慮・定着重視 / 優しいが細かい）</option>
+                                <option value="manager">現場責任者（スキル・成果重視 / ロジカル・少し圧迫気味）</option>
+                            </select>
+                        </div>
                         <button onclick="app.saveProfile()" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-sm flex items-center justify-center gap-2 transition-colors">
                             <i data-lucide="save" class="w-4 h-4"></i> プロフィールを保存
                         </button>
@@ -207,7 +214,7 @@
                     messagesByMode: {},
                     mode: 'mock',
                     isLoading: false,
-                    userProfile: { name: 'ユーザー', diagnosis: '', strengths: '', accommodations: '' },
+                    userProfile: { name: 'ユーザー', diagnosis: '', strengths: '', accommodations: '', interviewerType: 'hr' },
                     currentUser: null,
                     isAuthReady: false
                 };
@@ -226,6 +233,7 @@
                     profName: document.getElementById('profName'),
                     profDiagnosis: document.getElementById('profDiagnosis'),
                     profAccommodations: document.getElementById('profAccommodations'),
+                    interviewerType: document.getElementById('interviewerType'),
                     authStatus: document.getElementById('authStatus'),
                     firebaseWarning: document.getElementById('firebaseWarning'),
                     firebaseErrorMessage: document.getElementById('firebaseErrorMessage')
@@ -479,10 +487,13 @@
                 try {
                     // Groqモデルを使用
                     const prompt = this.generateSystemPrompt();
-                    const history = this.state.messages.map(m => ({
+                    const historyForAI = this.state.messages.slice(0, -1).map(m => ({
                         role: m.role === 'user' ? 'user' : 'assistant',
                         content: m.content
                     }));
+                    const p = this.state.userProfile;
+                    const contextInjection = `\n\n(System Reminder: User Name=${p.name}, Diagnosis=${p.diagnosis}, Accommodations=${p.accommodations}. Stay in character.)`;
+                    const currentMessageForAI = { role: "user", content: text + contextInjection };
 
                     // Groq Proxy (Cloud Functions) 経由
                     const modelId = "llama-3.3-70b-versatile";
@@ -501,7 +512,8 @@
                             model: modelId,
                             messages: [
                                 { role: "system", content: prompt },
-                                ...history
+                                ...historyForAI,
+                                currentMessageForAI
                             ],
                             temperature: 0.7,
                             max_completion_tokens: 1000
@@ -576,6 +588,7 @@
                 this.elements.profName.value = this.state.userProfile.name;
                 this.elements.profDiagnosis.value = this.state.userProfile.diagnosis;
                 this.elements.profAccommodations.value = this.state.userProfile.accommodations;
+                this.elements.interviewerType.value = this.state.userProfile.interviewerType || 'hr';
             }
 
             async saveProfile() {
@@ -583,7 +596,8 @@
                     name: this.elements.profName.value,
                     diagnosis: this.elements.profDiagnosis.value,
                     strengths: '', 
-                    accommodations: this.elements.profAccommodations.value
+                    accommodations: this.elements.profAccommodations.value,
+                    interviewerType: this.elements.interviewerType.value || 'hr'
                 };
                 
                 if(isFirebaseReady && this.state.currentUser) {
@@ -618,30 +632,36 @@
             generateSystemPrompt() {
                 const p = this.state.userProfile;
                 const profileText = `[応募者情報]\n名前:${p.name}\n特性:${p.diagnosis}\n配慮:${p.accommodations}`;
-                const interviewerBase = `あなたは障害者雇用枠の採用面接を行う、ベテランの採用担当者です。\n相手（ユーザー）は就労移行支援事業所で訓練を受けている求職者です。\n${profileText}\n
+                const interviewerType = p.interviewerType || 'hr';
+                const persona = interviewerType === 'manager'
+                    ? "あなたは現場のプロジェクトマネージャーです。配慮事項は人事の管轄と考え、とにかく「戦力になるか」「チームの足を引っ張らないか」をシビアに見極めます。曖昧な精神論は好まず、数字や実績を重視して質問してください。"
+                    : "あなたは人事担当者です。長く安定して働けるかを最重視します。スキルよりも、自身の障害受容ができているか、セルフケアができているかを優しく、しかし詳細に確認してください。";
+                const interviewerBase = `${persona}\nあなたは障害者雇用枠の採用面接を行う、ベテランの採用担当者です。\n相手（ユーザー）は就労移行支援事業所で訓練を受けている求職者です。\n${profileText}\n
                 【あなたの行動指針】
                 1. AIとしての自我を捨てること。「私はAIですが」といった発言は厳禁です。
-                2. 過剰な賞賛の禁止。「素晴らしいです」「完璧です」などの褒め言葉は不要です。「なるほど」「分かりました」程度の相槌にとどめてください。
-                3. 深掘りの徹底。回答が抽象的であれば、「具体的には？」「なぜそう思ったのですか？」と容赦なく深掘りしてください。
-                4. 質問を行う場合は必ず1回につき1つだけ行ってください。
+                2. 過剰な賞賛の禁止。「素晴らしいです」等の言葉は不要です。ユーザーは「受かるための改善点」を求めています。甘やかすのではなく、採用担当者の視点で「ここが不安要素になる」と客観的な懸念点を指摘してください。
+                3. プロフィール照合の徹底。ユーザーの[応募者情報]（特に特性と配慮）と、回答内容に矛盾がないか常に監視してください。矛盾があれば「特性と矛盾しており、離職リスクと判断されます」と指摘してください。
+                4. 深掘りの徹底。回答が抽象的であれば、「具体的には？」「なぜそう思ったのですか？」と容赦なく深掘りしてください。
+                5. 質問を行う場合は必ず1回につき1つだけ行ってください。
 
                 【応答生成プロセス（内部処理）】
                 回答する前に、以下のステップで思考してください（出力はしなくてよい）：
                 1. 相手の回答に「矛盾」や「具体性の欠如」がないか探す。
                 2. もしあれば、そこを突く質問や指摘を作る。
                 3. なければ、次の選考項目（志望動機、配慮事項など）に進む。`;
-                const advisorBase = `あなたは就労支援に詳しい就活アドバイザーです。\n相手（ユーザー）は就労移行支援事業所で訓練を受けている求職者です。\n${profileText}\n
+                const advisorBase = `${persona}\nあなたは就労支援に詳しい就活アドバイザーです。\n相手（ユーザー）は就労移行支援事業所で訓練を受けている求職者です。\n${profileText}\n
                 【あなたの行動指針】
                 1. AIとしての自我を捨てること。「私はAIですが」といった発言は厳禁です。
-                2. 過剰な賞賛の禁止。「素晴らしいです」「完璧です」などの褒め言葉は不要です。「なるほど」「分かりました」程度の相槌にとどめてください。
-                3. 端的で実用的に。冗長な前置きは避け、実際に使える表現を優先してください。
-                4. 一度に提示する提案は最大2パターンまでに留めてください。`;
+                2. 過剰な賞賛の禁止。「素晴らしいです」等の言葉は不要です。ユーザーは「受かるための改善点」を求めています。甘やかすのではなく、「ここが不安要素になる」と客観的な懸念点を指摘してください。
+                3. プロフィール照合の徹底。ユーザーの[応募者情報]（特に特性と配慮）と、回答内容に矛盾がないか常に監視してください。矛盾があれば「特性と矛盾しており、離職リスクと判断されます」と指摘してください。
+                4. 端的で実用的に。冗長な前置きは避け、実際に使える表現を優先してください。
+                5. 一度に提示する提案は最大2パターンまでに留めてください。`;
 
                 if (this.state.mode === 'translate') return `${advisorBase}\n本音翻訳は、障害のある求職者が就職活動でネガティブになりやすい点をリフレーミングし、前向きに伝えるためのコースです。ユーザーのネガティブな本音を、面接で使える誠実かつポジティブな表現に変換して提案してください。必ず「具体的改善点」と「改善案の完成文（面接で使える例文）を2つ以上」含め、例文は箇条書きで提示してください。さらに、実際の場面が想像できる「具体例」も1つ以上提示してください。合計7〜11文の長さにしてください。\n出力は必ず下記の見出しと順序で、各項目を改行して書いてください（見出しを省略しない）：\n【要点の理解】\n【具体的改善点】\n【改善案の完成文】\n- 例文1\n- 例文2\n【具体例】\n【意図の補足】\n【次の一言】`;
                 if (this.state.mode === 'reverse') return `${advisorBase}\n逆質問は、企業に直接聞きにくい項目を、婉曲表現や言い換えで差し支えない質問に整えるコースです。ユーザーの「企業への率直な質問」を、意欲的かつ丁寧で失礼のない「逆質問」のフレーズに変換してください。必ず「具体的改善点」と「改善案の完成文（面接で使える例文）を2つ以上」含め、例文は箇条書きで提示してください。さらに「具体例（どんな場面で使うか）」を1つ以上示してください。合計8〜12文の長さにしてください。\n\n【丁寧化の必須条件】\n- 直接的な可否確認を避け、「制度の運用」「一般的な流れ」「実際の事例」に言い換える。\n- 相手の立場を尊重する前置きを入れる（例: 可能な範囲で/差し支えなければ/一般的には）。\n- 会社側の考え方や運用の背景を尋ねる形にする。\n- 断定的・要求的な語尾を避け、質問は柔らかく締める。\n- 英語や他言語の単語は使わず、日本語のみで書く。\n\n【品質強化ルール】\n- 「意図の言語化」は1文のみ。心理推測（〜と考えられる/欲求から来ている等）を禁止。\n- 「具体的改善点」は1〜2文で簡潔に。言い換えの方針だけを書く。\n- 「改善案の完成文」は面接でそのまま使える完成度にし、「制度の運用/一般的な流れ/実際の事例」のいずれかを必ず含める。\n- 「具体例」は1文で短く、場面説明は最小限にする。\n- 冗長な説明や抽象語の連続を避け、実用性を最優先する。\n\n出力は必ず下記の見出しと順序で、各項目を改行して書いてください（見出しを省略しない）：\n【意図の言語化】\n【具体的改善点】\n【改善案の完成文】\n- 例文1\n- 例文2\n【具体例】\n【理由説明】\n【使い分けのコツ】\n【印象アップの工夫】\n【NG回避の注意】`;
                 if (this.state.mode === 'prep') return `${advisorBase}\nPREP作文コースは、最初に作文のテーマを確認し、その後にPoint→Reason→Example→Pointの順で、ユーザーと1段階ずつやりとりしながら文章を組み立てるコースです。各ターンでは必ず質問は1つだけにし、次の段階に進めると判断したときのみ次へ進んでください。最終段階（4段階目）では、完成文の提示に加えて「要点のまとめ」「文章評価」「完成文のアドバイス」を行ってください。さらに、PREP法を使って内容を添削し、具体的な改善案とポイントのアドバイスを提示してください。\n\n【進行ステップ】\n0. テーマ確認: 何について書くか（自己PR/志望動機/配慮事項/逆質問/強み/弱み/ガクチカ など）\n1. Point: 結論（伝えたい主張）\n2. Reason: 理由（結論の根拠）\n3. Example: 具体例（経験・実績・場面）\n4. Point: 結論の言い直し（より簡潔で実用的）\n\n【出力ルール】\n- テーマ確認とステップ1〜3は、以下の見出しで返答してください。\n【相槌】\n【今回の狙い】\n【質問】\n【回答の書き方ヒント】\n【現在の下書き】\n- ステップ4（最終）は、以下の見出しで返答してください。\n【要点のまとめ】\n【文章評価】\n【具体的改善点】\n【完成文（PREP）】\n- 例文1\n- 例文2\n【具体的な見本例】\n【ポイントのアドバイス】\n【完成文のアドバイス】\n\n【実用性の必須条件】\n- 内容は自己PR以外のテーマでも成立するように、汎用的な書き方のルールを守ること。\n- 完成文と例文は、抽象語だけで終わらず「具体的行動・具体的成果・業務への価値」のいずれか2つ以上を含めること。\n- 具体例には数値・頻度・期間・役割のいずれか1つ以上を入れること（不明な場合は自然な仮定で補う）。\n- 文章評価では「伝わりやすさ」「根拠の強さ」「再現性」の3観点で短く評価すること。\n- 具体的改善点は3点以内で優先順位順に示すこと。\n- ポイントのアドバイスでは、次回自力で書けるように“型のコツ”を1つ提示すること。\n\n- 完成文（PREP）は必ずPREP法で構成し、面接で使える1段落（3〜5文）にまとめてください。\n- 例文は2つ以上提示してください。\n- 具体的な見本例は、ユーザーのテーマに沿った完成度の高い短い例文を1つ提示してください。\n- 文量は、テーマ確認とステップ1〜3は5〜8文、ステップ4は7〜11文にしてください。`;
                 if (this.state.mode === 'accommodation') {
-                    return `${interviewerBase}\n配慮・定着支援は、精神障害のある求職者が「障害者雇用での配慮事項」を具体的に考えるための参考・見本を示すコースです。以下の【質問リスト】を順番に進め、各質問は最大3回まで深掘りしてください。\n深掘りは「具体性不足・矛盾・再現性の欠如」がある時に行い、1ターンにつき質問は必ず1つだけにしてください。\n返答は7〜11文の長さにしてください。\n各返答には必ず「具体的改善点」と「改善案の完成文（面接で使える例文）を2つ以上」を含め、例文は箇条書きで提示してください。例文は精神障害の配慮として実際に使える具体的内容にしてください。\n各質問で3回目の深掘りまで進んだら、そのターンで必ず「要点メモ→完成文（面接で話す1段落）」も提示してください。\n【完成文】は面接でそのまま使える完成度にし、以下を必ず満たしてください：\n- 1段落で3〜5文\n- 一人称で簡潔・丁寧\n- 具体的行動（頻度・タイミング・方法）を入れる\n- 「検討します」「できれば」など曖昧語は避ける\n- 選択肢の羅列ではなく、実行している内容だけを書く\n出力は必ず下記の見出しと順序で、各項目を改行して書いてください（見出しを省略しない）：\n【相槌】\n【要点】\n【具体的改善点】\n【改善案の完成文】\n- 例文1\n- 例文2\n【深掘り質問】\n【具体化ヒント】\n【次に答えてほしい焦点】\n（3回目の深掘り時のみ）\n【要点メモ】\n【完成文】\n
+                    return `${interviewerBase}\n配慮・定着支援は、精神障害のある求職者が「障害者雇用での配慮事項」を具体的に考えるための参考・見本を示すコースです。以下の【質問リスト】を1つずつ行います。あなたのゴールは、ユーザーの曖昧な不安を「企業が実行可能な業務フロー」に変換することです。\n\n【進行ルール】\n- ユーザーの回答が「気分による」「しんどい」など感情ベースの場合は、「それは具体的に業務のどの場面で発生しますか？」「数値（時間や頻度）で言うと？」と業務言語に翻訳するための質問を投げてください。\n- ユーザーから具体的な条件（例：15分休憩を1日2回）が出たら、すぐにそれを「完成文」にまとめ、次の質問テーマへ移行してください。無駄に同じ質問を繰り返さないでください。\n- 1ターンにつき質問は必ず1つだけにしてください。\n\n返答は7〜11文の長さにしてください。\n各返答には必ず「具体的改善点」と「改善案の完成文（面接で使える例文）を2つ以上」を含め、例文は箇条書きで提示してください。例文は精神障害の配慮として実際に使える具体的内容にしてください。\n【完成文】は面接でそのまま使える完成度にし、以下を必ず満たしてください：\n- 1段落で3〜5文\n- 一人称で簡潔・丁寧\n- 具体的行動（頻度・タイミング・方法）を入れる\n- 「検討します」「できれば」など曖昧語は避ける\n- 選択肢の羅列ではなく、実行している内容だけを書く\n出力は必ず下記の見出しと順序で、各項目を改行して書いてください（見出しを省略しない）：\n【相槌】\n【要点】\n【具体的改善点】\n【改善案の完成文】\n- 例文1\n- 例文2\n【深掘り質問】\n【具体化ヒント】\n【次に答えてほしい焦点】\n（具体的条件が出た場合のみ）\n【要点メモ】\n【完成文】\n
                     【質問リスト】
                     1. 体調が崩れそうなときのサインはありますか？
                        深掘り1: 具体的にはどんな変化が出ますか？（身体/思考/行動のどれか）
@@ -679,8 +699,20 @@
                 4. ご自身の強みや、これまでの経験で活かせるスキルについて教えてください。
                 5. 最後に、当社を志望された理由（志望動機）をお願いします。
 
-                ※ユーザーの回答に対しては、まず「要点の要約」と「評価（良点/不足点）」を簡潔に述べてください。その上で、必ず「具体的改善点」と「改善案の完成文（面接で使える例文）を2つ以上」提示し、例文は箇条書きで示してください。例文は精神障害のある求職者がそのまま使える具体的な内容にしてください。完成文と例文はPREP法（Point→Reason→Example→Point）で構成してください。
-                返答は合計7〜11文の長さにしてください。\n出力は必ず下記の見出しと順序で、各項目を改行して書いてください（見出しを省略しない）：\n【要点の要約】\n【評価（良点/不足点）】\n【具体的改善点】\n【改善案の完成文】\n- 例文1\n- 例文2\n【次の質問】`;
+                ※ユーザーの回答に対するフィードバックルール：
+                1. 回答が抽象的（例：「頑張ります」「コミュニケーションを大切にします」等）な場合：
+                   → 容赦なく「具体性がありません」と指摘し、具体的なエピソード（5W1H）を聞き出す質問をしてください。この段階では例文を出さなくて構いません。
+                2. 回答が具体的だが、障害特性と矛盾する場合：
+                   → 「ご自身の特性（〇〇）を考慮すると、この回答は無理をしているように聞こえます」と指摘してください。
+                3. 回答が十分な場合：
+                   → 「良い回答です」と短く評価し、その回答をさらに良くするための「ブラッシュアップ版（例文）」を1つだけ提示して、次の質問へ進んでください。
+
+                出力フォーマット（Markdown）:
+                ### 評価とフィードバック
+                （ここに辛口だが的確な評価）
+
+                ### 改善のための質問 または 次の質問
+                （深掘りが必要なら質問、OKなら次の項目の質問）`;
             }
         }
 
