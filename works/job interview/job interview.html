@@ -150,8 +150,8 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-500 mb-1">AIモデル</label>
                             <select id="modelId" class="w-full p-2 border border-slate-300 rounded-lg text-sm">
-                                <option value="llama-3.3-70b-versatile">【標準】Llama 3.3 70B</option>
-                                <option value="openai/gpt-oss-120b">【上位・論理】GPT-OSS 120B</option>
+                                <option value="openai/gpt-oss-120b">【標準】GPT-OSS 120B</option>
+                                <option value="llama-3.3-70b-versatile">【バランス】Llama 3.3 70B</option>
                                 <option value="llama-3.1-8b-instant">【爆速・軽量】Llama 3.1 8B</option>
                             </select>
                         </div>
@@ -222,7 +222,7 @@
                     messagesByMode: {},
                     mode: 'mock',
                     isLoading: false,
-                    userProfile: { name: 'ユーザー', diagnosis: '', strengths: '', accommodations: '', interviewerType: 'hr', modelId: 'llama-3.3-70b-versatile' },
+                    userProfile: { name: 'ユーザー', diagnosis: '', strengths: '', accommodations: '', interviewerType: 'hr', modelId: 'openai/gpt-oss-120b' },
                     currentUser: null,
                     isAuthReady: false
                 };
@@ -505,7 +505,7 @@
                     const currentMessageForAI = { role: "user", content: text + contextInjection };
 
                     // Groq Proxy (Cloud Functions) 経由
-                    const modelId = this.state.userProfile.modelId || "llama-3.3-70b-versatile";
+                    const modelId = this.state.userProfile.modelId || "openai/gpt-oss-120b";
                     const idToken = await user.getIdToken();
                     if (!idToken) {
                         throw new Error("認証トークンが取得できませんでした。ログイン状態を確認してください。");
@@ -598,7 +598,7 @@
                 this.elements.profDiagnosis.value = this.state.userProfile.diagnosis;
                 this.elements.profAccommodations.value = this.state.userProfile.accommodations;
                 this.elements.interviewerType.value = this.state.userProfile.interviewerType || 'hr';
-                this.elements.modelId.value = this.state.userProfile.modelId || 'llama-3.3-70b-versatile';
+                this.elements.modelId.value = this.state.userProfile.modelId || 'openai/gpt-oss-120b';
             }
 
             async saveProfile() {
@@ -608,7 +608,7 @@
                     strengths: '', 
                     accommodations: this.elements.profAccommodations.value,
                     interviewerType: this.elements.interviewerType.value || 'hr',
-                    modelId: this.elements.modelId.value || 'llama-3.3-70b-versatile'
+                    modelId: this.elements.modelId.value || 'openai/gpt-oss-120b'
                 };
                 
                 if(isFirebaseReady && this.state.currentUser) {
