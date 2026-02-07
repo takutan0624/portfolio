@@ -546,7 +546,12 @@
                     }
 
                     const data = await response.json();
-                    const botResponse = data?.content ?? "（応答が空でした）";
+                    const rawContent =
+                        data?.content ??
+                        data?.choices?.[0]?.message?.content ??
+                        data?.choices?.[0]?.text ??
+                        "";
+                    const botResponse = rawContent && rawContent.trim() ? rawContent : "（応答が空でした）";
                     this.state.isLoading = false;
                     this.elements.loadingIndicator.classList.add('hidden');
                     this.addSystemMessage(botResponse);
