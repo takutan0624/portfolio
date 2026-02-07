@@ -2817,22 +2817,71 @@
       const cursorDot = document.getElementById('cursorDot');
       const cursorRing = document.getElementById('cursorRing');
       
-      if (window.innerWidth <= 768) return;
+      const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+      if (window.innerWidth <= 768 && !isTouchDevice) return;
       
-      // Show cursors
-      anime({
-        targets: [cursorGlow, cursorDot, cursorRing],
-        opacity: [0, 1],
-        duration: 800,
-        easing: 'easeOutExpo',
-        delay: anime.stagger(100)
-      });
+      const setCursorVisible = (visible) => {
+        anime({
+          targets: [cursorGlow, cursorDot, cursorRing],
+          opacity: visible ? [0, 1] : [1, 0],
+          duration: visible ? 600 : 300,
+          easing: 'easeOutExpo',
+          delay: visible ? anime.stagger(100) : 0
+        });
+      };
+      
+      // Show cursors (mouse immediately, touch on press)
+      if (!isTouchDevice) {
+        setCursorVisible(true);
+      }
       
       let mouseX = 0, mouseY = 0;
       let dotX = 0, dotY = 0;
       let ringX = 0, ringY = 0;
+      let pointerActive = false;
+      
+      const updatePosition = (x, y) => {
+        mouseX = x;
+        mouseY = y;
+        
+        anime({
+          targets: cursorGlow,
+          left: mouseX,
+          top: mouseY,
+          duration: 400,
+          easing: 'easeOutExpo'
+        });
+      };
+      
+      document.addEventListener('pointerdown', (e) => {
+        if (isTouchDevice) {
+          pointerActive = true;
+          setCursorVisible(true);
+        }
+        updatePosition(e.clientX, e.clientY);
+      }, { passive: true });
+      
+      document.addEventListener('pointermove', (e) => {
+        if (isTouchDevice && !pointerActive) return;
+        updatePosition(e.clientX, e.clientY);
+      }, { passive: true });
+      
+      document.addEventListener('pointerup', () => {
+        if (isTouchDevice) {
+          pointerActive = false;
+          setCursorVisible(false);
+        }
+      }, { passive: true });
+      
+      document.addEventListener('pointercancel', () => {
+        if (isTouchDevice) {
+          pointerActive = false;
+          setCursorVisible(false);
+        }
+      }, { passive: true });
       
       document.addEventListener('mousemove', (e) => {
+        if (isTouchDevice) return;
         mouseX = e.clientX;
         mouseY = e.clientY;
         
@@ -2862,29 +2911,61 @@
       }
       animateCursors();
       
-      // Hover effects on interactive elements
+      // Hover/touch effects on interactive elements
       const interactiveElements = document.querySelectorAll('a, button, .work-card, .skill-card, .music-tile');
       
       interactiveElements.forEach(el => {
-        el.addEventListener('mouseenter', () => {
-          cursorRing.classList.add('hovering');
-          anime({
-            targets: cursorDot,
-            scale: 2,
-            duration: 300,
-            easing: 'easeOutExpo'
+        if (isTouchDevice) {
+          el.addEventListener('pointerdown', () => {
+            cursorRing.classList.add('hovering');
+            anime({
+              targets: cursorDot,
+              scale: 2,
+              duration: 300,
+              easing: 'easeOutExpo'
+            });
+          }, { passive: true });
+          
+          el.addEventListener('pointerup', () => {
+            cursorRing.classList.remove('hovering');
+            anime({
+              targets: cursorDot,
+              scale: 1,
+              duration: 300,
+              easing: 'easeOutExpo'
+            });
+          }, { passive: true });
+          
+          el.addEventListener('pointercancel', () => {
+            cursorRing.classList.remove('hovering');
+            anime({
+              targets: cursorDot,
+              scale: 1,
+              duration: 300,
+              easing: 'easeOutExpo'
+            });
+          }, { passive: true });
+        } else {
+          el.addEventListener('mouseenter', () => {
+            cursorRing.classList.add('hovering');
+            anime({
+              targets: cursorDot,
+              scale: 2,
+              duration: 300,
+              easing: 'easeOutExpo'
+            });
           });
-        });
-        
-        el.addEventListener('mouseleave', () => {
-          cursorRing.classList.remove('hovering');
-          anime({
-            targets: cursorDot,
-            scale: 1,
-            duration: 300,
-            easing: 'easeOutExpo'
+          
+          el.addEventListener('mouseleave', () => {
+            cursorRing.classList.remove('hovering');
+            anime({
+              targets: cursorDot,
+              scale: 1,
+              duration: 300,
+              easing: 'easeOutExpo'
+            });
           });
-        });
+        }
       });
     }
 
