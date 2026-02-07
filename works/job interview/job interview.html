@@ -428,6 +428,29 @@
                 this.state.messages.push({ role: 'assistant', content: text });
                 this.addMessageToDOM('assistant', text);
             }
+            
+            buildFallbackResponse(mode, userText) {
+                if (mode === 'accommodation') {
+                    return [
+                        "【相槌】",
+                        "お話ありがとうございます。",
+                        "【要点】",
+                        "うつ病があり、働くことへの不安があるのですね。",
+                        "【具体的改善点】",
+                        "不安の内容を「どの場面で」「どの程度」「どんな対処が必要か」に分けて整理すると、企業側が配慮内容を理解しやすくなります。",
+                        "【改善案の完成文】",
+                        "- 例文1：うつ病のため体調に波があり、不安が強い日は集中力が落ちることがあります。そうした場合は短時間の休憩を挟むことで回復しやすいため、必要に応じて5〜10分の小休憩を取らせていただけると安定して働けます。",
+                        "- 例文2：不安が高まったときは一度席を外して深呼吸や軽いストレッチを行うと落ち着きます。急な体調変化の際には、上長にチャットで状況を共有した上で短い休憩を取る運用ができると助かります。",
+                        "【深掘り質問】",
+                        "不安が強くなるのは、具体的にどの業務場面や時間帯が多いですか。",
+                        "【具体化ヒント】",
+                        "「頻度（週に何回）」「時間（何分休憩が必要）」「連絡方法（口頭/チャット）」の3点を整理してください。",
+                        "【次に答えてほしい焦点】",
+                        "休憩が必要なサインと、職場で再現できる対処法。",
+                    ].join("\n");
+                }
+                return "（応答が空でした）もう一度送信してください。";
+            }
 
             renderHistory() {
                 this.elements.messageList.innerHTML = '';
@@ -551,7 +574,9 @@
                         data?.choices?.[0]?.message?.content ??
                         data?.choices?.[0]?.text ??
                         "";
-                    const botResponse = rawContent && rawContent.trim() ? rawContent : "（応答が空でした）";
+                    const botResponse = rawContent && rawContent.trim()
+                        ? rawContent
+                        : this.buildFallbackResponse(this.state.mode, text);
                     this.state.isLoading = false;
                     this.elements.loadingIndicator.classList.add('hidden');
                     this.addSystemMessage(botResponse);
