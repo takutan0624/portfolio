@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Denny's Pancake Merge (Score History)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    body { margin: 0; padding: 0; overflow: hidden; background: #FAF3E0; user-select: none; font-family: 'Segoe UI Emoji', 'Arial', sans-serif; touch-action: none; -webkit-tap-highlight-color: transparent; }
+    
+    /* 背景パターン */
+    #background {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background-image: linear-gradient(90deg, rgba(200,150,100,0.05) 50%, transparent 50%),
+                        linear-gradient(rgba(200,150,100,0.05) 50%, transparent 50%);
+      background-size: 40px 40px;
+      z-index: 0; pointer-events: none;
+    }
+
+    #ui-layer { position: absolute; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+    
+    #score-container {
+      position: absolute; top: 20px; left: 20px;
+      text-align: left; background: rgba(255,255,255,0.95);
+      padding: 10px 20px; border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(139, 69, 19, 0.15);
+      border: 1px solid #E0E0E0;
+    }
+    .score-label { font-size: 10px; color: #8D6E63; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; }
+    #score { font-size: 28px; color: #5D4037; font-weight: bold; margin: 0 0 5px 0; font-family: 'Arial Rounded MT Bold', sans-serif; line-height: 1; }
+    #best-score { font-size: 20px; color: #EF6C00; font-weight: bold; margin: 0; font-family: 'Arial Rounded MT Bold', sans-serif; line-height: 1; }
+    
+    #next-item-container {
+      position: absolute; top: 20px; right: 20px;
+      text-align: center;
+      background: rgba(255,255,255,0.95);
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid #E0E0E0;
+      box-shadow: 0 4px 15px rgba(139, 69, 19, 0.15);
+    }
+    #next-label { font-size: 11px; color: #8D6E63; font-weight: bold; margin-bottom: 5px; letter-spacing: 1px;}
+    #next-preview { 
+      width: 50px; height: 50px; 
+      display: flex; justify-content: center; align-items: center;
+      font-size: 32px;
+    }
+
+    #game-over-screen {
+      display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.9); z-index: 20;
+      flex-direction: column; justify-content: center; align-items: center;
+      pointer-events: auto; backdrop-filter: blur(5px);
+    }
+    #game-over-title { font-size: 32px; color: #5D4037; margin-bottom: 5px; font-weight: bold; }
+    #final-score { font-size: 60px; color: #FFA726; margin-bottom: 20px; font-weight: bold; text-shadow: 2px 2px 0 #FFF; }
+    
+    /* 履歴リストのスタイル */
+    #history-container {
+      background: rgba(255, 248, 225, 0.8);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      width: 200px;
+      border: 1px solid #FFE0B2;
+    }
+    #history-title { font-size: 12px; color: #8D6E63; font-weight: bold; margin-bottom: 8px; text-align: center; letter-spacing: 1px; }
+    #history-list { list-style: none; padding: 0; margin: 0; text-align: center; }
+    .history-item { font-size: 16px; color: #5D4037; margin-bottom: 4px; font-family: 'Arial Rounded MT Bold', sans-serif; }
+    .history-item.new-record { color: #E65100; font-weight: bold; }
+    .history-rank { color: #A1887F; font-size: 12px; margin-right: 5px; }
+
+    #restart-btn {
+      padding: 12px 40px; font-size: 18px; background: #FF7043; color: white;
+      border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
+      box-shadow: 0 5px 15px rgba(255, 112, 67, 0.4);
+      transition: transform 0.1s;
+    }
+    #restart-btn:active { transform: translateY(2px); box-shadow: none; }
+
+    #evolution-chart {
+      position: absolute; bottom: 15px; width: 100%;
+      text-align: center;
+      font-size: 14px; color: #8D6E63; opacity: 0.9;
+      pointer-events: none;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+      font-weight: bold;
+    }
+
+    #effects-canvas {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 5;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+  <div id="background"></div>
+  <div id="ui-layer">
+    <div id="score-container">
+      <div class="score-label">SCORE</div>
+      <div id="score">0</div>
+      <div class="score-label">BEST</div>
+      <div id="best-score">0</div>
+    </div>
+    <div id="next-item-container">
+      <div id="next-label">NEXT</div>
+      <div id="next-preview">🫐</div>
+    </div>
+    <div id="evolution-chart">
+      🫐 🍒 🍓 🍊 🍎 🍐 🍑 🍍 🍈 🥞 👑
+    </div>
+  </div>
+
+  <div id="game-over-screen">
+    <div id="game-over-title">TIME'S UP</div>
+    <div id="final-score">0</div>
+    
+    <div id="history-container">
+      <div id="history-title">RECENT HISTORY</div>
+      <ul id="history-list">
+        <!-- JSで生成 -->
+      </ul>
+    </div>
+
+    <button id="restart-btn" onclick="location.reload()">TRY AGAIN</button>
+  </div>
+  
+  <canvas id="effects-canvas"></canvas>
+
+  <script>
+    const Engine = Matter.Engine,
+          Render = Matter.Render,
+          Runner = Matter.Runner,
+          Bodies = Matter.Bodies,
+          Composite = Matter.Composite,
+          Events = Matter.Events,
+          World = Matter.World,
+          Body = Matter.Body;
+
+    const engine = Engine.create();
+    const world = engine.world;
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    const render = Render.create({
+      element: document.body,
+      engine: engine,
+      options: {
+        width: width,
+        height: height,
+        wireframes: false,
+        background: 'transparent',
+        pixelRatio: window.devicePixelRatio 
+      }
+    });
+
+    // コンテナ作成
+    const wallThick = 20;
+    const groundY = height - 80;
+    const wallHeight = height * 0.75;
+    const containerWidth = Math.min(width, 450); 
+    const leftWallX = (width - containerWidth) / 2;
+    const rightWallX = (width + containerWidth) / 2;
+
+    const glassStyle = { 
+      fillStyle: 'rgba(255, 255, 255, 0.4)', 
+      strokeStyle: '#8D6E63',
+      lineWidth: 5
+    };
+
+    const ground = Bodies.rectangle(width/2, groundY, containerWidth, wallThick, { 
+      isStatic: true, render: glassStyle
+    });
+    const leftWall = Bodies.rectangle(leftWallX, groundY - wallHeight/2 + wallThick/2, wallThick, wallHeight, { 
+      isStatic: true, render: glassStyle
+    });
+    const rightWall = Bodies.rectangle(rightWallX, groundY - wallHeight/2 + wallThick/2, wallThick, wallHeight, { 
+      isStatic: true, render: glassStyle
+    });
+
+    const table = Bodies.rectangle(width/2, height + 100, width, 200 + 80, {
+       isStatic: true,
+       render: { fillStyle: '#8D6E63' }
+    });
+    const tableTop = Bodies.rectangle(width/2, height - 40, width, 10, {
+       isStatic: true,
+       render: { fillStyle: '#6D4C41' }
+    });
+
+    const deadLineY = groundY - wallHeight + 60;
+    const deadLine = Bodies.rectangle(width/2, deadLineY, containerWidth, 2, {
+      isStatic: true, isSensor: true, render: { fillStyle: 'rgba(255, 112, 67, 0.3)', visible: true }
+    });
+
+    Composite.add(world, [ground, leftWall, rightWall, table, tableTop, deadLine]);
+
+    Render.run(render);
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    // --- アイテム設定 ---
+    const items = [
+      { r: 20, emoji: '🫐', score: 10, color: '#9FA8DA' },   
+      { r: 30, emoji: '🍒', score: 20, color: '#EF9A9A' },   
+      { r: 40, emoji: '🍓', score: 30, color: '#EF5350' },   
+      { r: 50, emoji: '🍊', score: 40, color: '#FFCC80' },   
+      { r: 65, emoji: '🍎', score: 50, color: '#FFAB91' },   
+      { r: 80, emoji: '🍐', score: 60, color: '#C5E1A5' },   
+      { r: 95, emoji: '🍑', score: 70, color: '#F48FB1' },   
+      { r: 110, emoji: '🍍', score: 80, color: '#FFF59D' },  
+      { r: 125, emoji: '🍈', score: 90, color: '#A5D6A7' },  
+      { r: 140, emoji: '🥞', score: 100, color: '#FFE0B2' }, 
+      { r: 155, emoji: '👑', score: 200, color: '#FFECB3' }  
+    ];
+
+    // --- スコア管理 (LocalStorage) ---
+    let score = 0;
+    let highScore = localStorage.getItem('dennys_pancake_best') || 0;
+    let scoreHistory = JSON.parse(localStorage.getItem('dennys_pancake_history')) || [];
+    
+    // 初期表示
+    document.getElementById('best-score').innerText = highScore;
+
+    let isGameOver = false;
+    let nextItemIndex = 0;
+    let canDrop = true;
+
+    const effectCanvas = document.getElementById('effects-canvas');
+    const ctx = effectCanvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      effectCanvas.width = width;
+      effectCanvas.height = height;
+    }
+    resizeCanvas();
+
+    function getNextItem() {
+      return Math.floor(Math.random() * 5); 
+    }
+    nextItemIndex = getNextItem();
+    updateNextPreview();
+
+    function updateNextPreview() {
+      const item = items[nextItemIndex];
+      document.getElementById('next-preview').innerText = item.emoji;
+    }
+
+    // --- カスタム描画 ---
+    Events.on(render, 'afterRender', function() {
+      const context = render.context;
+      const bodies = Composite.allBodies(world);
+
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+
+      for (let i = 0; i < bodies.length; i++) {
+        const body = bodies[i];
+        if (body.label.startsWith('fruit_')) {
+          const index = body.fruitId;
+          const item = items[index];
+          
+          const fontSize = item.r * 1.5;
+          context.font = `${fontSize}px serif`; 
+          
+          context.save();
+          context.translate(body.position.x, body.position.y);
+          context.rotate(body.angle);
+          context.fillText(item.emoji, 0, 5);
+          context.restore();
+        }
+      }
+      
+      updateParticles();
+    });
+
+    // --- アイテム生成 ---
+    function createItem(x, y, index) {
+      const item = items[index];
+      const body = Bodies.circle(x, y, item.r, {
+        restitution: 0.25,
+        friction: 0.1,
+        density: 0.002,
+        render: { 
+          fillStyle: item.color, 
+          opacity: 0.6,
+          strokeStyle: 'white',
+          lineWidth: 2
+        },
+        label: 'fruit_' + index
+      });
+      body.fruitId = index;
+      return body;
+    }
+
+    // --- ガイドライン ---
+    const guideLine = document.createElement('div');
+    guideLine.style.position = 'absolute';
+    guideLine.style.top = '100px';
+    guideLine.style.width = '0';
+    guideLine.style.height = (groundY - 100) + 'px';
+    guideLine.style.borderLeft = '2px dashed rgba(141, 110, 99, 0.4)';
+    guideLine.style.pointerEvents = 'none';
+    guideLine.style.display = 'none';
+    guideLine.style.zIndex = '5';
+    document.body.appendChild(guideLine);
+
+    const dropPreview = document.createElement('div');
+    dropPreview.style.position = 'absolute';
+    dropPreview.style.top = '50px';
+    dropPreview.style.transform = 'translate(-50%, 0)';
+    dropPreview.style.fontSize = '30px';
+    dropPreview.style.pointerEvents = 'none';
+    dropPreview.style.zIndex = '6';
+    dropPreview.style.opacity = '0.7';
+    dropPreview.innerText = items[nextItemIndex].emoji;
+    document.body.appendChild(dropPreview);
+
+    function handleInput(x) {
+      if (isGameOver || !canDrop) {
+          guideLine.style.display = 'none';
+          dropPreview.style.display = 'none';
+          return;
+      }
+      
+      const r = items[nextItemIndex].r;
+      const minX = (width - containerWidth)/2 + wallThick + r;
+      const maxX = (width + containerWidth)/2 - wallThick - r;
+      const safeX = Math.max(minX, Math.min(x, maxX));
+      
+      guideLine.style.display = 'block';
+      guideLine.style.left = safeX + 'px';
+      
+      dropPreview.style.display = 'block';
+      dropPreview.style.left = safeX + 'px';
+      dropPreview.style.fontSize = (r * 1.5) + 'px';
+      dropPreview.innerText = items[nextItemIndex].emoji;
+    }
+
+    function handleDrop(x) {
+      if (isGameOver || !canDrop) return;
+      
+      const r = items[nextItemIndex].r;
+      const minX = (width - containerWidth)/2 + wallThick + r;
+      const maxX = (width + containerWidth)/2 - wallThick - r;
+      const safeX = Math.max(minX, Math.min(x, maxX));
+
+      canDrop = false;
+      guideLine.style.display = 'none';
+      dropPreview.style.display = 'none';
+
+      const newItem = createItem(safeX, 50, nextItemIndex);
+      Composite.add(world, newItem);
+
+      setTimeout(() => {
+        canDrop = true;
+        nextItemIndex = getNextItem();
+        updateNextPreview();
+        handleInput(safeX); 
+      }, 600);
+    }
+
+    window.addEventListener('mousemove', e => handleInput(e.clientX));
+    window.addEventListener('mouseup', e => handleDrop(e.clientX));
+
+    window.addEventListener('touchstart', e => {
+      if(e.cancelable) e.preventDefault();
+      handleInput(e.touches[0].clientX);
+    }, {passive: false});
+
+    window.addEventListener('touchmove', e => { 
+      if(e.cancelable) e.preventDefault(); 
+      handleInput(e.touches[0].clientX); 
+    }, {passive: false});
+
+    window.addEventListener('touchend', e => {
+      if(e.cancelable) e.preventDefault();
+      handleDrop(e.changedTouches[0].clientX);
+    });
+
+    // --- マージ処理 ---
+    Events.on(engine, 'collisionStart', (event) => {
+      const pairs = event.pairs;
+      const toRemove = new Set();
+      const toAdd = [];
+
+      for (let i = 0; i < pairs.length; i++) {
+        const bodyA = pairs[i].bodyA;
+        const bodyB = pairs[i].bodyB;
+
+        if (bodyA.label.startsWith('fruit_') && bodyB.label.startsWith('fruit_')) {
+          if (bodyA.fruitId === bodyB.fruitId) {
+            if (toRemove.has(bodyA) || toRemove.has(bodyB)) continue;
+
+            const id = bodyA.fruitId;
+            if (id >= items.length - 1) continue;
+
+            toRemove.add(bodyA);
+            toRemove.add(bodyB);
+
+            const midX = (bodyA.position.x + bodyB.position.x) / 2;
+            const midY = (bodyA.position.y + bodyB.position.y) / 2;
+            
+            toAdd.push({ x: midX, y: midY, id: id + 1 });
+            
+            score += items[id].score;
+            document.getElementById('score').innerText = score;
+
+            createExplosion(midX, midY, items[id+1].color);
+          }
+        }
+      }
+
+      if (toRemove.size > 0) {
+        World.remove(world, Array.from(toRemove));
+        toAdd.forEach(data => {
+          const newItem = createItem(data.x, data.y, data.id);
+          World.add(world, newItem);
+        });
+      }
+    });
+
+    // --- エフェクト ---
+    function createExplosion(x, y, color) {
+      for(let i=0; i<12; i++) {
+        particles.push({
+          x: x, y: y,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 0.5) * 12,
+          life: 1.0,
+          color: color,
+          size: Math.random() * 6 + 3
+        });
+      }
+    }
+
+    function updateParticles() {
+      ctx.clearRect(0, 0, width, height);
+      for(let i=particles.length-1; i>=0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.04;
+        p.vy += 0.4; 
+
+        if(p.life <= 0) {
+          particles.splice(i, 1);
+        } else {
+          ctx.globalAlpha = p.life;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    // --- ゲームオーバー処理とスコア保存 ---
+    function triggerGameOver() {
+      if(isGameOver) return;
+      isGameOver = true;
+      
+      // スコア保存処理
+      let isNewRecord = false;
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('dennys_pancake_best', highScore);
+        isNewRecord = true;
+      }
+      
+      // 履歴更新
+      scoreHistory.unshift(score);
+      if (scoreHistory.length > 5) scoreHistory.pop();
+      localStorage.setItem('dennys_pancake_history', JSON.stringify(scoreHistory));
+
+      // UI表示
+      document.getElementById('final-score').innerText = score;
+      
+      // 履歴のHTML生成
+      const historyList = document.getElementById('history-list');
+      historyList.innerHTML = '';
+      scoreHistory.forEach((s, index) => {
+        const li = document.createElement('li');
+        li.className = 'history-item';
+        
+        // 1位（自己ベスト）には王冠、今回出した記録には「NEW!」などをつけたいが、
+        // シンプルに「今回の記録がベストなら王冠」とする
+        if (s === parseInt(highScore) && index === 0 && isNewRecord) {
+            li.innerHTML = `<span class="history-rank">👑</span> ${s} <span style="font-size:10px; color:red;">NEW!</span>`;
+            li.classList.add('new-record');
+        } else if (s === parseInt(highScore)) {
+            li.innerHTML = `<span class="history-rank">👑</span> ${s}`;
+        } else {
+            li.innerHTML = `<span class="history-rank">${index + 1}.</span> ${s}`;
+        }
+        historyList.appendChild(li);
+      });
+
+      document.getElementById('game-over-screen').style.display = 'flex';
+    }
+
+    let gameOverTimer = 0;
+    Events.on(engine, 'afterUpdate', () => {
+      if (isGameOver) return;
+      const bodies = Composite.allBodies(world);
+      let overflowing = false;
+
+      for (let body of bodies) {
+        if (body.label.startsWith('fruit_')) {
+          if (body.position.y < deadLineY && body.velocity.y > -0.1 && body.velocity.y < 0.1) {
+             overflowing = true;
+             break;
+          }
+        }
+      }
+
+      if (overflowing) {
+        gameOverTimer++;
+        if (gameOverTimer > 120) { 
+          triggerGameOver();
+        }
+      } else {
+        gameOverTimer = 0;
+      }
+    });
+
+  </script>
+</body>
+</html>
