@@ -301,7 +301,8 @@
                     model: GROQ_MODEL,
                     messages,
                     temperature: options.temperature ?? 0.7,
-                    max_tokens: options.max_tokens ?? 300
+                    max_tokens: options.max_tokens ?? 300,
+                    response_format: options.response_format
                 })
             });
             if (!res.ok) {
@@ -572,7 +573,44 @@
             const prompt = `ユーザーの記録を分析しJSONのみを返してください。1. patterns:「10の認知の歪み」カウント。2. comment: 今週の傾向コメント(100字)。データ: テキスト:${thoughts} スコア:${scores} 出力形式: {"patterns":{"全か無か思考":0,"過度の一般化":0,"心のフィルター":0,"マイナス化思考":0,"結論の飛躍":0,"拡大解釈・過小評価":0,"感情的決めつけ":0,"べき思考":0,"レッテル貼り":0,"個人化":0},"comment":"..."} 余計な文章は不要。`;
 
             try {
-                const resultText = await callGroq([{ role: "user", content: prompt }], { temperature: 0.2, max_tokens: 400 });
+                const resultText = await callGroq(
+                    [{ role: "user", content: prompt }],
+                    {
+                        temperature: 0.2,
+                        max_tokens: 400,
+                        response_format: {
+                            type: "json_schema",
+                            json_schema: {
+                                name: "cbt_analysis",
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        patterns: {
+                                            type: "object",
+                                            properties: {
+                                                "全か無か思考": { type: "number" },
+                                                "過度の一般化": { type: "number" },
+                                                "心のフィルター": { type: "number" },
+                                                "マイナス化思考": { type: "number" },
+                                                "結論の飛躍": { type: "number" },
+                                                "拡大解釈・過小評価": { type: "number" },
+                                                "感情的決めつけ": { type: "number" },
+                                                "べき思考": { type: "number" },
+                                                "レッテル貼り": { type: "number" },
+                                                "個人化": { type: "number" }
+                                            },
+                                            required: ["全か無か思考","過度の一般化","心のフィルター","マイナス化思考","結論の飛躍","拡大解釈・過小評価","感情的決めつけ","べき思考","レッテル貼り","個人化"],
+                                            additionalProperties: false
+                                        },
+                                        comment: { type: "string" }
+                                    },
+                                    required: ["patterns","comment"],
+                                    additionalProperties: false
+                                }
+                            }
+                        }
+                    }
+                );
                 const safeJsonParse = (raw) => {
                     try { return JSON.parse(raw); } catch {}
                     const start = raw.indexOf("{");
