@@ -136,14 +136,41 @@
                         <input type="hidden" id="physical-val" value="3">
                     </div>
 
-                    <!-- ひとこと -->
-                    <div class="space-y-3 pt-4 border-t border-gray-100">
-                        <label class="block text-sm font-bold text-teal-700 mb-1">ひとこと</label>
-                        <textarea id="cbt-thought" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-teal-500 resize-none h-24 placeholder-gray-400" placeholder="今の気持ちや、あった出来事を書いてみましょう..."></textarea>
-                        <details class="text-xs text-gray-500">
-                            <summary class="cursor-pointer hover:text-teal-600 mb-2">詳細を入力する (CBT分析用)</summary>
-                            <input type="text" id="cbt-event" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2 focus:outline-none focus:border-teal-500" placeholder="出来事 (事実)">
-                        </details>
+                    <!-- CBT 4項目入力 -->
+                    <div class="space-y-4 pt-4 border-t border-gray-100">
+                        
+                        <!-- 1. 状況 -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">
+                                <i class="fa-regular fa-calendar text-teal-500 mr-1"></i> 1. 状況 (いつ、どこで、誰と？)
+                            </label>
+                            <input type="text" id="cbt-situation" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-base md:text-sm focus:outline-none focus:border-teal-500" placeholder="例：仕事中にミスをして上司に注意された">
+                        </div>
+
+                        <!-- 2. 感情 -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">
+                                <i class="fa-regular fa-face-flushed text-teal-500 mr-1"></i> 2. 感情 (どんな気持ち？)
+                            </label>
+                            <input type="text" id="cbt-emotion-text" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-base md:text-sm focus:outline-none focus:border-teal-500" placeholder="例：悲しい、情けない、不安 (80%)">
+                        </div>
+
+                        <!-- 3. 思考 -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">
+                                <i class="fa-solid fa-cloud text-teal-500 mr-1"></i> 3. 思考 (頭に浮かんだ考え)
+                            </label>
+                            <textarea id="cbt-thought" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-base md:text-sm focus:outline-none focus:border-teal-500 resize-none h-20" placeholder="例：自分はなんてダメなんだ、もう信用されないだろう"></textarea>
+                        </div>
+
+                        <!-- 4. 行動 -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">
+                                <i class="fa-solid fa-person-walking text-teal-500 mr-1"></i> 4. 行動 (何をした？)
+                            </label>
+                            <input type="text" id="cbt-behavior" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-base md:text-sm focus:outline-none focus:border-teal-500" placeholder="例：謝ってすぐに修正に取り掛かった、トイレで深呼吸した">
+                        </div>
+
                     </div>
 
                     <button id="save-cbt-btn" class="w-full mt-6 bg-teal-600 text-white py-4 rounded-2xl text-sm font-bold shadow-lg shadow-teal-100 hover:bg-teal-700 transition transform active:scale-95 flex items-center justify-center gap-2">
@@ -448,8 +475,10 @@
         // Work / Check-in
         const mentalValInput = document.getElementById('mental-val');
         const physicalValInput = document.getElementById('physical-val');
+        const cbtSituation = document.getElementById('cbt-situation');
+        const cbtEmotionText = document.getElementById('cbt-emotion-text');
         const cbtThought = document.getElementById('cbt-thought');
-        const cbtEvent = document.getElementById('cbt-event');
+        const cbtBehavior = document.getElementById('cbt-behavior');
         const saveCbtBtn = document.getElementById('save-cbt-btn');
         const dailyMessageArea = document.getElementById('daily-message-area');
         const dailyMessageText = document.getElementById('daily-message-text');
@@ -480,8 +509,10 @@
                 date: new Date().toISOString(),
                 mental: parseInt(mentalValInput.value) * 20,
                 physical: parseInt(physicalValInput.value) * 20,
-                event: cbtEvent.value || "チェックイン",
-                thought: cbtThought.value || ""
+                situation: cbtSituation.value || "",
+                emotion: cbtEmotionText.value || "",
+                thought: cbtThought.value || "",
+                behavior: cbtBehavior.value || ""
             };
 
             // Cloud Save
@@ -489,13 +520,16 @@
 
             // Generate Feedback
             try {
-                const prompt = `ユーザーがメンタルケアアプリでチェックインしました。優しく労るフィードバック（100文字程度）を生成してください。冒頭は「おはようございます、${currentUser.displayName || "ゲスト"}さん」等。スコア(5段階): ココロ ${mentalValInput.value}, カラダ ${physicalValInput.value} ひとこと: ${entryData.thought}`;
+                const prompt = `ユーザーがメンタルケアアプリでチェックインしました。優しく労るフィードバック（100文字程度）を生成してください。冒頭は「おはようございます、${currentUser.displayName || "ゲスト"}さん」等。スコア(5段階): ココロ ${mentalValInput.value}, カラダ ${physicalValInput.value} 状況: ${entryData.situation} 感情: ${entryData.emotion} 思考: ${entryData.thought} 行動: ${entryData.behavior}`;
                 const reply = await callGroq([{ role: "user", content: prompt }], { temperature: 0.7, max_tokens: 200 });
                 dailyMessageText.innerText = reply || "保存しました。";
                 dailyMessageArea.classList.remove('hidden');
             } catch(e) { console.error(e); }
 
-            cbtThought.value = ''; cbtEvent.value = '';
+            cbtSituation.value = '';
+            cbtEmotionText.value = '';
+            cbtThought.value = '';
+            cbtBehavior.value = '';
             saveCbtBtn.innerHTML = '<i class="fa-solid fa-check"></i> チェックイン完了';
             saveCbtBtn.disabled = false;
         });
