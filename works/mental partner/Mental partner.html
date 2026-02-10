@@ -595,7 +595,22 @@
                     result = safeJsonParse(resultText);
                 }
                 if (!result || !result.patterns || !result.comment) {
-                    throw new Error("AIの分析結果がJSONではありませんでした");
+                    console.error("analysis parse failed", resultText);
+                    result = {
+                        patterns: {
+                            "全か無か思考": 0,
+                            "過度の一般化": 0,
+                            "心のフィルター": 0,
+                            "マイナス化思考": 0,
+                            "結論の飛躍": 0,
+                            "拡大解釈・過小評価": 0,
+                            "感情的決めつけ": 0,
+                            "べき思考": 0,
+                            "レッテル貼り": 0,
+                            "個人化": 0
+                        },
+                        comment: "分析に失敗しました。もう一度お試しください。"
+                    };
                 }
                 
                 state.patterns = result.patterns;
