@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Elemental Solitaire - Casino Edition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:wght@600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0b2e13;
+      --felt-texture: radial-gradient(circle at center, #1e4d2b 0%, #0b2e13 100%);
+      --card-back-main: #800000;
+      --gold-accent: #d4af37;
+    }
+    body {
+      background: var(--felt-texture);
+      color: #e0e0e0;
+      font-family: 'Cinzel', serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    /* Cards are absolutely positioned INSIDE each pile/column */
+    .card {
+      aspect-ratio: 2 / 3;
+      width: 80px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+      user-select: none;
+      position: absolute;
+      left: 0;
+      right: 0;
+      margin-left: auto;
+      margin-right: auto;
+      filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.5));
+      z-index: 5;
+    }
+    @media (max-width: 640px) {
+      .card { width: 45px; }
+    }
+
+    .card-face {
+      width: 100%;
+      height: 100%;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4px;
+      background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+      color: black;
+      font-family: 'Crimson Text', serif;
+      position: relative;
+      border: 1px solid #ccc;
+    }
+
+    .card-back {
+      background-color: var(--card-back-main);
+      background-image:
+        repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.2) 10px, rgba(0,0,0,0.2) 20px),
+        radial-gradient(circle, #b30000 10%, transparent 10%);
+      background-size: 100% 100%, 20px 20px;
+      border: 2px solid white;
+      position: relative;
+    }
+    .card-back::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border: 1px solid var(--gold-accent);
+      border-radius: 4px;
+    }
+
+    .slot {
+      aspect-ratio: 2 / 3;
+      width: 80px;
+      background-color: rgba(0, 20, 0, 0.2);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: visible;
+    }
+    @media (max-width: 640px) {
+      .slot { width: 45px; }
+    }
+
+    /* Columns are not "slot" size; they are a tall drop area */
+    .tableau-column {
+      position: relative;
+      min-height: 420px;
+      width: 100%;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      overflow: visible;
+    }
+    @media (max-width: 640px) {
+      .tableau-column { min-height: 340px; }
+    }
+
+    .fire { color: #c62828; }
+    .water { color: #1565c0; }
+    .wind { color: #f9a825; text-shadow: 0px 0px 1px rgba(0,0,0,0.1); }
+    .earth { color: #2e7d32; }
+
+    .card-face.fire-bg { background: #fff5f5; }
+    .card-face.water-bg { background: #e3f2fd; }
+    .card-face.wind-bg { background: #fffde7; }
+    .card-face.earth-bg { background: #e8f5e9; }
+
+    #message-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      place-items: center;
+      backdrop-filter: blur(5px);
+    }
+
+    .gold-text {
+      color: var(--gold-accent);
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+
+    .btn-gold {
+      background: linear-gradient(to bottom, #f1c40f, #b7890b);
+      color: #3e2723;
+      border: 1px solid #f9e79f;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .btn-gold:hover {
+      background: linear-gradient(to bottom, #f7dc6f, #d4ac0d);
+    }
+
+    /* Drag UX */
+    .dragging { opacity: 0.85; transform: translateY(-2px) scale(1.01); }
+    .drop-hint { outline: 2px dashed rgba(212,175,55,0.6); outline-offset: 4px; }
+
+    /* Simple modal close button */
+    .modal-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 38px;
+      height: 38px;
+      border-radius: 9999px;
+      border: 1px solid rgba(212,175,55,0.5);
+      background: rgba(0,0,0,0.35);
+      display: grid;
+      place-items: center;
+      color: #f7dc6f;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    .modal-close:hover { background: rgba(0,0,0,0.55); }
+  </style>
+</head>
+<body>
+  <div class="p-4 flex flex-col h-screen max-w-4xl mx-auto">
+    <header class="flex justify-between items-center mb-6 border-b border-white/10 pb-2">
+      <div>
+        <h1 class="text-2xl font-bold gold-text tracking-wider">Elemental Solitaire</h1>
+        <p class="text-xs text-gray-400 font-sans tracking-widest">CASINO ROYALE EDITION</p>
+      </div>
+      <div class="flex gap-6 items-center">
+        <div id="score" class="text-lg font-bold text-gray-200 font-sans">Moves: 0</div>
+        <button id="resetBtn" class="btn-gold px-6 py-2 rounded font-bold transition text-xs">Reset</button>
+      </div>
+    </header>
+
+    <div class="flex justify-center gap-4 text-xs text-gray-300 mb-6 font-sans bg-black/20 py-2 rounded-full border border-white/5 mx-auto px-6 w-fit">
+      <span class="flex items-center gap-1"><span class="text-red-500">🔥</span> &gt; <span class="text-green-500">🌱</span></span>
+      <span class="text-gray-600">|</span>
+      <span class="flex items-center gap-1"><span class="text-green-500">🌱</span> &gt; <span class="text-yellow-500">⚡</span></span>
+      <span class="text-gray-600">|</span>
+      <span class="flex items-center gap-1"><span class="text-yellow-500">⚡</span> &gt; <span class="text-blue-500">💧</span></span>
+      <span class="text-gray-600">|</span>
+      <span class="flex items-center gap-1"><span class="text-blue-500">💧</span> &gt; <span class="text-red-500">🔥</span></span>
+    </div>
+
+    <div class="flex-1 relative">
+      <div class="flex justify-between mb-8 px-2">
+        <div class="flex gap-3">
+          <div class="text-center">
+            <div id="stock" class="slot relative cursor-pointer mb-1 transform hover:-translate-y-1 transition-transform"></div>
+            <span class="text-[10px] text-gray-500 uppercase tracking-widest">Stock</span>
+          </div>
+          <div class="text-center">
+            <div id="waste" class="slot relative mb-1" data-drop="waste"></div>
+            <span class="text-[10px] text-gray-500 uppercase tracking-widest">Waste</span>
+          </div>
+        </div>
+
+        <div class="flex gap-3" id="foundations">
+          <div class="foundation slot" data-suit="fire" data-drop="foundation"></div>
+          <div class="foundation slot" data-suit="water" data-drop="foundation"></div>
+          <div class="foundation slot" data-suit="wind" data-drop="foundation"></div>
+          <div class="foundation slot" data-suit="earth" data-drop="foundation"></div>
+        </div>
+      </div>
+
+      <div class="flex justify-between h-full px-2" id="tableau">
+        <div class="tableau-column flex-1 mx-1" data-index="0" data-drop="tableau"></div>
+        <div class="tableau-column flex-1 mx-1" data-index="1" data-drop="tableau"></div>
+        <div class="tableau-column flex-1 mx-1" data-index="2" data-drop="tableau"></div>
+        <div class="tableau-column flex-1 mx-1" data-index="3" data-drop="tableau"></div>
+        <div class="tableau-column flex-1 mx-1" data-index="4" data-drop="tableau"></div>
+        <div class="tableau-column flex-1 mx-1" data-index="5" data-drop="tableau"></div>
+        <div class="tableau-column flex-1 mx-1" data-index="6" data-drop="tableau"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="message-overlay">
+    <div class="bg-gray-900 border-2 border-[#d4af37] p-10 rounded-xl text-center shadow-2xl max-w-sm mx-4 relative overflow-hidden">
+      <button id="closeOverlay" class="modal-close" aria-label="Close">✕</button>
+      <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent"></div>
+      <h2 class="text-4xl font-bold mb-2 gold-text">JACKPOT!</h2>
+      <p class="text-gray-400 mb-8 font-sans text-sm tracking-widest">ALL ELEMENTS CLEARED</p>
+      <div class="bg-black/30 rounded p-4 mb-8 border border-white/5">
+        <p id="final-score" class="text-xl font-mono text-white"></p>
+      </div>
+      <button id="playAgain" class="btn-gold px-8 py-3 rounded font-bold w-full text-sm">Play Again</button>
+    </div>
+  </div>
+
+  <script>
+    const SUITS = [
+      { id: 'fire',  icon: '🔥', color: 'fire',  bg: 'fire-bg' },
+      { id: 'water', icon: '💧', color: 'water', bg: 'water-bg' },
+      { id: 'wind',  icon: '⚡', color: 'wind',  bg: 'wind-bg' },
+      { id: 'earth', icon: '🌱', color: 'earth', bg: 'earth-bg' }
+    ];
+    const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+
+    // REACTION[targetSuit] = suit that can be placed on it
+    // e.g. Fire beats Earth => Earth pile accepts Fire on top
+    const REACTION = {
+      earth: 'fire',
+      wind:  'earth',
+      water: 'wind',
+      fire:  'water'
+    };
+
+    let state = {
+      stock: [],
+      waste: [],
+      foundations: { fire: [], water: [], wind: [], earth: [] },
+      tableau: [[],[],[],[],[],[],[]],
+      moves: 0
+    };
+
+    let draggedCards = null; // array of cards being dragged
+    let dragSource = null;   // {type, ...}
+
+    const STOCK_EL = document.getElementById('stock');
+    const WASTE_EL = document.getElementById('waste');
+    const SCORE_EL = document.getElementById('score');
+    const OVERLAY_EL = document.getElementById('message-overlay');
+
+    document.getElementById('resetBtn').addEventListener('click', initGame);
+    document.getElementById('playAgain').addEventListener('click', initGame);
+    document.getElementById('closeOverlay').addEventListener('click', () => {
+      OVERLAY_EL.style.display = 'none';
+    });
+    OVERLAY_EL.addEventListener('click', (e) => {
+      if (e.target === OVERLAY_EL) OVERLAY_EL.style.display = 'none';
+    });
+
+    function initGame() {
+      state.moves = 0;
+      state.stock = createDeck();
+      state.waste = [];
+      state.foundations = { fire: [], water: [], wind: [], earth: [] };
+      state.tableau = [[],[],[],[],[],[],[]];
+      OVERLAY_EL.style.display = 'none';
+
+      // deal: standard Klondike pattern
+      for (let i = 0; i < 7; i++) {
+        for (let j = i; j < 7; j++) {
+          const card = state.stock.pop();
+          card.isFaceUp = (i === j);
+          state.tableau[j].push(card);
+        }
+      }
+      render();
+    }
+
+    function createDeck() {
+      const newDeck = [];
+      SUITS.forEach(suit => {
+        RANKS.forEach((rank, idx) => {
+          newDeck.push({ suit, rank, rankValue: idx + 1, isFaceUp: false, id: `${suit.id}-${rank}-${idx}` });
+        });
+      });
+      for (let i = newDeck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
+      }
+      return newDeck;
+    }
+
+    function render() {
+      SCORE_EL.innerText = `MOVES: ${state.moves.toString().padStart(3,'0')}`;
+
+      // Stock
+      STOCK_EL.innerHTML = state.stock.length > 0 ? '<div class="card-face card-back rounded w-full h-full"></div>' : '';
+      STOCK_EL.onclick = handleStockClick;
+
+      // Waste
+      renderPile(WASTE_EL, state.waste.slice(-1), {type:'waste'});
+
+      // Foundations
+      Object.keys(state.foundations).forEach(suitId => {
+        const el = document.querySelector(`.foundation[data-suit="${suitId}"]`);
+        renderPile(el, state.foundations[suitId].slice(-1), {type:'foundation', suit: suitId});
+        if (state.foundations[suitId].length === 0) {
+          const suit = SUITS.find(s => s.id === suitId);
+          el.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl opacity-20 text-white">${suit.icon}</div>`;
+        }
+      });
+
+      // Tableau
+      state.tableau.forEach((col, colIndex) => {
+        const el = document.querySelector(`.tableau-column[data-index="${colIndex}"]`);
+        renderTableauColumn(el, col, colIndex);
+      });
+
+      // attach drop targets (once per render; cheap)
+      attachDropTargets();
+
+      checkWin();
+    }
+
+    function renderPile(parent, cards, source) {
+      // Keep foundation icon logic handled in render()
+      if (!parent.classList.contains('foundation') || cards.length > 0) parent.innerHTML = '';
+
+      cards.forEach((card) => {
+        const cardEl = createCardElement(card, source);
+        cardEl.style.top = '0px';
+        parent.appendChild(cardEl);
+      });
+    }
+
+    function renderTableauColumn(parent, cards, colIndex) {
+      parent.innerHTML = '';
+
+      cards.forEach((card, i) => {
+        const cardEl = createCardElement(card, {type:'tableau', index: colIndex, cardIndex: i});
+        cardEl.style.top = `${i * 30}px`;
+        cardEl.style.zIndex = 10 + i;
+        parent.appendChild(cardEl);
+      });
+
+      // Give columns a subtle "empty slot" marker at the top
+      if (cards.length === 0) {
+        const marker = document.createElement('div');
+        marker.className = 'slot';
+        marker.style.position = 'absolute';
+        marker.style.top = '0px';
+        marker.style.left = '50%';
+        marker.style.transform = 'translateX(-50%)';
+        marker.style.opacity = '0.25';
+        marker.style.pointerEvents = 'none';
+        parent.appendChild(marker);
+      }
+    }
+
+    function createCardElement(card, source) {
+      const div = document.createElement('div');
+      div.className = `card ${card.isFaceUp ? card.suit.color : ''}`;
+      div.draggable = !!card.isFaceUp;
+
+      // reliable source metadata on the element itself
+      div.dataset.sourceType = source.type;
+      if (source.type === 'tableau') {
+        div.dataset.sourceIndex = String(source.index);
+        div.dataset.sourceCardIndex = String(source.cardIndex);
+      }
+      if (source.type === 'foundation') div.dataset.sourceSuit = source.suit;
+
+      if (card.isFaceUp) {
+        div.innerHTML = `
+          <div class="card-face ${card.suit.bg}">
+            <div class="flex justify-between items-start font-bold leading-none">
+              <span>${card.rank}</span>
+              <span class="text-[10px] opacity-70">${card.suit.icon}</span>
+            </div>
+            <div class="text-3xl self-center transform scale-125">${card.suit.icon}</div>
+            <div class="flex justify-between items-end font-bold rotate-180 leading-none">
+              <span>${card.rank}</span>
+              <span class="text-[10px] opacity-70">${card.suit.icon}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        div.innerHTML = `<div class="card-face card-back"></div>`;
+      }
+
+      div.addEventListener('dragstart', (e) => handleDragStart(e, card));
+      div.addEventListener('dragend', () => clearDropHints());
+      div.addEventListener('dblclick', () => autoMove(card));
+
+      return div;
+    }
+
+    function attachDropTargets() {
+      // Stock isn't a drop target.
+
+      // Waste: accept tableau moves (single) and foundation moves (single) onto it? (Classic doesn't.)
+      // We'll keep it as NOT accepting drops to avoid confusion.
+      WASTE_EL.ondragover = (e) => e.preventDefault();
+      WASTE_EL.ondrop = (e) => e.preventDefault();
+
+      // Foundations: drop target
+      document.querySelectorAll('.foundation').forEach(el => {
+        el.ondragover = (e) => { e.preventDefault(); el.classList.add('drop-hint'); };
+        el.ondragleave = () => el.classList.remove('drop-hint');
+        el.ondrop = (e) => {
+          e.preventDefault();
+          el.classList.remove('drop-hint');
+          handleDrop({ type:'foundation', suit: el.dataset.suit });
+        };
+      });
+
+      // Tableau columns: drop target
+      document.querySelectorAll('.tableau-column').forEach(el => {
+        el.ondragover = (e) => { e.preventDefault(); el.classList.add('drop-hint'); };
+        el.ondragleave = () => el.classList.remove('drop-hint');
+        el.ondrop = (e) => {
+          e.preventDefault();
+          el.classList.remove('drop-hint');
+          handleDrop({ type:'tableau', index: parseInt(el.dataset.index, 10) });
+        };
+      });
+    }
+
+    function clearDropHints() {
+      document.querySelectorAll('.drop-hint').forEach(el => el.classList.remove('drop-hint'));
+      draggedCards = null;
+      dragSource = null;
+      document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+    }
+
+    function handleStockClick() {
+      if (state.stock.length === 0) {
+        state.stock = state.waste.reverse().map(c => ({ ...c, isFaceUp: false }));
+        state.waste = [];
+      } else {
+        const card = state.stock.pop();
+        card.isFaceUp = true;
+        state.waste.push(card);
+      }
+      state.moves++;
+      render();
+    }
+
+    function handleDragStart(e, card) {
+      const el = e.target.closest('.card');
+      if (!el) return;
+
+      const sourceType = el.dataset.sourceType;
+
+      if (sourceType === 'tableau') {
+        const colIdx = parseInt(el.dataset.sourceIndex, 10);
+        const cardIdx = parseInt(el.dataset.sourceCardIndex, 10);
+        draggedCards = state.tableau[colIdx].slice(cardIdx);
+        dragSource = { type:'tableau', index: colIdx, count: draggedCards.length };
+      } else if (sourceType === 'waste') {
+        if (state.waste.length === 0) return;
+        draggedCards = [state.waste[state.waste.length - 1]];
+        dragSource = { type:'waste' };
+      } else if (sourceType === 'foundation') {
+        const suit = el.dataset.sourceSuit;
+        if (!suit || state.foundations[suit].length === 0) return;
+        draggedCards = [state.foundations[suit][state.foundations[suit].length - 1]];
+        dragSource = { type:'foundation', suit };
+      }
+
+      // visual
+      el.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', card.id);
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDrop(target) {
+      if (!draggedCards || !dragSource) return;
+
+      let canMove = false;
+
+      if (target.type === 'tableau') {
+        const targetCol = state.tableau[target.index];
+        const topCard = draggedCards[0];
+
+        if (targetCol.length === 0) {
+          if (topCard.rank === 'K') canMove = true;
+        } else {
+          const targetCard = targetCol[targetCol.length - 1];
+          if (topCard.rankValue === targetCard.rankValue - 1) {
+            if (REACTION[targetCard.suit.id] === topCard.suit.id || topCard.rank === 'K') {
+              canMove = true;
+            }
+          }
+        }
+
+        if (canMove) {
+          removeFromSource();
+          state.tableau[target.index].push(...draggedCards);
+        }
+      }
+
+      if (target.type === 'foundation') {
+        if (draggedCards.length === 1) {
+          const topCard = draggedCards[0];
+          const targetPile = state.foundations[target.suit];
+          if (topCard.suit.id === target.suit) {
+            if (targetPile.length === 0) {
+              if (topCard.rank === 'A') canMove = true;
+            } else {
+              const lastCard = targetPile[targetPile.length - 1];
+              if (topCard.rankValue === lastCard.rankValue + 1) canMove = true;
+            }
+          }
+
+          if (canMove) {
+            removeFromSource();
+            state.foundations[target.suit].push(topCard);
+          }
+        }
+      }
+
+      if (canMove) {
+        state.moves++;
+        revealTopCards();
+        render();
+      }
+
+      clearDropHints();
+    }
+
+    function removeFromSource() {
+      if (dragSource.type === 'tableau') {
+        state.tableau[dragSource.index].splice(-draggedCards.length);
+      } else if (dragSource.type === 'waste') {
+        state.waste.pop();
+      } else if (dragSource.type === 'foundation') {
+        state.foundations[dragSource.suit].pop();
+      }
+    }
+
+    function revealTopCards() {
+      state.tableau.forEach(col => {
+        if (col.length > 0) col[col.length - 1].isFaceUp = true;
+      });
+    }
+
+    function autoMove(card) {
+      if (!card.isFaceUp) return;
+
+      const suitId = card.suit.id;
+      const targetPile = state.foundations[suitId];
+      let canMove = false;
+
+      if (targetPile.length === 0) {
+        if (card.rank === 'A') canMove = true;
+      } else {
+        const last = targetPile[targetPile.length - 1];
+        if (card.rankValue === last.rankValue + 1) canMove = true;
+      }
+
+      if (!canMove) return;
+
+      // only allow automove from top of tableau or top of waste
+      let source = null;
+
+      for (let i = 0; i < state.tableau.length; i++) {
+        const col = state.tableau[i];
+        if (col.length > 0 && col[col.length - 1] === card) { source = {type:'tableau', index:i}; break; }
+      }
+      if (!source && state.waste.length > 0 && state.waste[state.waste.length - 1] === card) {
+        source = {type:'waste'};
+      }
+
+      if (!source) return;
+
+      draggedCards = [card];
+      dragSource = source;
+      removeFromSource();
+      state.foundations[suitId].push(card);
+      state.moves++;
+      revealTopCards();
+      render();
+      clearDropHints();
+    }
+
+    function checkWin() {
+      const allFull = Object.values(state.foundations).every(p => p.length === 13);
+      if (allFull) {
+        document.getElementById('final-score').innerText = `TOTAL MOVES: ${state.moves}`;
+        OVERLAY_EL.style.display = 'grid';
+      }
+    }
+
+    window.addEventListener('load', initGame);
+  </script>
+</body>
+</html>

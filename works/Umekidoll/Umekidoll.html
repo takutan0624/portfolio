@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>呪いの梅木さん (JS版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(-25%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
+            50% { transform: none; animation-timing-function: cubic-bezier(0,0,0.2,1); }
+        }
+        .animate-bounce { animation: bounce 1s infinite; }
+
+        @keyframes ping {
+            75%, 100% { transform: scale(2); opacity: 0; }
+        }
+        .animate-ping { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+        .card-transition { transition: all 0.3s ease; }
+        
+        /* Custom scrollbar for log */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+        /* Stabilize stacking */
+        #body { isolation: isolate; }
+        #hand-container { position: relative; z-index: 30; }
+        #discard-pile { position: relative; z-index: 5; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 font-sans overflow-hidden h-screen flex flex-col relative" id="body">
+
+    <!-- Glitch Overlay -->
+    <div id="glitch-overlay" class="absolute inset-0 bg-red-500/10 z-50 pointer-events-none mix-blend-overlay hidden"></div>
+
+    <!-- AI Players Area -->
+    <div id="ai-area" class="flex-none p-4 bg-slate-900/50 flex justify-center gap-8 items-start h-32 transition-opacity z-10">
+        <!-- JSで生成 -->
+    </div>
+
+    <!-- Field Area -->
+    <div id="field-area" class="flex-1 relative flex flex-col items-center justify-center bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900 to-slate-950 z-0">
+        
+        <!-- Discard Pile -->
+        <div class="relative mb-8 z-0">
+            <div class="absolute -top-8 w-full text-center text-xs text-slate-400">捨て札</div>
+            <div id="discard-pile" class="relative w-32 h-48 flex items-center justify-center">
+                <div class="w-24 h-36 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center text-slate-600 text-xs">
+                    Start Game
+                </div>
+            </div>
+        </div>
+
+        <!-- Message Overlay (CLOSE BUTTON + NO AUTO HIDE) -->
+        <div id="message-overlay" class="absolute inset-0 flex items-center justify-center z-40 bg-black/50 backdrop-blur-sm hidden">
+            <div class="bg-slate-900 border border-slate-500 p-6 rounded-xl shadow-2xl text-center max-w-sm w-[92%]">
+                <h3 id="msg-title" class="text-xl font-bold text-yellow-400 mb-2"></h3>
+                <p id="msg-text" class="text-slate-200 mb-5 leading-relaxed"></p>
+                <button id="msg-close" class="px-5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-500 text-white">
+                    閉じる
+                </button>
+                <div class="mt-3 text-[11px] text-slate-400">Enter / Esc でも閉じられます</div>
+            </div>
+        </div>
+
+        <!-- Scan/Witness Result Overlay -->
+        <div id="scan-overlay" class="absolute inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4 hidden cursor-pointer">
+            <h3 id="scan-title" class="text-xl font-bold text-yellow-400 mb-4"></h3>
+            <div id="scan-content" class="flex gap-4 justify-center flex-wrap"></div>
+            <p class="mt-8 text-sm text-slate-400">クリックで閉じる</p>
+        </div>
+    </div>
+
+    <!-- Log Area -->
+    <div id="log-area" class="h-24 bg-black/30 p-2 overflow-y-auto text-xs text-slate-400 font-mono border-t border-slate-800 z-10">
+        <!-- Logs -->
+    </div>
+
+    <!-- Player Hand Area -->
+    <div id="player-area" class="flex-none p-4 pb-8 min-h-[220px] bg-slate-900 border-t border-slate-800 flex flex-col items-center transition-colors z-20">
+        <div class="flex justify-between w-full max-w-2xl items-center mb-2">
+            <span class="font-bold flex items-center gap-2">
+                <!-- Icon User -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-400"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                あなたの手札
+            </span>
+            <span id="player-status" class="text-xs text-green-400 animate-pulse hidden">あなたのターン: カードを選んでください</span>
+        </div>
+
+        <div id="setup-btn-container" class="w-full flex justify-center py-4">
+            <button onclick="game.initGame()" class="px-8 py-4 bg-red-700 hover:bg-red-600 rounded-full font-bold shadow-lg animate-pulse flex items-center gap-2 text-white transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M8 20v2h8v-2"/><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M16 20a2 2 0 0 0 1.56-3.25 2 2 0 0 0-2.77-7.28 2 2 0 0 0-3.8-.1 5.1 5 0 0 0-6.8 4.29A2 2 0 0 0 8 20"/></svg>
+                呪いのダンスを始める
+            </button>
+        </div>
+
+        <div id="hand-container" class="flex -space-x-4 hover:space-x-1 transition-all duration-300 px-4 py-2 overflow-x-visible w-full justify-center hidden">
+            <!-- Cards -->
+        </div>
+    </div>
+
+    <!-- Target Selection Overlay -->
+    <div id="target-overlay" class="absolute inset-0 bg-black/70 z-40 flex flex-col items-center justify-start pt-32 hidden animate-[fadeIn_0.3s_ease-out]">
+        <h2 class="text-2xl font-bold text-white mb-8 drop-shadow-lg">誰に使いますか？</h2>
+        <div id="target-buttons" class="flex gap-8">
+            <!-- Target Buttons -->
+        </div>
+        <button onclick="game.cancelTargetSelection()" class="mt-12 text-slate-400 hover:text-white underline">キャンセル</button>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div id="game-over-overlay" class="absolute inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-8 text-center hidden animate-[fadeIn_1s_ease-out]">
+        <div id="game-over-icon" class="mb-6"></div>
+        <h1 id="game-over-title" class="text-4xl font-bold mb-4 font-serif"></h1>
+        <p id="game-over-msg" class="text-xl text-slate-300 mb-8 max-w-md leading-relaxed"></p>
+        <button onclick="game.initGame()" class="px-8 py-3 bg-slate-700 hover:bg-slate-600 rounded text-white transition-colors border border-slate-500">
+            もう一度踊る
+        </button>
+    </div>
+
+<script>
+/**
+ * 呪いの梅木さん (Vanilla JS Version)
+ */
+
+// --- Icons (SVG Strings) ---
+const ICONS = {
+    GHOST: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-red-600 animate-pulse"><path d="M9 22v-2h6v2"/><path d="M9 20a3 3 0 0 1-3-3v-6a6 6 0 0 1 12 0v6a3 3 0 0 1-3 3"/><path d="M9 10a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2"/></svg>`,
+    SEARCH: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-blue-400"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>`,
+    SHUFFLE: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-purple-400"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l14.2-12.6c.8-1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-2.7c-1.3 0-2.6-.7-3.4-1.8l-1.6-1.9"/><path d="m18 14 4 4-4 4"/></svg>`,
+    REFRESH_CCW: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-orange-400"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>`,
+    SHIELD_CHECK: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-green-400"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>`,
+    EYE: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-yellow-400"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+    SIREN: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-pink-400"><path d="M7 18v-6a5 5 0 1 1 10 0v6"/><path d="M5 21a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1H5v-1Z"/><path d="M21 12h1"/><path d="M18.5 4.5 19 4"/><path d="M2 12h1"/><path d="M5.5 4.5 5 4"/></svg>`,
+    USER: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-gray-400"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+    CPU: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>`,
+    SKULL: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-20 h-20 text-red-600 animate-pulse"><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M16 20a2 2 0 0 0 1.56-3.25 2 2 0 0 0-2.77-7.28 2 2 0 0 0-3.8-.1 5.1 5 0 0 0-6.8 4.29A2 2 0 0 0 8 20"/><path d="M8 20v2h8v-2"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></svg>`,
+    SHIELD_ALERT_LG: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-20 h-20 text-blue-400"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`,
+    REFRESH_CW_LG: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-20 h-20 text-gray-400"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>`
+};
+
+// --- Constants ---
+const INITIAL_HAND_SIZE = 4;
+const CARD_TYPES = {
+  UMEKI: {
+    id: 'umeki',
+    name: '梅木さん人形',
+    description: '【犯人】場に出せない。手札がこの1枚だけの時、場に出して「勝利」。',
+    icon: ICONS.GHOST,
+    color: 'bg-red-950 border-red-600 text-red-100',
+    requiresTarget: false,
+  },
+  DETECTIVE: {
+    id: 'detective',
+    name: '除霊師',
+    description: '【探偵】誰か1人を指名。その人が人形を持っていれば勝利。',
+    icon: ICONS.SEARCH,
+    color: 'bg-slate-800 border-blue-500 text-blue-100',
+    requiresTarget: true,
+  },
+  RUMOR: {
+    id: 'rumor',
+    name: '噂（取り引き）',
+    description: '指名した相手と手札を1枚交換する。',
+    icon: ICONS.SHUFFLE,
+    color: 'bg-slate-800 border-purple-500 text-purple-100',
+    requiresTarget: true,
+  },
+  PANIC: {
+    id: 'panic',
+    name: '集団ヒステリー',
+    description: '【情報操作】全員の手札を左隣のプレイヤーにすべて渡す。',
+    icon: ICONS.REFRESH_CCW,
+    color: 'bg-slate-800 border-orange-500 text-orange-100',
+    requiresTarget: false,
+  },
+  ALIBI: {
+    id: 'alibi',
+    name: 'お守り（アリバイ）',
+    description: '持っているだけで効果発揮。人形を持っていても「持っていない」と言える。',
+    icon: ICONS.SHIELD_CHECK,
+    color: 'bg-slate-800 border-green-500 text-green-100',
+    requiresTarget: false,
+  },
+  WITNESS: {
+    id: 'witness',
+    name: '目撃者',
+    description: '指名した相手の手札を全て見る。',
+    icon: ICONS.EYE,
+    color: 'bg-slate-800 border-yellow-500 text-yellow-100',
+    requiresTarget: true,
+  },
+  FIRST: {
+    id: 'first',
+    name: '第一発見者',
+    description: 'このカードを持っている人からゲームが始まる。最初に出そう。',
+    icon: ICONS.SIREN,
+    color: 'bg-slate-800 border-pink-500 text-pink-100',
+    requiresTarget: false,
+  },
+  CITIZEN: {
+    id: 'citizen',
+    name: '一般人',
+    description: '特に効果なし。',
+    icon: ICONS.USER,
+    color: 'bg-slate-800 border-gray-600 text-gray-300',
+    requiresTarget: false,
+  },
+};
+
+const GAME_PHASES = {
+  SETUP: 'setup',
+  PLAYER_TURN: 'player_turn',
+  AI_TURN: 'ai_turn',
+  TARGET_SELECTION: 'target_selection',
+  CARD_SELECTION: 'card_selection',
+  PROCESSING: 'processing',
+  GAME_OVER: 'game_over',
+};
+
+// --- Game Logic ---
+class Game {
+    constructor() {
+        this.players = [];
+        this.discardPile = [];
+        this.turnIndex = 0;
+        this.phase = GAME_PHASES.SETUP;
+        this.selectedCardIdx = null;
+        this.tradeTargetId = null;
+
+        // Modal continuation (block progression until close)
+        this._onMessageClose = null;
+        this._messageOpen = false;
+
+        this._wireMessageUI();
+    }
+
+    _wireMessageUI() {
+        // DOM may not exist at constructor time if script is in <head>, but here it's at end of body.
+        // Still, guard for safety.
+        const overlay = document.getElementById('message-overlay');
+        const closeBtn = document.getElementById('msg-close');
+        if (!overlay || !closeBtn) return;
+
+        const close = () => {
+            overlay.classList.add('hidden');
+            this._messageOpen = false;
+            const cb = this._onMessageClose;
+            this._onMessageClose = null;
+            if (typeof cb === 'function') cb();
+        };
+
+        closeBtn.onclick = close;
+
+        document.addEventListener('keydown', (e) => {
+            if (overlay.classList.contains('hidden')) return;
+            if (e.key === 'Enter' || e.key === 'Escape') {
+                e.preventDefault();
+                close();
+            }
+        });
+    }
+
+    initGame() {
+        // Reset state
+        this.players = [
+            { id: 0, name: 'あなた', hand: [], isBot: false },
+            { id: 1, name: 'AI-1 (子供)', hand: [], isBot: true },
+            { id: 2, name: 'AI-2 (老婆)', hand: [], isBot: true },
+            { id: 3, name: 'AI-3 (影)', hand: [], isBot: true },
+        ];
+        this.discardPile = [];
+        this.selectedCardIdx = null;
+        this.tradeTargetId = null;
+        this._onMessageClose = null;
+        this._messageOpen = false;
+
+        // Create Deck
+        let deck = [];
+        deck.push('FIRST');
+        deck.push('UMEKI');
+        deck.push('DETECTIVE'); deck.push('DETECTIVE');
+        deck.push('ALIBI'); deck.push('ALIBI');
+        deck.push('RUMOR'); deck.push('RUMOR'); deck.push('RUMOR'); deck.push('RUMOR');
+        deck.push('PANIC');
+        deck.push('WITNESS'); deck.push('WITNESS');
+        deck.push('CITIZEN'); deck.push('CITIZEN'); deck.push('CITIZEN');
+
+        // Shuffle
+        deck.sort(() => Math.random() - 0.5);
+
+        // Deal
+        this.players.forEach(p => {
+            p.hand = deck.splice(0, INITIAL_HAND_SIZE).map(key => ({...CARD_TYPES[key], typeKey: key}));
+        });
+
+        // Find First Player
+        let startIdx = 0;
+        this.players.forEach((p, idx) => {
+            if (p.hand.some(c => c.typeKey === 'FIRST')) startIdx = idx;
+        });
+        this.turnIndex = startIdx;
+
+        // UI Updates
+        this.updateLog('ゲーム開始。');
+        const starterName = this.players[startIdx].id === 0 ? 'あなた' : this.players[startIdx].name;
+        this.updateLog(`第一発見者は ${starterName} です。`);
+
+        document.getElementById('setup-btn-container').classList.add('hidden');
+        document.getElementById('hand-container').classList.remove('hidden');
+        document.getElementById('game-over-overlay').classList.add('hidden');
+        document.getElementById('scan-overlay').classList.add('hidden');
+
+        // Start message (blocks until close)
+        this.showTempMessage('ゲーム開始', `第一発見者: ${starterName}`, { blockTurn: true, next: () => {
+            // Phase Transition after close
+            if (this.players[startIdx].isBot) {
+                this.setPhase(GAME_PHASES.AI_TURN);
+            } else {
+                this.setPhase(GAME_PHASES.PLAYER_TURN);
+            }
+        }});
+
+        this.render();
+    }
+
+    setPhase(newPhase) {
+        this.phase = newPhase;
+        if (newPhase === GAME_PHASES.AI_TURN) {
+            const currentPlayer = this.players[this.turnIndex];
+            setTimeout(() => this.aiAction(currentPlayer), 1500);
+        }
+        this.render();
+    }
+
+    // --- Player Actions ---
+    handleCardClick(idx) {
+        if (this._messageOpen) return; // block interaction while modal open
+
+        if (this.phase === GAME_PHASES.CARD_SELECTION) {
+            this.executeTrade(0, this.tradeTargetId, idx);
+            return;
+        }
+
+        if (this.phase !== GAME_PHASES.PLAYER_TURN) return;
+
+        const card = this.players[0].hand[idx];
+
+        // 犯人カード制限
+        if (card.typeKey === 'UMEKI') {
+            if (this.players[0].hand.length > 1) {
+                this.updateLog('「梅木さん」は最後の一枚になるまで出せません...');
+                this.triggerGlitch();
+                return;
+            }
+        }
+
+        this.selectedCardIdx = idx;
+
+        if (card.requiresTarget) {
+            this.setPhase(GAME_PHASES.TARGET_SELECTION);
+        } else {
+            this.playCard(0, idx, null);
+        }
+    }
+
+    handleTargetClick(targetId) {
+        if (this._messageOpen) return; // block interaction while modal open
+        if (this.phase !== GAME_PHASES.TARGET_SELECTION) return;
+
+        const card = this.players[0].hand[this.selectedCardIdx];
+
+        if (card.typeKey === 'RUMOR') {
+            if (this.players[0].hand.length <= 1) {
+                // 交換カードなし（噂のみ）
+                this.playCard(0, this.selectedCardIdx, targetId, -1);
+                return;
+            }
+            this.tradeTargetId = targetId;
+            this.setPhase(GAME_PHASES.CARD_SELECTION);
+            this.updateLog('相手に渡すカードを選んでください。');
+        } else {
+            this.playCard(0, this.selectedCardIdx, targetId);
+        }
+    }
+    
+    cancelTargetSelection() {
+        this.selectedCardIdx = null;
+        this.setPhase(GAME_PHASES.PLAYER_TURN);
+    }
+
+    executeTrade(playerId, targetId, cardIdx) {
+        const rumorIdx = this.selectedCardIdx;
+        let actualTradeIdx = cardIdx;
+        
+        // Rumorカード自体を選んでないかチェック
+        if (cardIdx === rumorIdx) {
+            alert("プレイするカード自体は交換に出せません");
+            return;
+        }
+        
+        // Rumorは手札から消える予定なので、その分のインデックスずれを補正
+        if (cardIdx > rumorIdx) {
+            actualTradeIdx = cardIdx - 1;
+        }
+        
+        this.playCard(playerId, rumorIdx, targetId, actualTradeIdx);
+    }
+
+    // --- Core Game Logic ---
+    playCard(playerId, cardIdx, targetId, tradeCardIdx = null) {
+        this.setPhase(GAME_PHASES.PROCESSING);
+        
+        const player = this.players[playerId];
+        const card = player.hand[cardIdx];
+        const target = targetId !== null ? this.players[targetId] : null;
+
+        // 手札から削除
+        player.hand.splice(cardIdx, 1);
+        this.discardPile.unshift(card); // Add to beginning (index 0 is newest)
+
+        let actionMsg = `${player.name}が「${card.name}」を使用。`;
+        let effectDelay = 1200;
+
+        // By default, proceed to next turn after effectDelay.
+        // If we show a dialog, we block progression until close.
+        let blockTurn = false;
+        let dialogTitle = null;
+        let dialogText = null;
+
+        switch (card.typeKey) {
+            case 'UMEKI':
+                this.updateLog(`${player.name}は呪いを解き放った！`);
+                this.render();
+                setTimeout(() => this.endGame('criminal_escape', player.name), 600);
+                return;
+
+            case 'FIRST':
+                actionMsg += ' 事件の始まりを告げた。';
+                dialogTitle = '開始宣言';
+                dialogText  = 'ここから全てが始まる...';
+                blockTurn = true;
+                break;
+
+            case 'DETECTIVE':
+                actionMsg += ` ${target.name}を指名！`;
+                const hasUmeki = target.hand.some(c => c.typeKey === 'UMEKI');
+                const hasAlibi = target.hand.some(c => c.typeKey === 'ALIBI');
+
+                if (hasUmeki) {
+                    if (hasAlibi) {
+                        actionMsg += ` ...しかし${target.name}はアリバイを主張！（回避）`;
+                        dialogTitle = '回避';
+                        dialogText  = `${target.name}は潔白を主張した。`;
+                        blockTurn = true;
+                    } else {
+                        // 逮捕成功（※文面の主語が逆にならないよう修正済み）
+                        this.updateLog(actionMsg);
+                        this.render();
+                        setTimeout(() => this.endGame('detective_win', player.name, target.name), 700);
+                        return;
+                    }
+                } else {
+                    actionMsg += ' ...しかし違ったようだ。';
+                    dialogTitle = '推理失敗';
+                    dialogText  = `${target.name}はシロでした。`;
+                    blockTurn = true;
+                }
+                break;
+
+            case 'RUMOR':
+                let myOfferIdx = tradeCardIdx;
+                
+                // AI用のランダム選択
+                if (myOfferIdx === null) {
+                    myOfferIdx = Math.floor(Math.random() * player.hand.length);
+                }
+                if (myOfferIdx >= player.hand.length) myOfferIdx = player.hand.length - 1;
+
+                if (myOfferIdx < 0 || player.hand.length === 0) {
+                    actionMsg += ' ...しかし渡せる手札がなかった。';
+                } else {
+                    const targetOfferIdx = Math.floor(Math.random() * target.hand.length);
+                    if (target.hand.length > 0) {
+                        const myCard = player.hand[myOfferIdx];
+                        const targetCard = target.hand[targetOfferIdx];
+
+                        player.hand[myOfferIdx] = targetCard;
+                        target.hand[targetOfferIdx] = myCard;
+
+                        actionMsg += ` ${target.name}と密かにカードを交換した。`;
+
+                        // 詳細は必ず読ませたいのでブロック
+                        dialogTitle = '取り引き';
+                        if (playerId === 0) {
+                            dialogText = `あなたは「${myCard.name}」を渡し、「${targetCard.name}」を受け取った。`;
+                        } else if (targetId === 0) {
+                            dialogText = `${player.name}から「${myCard.name}」を押し付けられ、「${targetCard.name}」を奪われた。`;
+                        } else {
+                            dialogText = 'カードが交換されました...';
+                        }
+                        blockTurn = true;
+                    } else {
+                        actionMsg += ' ...しかし相手の手札がなかった。';
+                    }
+                }
+                break;
+
+            case 'PANIC':
+                {
+                    const hands = this.players.map(p => [...p.hand]);
+                    for(let i=0; i<this.players.length; i++) {
+                        const fromIdx = (i + 1) % this.players.length;
+                        this.players[i].hand = hands[fromIdx];
+                    }
+                }
+                actionMsg += ' 全員の手札が左隣へ移動した！';
+                dialogTitle = '集団ヒステリー';
+                dialogText  = '手札が総入れ替えされました！';
+                blockTurn = true;
+                break;
+
+            case 'WITNESS':
+                actionMsg += ` ${target.name}の手札を覗き見た。`;
+                if (playerId === 0) {
+                    this.showScanResult(target);
+                    effectDelay = 0; // scan overlay is user-closed already
+                }
+                break;
+        }
+
+        this.updateLog(actionMsg);
+        this.render();
+
+        const proceed = () => this.nextTurn();
+
+        if (dialogTitle) {
+            this.showTempMessage(dialogTitle, dialogText || '', { blockTurn: true, next: proceed });
+            return;
+        }
+
+        if (effectDelay > 0) {
+            setTimeout(proceed, effectDelay);
+        } else {
+            // For witness (player) we don't auto-advance; scan overlay click closes it.
+            // Advance when scan overlay closes is too invasive here; keep original behavior: slight delay.
+            // If you want strict blocking, tell me and I'll wire scan overlay into continuation too.
+            setTimeout(proceed, 800);
+        }
+    }
+
+    // --- AI ---
+    aiAction(aiPlayer) {
+        if (this._messageOpen) {
+            // If a dialog is open for some reason, wait.
+            setTimeout(() => this.aiAction(aiPlayer), 300);
+            return;
+        }
+
+        const myHand = aiPlayer.hand;
+
+        // 0. 第一発見者
+        const firstIdx = myHand.findIndex(c => c.typeKey === 'FIRST');
+        if (firstIdx !== -1) {
+            this.playCard(aiPlayer.id, firstIdx, null);
+            return;
+        }
+
+        const hasUmeki = myHand.some(c => c.typeKey === 'UMEKI');
+
+        // 1. 勝利確定
+        if (hasUmeki && myHand.length === 1) {
+            this.playCard(aiPlayer.id, 0, null);
+            return;
+        }
+
+        // プレイ可能カード
+        const playableIndices = myHand.map((c, i) => 
+            (c.typeKey === 'UMEKI' && myHand.length > 1) ? -1 : i
+        ).filter(i => i !== -1);
+
+        if (playableIndices.length === 0) {
+            this.updateLog(`${aiPlayer.name}は何もできなかった...`);
+            this.nextTurn();
+            return;
+        }
+
+        let selectedIdx = -1;
+        let targetId = null;
+        let tradeCardIdx = null;
+
+        // 戦略: 犯人なすりつけ
+        if (hasUmeki) {
+            const escapeCardIdx = myHand.findIndex(c => c.typeKey === 'RUMOR' || c.typeKey === 'PANIC');
+            if (escapeCardIdx !== -1) {
+                selectedIdx = escapeCardIdx;
+                if (myHand[selectedIdx].typeKey === 'RUMOR') {
+                    const umekiOriginalIdx = myHand.findIndex(c => c.typeKey === 'UMEKI');
+                    tradeCardIdx = (umekiOriginalIdx > selectedIdx) ? umekiOriginalIdx - 1 : umekiOriginalIdx;
+                }
+            }
+        }
+
+        // 戦略: 探偵
+        if (selectedIdx === -1) {
+            const detectiveIdx = myHand.findIndex(c => c.typeKey === 'DETECTIVE');
+            if (detectiveIdx !== -1) {
+                selectedIdx = detectiveIdx;
+                const targets = this.players.filter(p => p.id !== aiPlayer.id);
+                targetId = targets[Math.floor(Math.random() * targets.length)].id;
+            }
+        }
+
+        // デフォルト: ランダム
+        if (selectedIdx === -1) {
+            selectedIdx = playableIndices[Math.floor(Math.random() * playableIndices.length)];
+        }
+
+        const card = myHand[selectedIdx];
+
+        if (card.requiresTarget && targetId === null) {
+            const targets = this.players.filter(p => p.id !== aiPlayer.id);
+            targetId = targets[Math.floor(Math.random() * targets.length)].id;
+        }
+
+        if (card.typeKey === 'RUMOR' && tradeCardIdx === null) {
+            if (myHand.length > 1) {
+                tradeCardIdx = Math.floor(Math.random() * (myHand.length - 1));
+            }
+        }
+
+        this.playCard(aiPlayer.id, selectedIdx, targetId, tradeCardIdx);
+    }
+
+    nextTurn() {
+        if (this.players.every(p => p.hand.length === 0)) {
+            this.endGame('draw');
+            return;
+        }
+
+        let nextIdx = (this.turnIndex + 1) % this.players.length;
+        let loop = 0;
+        while(this.players[nextIdx].hand.length === 0 && loop < 5) {
+            nextIdx = (nextIdx + 1) % this.players.length;
+            loop++;
+        }
+        
+        this.turnIndex = nextIdx;
+        this.selectedCardIdx = null;
+        
+        if (this.players[nextIdx].isBot) {
+            this.setPhase(GAME_PHASES.AI_TURN);
+        } else {
+            this.setPhase(GAME_PHASES.PLAYER_TURN);
+        }
+    }
+
+    endGame(type, winnerName, playerName2) {
+        this.phase = GAME_PHASES.GAME_OVER;
+        const overlay = document.getElementById('game-over-overlay');
+        const iconEl = document.getElementById('game-over-icon');
+        const titleEl = document.getElementById('game-over-title');
+        const msgEl = document.getElementById('game-over-msg');
+        
+        overlay.classList.remove('hidden');
+
+        if (type === 'detective_win') {
+            iconEl.innerHTML = ICONS.SHIELD_ALERT_LG;
+            titleEl.textContent = '事件解決！';
+            titleEl.className = 'text-4xl font-bold mb-4 font-serif text-blue-400';
+            msgEl.textContent = `${winnerName}の推理により、犯人（${playerName2}）が確保されました。人間の勝利です。`;
+        } else if (type === 'criminal_escape') {
+            iconEl.innerHTML = ICONS.SKULL;
+            titleEl.textContent = '犯人の勝利...';
+            titleEl.className = 'text-4xl font-bold mb-4 font-serif text-red-600';
+            msgEl.textContent = `${winnerName}は最後まで正体を隠し通し、闇へと消えました...`;
+        } else {
+            iconEl.innerHTML = ICONS.REFRESH_CW_LG;
+            titleEl.textContent = '迷宮入り';
+            titleEl.className = 'text-4xl font-bold mb-4 font-serif text-gray-400';
+            msgEl.textContent = '誰も真相に辿り着けませんでした（手札切れ）。';
+        }
+    }
+
+    // --- UI Rendering ---
+    render() {
+        this.renderAI();
+        this.renderDiscard();
+        this.renderHand();
+        this.renderTargetOverlay();
+        
+        const statusEl = document.getElementById('player-status');
+        if (this.phase === GAME_PHASES.PLAYER_TURN) {
+            statusEl.textContent = 'あなたのターン: カードを選んでください';
+            statusEl.className = 'text-xs text-green-400 animate-pulse block';
+        } else if (this.phase === GAME_PHASES.CARD_SELECTION) {
+            statusEl.textContent = '相手に渡すカードを選んでください（噂）';
+            statusEl.className = 'text-xs text-purple-400 font-bold animate-pulse block';
+        } else {
+            statusEl.classList.add('hidden');
+        }
+    }
+
+    renderAI() {
+        const aiArea = document.getElementById('ai-area');
+        aiArea.innerHTML = '';
+        
+        this.players.slice(1).forEach(p => {
+            const isTurn = this.turnIndex === p.id;
+            const container = document.createElement('div');
+            container.className = `flex flex-col items-center transition-all duration-300 ${isTurn ? 'opacity-100 scale-110' : 'opacity-60'}`;
+            
+            let iconHtml = `<div class="w-12 h-12 rounded-full flex items-center justify-center mb-2 border-2 ${isTurn ? 'border-red-500 bg-slate-700' : 'border-slate-600 bg-slate-800'}">${ICONS.CPU}</div>`;
+            let nameHtml = `<div class="text-xs font-bold mb-1 flex items-center gap-1">${p.name} ${isTurn ? '<span class="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>' : ''}</div>`;
+            
+            let cardsHtml = `<div class="flex -space-x-8">`;
+            p.hand.forEach(() => {
+                cardsHtml += `<div class="w-12 h-16 bg-slate-800 border-2 border-slate-600 rounded-lg shadow-lg flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-700 to-slate-900"><div class="text-slate-600 text-xs font-serif">†</div></div>`;
+            });
+            cardsHtml += `</div>`;
+
+            container.innerHTML = iconHtml + nameHtml + cardsHtml;
+            aiArea.appendChild(container);
+        });
+    }
+
+    renderDiscard() {
+        const container = document.getElementById('discard-pile');
+        container.innerHTML = '';
+        
+        if (this.discardPile.length === 0) {
+            container.innerHTML = `<div class="w-24 h-36 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center text-slate-600 text-xs">Start Game</div>`;
+            return;
+        }
+
+        const showCards = this.discardPile.slice(0, 3).reverse();
+        
+        showCards.forEach((card, i) => {
+            const div = document.createElement('div');
+            div.className = "absolute inset-0 transition-transform bg-slate-900 rounded-lg shadow-md";
+            div.style.zIndex = i;
+            const rot = (i - 1) * 3; 
+            const trans = (i - 1) * 2;
+            div.style.transform = `rotate(${rot}deg) translate(${trans}px, ${trans}px)`;
+            div.innerHTML = this.getCardHtml(card, false, false);
+            container.appendChild(div);
+        });
+    }
+
+    renderHand() {
+        const container = document.getElementById('hand-container');
+        container.innerHTML = '';
+        
+        const player = this.players[0];
+        player.hand.forEach((card, i) => {
+            const isSelected = this.selectedCardIdx === i;
+            const isDisabled = this.phase === GAME_PHASES.CARD_SELECTION && isSelected;
+            
+            const div = document.createElement('div');
+            let zClass = isSelected ? "z-30" : "hover:z-20";
+            div.className = `relative group cursor-pointer transition-transform duration-200 ${zClass}`;
+            if (isSelected) div.classList.add("-translate-y-4");
+            if (!isDisabled) div.classList.add("hover:-translate-y-2");
+            div.innerHTML = this.getCardHtml(card, isSelected, isDisabled);
+            if (!isDisabled) {
+                div.onclick = () => this.handleCardClick(i);
+            }
+            container.appendChild(div);
+        });
+    }
+
+    renderTargetOverlay() {
+        const overlay = document.getElementById('target-overlay');
+        const container = document.getElementById('target-buttons');
+        
+        if (this.phase === GAME_PHASES.TARGET_SELECTION) {
+            overlay.classList.remove('hidden');
+            container.innerHTML = '';
+            
+            this.players.slice(1).forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = "w-32 h-32 bg-slate-800 hover:bg-slate-700 border-2 border-blue-500 rounded-full flex flex-col items-center justify-center gap-2 shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-transform hover:scale-110";
+                btn.innerHTML = `
+                    ${ICONS.CPU}
+                    <span class="font-bold text-white">${p.name}</span>
+                    <span class="text-xs text-slate-400">手札: ${p.hand.length}</span>
+                `;
+                btn.onclick = () => this.handleTargetClick(p.id);
+                container.appendChild(btn);
+            });
+        } else {
+            overlay.classList.add('hidden');
+        }
+    }
+
+    // --- Helpers ---
+    getCardHtml(card, isSelected, isDisabled) {
+        let classes = `relative w-24 h-36 p-3 rounded-lg border-2 shadow-xl flex flex-col items-center text-center justify-between ${card.color} `;
+        if (isSelected) classes += "ring-4 ring-yellow-400 scale-105 ";
+        if (isDisabled) classes += "opacity-50 grayscale cursor-not-allowed ";
+        
+        let html = `
+            <div class="${classes}">
+                <div class="bg-black/30 rounded-full p-1.5">${card.icon}</div>
+                <div class="font-bold leading-tight text-sm">${card.name}</div>
+                <div class="text-[10px] opacity-80 leading-tight">${card.description}</div>
+        `;
+        
+        if (card.typeKey === 'UMEKI') {
+            html += `<div class="absolute top-1 right-1 text-[10px] bg-black px-1 rounded text-red-500 font-bold">犯人</div>`;
+        }
+        
+        html += `</div>`;
+        return html;
+    }
+
+    updateLog(text) {
+        const logArea = document.getElementById('log-area');
+        const div = document.createElement('div');
+        div.className = "border-l-2 border-slate-700 pl-2 mb-1 animate-[fadeIn_0.5s]";
+        div.textContent = text;
+        logArea.appendChild(div);
+        logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    // New: dialog is user-closed by default.
+    // options:
+    //   blockTurn: true => blocks UI and (optionally) advances only on close.
+    //   next: function => called when closed.
+    showTempMessage(title, text, options = {}) {
+        const overlay = document.getElementById('message-overlay');
+        document.getElementById('msg-title').textContent = title;
+        document.getElementById('msg-text').textContent = text;
+
+        this._messageOpen = true;
+        overlay.classList.remove('hidden');
+
+        this._onMessageClose = typeof options.next === 'function' ? options.next : null;
+
+        // In case _wireMessageUI ran before DOM existed (rare), wire again.
+        if (!document.getElementById('msg-close').onclick) {
+            this._wireMessageUI();
+        }
+    }
+
+    showScanResult(target) {
+        const overlay = document.getElementById('scan-overlay');
+        const content = document.getElementById('scan-content');
+        document.getElementById('scan-title').textContent = `${target.name}の手札`;
+        content.innerHTML = '';
+        
+        target.hand.forEach(card => {
+            const div = document.createElement('div');
+            div.innerHTML = this.getCardHtml(card, false, false);
+            content.appendChild(div);
+        });
+
+        overlay.classList.remove('hidden');
+        overlay.onclick = () => overlay.classList.add('hidden');
+    }
+
+    triggerGlitch() {
+        const el = document.getElementById('glitch-overlay');
+        el.classList.remove('hidden');
+        setTimeout(() => el.classList.add('hidden'), 200);
+    }
+}
+
+// Start Game Instance
+const game = new Game();
+
+</script>
+</body>
+</html>
