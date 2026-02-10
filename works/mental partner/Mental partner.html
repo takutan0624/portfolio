@@ -575,11 +575,7 @@
             try {
                 let resultText = await callGroq(
                     [{ role: "user", content: prompt }],
-                    {
-                        temperature: 0.2,
-                        max_tokens: 400,
-                        response_format: { type: "json_object" }
-                    }
+                    { temperature: 0.2, max_tokens: 400 }
                 );
                 const safeJsonParse = (raw) => {
                     try { return JSON.parse(raw); } catch {}
@@ -593,7 +589,7 @@
                 let result = safeJsonParse(resultText);
                 if (!result || !result.patterns || !result.comment) {
                     resultText = await callGroq(
-                        [{ role: "user", content: prompt }],
+                        [{ role: "user", content: prompt + "\n出力はJSONのみ。説明や装飾は禁止。" }],
                         { temperature: 0.2, max_tokens: 400 }
                     );
                     result = safeJsonParse(resultText);
