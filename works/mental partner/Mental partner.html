@@ -272,7 +272,7 @@
             patterns: { "全か無か思考": 0, "過度の一般化": 0, "心のフィルター": 0, "マイナス化思考": 0, "結論の飛躍": 0, "拡大解釈・過小評価": 0, "感情的決めつけ": 0, "べき思考": 0, "レッテル貼り": 0, "個人化": 0 }
         };
         const EMOTION_COLORS = ['#818cf8', '#60a5fa', '#9ca3af', '#2dd4bf', '#fbbf24'];
-        const CHAT_SYSTEM_PROMPT = "あなたは優秀な精神保健福祉士で認知行動療法（CBT）のカウンセラーです。日本語で、思いやりのある口調で、要点を整理しつつ1000字以内でアドバイスを返してください。過度に断定せず、具体的な一歩を提案してください。";
+        const CHAT_SYSTEM_PROMPT = "あなたは優秀な精神保健福祉士で認知行動療法（CBT）のカウンセラーです。日本語で、思いやりのある口調で、要点を整理しつつ簡潔にまとめてください。1000字以内を厳守し、冗長な繰り返しは避けてください。過度に断定せず、具体的な一歩を提案してください。";
         const MAX_INPUT_TOKENS = 5200;
         const TOKEN_PER_CHAR = 1 / 3.5;
         const SUMMARY_MAX_INPUT_TOKENS = 3600;
@@ -581,7 +581,7 @@
 
             try {
                 const messages = buildChatMessages(state.chatHistory);
-                const reply = await callGroq(messages, { temperature: 0.7, max_tokens: 1200 });
+                const reply = await callGroq(messages, { temperature: 0.7, max_tokens: 1800 });
                 appendMsgToUI(reply, 'ai');
                 state.chatHistory.push({ role: "assistant", content: reply });
                 saveChatToFirestore(); // Cloud Save
