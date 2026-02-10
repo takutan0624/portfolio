@@ -84,16 +84,6 @@ export default async function handler(req, res) {
     recent.push(now);
     globalThis.__groqRateLimit.set(key, recent);
 
-    const sanitizeForJson = (raw) => {
-      if (typeof raw !== "string") return "";
-      const start = raw.indexOf("{");
-      const end = raw.lastIndexOf("}");
-      if (start !== -1 && end !== -1 && end > start) {
-        return raw.slice(start, end + 1);
-      }
-      return raw;
-    };
-
     const callGroq = async (body) => {
       const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -107,13 +97,60 @@ export default async function handler(req, res) {
       return { resp, text: t };
     };
 
-    const upstream = await callGroq(req.body ?? {});
+    const isAnalysis = req.body?.analysis === true;
+    const groqBody = { ...(req.body ?? {}) };
+    delete groqBody.analysis;
+
+    const defaultAnalysis = {
+      patterns: {
+        "全か無か思考": 0,
+        "過度の一般化": 0,
+        "心のフィルター": 0,
+        "マイナス化思考": 0,
+        "結論の飛躍": 0,
+        "拡大解釈・過小評価": 0,
+        "感情的決めつけ": 0,
+        "べき思考": 0,
+        "レッテル貼り": 0,
+        "個人化": 0,
+      },
+      comment: "分析に失敗しました。もう一度お試しください。",
+    };
+
+    const extractJson = (raw) => {
+      if (typeof raw !== "string") return null;
+      const tagStart = raw.indexOf("<json>");
+      const tagEnd = raw.indexOf("</json>");
+      let candidate = raw;
+      if (tagStart !== -1 && tagEnd !== -1 && tagEnd > tagStart) {
+        candidate = raw.slice(tagStart + 6, tagEnd);
+      } else {
+        const start = raw.indexOf("{");
+        const end = raw.lastIndexOf("}");
+        if (start !== -1 && end !== -1 && end > start) {
+          candidate = raw.slice(start, end + 1);
+        }
+      }
+      try {
+        return JSON.parse(candidate);
+      } catch {
+        return null;
+      }
+    };
+
+    const finalizeAnalysis = (rawContent) => {
+      const parsed = extractJson(rawContent);
+      if (parsed && parsed.patterns && parsed.comment) return parsed;
+      return defaultAnalysis;
+    };
+
+    const upstream = await callGroq(groqBody);
     const text = upstream.text;
     if (!upstream.resp.ok) {
       try {
         const parsed = JSON.parse(text);
         if (parsed?.error?.code === "json_validate_failed") {
-          const body = { ...(req.body ?? {}) };
+          const body = { ...(groqBody ?? {}) };
           delete body.response_format;
           body.messages = (body.messages || []).map((m) => ({ ...m }));
           const last = body.messages[body.messages.length - 1];
@@ -122,26 +159,40 @@ export default async function handler(req, res) {
           }
           const retry = await callGroq(body);
           if (!retry.resp.ok) {
+            if (isAnalysis) {
+              res.status(200).json(defaultAnalysis);
+              return;
+            }
             res.status(retry.resp.status).send(retry.text.slice(0, 2000));
             return;
           }
           try {
             const retryData = JSON.parse(retry.text);
             const retryContent = retryData?.choices?.[0]?.message?.content ?? "";
-            const cleaned = sanitizeForJson(retryContent);
-            res.status(200).json({ content: cleaned });
+            if (isAnalysis) {
+              res.status(200).json(finalizeAnalysis(retryContent));
+              return;
+            }
+            res.status(200).json({ content: retryContent });
             return;
           } catch {}
         }
       } catch {}
+      if (isAnalysis) {
+        res.status(200).json(defaultAnalysis);
+        return;
+      }
       res.status(upstream.resp.status).send(text.slice(0, 2000));
       return;
     }
 
     const data = JSON.parse(text);
     const content = data?.choices?.[0]?.message?.content ?? "";
-    const cleaned = sanitizeForJson(content);
-    res.status(200).json({ content: cleaned });
+    if (isAnalysis) {
+      res.status(200).json(finalizeAnalysis(content));
+      return;
+    }
+    res.status(200).json({ content });
   } catch (error) {
     res.status(500).json({ error: error?.message || "Unknown error" });
   }
