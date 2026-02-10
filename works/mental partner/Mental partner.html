@@ -110,30 +110,30 @@
                         <span class="text-xs text-gray-400" id="current-date"></span>
                     </div>
 
-                    <!-- ココロ -->
-                    <div class="mb-8 text-center">
-                        <label class="block text-sm font-bold text-teal-700 mb-4">ココロ</label>
-                        <div class="flex justify-between px-2">
-                            <button class="icon-btn text-3xl text-gray-300 hover:text-indigo-400" onclick="setMental(1, this)"><i class="fa-solid fa-face-sad-tear"></i></button>
-                            <button class="icon-btn text-3xl text-gray-300 hover:text-blue-400" onclick="setMental(2, this)"><i class="fa-solid fa-face-frown"></i></button>
-                            <button class="icon-btn text-3xl text-gray-300 hover:text-gray-400" onclick="setMental(3, this)"><i class="fa-solid fa-face-meh"></i></button>
-                            <button class="icon-btn text-3xl text-gray-300 hover:text-teal-400" onclick="setMental(4, this)"><i class="fa-solid fa-face-smile"></i></button>
-                            <button class="icon-btn text-3xl text-gray-300 hover:text-yellow-400" onclick="setMental(5, this)"><i class="fa-solid fa-face-laugh-beam"></i></button>
+                    <!-- スコア (強度) -->
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="text-center">
+                            <label class="block text-xs font-bold text-teal-600 mb-2">ココロの元気</label>
+                            <div class="flex justify-between px-1">
+                                <button class="icon-btn text-2xl text-gray-300 hover:text-indigo-400" onclick="setMental(1, this)"><i class="fa-solid fa-face-sad-tear"></i></button>
+                                <button class="icon-btn text-2xl text-gray-300 hover:text-blue-400" onclick="setMental(2, this)"><i class="fa-solid fa-face-frown"></i></button>
+                                <button class="icon-btn text-2xl text-gray-300 hover:text-gray-400" onclick="setMental(3, this)"><i class="fa-solid fa-face-meh"></i></button>
+                                <button class="icon-btn text-2xl text-gray-300 hover:text-teal-400" onclick="setMental(4, this)"><i class="fa-solid fa-face-smile"></i></button>
+                                <button class="icon-btn text-2xl text-gray-300 hover:text-yellow-400" onclick="setMental(5, this)"><i class="fa-solid fa-face-laugh-beam"></i></button>
+                            </div>
+                            <input type="hidden" id="mental-val" value="3">
                         </div>
-                        <input type="hidden" id="mental-val" value="3">
-                    </div>
-
-                    <!-- カラダ -->
-                    <div class="mb-8 text-center">
-                        <label class="block text-sm font-bold text-teal-700 mb-4">カラダ</label>
-                        <div class="flex justify-center gap-4">
-                            <button class="icon-btn text-3xl text-gray-200 hover:text-pink-400" onclick="setPhysical(1)"><i class="fa-solid fa-heart"></i></button>
-                            <button class="icon-btn text-3xl text-gray-200 hover:text-pink-400" onclick="setPhysical(2)"><i class="fa-solid fa-heart"></i></button>
-                            <button class="icon-btn text-3xl text-gray-200 hover:text-pink-400" onclick="setPhysical(3)"><i class="fa-solid fa-heart"></i></button>
-                            <button class="icon-btn text-3xl text-gray-200 hover:text-pink-400" onclick="setPhysical(4)"><i class="fa-solid fa-heart"></i></button>
-                            <button class="icon-btn text-3xl text-gray-200 hover:text-pink-400" onclick="setPhysical(5)"><i class="fa-solid fa-heart"></i></button>
+                        <div class="text-center">
+                            <label class="block text-xs font-bold text-teal-600 mb-2">カラダの元気</label>
+                            <div class="flex justify-center gap-2">
+                                <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(1)"><i class="fa-solid fa-heart"></i></button>
+                                <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(2)"><i class="fa-solid fa-heart"></i></button>
+                                <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(3)"><i class="fa-solid fa-heart"></i></button>
+                                <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(4)"><i class="fa-solid fa-heart"></i></button>
+                                <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(5)"><i class="fa-solid fa-heart"></i></button>
+                            </div>
+                            <input type="hidden" id="physical-val" value="3">
                         </div>
-                        <input type="hidden" id="physical-val" value="3">
                     </div>
 
                     <!-- CBT 4項目入力 -->
