@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Elemental Solitaire - Casino Edition</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:wght@600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -155,8 +156,30 @@
       place-items: center;
       color: #f7dc6f;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      z-index: 10;
     }
     .modal-close:hover { background: rgba(0,0,0,0.55); }
+
+    /* Confetti canvas */
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 99;
+    }
+
+    /* Victory modal - initial state for anime.js */
+    .victory-modal {
+      opacity: 0;
+      transform: scale(0.5) translateY(50px);
+    }
+
+    .victory-title {
+      color: var(--gold-accent);
+    }
   </style>
 </head>
 <body>
@@ -216,10 +239,11 @@
   </div>
 
   <div id="message-overlay">
-    <div class="bg-gray-900 border-2 border-[#d4af37] p-10 rounded-xl text-center shadow-2xl max-w-sm mx-4 relative overflow-hidden">
+    <canvas id="confetti-canvas"></canvas>
+    <div class="victory-modal bg-gray-900 border-2 border-[#d4af37] p-10 rounded-xl text-center shadow-2xl max-w-sm mx-4 relative overflow-hidden">
       <button id="closeOverlay" class="modal-close" aria-label="Close">✕</button>
       <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent"></div>
-      <h2 class="text-4xl font-bold mb-2 gold-text">JACKPOT!</h2>
+      <h2 class="victory-title text-4xl font-bold mb-2 gold-text">JACKPOT!</h2>
       <p class="text-gray-400 mb-8 font-sans text-sm tracking-widest">ALL ELEMENTS CLEARED</p>
       <div class="bg-black/30 rounded p-4 mb-8 border border-white/5">
         <p id="final-score" class="text-xl font-mono text-white"></p>
@@ -251,7 +275,8 @@
       waste: [],
       foundations: { fire: [], water: [], wind: [], earth: [] },
       tableau: [[],[],[],[],[],[],[]],
-      moves: 0
+      moves: 0,
+      score: 0
     };
 
     let draggedCards = null; // array of cards being dragged
@@ -262,28 +287,39 @@
     const SCORE_EL = document.getElementById('score');
     const OVERLAY_EL = document.getElementById('message-overlay');
 
-    document.getElementById('resetBtn').addEventListener('click', initGame);
-    document.getElementById('playAgain').addEventListener('click', initGame);
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      stopConfetti();
+      initGame();
+    });
+    document.getElementById('playAgain').addEventListener('click', () => {
+      stopConfetti();
+      initGame();
+    });
     document.getElementById('closeOverlay').addEventListener('click', () => {
       OVERLAY_EL.style.display = 'none';
+      stopConfetti();
     });
     OVERLAY_EL.addEventListener('click', (e) => {
-      if (e.target === OVERLAY_EL) OVERLAY_EL.style.display = 'none';
+      if (e.target === OVERLAY_EL) {
+        OVERLAY_EL.style.display = 'none';
+        stopConfetti();
+      }
     });
 
     function initGame() {
       state.moves = 0;
+      state.score = 0;
       state.stock = createDeck();
       state.waste = [];
       state.foundations = { fire: [], water: [], wind: [], earth: [] };
       state.tableau = [[],[],[],[],[],[],[]];
       OVERLAY_EL.style.display = 'none';
 
-      // deal: standard Klondike pattern
-      for (let i = 0; i < 7; i++) {
-        for (let j = i; j < 7; j++) {
+      // deal: modified pattern - leave first 2 columns empty
+      for (let i = 0; i < 5; i++) {
+        for (let j = i + 2; j < 7; j++) {
           const card = state.stock.pop();
-          card.isFaceUp = (i === j);
+          card.isFaceUp = (i === j - 2);
           state.tableau[j].push(card);
         }
       }
@@ -305,7 +341,22 @@
     }
 
     function render() {
-      SCORE_EL.innerText = `MOVES: ${state.moves.toString().padStart(3,'0')}`;
+      const prevScore = parseInt(SCORE_EL.dataset.prevScore || '0');
+      const newScore = state.score;
+
+      SCORE_EL.innerHTML = `Score: ${newScore.toString().padStart(4,'0')} | Moves: ${state.moves.toString().padStart(3,'0')}`;
+      SCORE_EL.dataset.prevScore = newScore;
+
+      // Animate score change
+      if (newScore > prevScore) {
+        anime({
+          targets: SCORE_EL,
+          scale: [1, 1.15, 1],
+          color: ['#e0e0e0', '#d4af37', '#e0e0e0'],
+          duration: 400,
+          easing: 'easeOutQuad'
+        });
+      }
 
       // Stock
       STOCK_EL.innerHTML = state.stock.length > 0 ? '<div class="card-face card-back rounded w-full h-full"></div>' : '';
@@ -511,6 +562,8 @@
         if (canMove) {
           removeFromSource();
           state.tableau[target.index].push(...draggedCards);
+          // Score: +5 for moving to tableau
+          if (dragSource.type === 'waste') state.score += 5;
         }
       }
 
@@ -530,13 +583,32 @@
           if (canMove) {
             removeFromSource();
             state.foundations[target.suit].push(topCard);
+            // Score: +10 for moving to foundation, -15 if moving back from foundation
+            if (dragSource.type === 'foundation') {
+              state.score -= 15;
+            } else {
+              state.score += 10;
+            }
           }
         }
       }
 
       if (canMove) {
         state.moves++;
-        revealTopCards();
+        const revealedCount = revealTopCards();
+        state.score += revealedCount * 5; // +5 for each card revealed
+
+        // Add success animation for foundation moves
+        if (target.type === 'foundation') {
+          const foundationEl = document.querySelector(`.foundation[data-suit="${target.suit}"]`);
+          anime({
+            targets: foundationEl,
+            scale: [1, 1.15, 1],
+            duration: 400,
+            easing: 'easeOutElastic(1, .6)'
+          });
+        }
+
         render();
       }
 
@@ -554,9 +626,14 @@
     }
 
     function revealTopCards() {
+      let revealedCount = 0;
       state.tableau.forEach(col => {
-        if (col.length > 0) col[col.length - 1].isFaceUp = true;
+        if (col.length > 0 && !col[col.length - 1].isFaceUp) {
+          col[col.length - 1].isFaceUp = true;
+          revealedCount++;
+        }
       });
+      return revealedCount;
     }
 
     function autoMove(card) {
@@ -593,20 +670,206 @@
       removeFromSource();
       state.foundations[suitId].push(card);
       state.moves++;
-      revealTopCards();
+      state.score += 10; // +10 for auto-moving to foundation
+      const revealedCount = revealTopCards();
+      state.score += revealedCount * 5; // +5 for each card revealed
       render();
       clearDropHints();
+    }
+
+    // Confetti animation
+    let confettiParticles = [];
+    let confettiAnimationId = null;
+
+    function createConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const colors = ['#d4af37', '#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#f7dc6f', '#e74c3c', '#3498db'];
+      const particleCount = 150;
+
+      confettiParticles = [];
+      for (let i = 0; i < particleCount; i++) {
+        confettiParticles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          r: Math.random() * 6 + 2,
+          d: Math.random() * particleCount,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          tilt: Math.floor(Math.random() * 10) - 10,
+          tiltAngleIncremental: Math.random() * 0.07 + 0.05,
+          tiltAngle: 0
+        });
+      }
+
+      function drawConfetti() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        confettiParticles.forEach((p, i) => {
+          ctx.beginPath();
+          ctx.lineWidth = p.r / 2;
+          ctx.strokeStyle = p.color;
+          ctx.moveTo(p.x + p.tilt + p.r, p.y);
+          ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r);
+          ctx.stroke();
+
+          p.tiltAngle += p.tiltAngleIncremental;
+          p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+          p.tilt = Math.sin(p.tiltAngle - i / 3) * 15;
+
+          if (p.y > canvas.height) {
+            confettiParticles[i] = {
+              x: Math.random() * canvas.width,
+              y: -10,
+              r: p.r,
+              d: p.d,
+              color: p.color,
+              tilt: p.tilt,
+              tiltAngleIncremental: p.tiltAngleIncremental,
+              tiltAngle: p.tiltAngle
+            };
+          }
+        });
+
+        confettiAnimationId = requestAnimationFrame(drawConfetti);
+      }
+
+      drawConfetti();
+    }
+
+    function stopConfetti() {
+      if (confettiAnimationId) {
+        cancelAnimationFrame(confettiAnimationId);
+        confettiAnimationId = null;
+      }
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     function checkWin() {
       const allFull = Object.values(state.foundations).every(p => p.length === 13);
       if (allFull) {
-        document.getElementById('final-score').innerText = `TOTAL MOVES: ${state.moves}`;
+        document.getElementById('final-score').innerHTML = `FINAL SCORE: ${state.score}<br>TOTAL MOVES: ${state.moves}`;
         OVERLAY_EL.style.display = 'grid';
+        createConfetti();
+        playVictoryAnimation();
       }
     }
 
-    window.addEventListener('load', initGame);
+    function playVictoryAnimation() {
+      const modal = document.querySelector('.victory-modal');
+      const title = document.querySelector('.victory-title');
+      const subtitle = modal.querySelector('.text-gray-400');
+      const scoreBox = modal.querySelector('.bg-black\\/30');
+      const button = document.getElementById('playAgain');
+
+      // Reset initial state
+      modal.style.opacity = '0';
+      modal.style.transform = 'scale(0.5) translateY(50px)';
+      title.style.opacity = '0';
+      subtitle.style.opacity = '0';
+      scoreBox.style.opacity = '0';
+      button.style.opacity = '0';
+
+      // Timeline animation
+      const timeline = anime.timeline({
+        easing: 'easeOutExpo'
+      });
+
+      // Modal entrance
+      timeline.add({
+        targets: modal,
+        opacity: [0, 1],
+        scale: [0.5, 1],
+        translateY: [50, 0],
+        duration: 800,
+        easing: 'easeOutElastic(1, .8)'
+      })
+      // Title bounce in
+      .add({
+        targets: title,
+        opacity: [0, 1],
+        scale: [0.5, 1.2, 1],
+        duration: 600,
+        easing: 'easeOutElastic(1, .6)'
+      }, '-=400')
+      // Subtitle fade in
+      .add({
+        targets: subtitle,
+        opacity: [0, 1],
+        translateY: [20, 0],
+        duration: 400
+      }, '-=200')
+      // Score box slide in
+      .add({
+        targets: scoreBox,
+        opacity: [0, 1],
+        translateY: [30, 0],
+        duration: 500,
+        easing: 'easeOutQuad'
+      }, '-=200')
+      // Button pop in
+      .add({
+        targets: button,
+        opacity: [0, 1],
+        scale: [0.8, 1.1, 1],
+        duration: 500,
+        easing: 'easeOutElastic(1, .8)'
+      }, '-=300');
+
+      // Continuous title glow animation
+      anime({
+        targets: title,
+        textShadow: [
+          '0 0 10px #d4af37, 0 0 20px #d4af37, 0 0 30px #d4af37',
+          '0 0 20px #d4af37, 0 0 40px #d4af37, 0 0 60px #ffd700, 0 0 80px #ffd700',
+          '0 0 10px #d4af37, 0 0 20px #d4af37, 0 0 30px #d4af37'
+        ],
+        duration: 2000,
+        loop: true,
+        easing: 'easeInOutQuad'
+      });
+
+      // Floating animation for modal
+      anime({
+        targets: modal,
+        translateY: [0, -10, 0],
+        duration: 3000,
+        loop: true,
+        easing: 'easeInOutSine'
+      });
+    }
+
+    // Add button hover effects
+    function addButtonEffects() {
+      const buttons = document.querySelectorAll('.btn-gold');
+      buttons.forEach(btn => {
+        btn.addEventListener('mouseenter', () => {
+          anime({
+            targets: btn,
+            scale: 1.05,
+            duration: 300,
+            easing: 'easeOutQuad'
+          });
+        });
+        btn.addEventListener('mouseleave', () => {
+          anime({
+            targets: btn,
+            scale: 1,
+            duration: 300,
+            easing: 'easeOutQuad'
+          });
+        });
+      });
+    }
+
+    window.addEventListener('load', () => {
+      initGame();
+      addButtonEffects();
+    });
   </script>
 </body>
 </html>
