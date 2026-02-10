@@ -38,13 +38,9 @@
                 <span>Googleでログイン</span>
             </button>
             
-            <button id="guest-login-btn" class="bg-gray-100 border border-transparent text-gray-600 font-bold py-3 px-6 rounded-xl shadow-sm hover:bg-gray-200 transition flex items-center justify-center gap-3 w-full">
-                <i class="fa-solid fa-user-secret"></i>
-                <span>ゲストで試す</span>
-            </button>
         </div>
         <p id="google-login-disabled" class="hidden mt-3 text-xs text-gray-500 text-center">
-            このドメインではGoogleログインが無効です。<br>ゲストでご利用ください。
+            このドメインではGoogleログインが無効です。
         </p>
         <p class="mt-4 text-[11px] text-gray-400 text-center">
             AI機能はログイン後に利用できます。
@@ -203,7 +199,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithPopup, signInAnonymously, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ▼▼▼ Firebase Config ▼▼▼
@@ -240,7 +236,6 @@
         const loginScreen = document.getElementById('login-screen');
         const appContainer = document.getElementById('app-container');
         const googleLoginBtn = document.getElementById('google-login-btn');
-        const guestLoginBtn = document.getElementById('guest-login-btn');
         const logoutBtn = document.getElementById('logout-btn');
         const userNameEl = document.getElementById('user-name');
         const loginErrorContainer = document.getElementById('login-error-container');
@@ -316,18 +311,6 @@
         });
 
         // ゲストログイン（匿名認証）
-        guestLoginBtn.addEventListener('click', async () => {
-            try {
-                loginErrorContainer.classList.add('hidden');
-                await signInAnonymously(auth);
-            } catch (error) {
-                console.error(error);
-                loginErrorMsg.textContent = "ゲストログインに失敗しました: " + error.message;
-                domainInstruction.classList.add('hidden');
-                loginErrorContainer.classList.remove('hidden');
-            }
-        });
-
         logoutBtn.addEventListener('click', () => signOut(auth));
 
         onAuthStateChanged(auth, async (user) => {

@@ -15,11 +15,24 @@ function getAdminApp() {
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const allowedOrigins = new Set([
+    "https://portfolio-flame-iota-d7n8dbh5mp.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ]);
+  const origin = req.headers.origin || "";
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") {
+    if (!origin || !allowedOrigins.has(origin)) {
+      res.status(403).end();
+      return;
+    }
     res.status(204).end();
     return;
   }
@@ -44,7 +57,32 @@ export default async function handler(req, res) {
 
   try {
     getAdminApp();
-    await admin.auth().verifyIdToken(match[1]);
+    const decoded = await admin.auth().verifyIdToken(match[1]);
+    if (decoded?.firebase?.sign_in_provider === "anonymous") {
+      res.status(403).json({ error: "Anonymous users are not allowed" });
+      return;
+    }
+    if (!origin || !allowedOrigins.has(origin)) {
+      res.status(403).json({ error: "Origin not allowed" });
+      return;
+    }
+
+    const now = Date.now();
+    const windowMs = 60 * 1000;
+    const maxRequests = 20;
+    const ip = (req.headers["x-forwarded-for"] || "").toString().split(",")[0].trim();
+    const key = decoded.uid || ip || "unknown";
+    if (!globalThis.__groqRateLimit) {
+      globalThis.__groqRateLimit = new Map();
+    }
+    const bucket = globalThis.__groqRateLimit.get(key) || [];
+    const recent = bucket.filter((t) => now - t < windowMs);
+    if (recent.length >= maxRequests) {
+      res.status(429).json({ error: "Rate limit exceeded" });
+      return;
+    }
+    recent.push(now);
+    globalThis.__groqRateLimit.set(key, recent);
 
     const upstream = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
