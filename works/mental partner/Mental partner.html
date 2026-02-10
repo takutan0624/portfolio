@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.5/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f9ff; }
@@ -466,7 +467,8 @@
             let html = '';
             if(!isUser) html += `<div class="w-8 h-8 rounded-full bg-teal-100 flex-shrink-0 flex items-center justify-center text-teal-600 text-xs"><i class="fa-solid fa-robot"></i></div>`;
             const bubbleClass = isUser ? 'bg-teal-600 text-white rounded-2xl rounded-br-none' : 'bg-white text-gray-800 rounded-2xl rounded-bl-none shadow-sm';
-            html += `<div class="${bubbleClass} p-4 chat-bubble text-sm">${marked.parse(text)}</div>`;
+            const safeHtml = DOMPurify.sanitize(marked.parse(text));
+            html += `<div class="${bubbleClass} p-4 chat-bubble text-sm">${safeHtml}</div>`;
             div.innerHTML = html;
             chatContainer.appendChild(div);
             chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
@@ -551,7 +553,7 @@
                         </div>
                         <div class="flex text-pink-400 text-xs gap-0.5">${Array(Math.floor(entry.physical/20)).fill('<i class="fa-solid fa-heart"></i>').join('')}</div>
                     </div>
-                    ${entry.thought ? `<div class="text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">"${entry.thought}"</div>` : ''}
+                    ${entry.thought ? `<div class="text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">"${DOMPurify.sanitize(entry.thought)}"</div>` : ''}
                 `;
                 list.appendChild(el);
             });
