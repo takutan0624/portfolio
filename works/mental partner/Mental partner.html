@@ -594,7 +594,10 @@
             analyzeBtn.disabled = true;
             analyzeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 分析中...';
 
-            const thoughts = state.cbtEntries.map(e => e.thought).filter(t => t).join("\n");
+            const thoughts = state.cbtEntries
+                .map(e => [e.situation, e.emotion, e.thought, e.behavior].filter(Boolean).join(" / "))
+                .filter(t => t)
+                .join("\n");
             const scores = state.cbtEntries.slice(0,7).map(e => `[${new Date(e.date).toLocaleDateString()}] 心:${e.mental} 体:${e.physical}`).join(", ");
             const prompt = `ユーザーの記録を分析し、<json>...</json> でJSONのみを返してください。1. patterns:「10の認知の歪み」カウント。2. comment: 今週の傾向コメント(100字)。データ: テキスト:${thoughts} スコア:${scores} 出力形式: <json>{"patterns":{"全か無か思考":0,"過度の一般化":0,"心のフィルター":0,"マイナス化思考":0,"結論の飛躍":0,"拡大解釈・過小評価":0,"感情的決めつけ":0,"べき思考":0,"レッテル貼り":0,"個人化":0},"comment":"..."}</json>`;
 
