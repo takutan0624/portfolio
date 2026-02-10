@@ -225,6 +225,28 @@
                     <div class="grid grid-cols-3 gap-2 mb-6" id="top-patterns-container"></div>
                 </div>
             </div>
+
+            <!-- 4. メモリ -->
+            <div id="view-memory" class="view-section w-full h-full flex flex-col absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pt-16 pb-24 bg-white">
+                <div class="px-6 py-6 border-b border-gray-100">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">AIメモリ</h2>
+                        <button id="memory-refresh-btn" class="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-3 py-1 rounded-full hover:bg-teal-100 transition">
+                            要約を更新
+                        </button>
+                    </div>
+                    <div class="bg-teal-50 border border-teal-100 rounded-2xl p-4 text-sm text-gray-700">
+                        <p id="memory-empty" class="text-xs text-gray-500">まだ要約がありません。チャットを続けるか、要約を実行してください。</p>
+                        <div id="memory-summary-text" class="hidden whitespace-pre-wrap"></div>
+                    </div>
+                </div>
+                <div class="px-6 py-6">
+                    <h3 class="text-sm font-bold text-teal-700 mb-2">使い方</h3>
+                    <p class="text-xs text-gray-500 leading-relaxed">
+                        要約は「これまでの相談の要点」を短く保存します。次回の相談で同じ話題が続く場合でも、重複を避けて新しい一歩を提案しやすくなります。
+                    </p>
+                </div>
+            </div>
         </main>
 
         <!-- ナビゲーション -->
@@ -232,6 +254,7 @@
             <button class="nav-btn tab-active flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-chat"><i class="fa-solid fa-comments text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">チャット</span></button>
             <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-work"><i class="fa-solid fa-pen-to-square text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">チェックイン</span></button>
             <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-analysis"><i class="fa-solid fa-chart-pie text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">分析</span></button>
+            <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-memory"><i class="fa-solid fa-brain text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">メモリ</span></button>
         </nav>
     </div>
 
@@ -549,14 +572,27 @@
         const summarizeBtn = document.getElementById('summarize-btn');
         const chatSummaryWrap = document.getElementById('chat-summary-wrap');
         const chatSummaryText = document.getElementById('chat-summary-text');
+        const memorySummaryText = document.getElementById('memory-summary-text');
+        const memoryEmpty = document.getElementById('memory-empty');
+        const memoryRefreshBtn = document.getElementById('memory-refresh-btn');
 
         function updateSummaryUI() {
             if (state.chatSummary) {
                 chatSummaryText.textContent = state.chatSummary;
                 chatSummaryWrap.classList.remove('hidden');
+                if (memorySummaryText) {
+                    memorySummaryText.textContent = state.chatSummary;
+                    memorySummaryText.classList.remove('hidden');
+                }
+                if (memoryEmpty) memoryEmpty.classList.add('hidden');
             } else {
                 chatSummaryText.textContent = '';
                 chatSummaryWrap.classList.add('hidden');
+                if (memorySummaryText) {
+                    memorySummaryText.textContent = '';
+                    memorySummaryText.classList.add('hidden');
+                }
+                if (memoryEmpty) memoryEmpty.classList.remove('hidden');
             }
         }
 
@@ -640,6 +676,23 @@
                 summarizeBtn.disabled = false;
             }
         });
+
+        if (memoryRefreshBtn) {
+            memoryRefreshBtn.addEventListener('click', async () => {
+                if (state.chatHistory.length < 2) return alert("要約する内容がありません");
+                memoryRefreshBtn.disabled = true;
+                memoryRefreshBtn.textContent = "更新中...";
+                try {
+                    await runSummary({ silent: false });
+                } catch (e) {
+                    console.error(e);
+                    alert("要約に失敗しました。もう一度お試しください。");
+                } finally {
+                    memoryRefreshBtn.textContent = "要約を更新";
+                    memoryRefreshBtn.disabled = false;
+                }
+            });
+        }
 
         function appendMsgToUI(text, type) {
             const isUser = type === 'user';
@@ -816,7 +869,7 @@
         }
 
         // Navigation
-        const views = ['view-chat', 'view-work', 'view-analysis'];
+        const views = ['view-chat', 'view-work', 'view-analysis', 'view-memory'];
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const target = btn.dataset.target;
