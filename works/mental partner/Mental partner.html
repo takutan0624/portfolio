@@ -46,6 +46,9 @@
         <p id="google-login-disabled" class="hidden mt-3 text-xs text-gray-500 text-center">
             このドメインではGoogleログインが無効です。<br>ゲストでご利用ください。
         </p>
+        <p class="mt-4 text-[11px] text-gray-400 text-center">
+            AI機能はログイン後に利用できます。
+        </p>
 
         <!-- エラー表示エリア -->
         <div id="login-error-container" class="mt-6 w-full max-w-sm hidden">
@@ -222,7 +225,7 @@
         const provider = new GoogleAuthProvider();
 
         // Environment Variables
-        const apiKey = ""; // Gemini API
+        const GROQ_MODEL = "openai/gpt-oss-120b";
 
         // Global State
         let currentUser = null;
@@ -257,6 +260,33 @@
         if (!isGoogleAuthAllowed) {
             googleLoginBtn.classList.add('hidden');
             googleLoginDisabledMsg.classList.remove('hidden');
+        }
+
+        async function callGroq(messages, options = {}) {
+            if (!currentUser) throw new Error("Not authenticated");
+            if (window.location.protocol === "file:") {
+                throw new Error("ローカルファイルではAPIが使えません。デプロイ先URLで開いてください。");
+            }
+            const token = await currentUser.getIdToken(true);
+            const res = await fetch("/api/groq-mental", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    model: GROQ_MODEL,
+                    messages,
+                    temperature: options.temperature ?? 0.7,
+                    max_tokens: options.max_tokens ?? 300
+                })
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || "Groq API error");
+            }
+            const data = await res.json();
+            return data?.content || "...";
         }
 
         // Googleログイン
@@ -327,15 +357,26 @@
         });
 
         // Firestore Logic
+        function normalizeHistory(history) {
+            if (!Array.isArray(history)) return [];
+            return history.map((m) => {
+                if (m && typeof m.content === "string") return { role: m.role || "user", content: m.content };
+                if (m && Array.isArray(m.parts) && m.parts[0]?.text) {
+                    return { role: m.role === "model" ? "assistant" : (m.role || "user"), content: m.parts[0].text };
+                }
+                return null;
+            }).filter(Boolean);
+        }
+
         async function loadDataFromFirestore(uid) {
             // 1. Chat History (One doc for simplicity or Collection)
             // Using a single doc for chat history array to keep it simple and cheap
             const chatDocRef = doc(db, "users", uid, "data", "chatHistory");
             const chatSnap = await getDoc(chatDocRef);
             if (chatSnap.exists()) {
-                state.chatHistory = chatSnap.data().history || [];
+                state.chatHistory = normalizeHistory(chatSnap.data().history || []);
             } else {
-                state.chatHistory = [{ role: "model", parts: [{ text: "こんにちは。心の調子はいかがですか？" }] }];
+                state.chatHistory = [{ role: "assistant", content: "こんにちは。心の調子はいかがですか？" }];
                 await setDoc(chatDocRef, { history: state.chatHistory });
             }
             renderChatHistory();
@@ -386,7 +427,7 @@
             chatContainer.innerHTML = '';
             state.chatHistory.forEach(msg => {
                 const isUser = msg.role === 'user';
-                appendMsgToUI(msg.parts[0].text, isUser ? 'user' : 'ai');
+                appendMsgToUI(msg.content, isUser ? 'user' : 'ai');
             });
         }
 
@@ -397,19 +438,13 @@
             
             appendMsgToUI(text, 'user');
             userInput.value = '';
-            state.chatHistory.push({ role: "user", parts: [{ text }] });
+            state.chatHistory.push({ role: "user", content: text });
             saveChatToFirestore(); // Cloud Save
 
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: state.chatHistory, generationConfig: { temperature: 0.7, maxOutputTokens: 300 } })
-                });
-                const data = await res.json();
-                const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "...";
+                const reply = await callGroq(state.chatHistory, { temperature: 0.7, max_tokens: 300 });
                 appendMsgToUI(reply, 'ai');
-                state.chatHistory.push({ role: "model", parts: [{ text: reply }] });
+                state.chatHistory.push({ role: "assistant", content: reply });
                 saveChatToFirestore(); // Cloud Save
             } catch(e) { console.error(e); }
         });
@@ -472,13 +507,8 @@
             // Generate Feedback
             try {
                 const prompt = `ユーザーがメンタルケアアプリでチェックインしました。優しく労るフィードバック（100文字程度）を生成してください。冒頭は「おはようございます、${currentUser.displayName || "ゲスト"}さん」等。スコア(5段階): ココロ ${mentalValInput.value}, カラダ ${physicalValInput.value} ひとこと: ${entryData.thought}`;
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await res.json();
-                dailyMessageText.innerText = data.candidates?.[0]?.content?.parts?.[0]?.text || "保存しました。";
+                const reply = await callGroq([{ role: "user", content: prompt }], { temperature: 0.7, max_tokens: 200 });
+                dailyMessageText.innerText = reply || "保存しました。";
                 dailyMessageArea.classList.remove('hidden');
             } catch(e) { console.error(e); }
 
@@ -522,13 +552,8 @@
             const prompt = `ユーザーの記録を分析しJSON出力。1. patterns:「10の認知の歪み」カウント。2. comment: 今週の傾向コメント(100字)。データ: テキスト:${thoughts} スコア:${scores} 出力形式: { "patterns": {...}, "comment": "..." }`;
 
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
-                });
-                const data = await res.json();
-                const result = JSON.parse(data.candidates[0].content.parts[0].text);
+                const resultText = await callGroq([{ role: "user", content: prompt }], { temperature: 0.2, max_tokens: 400 });
+                const result = JSON.parse(resultText);
                 
                 state.patterns = result.patterns;
                 document.getElementById('wave-analysis-text').textContent = result.comment;
