@@ -302,23 +302,29 @@
             return [system, ...selected.reverse()];
         }
 
-        function buildSummaryInput(history) {
+        function buildSummaryInput(history, options = {}) {
             let total = 0;
             const blocks = [];
-            if (state.chatSummary) {
+            const maxTokens = options.maxTokens ?? SUMMARY_MAX_INPUT_TOKENS;
+            const maxMessages = options.maxMessages ?? history.length;
+            const includeSummary = options.includeSummary ?? true;
+            if (includeSummary && state.chatSummary) {
                 const header = `【既存の要約】\n${state.chatSummary}\n\n`;
                 blocks.push(header);
                 total += estimateTokens(header);
             }
             const lines = [];
+            let count = 0;
             for (let i = history.length - 1; i >= 0; i--) {
+                if (count >= maxMessages) break;
                 const msg = history[i];
                 const role = msg.role === "user" ? "User" : "Assistant";
                 const line = `${role}: ${msg.content}\n`;
                 const cost = estimateTokens(line);
-                if (total + cost > SUMMARY_MAX_INPUT_TOKENS) break;
+                if (total + cost > maxTokens) break;
                 lines.push(line);
                 total += cost;
+                count += 1;
             }
             lines.reverse();
             blocks.push(lines.join(""));
@@ -586,15 +592,32 @@
         });
 
         async function runSummary({ silent }) {
-            const input = buildSummaryInput(state.chatHistory);
-            const summaryPrompt = `以下の会話を、次回以降の相談に必要な情報だけに圧縮してください。日本語で300〜500字。箇条書きで「背景/状況」「感情/状態」「これまでの助言/対処」「未解決/次の一歩」を含めてください。\n\n${input}`;
-            const summary = await callGroq(
-                [
-                    { role: "system", content: "あなたは会話要約の専門家です。余計な前置きは不要で、指定形式の要約だけ返してください。" },
-                    { role: "user", content: summaryPrompt }
-                ],
-                { temperature: 0.3, max_tokens: 500 }
-            );
+            const attempts = [
+                { maxTokens: SUMMARY_MAX_INPUT_TOKENS, maxMessages: state.chatHistory.length, includeSummary: true },
+                { maxTokens: 2200, maxMessages: 12, includeSummary: true },
+                { maxTokens: 1600, maxMessages: 8, includeSummary: false }
+            ];
+            let summary = "";
+            let lastError;
+            for (const attempt of attempts) {
+                try {
+                    const input = buildSummaryInput(state.chatHistory, attempt);
+                    if (!input.trim()) throw new Error("empty summary input");
+                    const summaryPrompt = `以下の会話を、次回以降の相談に必要な情報だけに圧縮してください。日本語で300〜500字。箇条書きで「背景/状況」「感情/状態」「これまでの助言/対処」「未解決/次の一歩」を含めてください。\n\n${input}`;
+                    summary = await callGroq(
+                        [
+                            { role: "system", content: "あなたは会話要約の専門家です。余計な前置きは不要で、指定形式の要約だけ返してください。" },
+                            { role: "user", content: summaryPrompt }
+                        ],
+                        { temperature: 0.3, max_tokens: 500 }
+                    );
+                    if (summary) break;
+                } catch (e) {
+                    lastError = e;
+                }
+            }
+            if (!summary) throw lastError || new Error("summary failed");
+
             state.chatSummary = (summary || "").trim();
             state.chatSummaryUpdatedAt = Date.now();
             state.chatHistory = state.chatHistory.slice(-6);
