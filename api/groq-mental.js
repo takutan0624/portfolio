@@ -95,6 +95,35 @@ export default async function handler(req, res) {
 
     const text = await upstream.text();
     if (!upstream.ok) {
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed?.error?.code === "json_validate_failed") {
+          const body = { ...(req.body ?? {}) };
+          delete body.response_format;
+          body.messages = (body.messages || []).map((m) => ({ ...m }));
+          const last = body.messages[body.messages.length - 1];
+          if (last && typeof last.content === "string") {
+            last.content += "\nJSONのみで出力してください。説明や装飾は禁止。";
+          }
+          const retry = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(body),
+          });
+          const retryText = await retry.text();
+          if (!retry.ok) {
+            res.status(retry.status).send(retryText.slice(0, 2000));
+            return;
+          }
+          const retryData = JSON.parse(retryText);
+          const retryContent = retryData?.choices?.[0]?.message?.content ?? "";
+          res.status(200).json({ content: retryContent });
+          return;
+        }
+      } catch {}
       res.status(upstream.status).send(text.slice(0, 2000));
       return;
     }
