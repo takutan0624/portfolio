@@ -21,6 +21,11 @@
         .icon-btn { transition: all 0.2s; }
         .icon-btn:active { transform: scale(0.9); }
         .icon-selected { transform: scale(1.2); }
+        .emotion-tag { background: #f8fafc; border: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-weight: 700; padding: 8px 10px; border-radius: 9999px; transition: all 0.2s; }
+        .emotion-tag:hover { background: #e6fffb; border-color: #99f6e4; color: #0f766e; }
+        .emotion-tag.is-active { background: #14b8a6; border-color: #0f766e; color: #ffffff; }
+        .selfcare-card { display: flex; align-items: center; justify-content: space-between; width: 100%; background: #ffffff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); transition: all 0.2s; text-align: left; }
+        .selfcare-card:hover { border-color: #99f6e4; transform: translateY(-1px); }
     </style>
 </head>
 <body class="h-screen flex flex-col items-center justify-center text-gray-800">
@@ -116,7 +121,7 @@
                     <button onclick="document.getElementById('daily-message-area').classList.add('hidden')" class="absolute top-2 right-3 text-gray-300 hover:text-gray-500"><i class="fa-solid fa-times"></i></button>
                 </div>
 
-                <div class="bg-white p-6 rounded-3xl shadow-sm mb-6 border border-gray-100">
+                    <div class="bg-white p-6 rounded-3xl shadow-sm mb-6 border border-gray-100">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-lg font-bold text-gray-800">チェックイン</h2>
                         <span class="text-xs text-gray-400" id="current-date"></span>
@@ -146,6 +151,20 @@
                             </div>
                             <input type="hidden" id="physical-val" value="3">
                         </div>
+                    </div>
+
+                    <!-- 感情カテゴリ -->
+                    <div class="mb-6">
+                        <label class="block text-xs font-bold text-teal-600 mb-3">感情カテゴリ</label>
+                        <div id="emotion-tags" class="grid grid-cols-3 gap-2">
+                            <button type="button" class="emotion-tag" data-emotion="うれしい">うれしい</button>
+                            <button type="button" class="emotion-tag" data-emotion="かなしい">かなしい</button>
+                            <button type="button" class="emotion-tag" data-emotion="いらいら">いらいら</button>
+                            <button type="button" class="emotion-tag" data-emotion="不安">不安</button>
+                            <button type="button" class="emotion-tag" data-emotion="落ち込み">落ち込み</button>
+                            <button type="button" class="emotion-tag" data-emotion="疲れ">疲れ</button>
+                        </div>
+                        <input type="hidden" id="emotion-category" value="">
                     </div>
 
                     <!-- CBT 4項目入力 -->
@@ -245,6 +264,32 @@
                     <p class="text-xs text-gray-500 leading-relaxed">
                         要約は「これまでの相談の要点」を短く保存します。次回の相談で同じ話題が続く場合でも、重複を避けて新しい一歩を提案しやすくなります。
                     </p>
+                </div>
+                <div class="px-6 pb-10">
+                    <h3 class="text-sm font-bold text-teal-700 mb-3">セルフケア</h3>
+                    <div id="selfcare-list" class="grid grid-cols-1 gap-3">
+                        <button class="selfcare-card">
+                            <div>
+                                <div class="text-xs font-bold text-gray-800 mb-1">3分呼吸リセット</div>
+                                <div class="text-[11px] text-gray-500">4-7-8呼吸で落ち着きを取り戻す</div>
+                            </div>
+                            <span class="text-[10px] text-teal-600 font-bold">3分</span>
+                        </button>
+                        <button class="selfcare-card">
+                            <div>
+                                <div class="text-xs font-bold text-gray-800 mb-1">気分の書き出し</div>
+                                <div class="text-[11px] text-gray-500">頭の中のモヤモヤを外に出す</div>
+                            </div>
+                            <span class="text-[10px] text-teal-600 font-bold">2分</span>
+                        </button>
+                        <button class="selfcare-card">
+                            <div>
+                                <div class="text-xs font-bold text-gray-800 mb-1">軽いストレッチ</div>
+                                <div class="text-[11px] text-gray-500">首・肩をゆっくり回す</div>
+                            </div>
+                            <span class="text-[10px] text-teal-600 font-bold">5分</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -715,6 +760,8 @@
         const cbtEmotionText = document.getElementById('cbt-emotion-text');
         const cbtThought = document.getElementById('cbt-thought');
         const cbtBehavior = document.getElementById('cbt-behavior');
+        const emotionCategoryInput = document.getElementById('emotion-category');
+        const emotionTags = document.querySelectorAll('.emotion-tag');
         const saveCbtBtn = document.getElementById('save-cbt-btn');
         const dailyMessageArea = document.getElementById('daily-message-area');
         const dailyMessageText = document.getElementById('daily-message-text');
@@ -736,6 +783,19 @@
             });
         };
 
+        emotionTags.forEach(tag => {
+            tag.addEventListener('click', () => {
+                const selected = tag.dataset.emotion || '';
+                emotionTags.forEach(t => t.classList.remove('is-active'));
+                if (emotionCategoryInput.value === selected) {
+                    emotionCategoryInput.value = '';
+                } else {
+                    tag.classList.add('is-active');
+                    emotionCategoryInput.value = selected;
+                }
+            });
+        });
+
         saveCbtBtn.addEventListener('click', async () => {
             if (!currentUser) return alert("ログインしてください");
             
@@ -747,6 +807,7 @@
                 mental: parseInt(mentalValInput.value) * 20,
                 physical: parseInt(physicalValInput.value) * 20,
                 situation: cbtSituation.value || "",
+                emotionCategory: emotionCategoryInput.value || "",
                 emotion: cbtEmotionText.value || "",
                 thought: cbtThought.value || "",
                 behavior: cbtBehavior.value || ""
@@ -757,13 +818,15 @@
 
             // Generate Feedback
             try {
-                const prompt = `ユーザーがメンタルケアアプリでチェックインしました。優しく労るフィードバック（100文字程度）を生成してください。冒頭は「おはようございます、${currentUser.displayName || "ゲスト"}さん」等。スコア(5段階): ココロ ${mentalValInput.value}, カラダ ${physicalValInput.value} 状況: ${entryData.situation} 感情: ${entryData.emotion} 思考: ${entryData.thought} 行動: ${entryData.behavior}`;
+                const prompt = `ユーザーがメンタルケアアプリでチェックインしました。優しく労るフィードバック（100文字程度）を生成してください。冒頭は「おはようございます、${currentUser.displayName || "ゲスト"}さん」等。スコア(5段階): ココロ ${mentalValInput.value}, カラダ ${physicalValInput.value} 感情カテゴリ: ${entryData.emotionCategory} 状況: ${entryData.situation} 感情: ${entryData.emotion} 思考: ${entryData.thought} 行動: ${entryData.behavior}`;
                 const reply = await callGroq([{ role: "user", content: prompt }], { temperature: 0.7, max_tokens: 200 });
                 dailyMessageText.innerText = reply || "保存しました。";
                 dailyMessageArea.classList.remove('hidden');
             } catch(e) { console.error(e); }
 
             cbtSituation.value = '';
+            emotionCategoryInput.value = '';
+            emotionTags.forEach(t => t.classList.remove('is-active'));
             cbtEmotionText.value = '';
             cbtThought.value = '';
             cbtBehavior.value = '';
@@ -780,12 +843,16 @@
                 const date = new Date(entry.date);
                 const mentalIdx = Math.min(4, Math.max(0, (entry.mental / 20) - 1));
                 const faces = ['fa-face-sad-tear', 'fa-face-frown', 'fa-face-meh', 'fa-face-smile', 'fa-face-laugh-beam'];
+                const emotionBadge = entry.emotionCategory
+                    ? `<span class="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full">${entry.emotionCategory}</span>`
+                    : '';
                 el.innerHTML = `
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex items-center gap-2">
                             <i class="fa-solid ${faces[mentalIdx]}" style="color: ${EMOTION_COLORS[mentalIdx]}; font-size: 1.2rem;"></i>
                             <div class="text-xs text-gray-400 font-bold">${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}</div>
                         </div>
+                        ${emotionBadge}
                         <div class="flex text-pink-400 text-xs gap-0.5">${Array(Math.floor(entry.physical/20)).fill('<i class="fa-solid fa-heart"></i>').join('')}</div>
                     </div>
                     ${entry.thought ? `<div class="text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">"${DOMPurify.sanitize(entry.thought)}"</div>` : ''}
@@ -803,7 +870,7 @@
 
             const thoughts = state.cbtEntries
                 .slice(0, 10)
-                .map(e => [e.situation, e.emotion, e.thought, e.behavior].filter(Boolean).join(" / "))
+                .map(e => [e.emotionCategory, e.situation, e.emotion, e.thought, e.behavior].filter(Boolean).join(" / "))
                 .filter(t => t)
                 .join("\n");
             const scores = state.cbtEntries.slice(0,7).map(e => `[${new Date(e.date).toLocaleDateString()}] 心:${e.mental} 体:${e.physical}`).join(", ");
