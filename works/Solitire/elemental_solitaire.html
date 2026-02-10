@@ -26,7 +26,7 @@
     .card {
       aspect-ratio: 2 / 3;
       width: 80px;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
       cursor: pointer;
       user-select: none;
       position: absolute;
@@ -34,8 +34,26 @@
       right: 0;
       margin-left: auto;
       margin-right: auto;
-      filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.5));
       z-index: 5;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+      /* 1. Multiple layered shadows for depth */
+      box-shadow:
+        0 1px 2px rgba(0,0,0,0.15),
+        0 2px 4px rgba(0,0,0,0.15),
+        0 4px 8px rgba(0,0,0,0.15),
+        0 8px 16px rgba(0,0,0,0.15),
+        0 16px 32px rgba(0,0,0,0.1);
+    }
+    .card:hover {
+      /* Enhanced 3D lift effect on hover */
+      transform: translateY(-8px) translateZ(20px) rotateX(5deg);
+      box-shadow:
+        0 2px 4px rgba(0,0,0,0.2),
+        0 4px 8px rgba(0,0,0,0.2),
+        0 8px 16px rgba(0,0,0,0.2),
+        0 16px 32px rgba(0,0,0,0.2),
+        0 32px 64px rgba(0,0,0,0.15);
     }
     @media (max-width: 640px) {
       .card { width: 45px; }
@@ -49,11 +67,30 @@
       flex-direction: column;
       justify-content: space-between;
       padding: 4px;
-      background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+      /* 3. Glossy gradient for shine effect */
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.8) 100%),
+        linear-gradient(135deg, #ffffff 0%, #f5f5f5 50%, #e8e8e8 100%);
       color: black;
       font-family: 'Crimson Text', serif;
       position: relative;
-      border: 1px solid #ccc;
+      border: 1px solid #ddd;
+      /* Add subtle inner shadow for depth */
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.8),
+        inset 0 -1px 0 rgba(0,0,0,0.05);
+    }
+    /* Enhanced gloss effect with pseudo-element */
+    .card-face::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 40%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%);
+      border-radius: 6px 6px 0 0;
+      pointer-events: none;
     }
 
     .card-back {
@@ -64,6 +101,10 @@
       background-size: 100% 100%, 20px 20px;
       border: 2px solid white;
       position: relative;
+      /* Add depth with multiple shadows */
+      box-shadow:
+        inset 0 2px 4px rgba(0,0,0,0.3),
+        inset 0 -2px 4px rgba(255,255,255,0.1);
     }
     .card-back::after {
       content: '';
@@ -71,6 +112,20 @@
       inset: 3px;
       border: 1px solid var(--gold-accent);
       border-radius: 4px;
+      /* Add subtle shine to gold border */
+      box-shadow: 0 0 8px rgba(212,175,55,0.4);
+    }
+    /* Glossy overlay for card back */
+    .card-back::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%);
+      border-radius: 4px 4px 0 0;
+      pointer-events: none;
     }
 
     .slot {
@@ -79,7 +134,11 @@
       background-color: rgba(0, 20, 0, 0.2);
       border: 2px solid rgba(255,255,255,0.1);
       border-radius: 8px;
-      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5);
+      /* Enhanced inset shadow for depth */
+      box-shadow:
+        inset 2px 2px 5px rgba(0,0,0,0.5),
+        inset -1px -1px 3px rgba(255,255,255,0.05),
+        0 1px 2px rgba(0,0,0,0.3);
       position: relative;
       overflow: visible;
     }
@@ -106,10 +165,27 @@
     .wind { color: #f9a825; text-shadow: 0px 0px 1px rgba(0,0,0,0.1); }
     .earth { color: #2e7d32; }
 
-    .card-face.fire-bg { background: #fff5f5; }
-    .card-face.water-bg { background: #e3f2fd; }
-    .card-face.wind-bg { background: #fffde7; }
-    .card-face.earth-bg { background: #e8f5e9; }
+    /* Enhanced elemental backgrounds with glossy gradients */
+    .card-face.fire-bg {
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.8) 100%),
+        linear-gradient(135deg, #fff5f5 0%, #ffebee 50%, #ffcdd2 100%);
+    }
+    .card-face.water-bg {
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.8) 100%),
+        linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%);
+    }
+    .card-face.wind-bg {
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.8) 100%),
+        linear-gradient(135deg, #fffde7 0%, #fff9c4 50%, #fff59d 100%);
+    }
+    .card-face.earth-bg {
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.8) 100%),
+        linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%);
+    }
 
     #message-overlay {
       display: none;
