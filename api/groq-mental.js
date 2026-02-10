@@ -84,17 +84,32 @@ export default async function handler(req, res) {
     recent.push(now);
     globalThis.__groqRateLimit.set(key, recent);
 
-    const upstream = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(req.body ?? {}),
-    });
+    const sanitizeForJson = (raw) => {
+      if (typeof raw !== "string") return "";
+      const start = raw.indexOf("{");
+      const end = raw.lastIndexOf("}");
+      if (start !== -1 && end !== -1 && end > start) {
+        return raw.slice(start, end + 1);
+      }
+      return raw;
+    };
 
-    const text = await upstream.text();
-    if (!upstream.ok) {
+    const callGroq = async (body) => {
+      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body ?? {}),
+      });
+      const t = await resp.text();
+      return { resp, text: t };
+    };
+
+    const upstream = await callGroq(req.body ?? {});
+    const text = upstream.text;
+    if (!upstream.resp.ok) {
       try {
         const parsed = JSON.parse(text);
         if (parsed?.error?.code === "json_validate_failed") {
@@ -105,32 +120,28 @@ export default async function handler(req, res) {
           if (last && typeof last.content === "string") {
             last.content += "\nJSONのみで出力してください。説明や装飾は禁止。";
           }
-          const retry = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify(body),
-          });
-          const retryText = await retry.text();
-          if (!retry.ok) {
-            res.status(retry.status).send(retryText.slice(0, 2000));
+          const retry = await callGroq(body);
+          if (!retry.resp.ok) {
+            res.status(retry.resp.status).send(retry.text.slice(0, 2000));
             return;
           }
-          const retryData = JSON.parse(retryText);
-          const retryContent = retryData?.choices?.[0]?.message?.content ?? "";
-          res.status(200).json({ content: retryContent });
-          return;
+          try {
+            const retryData = JSON.parse(retry.text);
+            const retryContent = retryData?.choices?.[0]?.message?.content ?? "";
+            const cleaned = sanitizeForJson(retryContent);
+            res.status(200).json({ content: cleaned });
+            return;
+          } catch {}
         }
       } catch {}
-      res.status(upstream.status).send(text.slice(0, 2000));
+      res.status(upstream.resp.status).send(text.slice(0, 2000));
       return;
     }
 
     const data = JSON.parse(text);
     const content = data?.choices?.[0]?.message?.content ?? "";
-    res.status(200).json({ content });
+    const cleaned = sanitizeForJson(content);
+    res.status(200).json({ content: cleaned });
   } catch (error) {
     res.status(500).json({ error: error?.message || "Unknown error" });
   }
