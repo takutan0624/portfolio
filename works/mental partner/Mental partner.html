@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mental Partner v8 (Firebase Cloud)</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2314b8a6'/%3E%3Ctext x='32' y='41' font-size='28' text-anchor='middle' fill='white' font-family='Arial, sans-serif'%3EM%3C/text%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -42,6 +43,9 @@
                 <span>ゲストで試す</span>
             </button>
         </div>
+        <p id="google-login-disabled" class="hidden mt-3 text-xs text-gray-500 text-center">
+            このドメインではGoogleログインが無効です。<br>ゲストでご利用ください。
+        </p>
 
         <!-- エラー表示エリア -->
         <div id="login-error-container" class="mt-6 w-full max-w-sm hidden">
@@ -240,10 +244,28 @@
         const loginErrorMsg = document.getElementById('login-error-msg');
         const domainInstruction = document.getElementById('domain-instruction');
         const currentDomainEl = document.getElementById('current-domain');
+        const googleLoginDisabledMsg = document.getElementById('google-login-disabled');
+
+        const allowedAuthDomains = [
+            "localhost",
+            "127.0.0.1",
+            "my-mental-partner.firebaseapp.com",
+            "portfolio-flame-iota-d7n8dbh5mp.vercel.app"
+        ];
+        const currentDomain = window.location.hostname;
+        const isGoogleAuthAllowed = allowedAuthDomains.includes(currentDomain);
+        if (!isGoogleAuthAllowed) {
+            googleLoginBtn.classList.add('hidden');
+            googleLoginDisabledMsg.classList.remove('hidden');
+        }
 
         // Googleログイン
         googleLoginBtn.addEventListener('click', async () => {
             try {
+                if (!isGoogleAuthAllowed) {
+                    googleLoginDisabledMsg.classList.remove('hidden');
+                    return;
+                }
                 loginErrorContainer.classList.add('hidden');
                 await signInWithPopup(auth, provider);
             } catch (error) {
