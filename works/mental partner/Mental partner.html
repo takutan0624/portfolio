@@ -568,11 +568,23 @@
 
             const thoughts = state.cbtEntries.map(e => e.thought).filter(t => t).join("\n");
             const scores = state.cbtEntries.slice(0,7).map(e => `[${new Date(e.date).toLocaleDateString()}] 心:${e.mental} 体:${e.physical}`).join(", ");
-            const prompt = `ユーザーの記録を分析しJSON出力。1. patterns:「10の認知の歪み」カウント。2. comment: 今週の傾向コメント(100字)。データ: テキスト:${thoughts} スコア:${scores} 出力形式: { "patterns": {...}, "comment": "..." }`;
+            const prompt = `ユーザーの記録を分析しJSONのみを返してください。1. patterns:「10の認知の歪み」カウント。2. comment: 今週の傾向コメント(100字)。データ: テキスト:${thoughts} スコア:${scores} 出力形式: {"patterns":{"全か無か思考":0,"過度の一般化":0,"心のフィルター":0,"マイナス化思考":0,"結論の飛躍":0,"拡大解釈・過小評価":0,"感情的決めつけ":0,"べき思考":0,"レッテル貼り":0,"個人化":0},"comment":"..."} 余計な文章は不要。`;
 
             try {
                 const resultText = await callGroq([{ role: "user", content: prompt }], { temperature: 0.2, max_tokens: 400 });
-                const result = JSON.parse(resultText);
+                const safeJsonParse = (raw) => {
+                    try { return JSON.parse(raw); } catch {}
+                    const start = raw.indexOf("{");
+                    const end = raw.lastIndexOf("}");
+                    if (start !== -1 && end !== -1 && end > start) {
+                        try { return JSON.parse(raw.slice(start, end + 1)); } catch {}
+                    }
+                    return null;
+                };
+                const result = safeJsonParse(resultText);
+                if (!result || !result.patterns || !result.comment) {
+                    throw new Error("AIの分析結果がJSONではありませんでした");
+                }
                 
                 state.patterns = result.patterns;
                 document.getElementById('wave-analysis-text').textContent = result.comment;
