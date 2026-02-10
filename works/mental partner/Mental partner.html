@@ -126,7 +126,7 @@
                         </div>
                         <div class="text-center">
                             <label class="block text-xs font-bold text-teal-600 mb-2">カラダの元気</label>
-                            <div class="flex justify-center gap-2">
+                            <div id="physical-hearts" class="flex justify-center gap-2">
                                 <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(1)"><i class="fa-solid fa-heart"></i></button>
                                 <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(2)"><i class="fa-solid fa-heart"></i></button>
                                 <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(3)"><i class="fa-solid fa-heart"></i></button>
@@ -495,9 +495,10 @@
 
         window.setPhysical = (val) => {
             physicalValInput.value = val;
-            const container = document.querySelector('#view-work div:nth-child(3) div');
+            const container = document.getElementById('physical-hearts');
+            if (!container) return;
             container.querySelectorAll('button').forEach((b, i) => {
-                b.className = `icon-btn text-3xl ${i < val ? 'text-pink-400' : 'text-gray-200'} ${i + 1 === val ? 'icon-selected' : ''}`;
+                b.className = `icon-btn text-2xl ${i < val ? 'text-pink-400' : 'text-gray-200'} ${i + 1 === val ? 'icon-selected' : ''}`;
             });
         };
 
