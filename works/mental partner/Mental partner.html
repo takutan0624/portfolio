@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mental Partner v8 (Firebase Cloud)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f9ff; }
+        .chat-bubble { max-width: 85%; line-height: 1.6; }
+        .markdown-body p { margin-bottom: 0.5em; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .icon-btn { transition: all 0.2s; }
+        .icon-btn:active { transform: scale(0.9); }
+        .icon-selected { transform: scale(1.2); }
+    </style>
+</head>
+<body class="h-screen flex flex-col items-center justify-center text-gray-800">
+
+    <!-- ログイン画面 (Firebase) -->
+    <div id="login-screen" class="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 overflow-y-auto">
+        <div class="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center text-teal-600 text-4xl mb-6 flex-shrink-0">
+            <i class="fa-solid fa-spa"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Mental Partner</h1>
+        <p class="text-gray-500 mb-8 text-sm text-center">データをクラウドに保存して、<br>いつでもどこでも振り返り。</p>
+        
+        <div class="flex flex-col gap-3 w-full max-w-xs">
+            <button id="google-login-btn" class="bg-white border border-gray-300 text-gray-700 font-bold py-3 px-6 rounded-xl shadow-sm hover:bg-gray-50 transition flex items-center justify-center gap-3 w-full">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5">
+                <span>Googleでログイン</span>
+            </button>
+            
+            <button id="guest-login-btn" class="bg-gray-100 border border-transparent text-gray-600 font-bold py-3 px-6 rounded-xl shadow-sm hover:bg-gray-200 transition flex items-center justify-center gap-3 w-full">
+                <i class="fa-solid fa-user-secret"></i>
+                <span>ゲストで試す</span>
+            </button>
+        </div>
+
+        <!-- エラー表示エリア -->
+        <div id="login-error-container" class="mt-6 w-full max-w-sm hidden">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-xs text-red-700 break-all">
+                <p class="font-bold mb-2"><i class="fa-solid fa-circle-exclamation"></i> ログインエラー</p>
+                <p id="login-error-msg" class="mb-2">ドメインが許可されていません。</p>
+                
+                <div id="domain-instruction" class="hidden mt-2 pt-2 border-t border-red-200">
+                    <p class="mb-1">以下のドメインをFirebaseコンソールの<br><strong>Authentication > 設定 > 承認済みドメイン</strong><br>に追加してください：</p>
+                    <code id="current-domain" class="block bg-white p-2 rounded border border-red-100 font-mono select-all cursor-pointer hover:bg-gray-50" title="クリックしてコピー"></code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- アプリ本体 -->
+    <div id="app-container" class="hidden w-full h-full md:max-w-md md:h-[95vh] md:rounded-3xl md:shadow-2xl flex flex-col bg-white overflow-hidden relative border border-gray-100">
+        
+        <!-- ヘッダー -->
+        <header class="bg-white/95 backdrop-blur-sm border-b border-gray-100 p-4 flex justify-between items-center z-20 absolute top-0 w-full h-16">
+            <h1 class="font-bold text-gray-800 flex items-center gap-2 text-lg">
+                <i class="fa-solid fa-spa text-teal-500"></i> Mental Partner
+            </h1>
+            <div class="flex gap-3">
+                <button id="logout-btn" class="text-gray-400 hover:text-teal-600 transition text-xs flex items-center gap-1">
+                    <i class="fa-solid fa-right-from-bracket"></i> <span id="user-name"></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="flex-1 overflow-hidden relative pt-16 pb-16 bg-gray-50">
+            
+            <!-- 1. チャット -->
+            <div id="view-chat" class="view-section w-full h-full flex flex-col absolute inset-0 transition-opacity duration-300 pt-16 pb-16">
+                <div id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
+                    <!-- チャット履歴はJSでロード -->
+                </div>
+                <div class="p-3 bg-white border-t border-gray-100">
+                    <form id="chat-form" class="flex gap-2">
+                        <input type="text" id="user-input" class="flex-1 bg-gray-100 border-0 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm" placeholder="話しかける..." autocomplete="off">
+                        <button type="submit" id="send-btn" class="bg-teal-600 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-teal-700 shadow-md transition transform active:scale-95">
+                            <i class="fa-solid fa-paper-plane text-xs"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 2. チェックイン -->
+            <div id="view-work" class="view-section w-full h-full absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pt-16 pb-20 p-4 bg-gradient-to-b from-teal-50 to-white">
+                
+                <div id="daily-message-area" class="bg-white p-5 rounded-2xl shadow-sm mb-6 border border-teal-100 relative hidden animate-fade-in">
+                    <div class="text-xs text-gray-400 mb-2 flex items-center gap-1">
+                        <i class="fa-solid fa-robot"></i> AIからのフィードバック
+                    </div>
+                    <p id="daily-message-text" class="text-sm text-gray-700 leading-relaxed"></p>
+                    <button onclick="document.getElementById('daily-message-area').classList.add('hidden')" class="absolute top-2 right-3 text-gray-300 hover:text-gray-500"><i class="fa-solid fa-times"></i></button>
+                </div>
+
+                <div class="bg-white p-6 rounded-3xl shadow-sm mb-6 border border-gray-100">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-bold text-gray-800">チェックイン</h2>
+                        <span class="text-xs text-gray-400" id="current-date"></span>
+                    </div>
+
+                    <!-- ココロ -->
+                    <div class="mb-8 text-center">
+                        <label class="block text-sm font-bold text-teal-700 mb-4">ココロ</label>
+                        <div class="flex justify-between px-2">
+                            <button class="icon-btn text-3xl text-gray-300 hover:text-indigo-400" onclick="setMental(1, this)"><i class="fa-solid fa-face-sad-tear"></i></button>
+                            <button class="icon-btn text-3xl text-gray-300 hover:text-blue-400" onclick="setMental(2, this)"><i class="fa-solid fa-face-frown"></i></button>
+                            <button class="icon-btn text-3xl text-gray-300 hover:text-gray-400" onclick="setMental(3, this)"><i class="fa-solid fa-face-meh"></i></button>
+                            <button class="icon-btn text-3xl text-gray-300 hover:text-teal-400" onclick="setMental(4, this)"><i class="fa-solid fa-face-smile"></i></button>
+                            <button class="icon-btn text-3xl text-gray-300 hover:text-yellow-400" onclick="setMental(5, this)"><i class="fa-solid fa-face-laugh-beam"></i></button>
+                        </div>
+                        <input type="hidden" id="mental-val" value="3">
+                    </div>
+
+                    <!-- カラダ -->
+                    <div class="mb-8 text-center">
+                        <label class="block text-sm font-bold text-teal-700 mb-4">カラダ</label>
+                        <div class="flex justify-center gap-4">
+                            <button class="icon-btn text-3xl text-gray-200 hover:text-pink-400" onclick="setPhysical(1)"><i class="fa-solid fa-heart"></i></button>
+                            <button class="icon-btn text-3xl text-gray-200 hover:text-pink-400" onclick="setPhysical(2)"><i class="fa-solid fa-heart"></i></button>
+                            <button class="icon-btn text-3xl text-gray-200 hover:text-pink-400" onclick="setPhysical(3)"><i class="fa-solid fa-heart"></i></button>
+                            <button class="icon-btn text-3xl text-gray-200 hover:text-pink-400" onclick="setPhysical(4)"><i class="fa-solid fa-heart"></i></button>
+                            <button class="icon-btn text-3xl text-gray-200 hover:text-pink-400" onclick="setPhysical(5)"><i class="fa-solid fa-heart"></i></button>
+                        </div>
+                        <input type="hidden" id="physical-val" value="3">
+                    </div>
+
+                    <!-- ひとこと -->
+                    <div class="space-y-3 pt-4 border-t border-gray-100">
+                        <label class="block text-sm font-bold text-teal-700 mb-1">ひとこと</label>
+                        <textarea id="cbt-thought" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-teal-500 resize-none h-24 placeholder-gray-400" placeholder="今の気持ちや、あった出来事を書いてみましょう..."></textarea>
+                        <details class="text-xs text-gray-500">
+                            <summary class="cursor-pointer hover:text-teal-600 mb-2">詳細を入力する (CBT分析用)</summary>
+                            <input type="text" id="cbt-event" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2 focus:outline-none focus:border-teal-500" placeholder="出来事 (事実)">
+                        </details>
+                    </div>
+
+                    <button id="save-cbt-btn" class="w-full mt-6 bg-teal-600 text-white py-4 rounded-2xl text-sm font-bold shadow-lg shadow-teal-100 hover:bg-teal-700 transition transform active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-check"></i> チェックイン完了
+                    </button>
+                </div>
+                <h3 class="text-xs font-bold text-gray-400 mb-2 px-2">最近の記録</h3>
+                <div id="cbt-list" class="space-y-3 pb-10"></div>
+            </div>
+
+            <!-- 3. 分析 -->
+            <div id="view-analysis" class="view-section w-full h-full flex flex-col absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pt-16 pb-24 bg-white">
+                <div class="px-6 py-4 bg-white border-b border-gray-100 sticky top-16 z-10">
+                    <button id="analyze-btn" class="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> データを分析する
+                    </button>
+                </div>
+                <div class="px-6 py-6 border-b border-gray-100">
+                    <div class="flex items-center gap-2 mb-1"><span class="bg-teal-100 text-teal-700 text-[10px] font-bold px-2 py-0.5 rounded-full">AIレターのポイント</span></div>
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">調子の波とできごと</h2>
+                    <div class="flex gap-4 mb-2 text-xs font-bold">
+                        <span class="flex items-center gap-1 text-gray-500"><span class="w-3 h-3 bg-teal-400 rounded-sm"></span>ココロ</span>
+                        <span class="flex items-center gap-1 text-gray-500"><span class="w-3 h-3 bg-orange-400 rounded-sm"></span>カラダ</span>
+                    </div>
+                    <div class="h-[200px] w-full relative mb-4"><canvas id="waveChart"></canvas></div>
+                    <div class="relative mt-2">
+                        <div class="bg-teal-50 p-4 rounded-2xl rounded-tr-none text-sm text-gray-700 shadow-sm border border-teal-100 relative z-0">
+                            <h4 class="text-teal-600 font-bold text-xs mb-1">今週の傾向</h4>
+                            <div id="wave-analysis-text">分析ボタンを押してください。</div>
+                        </div>
+                        <div class="absolute -right-2 -top-8 w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center text-teal-600 border border-teal-50 z-10"><i class="fa-solid fa-robot text-xl"></i></div>
+                    </div>
+                </div>
+                <div class="px-6 py-6 pb-10">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">思考パターン</h2>
+                    <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm mb-6">
+                        <div class="h-[300px] w-full relative"><canvas id="patternChart"></canvas></div>
+                    </div>
+                    <h3 class="text-sm font-bold text-teal-700 mb-3">よく出るパターン</h3>
+                    <div class="grid grid-cols-3 gap-2 mb-6" id="top-patterns-container"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ナビゲーション -->
+        <nav class="bg-white border-t border-gray-100 h-16 flex justify-around items-center z-20 absolute bottom-0 w-full shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <button class="nav-btn tab-active flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-chat"><i class="fa-solid fa-comments text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">チャット</span></button>
+            <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-work"><i class="fa-solid fa-pen-to-square text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">チェックイン</span></button>
+            <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-analysis"><i class="fa-solid fa-chart-pie text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">分析</span></button>
+        </nav>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithPopup, signInAnonymously, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ▼▼▼ Firebase Config ▼▼▼
+        const firebaseConfig = {
+            apiKey: "AIzaSyAm6Gi_FFunADHW36uP2ZexHO6cq06yG9g",
+            authDomain: "my-mental-partner.firebaseapp.com",
+            projectId: "my-mental-partner",
+            storageBucket: "my-mental-partner.firebasestorage.app",
+            messagingSenderId: "804766436088",
+            appId: "1:804766436088:web:f49b22a1948cb91d3e090d",
+            measurementId: "G-82DFXNL0VW"
+        };
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+        // Init Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // Environment Variables
+        const apiKey = ""; // Gemini API
+
+        // Global State
+        let currentUser = null;
+        let state = {
+            chatHistory: [],
+            cbtEntries: [],
+            patterns: { "全か無か思考": 0, "過度の一般化": 0, "心のフィルター": 0, "マイナス化思考": 0, "結論の飛躍": 0, "拡大解釈・過小評価": 0, "感情的決めつけ": 0, "べき思考": 0, "レッテル貼り": 0, "個人化": 0 }
+        };
+        const EMOTION_COLORS = ['#818cf8', '#60a5fa', '#9ca3af', '#2dd4bf', '#fbbf24'];
+
+        // Auth Logic
+        const loginScreen = document.getElementById('login-screen');
+        const appContainer = document.getElementById('app-container');
+        const googleLoginBtn = document.getElementById('google-login-btn');
+        const guestLoginBtn = document.getElementById('guest-login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const userNameEl = document.getElementById('user-name');
+        const loginErrorContainer = document.getElementById('login-error-container');
+        const loginErrorMsg = document.getElementById('login-error-msg');
+        const domainInstruction = document.getElementById('domain-instruction');
+        const currentDomainEl = document.getElementById('current-domain');
+
+        // Googleログイン
+        googleLoginBtn.addEventListener('click', async () => {
+            try {
+                loginErrorContainer.classList.add('hidden');
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error(error);
+                loginErrorMsg.textContent = error.message;
+                
+                // ドメイン許可エラーの場合の特別対応
+                if (error.code === 'auth/unauthorized-domain') {
+                    loginErrorMsg.textContent = "このプレビュー環境のドメインがFirebaseで許可されていません。";
+                    currentDomainEl.textContent = window.location.hostname;
+                    domainInstruction.classList.remove('hidden');
+                } else {
+                    domainInstruction.classList.add('hidden');
+                }
+                
+                loginErrorContainer.classList.remove('hidden');
+            }
+        });
+
+        // ゲストログイン（匿名認証）
+        guestLoginBtn.addEventListener('click', async () => {
+            try {
+                loginErrorContainer.classList.add('hidden');
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error(error);
+                loginErrorMsg.textContent = "ゲストログインに失敗しました: " + error.message;
+                domainInstruction.classList.add('hidden');
+                loginErrorContainer.classList.remove('hidden');
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => signOut(auth));
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                userNameEl.textContent = user.isAnonymous ? "ゲスト" : (user.displayName || "ユーザー");
+                loginScreen.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                await loadDataFromFirestore(user.uid);
+            } else {
+                currentUser = null;
+                loginScreen.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+                state.chatHistory = [];
+                state.cbtEntries = [];
+            }
+        });
+
+        // コピペ用
+        currentDomainEl.addEventListener('click', () => {
+            const range = document.createRange();
+            range.selectNode(currentDomainEl);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('copy');
+            alert('ドメインをコピーしました');
+        });
+
+        // Firestore Logic
+        async function loadDataFromFirestore(uid) {
+            // 1. Chat History (One doc for simplicity or Collection)
+            // Using a single doc for chat history array to keep it simple and cheap
+            const chatDocRef = doc(db, "users", uid, "data", "chatHistory");
+            const chatSnap = await getDoc(chatDocRef);
+            if (chatSnap.exists()) {
+                state.chatHistory = chatSnap.data().history || [];
+            } else {
+                state.chatHistory = [{ role: "model", parts: [{ text: "こんにちは。心の調子はいかがですか？" }] }];
+                await setDoc(chatDocRef, { history: state.chatHistory });
+            }
+            renderChatHistory();
+
+            // 2. Patterns (Analysis)
+            const patternDocRef = doc(db, "users", uid, "data", "patterns");
+            const patternSnap = await getDoc(patternDocRef);
+            if (patternSnap.exists()) {
+                const data = patternSnap.data();
+                if(data.patterns) state.patterns = data.patterns;
+                if(data.comment) document.getElementById('wave-analysis-text').textContent = data.comment;
+            }
+
+            // 3. CBT Entries (Subcollection for scalability)
+            // Real-time listener
+            const q = query(collection(db, "users", uid, "entries"), orderBy("date", "desc"), limit(20));
+            onSnapshot(q, (snapshot) => {
+                state.cbtEntries = [];
+                snapshot.forEach((doc) => {
+                    state.cbtEntries.push({ id: doc.id, ...doc.data() });
+                });
+                renderCbtList();
+                renderCharts();
+                renderTopPatterns();
+            });
+        }
+
+        async function saveChatToFirestore() {
+            if (!currentUser) return;
+            const chatDocRef = doc(db, "users", currentUser.uid, "data", "chatHistory");
+            await setDoc(chatDocRef, { history: state.chatHistory }, { merge: true });
+        }
+
+        async function saveAnalysisToFirestore(newPatterns, comment) {
+            if (!currentUser) return;
+            const patternDocRef = doc(db, "users", currentUser.uid, "data", "patterns");
+            await setDoc(patternDocRef, { patterns: newPatterns, comment: comment }, { merge: true });
+        }
+
+        // --- App Logic (Adapted from v7) ---
+        
+        // Chat
+        const chatContainer = document.getElementById('chat-container');
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+
+        function renderChatHistory() {
+            chatContainer.innerHTML = '';
+            state.chatHistory.forEach(msg => {
+                const isUser = msg.role === 'user';
+                appendMsgToUI(msg.parts[0].text, isUser ? 'user' : 'ai');
+            });
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = userInput.value.trim();
+            if(!text) return;
+            
+            appendMsgToUI(text, 'user');
+            userInput.value = '';
+            state.chatHistory.push({ role: "user", parts: [{ text }] });
+            saveChatToFirestore(); // Cloud Save
+
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: state.chatHistory, generationConfig: { temperature: 0.7, maxOutputTokens: 300 } })
+                });
+                const data = await res.json();
+                const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "...";
+                appendMsgToUI(reply, 'ai');
+                state.chatHistory.push({ role: "model", parts: [{ text: reply }] });
+                saveChatToFirestore(); // Cloud Save
+            } catch(e) { console.error(e); }
+        });
+
+        function appendMsgToUI(text, type) {
+            const isUser = type === 'user';
+            const div = document.createElement('div');
+            div.className = `flex ${isUser ? 'justify-end' : 'justify-start items-end gap-2'} animate-fade-in`;
+            let html = '';
+            if(!isUser) html += `<div class="w-8 h-8 rounded-full bg-teal-100 flex-shrink-0 flex items-center justify-center text-teal-600 text-xs"><i class="fa-solid fa-robot"></i></div>`;
+            const bubbleClass = isUser ? 'bg-teal-600 text-white rounded-2xl rounded-br-none' : 'bg-white text-gray-800 rounded-2xl rounded-bl-none shadow-sm';
+            html += `<div class="${bubbleClass} p-4 chat-bubble text-sm">${marked.parse(text)}</div>`;
+            div.innerHTML = html;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        }
+
+        // Work / Check-in
+        const mentalValInput = document.getElementById('mental-val');
+        const physicalValInput = document.getElementById('physical-val');
+        const cbtThought = document.getElementById('cbt-thought');
+        const cbtEvent = document.getElementById('cbt-event');
+        const saveCbtBtn = document.getElementById('save-cbt-btn');
+        const dailyMessageArea = document.getElementById('daily-message-area');
+        const dailyMessageText = document.getElementById('daily-message-text');
+
+        window.setMental = (val, btn) => {
+            mentalValInput.value = val;
+            const buttons = btn.parentElement.querySelectorAll('button');
+            buttons.forEach((b, i) => {
+                b.className = `icon-btn text-3xl ${i + 1 === val ? 'icon-selected ' + ['text-indigo-400','text-blue-400','text-gray-400','text-teal-400','text-yellow-400'][i] : 'text-gray-300'}`;
+            });
+        };
+
+        window.setPhysical = (val) => {
+            physicalValInput.value = val;
+            const container = document.querySelector('#view-work div:nth-child(3) div');
+            container.querySelectorAll('button').forEach((b, i) => {
+                b.className = `icon-btn text-3xl ${i < val ? 'text-pink-400' : 'text-gray-200'} ${i + 1 === val ? 'icon-selected' : ''}`;
+            });
+        };
+
+        saveCbtBtn.addEventListener('click', async () => {
+            if (!currentUser) return alert("ログインしてください");
+            
+            saveCbtBtn.disabled = true;
+            saveCbtBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 保存中...';
+
+            const entryData = {
+                date: new Date().toISOString(),
+                mental: parseInt(mentalValInput.value) * 20,
+                physical: parseInt(physicalValInput.value) * 20,
+                event: cbtEvent.value || "チェックイン",
+                thought: cbtThought.value || ""
+            };
+
+            // Cloud Save
+            await addDoc(collection(db, "users", currentUser.uid, "entries"), entryData);
+
+            // Generate Feedback
+            try {
+                const prompt = `ユーザーがメンタルケアアプリでチェックインしました。優しく労るフィードバック（100文字程度）を生成してください。冒頭は「おはようございます、${currentUser.displayName || "ゲスト"}さん」等。スコア(5段階): ココロ ${mentalValInput.value}, カラダ ${physicalValInput.value} ひとこと: ${entryData.thought}`;
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await res.json();
+                dailyMessageText.innerText = data.candidates?.[0]?.content?.parts?.[0]?.text || "保存しました。";
+                dailyMessageArea.classList.remove('hidden');
+            } catch(e) { console.error(e); }
+
+            cbtThought.value = ''; cbtEvent.value = '';
+            saveCbtBtn.innerHTML = '<i class="fa-solid fa-check"></i> チェックイン完了';
+            saveCbtBtn.disabled = false;
+        });
+
+        function renderCbtList() {
+            const list = document.getElementById('cbt-list');
+            list.innerHTML = '';
+            state.cbtEntries.slice(0, 5).forEach(entry => {
+                const el = document.createElement('div');
+                el.className = 'bg-white p-4 rounded-xl border border-gray-100 shadow-sm';
+                const date = new Date(entry.date);
+                const mentalIdx = Math.min(4, Math.max(0, (entry.mental / 20) - 1));
+                const faces = ['fa-face-sad-tear', 'fa-face-frown', 'fa-face-meh', 'fa-face-smile', 'fa-face-laugh-beam'];
+                el.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid ${faces[mentalIdx]}" style="color: ${EMOTION_COLORS[mentalIdx]}; font-size: 1.2rem;"></i>
+                            <div class="text-xs text-gray-400 font-bold">${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}</div>
+                        </div>
+                        <div class="flex text-pink-400 text-xs gap-0.5">${Array(Math.floor(entry.physical/20)).fill('<i class="fa-solid fa-heart"></i>').join('')}</div>
+                    </div>
+                    ${entry.thought ? `<div class="text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">"${entry.thought}"</div>` : ''}
+                `;
+                list.appendChild(el);
+            });
+        }
+
+        // Analysis
+        const analyzeBtn = document.getElementById('analyze-btn');
+        analyzeBtn.addEventListener('click', async () => {
+            if(state.cbtEntries.length < 1) return alert("データがありません");
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 分析中...';
+
+            const thoughts = state.cbtEntries.map(e => e.thought).filter(t => t).join("\n");
+            const scores = state.cbtEntries.slice(0,7).map(e => `[${new Date(e.date).toLocaleDateString()}] 心:${e.mental} 体:${e.physical}`).join(", ");
+            const prompt = `ユーザーの記録を分析しJSON出力。1. patterns:「10の認知の歪み」カウント。2. comment: 今週の傾向コメント(100字)。データ: テキスト:${thoughts} スコア:${scores} 出力形式: { "patterns": {...}, "comment": "..." }`;
+
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
+                });
+                const data = await res.json();
+                const result = JSON.parse(data.candidates[0].content.parts[0].text);
+                
+                state.patterns = result.patterns;
+                document.getElementById('wave-analysis-text').textContent = result.comment;
+                
+                await saveAnalysisToFirestore(result.patterns, result.comment); // Cloud Save
+                renderCharts();
+                renderTopPatterns();
+            } catch(e) { console.error(e); } finally {
+                analyzeBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> データを分析する';
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        // Charts
+        let waveChartInstance, patternChartInstance;
+        function renderCharts() {
+            // Wave Chart
+            const ctxWave = document.getElementById('waveChart').getContext('2d');
+            const waveData = [...state.cbtEntries].sort((a,b) => new Date(a.date) - new Date(b.date)).slice(-7);
+            if(waveChartInstance) waveChartInstance.destroy();
+            waveChartInstance = new Chart(ctxWave, {
+                type: 'line',
+                data: {
+                    labels: waveData.map(d => new Date(d.date).toLocaleDateString(undefined, {weekday:'short'})),
+                    datasets: [
+                        { label: 'ココロ', data: waveData.map(d => d.mental), borderColor: '#2dd4bf', backgroundColor: 'rgba(45, 212, 191, 0.2)', fill: true, tension: 0.4 },
+                        { label: 'カラダ', data: waveData.map(d => d.physical), borderColor: '#fb923c', backgroundColor: 'rgba(251, 146, 60, 0.2)', fill: true, tension: 0.4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+            });
+
+            // Pattern Chart
+            const ctxPat = document.getElementById('patternChart').getContext('2d');
+            const labels = Object.keys(state.patterns);
+            const patData = Object.values(state.patterns);
+            if(patternChartInstance) patternChartInstance.destroy();
+            patternChartInstance = new Chart(ctxPat, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ data: patData, backgroundColor: labels.map((_, i) => i%2===0?'#99f6e4':'#bae6fd'), borderRadius: 4, barThickness: 12 }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function renderTopPatterns() {
+            const container = document.getElementById('top-patterns-container');
+            container.innerHTML = '';
+            const sorted = Object.entries(state.patterns).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            if(sorted.every(x => x[1] === 0)) { container.innerHTML = '<div class="col-span-3 text-center text-xs text-gray-400 py-4">データなし</div>'; return; }
+            sorted.forEach(([name]) => {
+                container.innerHTML += `<div class="p-3 rounded-xl border border-teal-50 shadow-sm flex flex-col items-center justify-center text-center bg-gradient-to-b from-white to-teal-50"><span class="text-[10px] font-bold text-gray-600">${name}</span></div>`;
+            });
+        }
+
+        // Navigation
+        const views = ['view-chat', 'view-work', 'view-analysis'];
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.target;
+                views.forEach(id => {
+                    const el = document.getElementById(id);
+                    el.style.opacity = (id === target) ? '1' : '0';
+                    el.style.pointerEvents = (id === target) ? 'auto' : 'none';
+                });
+                document.querySelectorAll('.nav-btn').forEach(b => {
+                    const active = b.dataset.target === target;
+                    b.className = `nav-btn flex-1 flex flex-col items-center justify-center h-full gap-1 group ${active ? 'tab-active text-teal-600' : 'tab-inactive text-gray-400'}`;
+                });
+                if(target === 'view-analysis') setTimeout(renderCharts, 100);
+            });
+        });
+
+        // Init UI
+        setMental(3, document.querySelectorAll('#view-work .icon-btn')[2]);
+        setPhysical(3);
+        const d = new Date();
+        document.getElementById('current-date').textContent = `${d.getMonth()+1}/${d.getDate()}`;
+    </script>
+</body>
+</html>
