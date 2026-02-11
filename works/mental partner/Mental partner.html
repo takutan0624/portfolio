@@ -137,6 +137,12 @@
 
             <!-- 2. 記録 -->
             <div id="view-work" class="view-section w-full h-full absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pt-14 pb-20 p-4 bg-slate-50">
+                <div class="mb-4 bg-white rounded-xl p-1 border border-gray-100 shadow-sm flex">
+                    <button class="work-tab-btn flex-1 py-2 text-xs font-bold rounded-lg bg-teal-600 text-white" data-work-tab="write">記録する</button>
+                    <button class="work-tab-btn flex-1 py-2 text-xs font-bold rounded-lg text-gray-500" data-work-tab="read">よむ</button>
+                </div>
+
+                <div id="work-pane-write">
                 
                 <div id="daily-message-area" class="bg-white p-4 rounded-xl shadow-sm mb-6 border border-teal-100 relative hidden animate-fade-in mx-1">
                     <div class="text-xs text-gray-400 mb-1 flex items-center gap-1">
@@ -427,6 +433,18 @@
                         </button>
                     </div>
                 </div>
+
+                </div>
+
+                <div id="work-pane-read" class="hidden">
+                    <div class="flex justify-between items-center px-1 mb-3">
+                        <h2 class="text-lg font-bold text-gray-800">記録の履歴</h2>
+                        <button id="refresh-history-btn" class="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-3 py-1 rounded-full hover:bg-teal-100 transition">
+                            更新
+                        </button>
+                    </div>
+                    <div id="entries-history-list" class="space-y-3 pb-8"></div>
+                </div>
             </div>
 
             <!-- 3. 分析 -->
@@ -575,7 +593,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, doc, setDoc, getDoc, onSnapshot, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, doc, setDoc, getDoc, onSnapshot, getDocs, writeBatch, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAm6Gi_FFunADHW36uP2ZexHO6cq06yG9g",
@@ -704,6 +722,81 @@
                 });
             }
             return base;
+        }
+
+        function getToolLabel(type) {
+            const map = {
+                "cbt-3": "3コラム法",
+                "cbt-5": "5コラム法",
+                "cbt-7": "7コラム法",
+                "gratitude": "感謝日記",
+                "tgt": "感謝日記",
+                "cog-organize": "認知行動整理",
+                "problem-solving": "問題解決",
+                "quit-behavior": "辞めたい行動",
+                "free": "自由記述"
+            };
+            return map[type] || type || "ノート";
+        }
+
+        function formatEntryDate(iso) {
+            const d = new Date(iso || Date.now());
+            if (Number.isNaN(d.getTime())) return "";
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            const h = String(d.getHours()).padStart(2, "0");
+            const min = String(d.getMinutes()).padStart(2, "0");
+            return `${y}/${m}/${day} ${h}:${min}`;
+        }
+
+        const DETAIL_LABELS = {
+            situation: "状況・出来事",
+            thought: "自動思考",
+            adaptive: "別の考え方",
+            emotion: "気分・感情",
+            evidenceFor: "根拠",
+            evidenceAgainst: "反証",
+            action: "次の行動",
+            items: "感謝した出来事",
+            reframe: "客観的な見方",
+            control: "コントロールできること",
+            next: "次の一歩",
+            problem: "問題",
+            goal: "目標",
+            options: "解決案",
+            best: "採用案",
+            firstStep: "最初の行動",
+            obstacle: "障害への備え",
+            behavior: "辞めたい行動",
+            trigger: "きっかけ",
+            shortReward: "すぐ満たされるもの",
+            trueNeed: "本当に満たしたいもの",
+            alternative: "代替行動",
+            plan: "If-Then",
+            note: "自由記述"
+        };
+
+        function getEntryDetailLines(entry) {
+            const detail = entry?.detail;
+            if (!detail || typeof detail !== "object") return [];
+            const lines = [];
+            Object.entries(detail).forEach(([k, v]) => {
+                if (v === null || v === undefined || v === "") return;
+                const label = DETAIL_LABELS[k] || k;
+                if (Array.isArray(v)) {
+                    const text = v.filter(Boolean).join(" / ");
+                    if (text) lines.push(`${label}: ${text}`);
+                    return;
+                }
+                const text = String(v).trim();
+                if (text) lines.push(`${label}: ${text}`);
+            });
+            return lines;
+        }
+
+        function buildEntryDetailText(entry) {
+            return getEntryDetailLines(entry).join(" | ").slice(0, 900);
         }
 
         function buildChatMessages(history) {
@@ -1027,6 +1120,7 @@
                 document.getElementById('app-container').classList.add('hidden');
                 state = { chatHistory: [], chatSummary: "", chatSummaryUpdatedAt: 0, cbtEntries: [], patterns: { ...DEFAULT_PATTERNS }, analysisComment: "" };
                 updateSummaryUI();
+                renderEntryHistory();
             }
         });
 
@@ -1069,6 +1163,7 @@
             entriesUnsubscribe = onSnapshot(q, (snap) => {
                 state.cbtEntries = snap.docs.map(d => ({id:d.id, ...d.data()}));
                 updateCharts();
+                renderEntryHistory();
             }, (error) => {
                 notifyFirestoreError("entries/onSnapshot", error);
             });
@@ -1124,6 +1219,7 @@
             renderChatHistory();
             renderPatternChart();
             resetDailyCharts();
+            renderEntryHistory();
             loadFirestoreData(uid);
         }
 
@@ -1156,6 +1252,12 @@
         const memorySummaryText = document.getElementById('memory-summary-text');
         const memoryEmpty = document.getElementById('memory-empty');
         const memoryRefreshBtn = document.getElementById('memory-refresh-btn');
+        const workTabButtons = Array.from(document.querySelectorAll('.work-tab-btn'));
+        const workPaneWrite = document.getElementById('work-pane-write');
+        const workPaneRead = document.getElementById('work-pane-read');
+        const entriesHistoryList = document.getElementById('entries-history-list');
+        const refreshHistoryBtn = document.getElementById('refresh-history-btn');
+        let activeWorkTab = "write";
 
         function updateSummaryUI() {
             if (state.chatSummary) {
@@ -1179,6 +1281,115 @@
             state.chatHistory.forEach(m => {
                 if(m.type === 'emotions') appendEmotionBubble(m.content);
                 else appendMsg(m.content, m.role === 'user' ? 'user' : 'ai');
+            });
+        }
+
+        function switchWorkTab(tab) {
+            activeWorkTab = (tab === "read") ? "read" : "write";
+            const showRead = activeWorkTab === "read";
+            workPaneWrite.classList.toggle("hidden", showRead);
+            workPaneRead.classList.toggle("hidden", !showRead);
+            workTabButtons.forEach((btn) => {
+                const active = btn.dataset.workTab === activeWorkTab;
+                btn.classList.toggle("bg-teal-600", active);
+                btn.classList.toggle("text-white", active);
+                btn.classList.toggle("text-gray-500", !active);
+            });
+            if (showRead) renderEntryHistory();
+        }
+
+        function renderEntryHistory() {
+            if (!entriesHistoryList) return;
+            entriesHistoryList.innerHTML = "";
+            const sorted = [...(state.cbtEntries || [])]
+                .filter((e) => !!e)
+                .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+            if (sorted.length === 0) {
+                const empty = document.createElement("div");
+                empty.className = "bg-white border border-gray-100 rounded-xl p-4 text-sm text-gray-500";
+                empty.textContent = "まだ記録がありません。";
+                entriesHistoryList.appendChild(empty);
+                return;
+            }
+
+            sorted.forEach((entry) => {
+                const card = document.createElement("article");
+                card.className = "bg-white border border-gray-100 rounded-2xl p-4 shadow-sm";
+
+                const top = document.createElement("div");
+                top.className = "flex items-center justify-between gap-2 mb-2";
+                const date = document.createElement("div");
+                date.className = "text-[11px] text-gray-400";
+                date.textContent = formatEntryDate(entry.date);
+                const badge = document.createElement("span");
+                badge.className = "text-[10px] px-2 py-1 rounded-full bg-teal-50 text-teal-700 font-bold";
+                badge.textContent = getToolLabel(entry.type);
+                top.appendChild(date);
+                top.appendChild(badge);
+
+                const summary = document.createElement("p");
+                summary.className = "text-sm text-gray-700 leading-relaxed whitespace-pre-wrap";
+                summary.textContent = entry.summary || "（要約なし）";
+
+                card.appendChild(top);
+                card.appendChild(summary);
+
+                const detailLines = getEntryDetailLines(entry);
+                if (detailLines.length > 0) {
+                    const details = document.createElement("details");
+                    details.className = "mt-3 bg-slate-50 rounded-lg p-3 border border-slate-100";
+                    const detailsSummary = document.createElement("summary");
+                    detailsSummary.className = "cursor-pointer text-xs font-bold text-slate-600";
+                    detailsSummary.textContent = "入力内容をみる";
+                    const ul = document.createElement("ul");
+                    ul.className = "mt-2 space-y-1";
+                    detailLines.forEach((line) => {
+                        const li = document.createElement("li");
+                        li.className = "text-xs text-gray-600 leading-relaxed";
+                        li.textContent = line;
+                        ul.appendChild(li);
+                    });
+                    details.appendChild(detailsSummary);
+                    details.appendChild(ul);
+                    card.appendChild(details);
+                }
+
+                const aiBox = document.createElement("div");
+                aiBox.className = "mt-3 p-3 rounded-lg border border-rose-100 bg-rose-50";
+                const aiTitle = document.createElement("p");
+                aiTitle.className = "text-[11px] font-bold text-rose-600 mb-1";
+                aiTitle.innerHTML = '<i class="fa-solid fa-robot mr-1"></i> AIコメント';
+                aiBox.appendChild(aiTitle);
+
+                const comment = (entry.aiComment || "").trim();
+                const status = entry.aiCommentStatus || "";
+                if (comment) {
+                    const txt = document.createElement("p");
+                    txt.className = "text-xs text-gray-700 leading-relaxed whitespace-pre-wrap";
+                    txt.textContent = comment;
+                    aiBox.appendChild(txt);
+
+                    const regen = document.createElement("button");
+                    regen.className = "mt-2 text-[10px] font-bold text-rose-700 bg-white border border-rose-200 px-2 py-1 rounded hover:bg-rose-100";
+                    regen.textContent = "再生成";
+                    regen.addEventListener("click", () => generateEntryComment(entry.id, entry, { silent: true, force: true }));
+                    aiBox.appendChild(regen);
+                } else if (status === "generating") {
+                    const generating = document.createElement("p");
+                    generating.className = "text-xs text-gray-500";
+                    generating.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> 生成中...';
+                    aiBox.appendChild(generating);
+                } else {
+                    const btn = document.createElement("button");
+                    btn.className = "text-[11px] font-bold text-rose-700 bg-white border border-rose-200 px-3 py-1.5 rounded hover:bg-rose-100";
+                    btn.textContent = "AIコメントを作る";
+                    btn.addEventListener("click", () => generateEntryComment(entry.id, entry, { silent: false, force: true }));
+                    aiBox.appendChild(btn);
+                }
+
+                card.appendChild(aiBox);
+                entriesHistoryList.appendChild(card);
             });
         }
 
@@ -1368,6 +1579,14 @@
             });
         }
 
+        workTabButtons.forEach((btn) => {
+            btn.addEventListener("click", () => switchWorkTab(btn.dataset.workTab));
+        });
+        if (refreshHistoryBtn) {
+            refreshHistoryBtn.addEventListener("click", () => renderEntryHistory());
+        }
+        switchWorkTab("write");
+
         // --- Tools Logic ---
         const activeEmotionsContainer = document.getElementById('active-emotions-container');
         const emotionSelector = document.getElementById('emotion-selector');
@@ -1479,7 +1698,62 @@
             return { summary: freeNote, detail: { note: freeNote } };
         }
 
+        function updateEntryInState(entryId, patch) {
+            const idx = state.cbtEntries.findIndex((e) => e.id === entryId);
+            if (idx < 0) return;
+            state.cbtEntries[idx] = { ...state.cbtEntries[idx], ...patch };
+        }
+
+        async function generateEntryComment(entryId, entryInput, { silent = true, force = false } = {}) {
+            if (!currentUser || !entryId) return;
+            const currentEntry = state.cbtEntries.find((e) => e.id === entryId) || entryInput || {};
+            if (!force && currentEntry.aiComment) return;
+            if (currentEntry.aiCommentStatus === "generating") return;
+
+            updateEntryInState(entryId, { aiCommentStatus: "generating" });
+            renderEntryHistory();
+
+            const entryRef = doc(db, "users", currentUser.uid, "entries", entryId);
+            try {
+                await updateDoc(entryRef, { aiCommentStatus: "generating" });
+            } catch {}
+
+            const emText = currentEntry.emotions ? emotionsToText(currentEntry.emotions) : "";
+            const detailText = buildEntryDetailText(currentEntry);
+            const prompt = `以下の記録に対して、共感1文 + 前向きな捉え直し1文 + 次の一歩1つを、やさしい日本語で120〜180字で返してください。箇条書きは最大2つ。\n記録タイプ: ${getToolLabel(currentEntry.type)}\nココロ: ${currentEntry.mental || 0}\nカラダ: ${currentEntry.physical || 0}\n感情: ${emText || "なし"}\n要約: ${currentEntry.summary || ""}\n詳細: ${detailText || "なし"}`;
+
+            try {
+                const comment = (await callGroqWithRetry(
+                    [{ role: "user", content: prompt }],
+                    { temperature: 0.45, max_tokens: 220 },
+                    2
+                ) || "").trim();
+
+                if (!comment) throw new Error("empty ai comment");
+
+                const patch = {
+                    aiComment: comment,
+                    aiCommentStatus: "ready",
+                    aiCommentUpdatedAt: new Date().toISOString()
+                };
+                updateEntryInState(entryId, patch);
+                renderEntryHistory();
+                await updateDoc(entryRef, patch);
+            } catch (e) {
+                updateEntryInState(entryId, { aiCommentStatus: "failed" });
+                renderEntryHistory();
+                try {
+                    await updateDoc(entryRef, { aiCommentStatus: "failed" });
+                } catch {}
+                if (!silent) {
+                    const detail = formatErrorDetails(e);
+                    alert(`AIコメントの生成に失敗しました。${detail ? `\n詳細: ${detail}` : ""}`);
+                }
+            }
+        }
+
         window.switchTool = (type) => {
+            switchWorkTab("write");
             document.getElementById('tool-menu-container').classList.add('hidden');
             document.getElementById('tool-form-container').classList.remove('hidden');
             document.getElementById('current-tool-type').value = type;
@@ -1505,6 +1779,7 @@
         };
 
         window.showToolMenu = () => {
+            switchWorkTab("write");
             document.getElementById('tool-form-container').classList.add('hidden');
             document.getElementById('tool-menu-container').classList.remove('hidden');
             activeEmotionsContainer.innerHTML = '';
@@ -1573,11 +1848,19 @@
                 physical: parseInt(document.getElementById('physical-val').value) * 20,
                 emotions,
                 summary,
-                detail: payload.detail
+                detail: payload.detail,
+                aiComment: "",
+                aiCommentStatus: "pending",
+                aiCommentUpdatedAt: ""
             };
 
             try {
-                await addDoc(collection(db, "users", currentUser.uid, "entries"), entry);
+                const created = await addDoc(collection(db, "users", currentUser.uid, "entries"), entry);
+                const createdEntry = { id: created.id, ...entry };
+                state.cbtEntries = [createdEntry, ...state.cbtEntries].slice(0, 50);
+                renderEntryHistory();
+                updateCharts();
+                generateEntryComment(created.id, createdEntry, { silent: true, force: true }).catch((e) => console.error(e));
                 
                 // チャットに反映
                 if(Object.keys(emotions).length > 0) {
