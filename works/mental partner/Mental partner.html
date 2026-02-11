@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mental Partner v8 (Firebase Cloud)</title>
+    <title>Mental Partner v12 (Emotion Score)</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2314b8a6'/%3E%3Ctext x='32' y='41' font-size='28' text-anchor='middle' fill='white' font-family='Arial, sans-serif'%3EM%3C/text%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.5/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f0f9ff; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f8fafc; }
         .chat-bubble { max-width: 85%; line-height: 1.6; }
         .markdown-body p { margin-bottom: 0.5em; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -21,56 +21,83 @@
         .icon-btn { transition: all 0.2s; }
         .icon-btn:active { transform: scale(0.9); }
         .icon-selected { transform: scale(1.2); }
-        .emotion-tag { background: #f8fafc; border: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-weight: 700; padding: 8px 10px; border-radius: 9999px; transition: all 0.2s; }
-        .emotion-tag:hover { background: #e6fffb; border-color: #99f6e4; color: #0f766e; }
-        .emotion-tag.is-active { background: #14b8a6; border-color: #0f766e; color: #ffffff; }
+        
+        /* Tool Cards */
+        .tool-card {
+            position: relative; overflow: hidden; border-radius: 16px; padding: 16px;
+            color: white; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); height: 80px; display: flex; align-items: center;
+        }
+        .tool-card:active { transform: scale(0.98); }
+        .tool-bg-icon {
+            position: absolute; right: -10px; bottom: -10px; font-size: 3.5rem; opacity: 0.15; transform: rotate(-10deg);
+        }
+        .tool-mascot {
+            position: absolute; right: 10px; bottom: 8px; width: 36px; height: 36px;
+            background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            color: #333; font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Analysis Tabs */
+        .analysis-tab { border-bottom: 2px solid transparent; color: #94a3b8; font-weight: bold; font-size: 0.9rem; padding-bottom: 0.5rem; flex: 1; text-align: center; transition: all 0.3s; }
+        .analysis-tab.active { border-bottom-color: #0d9488; color: #0f766e; }
+
+        .nav-btn { color: #9ca3af; }
+        .nav-btn.tab-active { color: #0d9488; }
+
+        /* Emotion Slider Customization */
+        input[type=range] {
+            -webkit-appearance: none; width: 100%; background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #ffffff; cursor: pointer; margin-top: -8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 2px solid currentColor;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px;
+        }
+        
+        /* SVG Ring Progress */
+        .ring-container { position: relative; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .ring-svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+        .ring-circle-bg { fill: none; stroke: #334155; stroke-width: 4; opacity: 0.3; }
+        .ring-circle-fg { fill: none; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+        .ring-text { position: absolute; text-align: center; color: white; line-height: 1; }
+        .ring-score { font-size: 14px; font-weight: bold; }
+        .ring-label { font-size: 9px; opacity: 0.9; margin-bottom: 2px; }
+
         .selfcare-card { display: flex; align-items: center; justify-content: space-between; width: 100%; background: #ffffff; border: 1px solid #f1f5f9; border-radius: 16px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); transition: all 0.2s; text-align: left; }
         .selfcare-card:hover { border-color: #99f6e4; transform: translateY(-1px); }
     </style>
 </head>
-<body class="h-screen flex flex-col items-center justify-center text-gray-800">
+<body class="h-screen flex flex-col items-center justify-center text-gray-800 bg-slate-50">
 
-    <!-- ログイン画面 (Firebase) -->
+    <!-- ログイン画面 -->
     <div id="login-screen" class="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 overflow-y-auto">
         <div class="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center text-teal-600 text-4xl mb-6 flex-shrink-0">
             <i class="fa-solid fa-spa"></i>
         </div>
         <h1 class="text-2xl font-bold text-gray-800 mb-2">Mental Partner</h1>
-        <p class="text-gray-500 mb-8 text-sm text-center">データをクラウドに保存して、<br>いつでもどこでも振り返り。</p>
+        <p class="text-gray-500 mb-8 text-sm text-center">感情の機微を記録して、<br>AIと一緒にこころを整える。</p>
         
         <div class="flex flex-col gap-3 w-full max-w-xs">
             <button id="google-login-btn" class="bg-white border border-gray-300 text-gray-700 font-bold py-3 px-6 rounded-xl shadow-sm hover:bg-gray-50 transition flex items-center justify-center gap-3 w-full">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5">
                 <span>Googleでログイン</span>
             </button>
-            
         </div>
-        <p id="google-login-disabled" class="hidden mt-3 text-xs text-gray-500 text-center">
-            このドメインではGoogleログインが無効です。
-        </p>
-        <p class="mt-4 text-[11px] text-gray-400 text-center">
-            AI機能はログイン後に利用できます。
-        </p>
-
-        <!-- エラー表示エリア -->
         <div id="login-error-container" class="mt-6 w-full max-w-sm hidden">
             <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-xs text-red-700 break-all">
                 <p class="font-bold mb-2"><i class="fa-solid fa-circle-exclamation"></i> ログインエラー</p>
-                <p id="login-error-msg" class="mb-2">ドメインが許可されていません。</p>
-                
-                <div id="domain-instruction" class="hidden mt-2 pt-2 border-t border-red-200">
-                    <p class="mb-1">以下のドメインをFirebaseコンソールの<br><strong>Authentication > 設定 > 承認済みドメイン</strong><br>に追加してください：</p>
-                    <code id="current-domain" class="block bg-white p-2 rounded border border-red-100 font-mono select-all cursor-pointer hover:bg-gray-50" title="クリックしてコピー"></code>
-                </div>
+                <p id="login-error-msg" class="mb-2">エラーが発生しました。</p>
             </div>
         </div>
     </div>
 
     <!-- アプリ本体 -->
-    <div id="app-container" class="hidden w-full h-full md:max-w-md md:h-[95vh] md:rounded-3xl md:shadow-2xl flex flex-col bg-white overflow-hidden relative border border-gray-100">
+    <div id="app-container" class="hidden w-full h-full md:max-w-md md:h-[95vh] md:rounded-3xl md:shadow-2xl flex flex-col bg-white overflow-hidden relative border border-gray-200">
         
         <!-- ヘッダー -->
-        <header class="bg-white/95 backdrop-blur-sm border-b border-gray-100 p-4 flex justify-between items-center z-20 absolute top-0 w-full h-16">
+        <header class="bg-white/95 backdrop-blur-sm border-b border-gray-100 p-4 flex justify-between items-center z-20 absolute top-0 w-full h-14 shadow-sm">
             <h1 class="font-bold text-gray-800 flex items-center gap-2 text-lg">
                 <i class="fa-solid fa-spa text-teal-500"></i> Mental Partner
             </h1>
@@ -82,24 +109,22 @@
         </header>
 
         <!-- メインコンテンツ -->
-        <main class="flex-1 overflow-hidden relative pt-16 pb-16 bg-gray-50">
+        <main class="flex-1 overflow-hidden relative pt-14 pb-16 bg-slate-50">
             
             <!-- 1. チャット -->
-            <div id="view-chat" class="view-section w-full h-full flex flex-col absolute inset-0 transition-opacity duration-300 pt-16 pb-16">
+            <div id="view-chat" class="view-section w-full h-full flex flex-col absolute inset-0 transition-opacity duration-300 pt-14 pb-16">
                 <div class="px-4 pt-3 flex justify-end">
                     <button id="summarize-btn" class="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-3 py-1 rounded-full hover:bg-teal-100 transition">
-                        会話を要約して圧縮
+                        会話を要約
                     </button>
                 </div>
                 <div id="chat-summary-wrap" class="hidden px-4 pt-2">
                     <details class="bg-teal-50 border border-teal-100 rounded-xl p-3 text-xs text-gray-700">
-                        <summary class="cursor-pointer font-bold text-teal-700">会話の要約</summary>
+                        <summary class="cursor-pointer font-bold text-teal-700">これまでのあらすじ</summary>
                         <div id="chat-summary-text" class="mt-2 whitespace-pre-wrap"></div>
                     </details>
                 </div>
-                <div id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
-                    <!-- チャット履歴はJSでロード -->
-                </div>
+                <div id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"></div>
                 <div class="p-3 bg-white border-t border-gray-100">
                     <form id="chat-form" class="flex gap-2">
                         <input type="text" id="user-input" class="flex-1 bg-gray-100 border-0 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm" placeholder="話しかける..." autocomplete="off">
@@ -110,143 +135,232 @@
                 </div>
             </div>
 
-            <!-- 2. チェックイン -->
-            <div id="view-work" class="view-section w-full h-full absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pt-16 pb-20 p-4 bg-gradient-to-b from-teal-50 to-white">
+            <!-- 2. 記録 -->
+            <div id="view-work" class="view-section w-full h-full absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pt-14 pb-20 p-4 bg-slate-50">
                 
-                <div id="daily-message-area" class="bg-white p-5 rounded-2xl shadow-sm mb-6 border border-teal-100 relative hidden animate-fade-in">
-                    <div class="text-xs text-gray-400 mb-2 flex items-center gap-1">
+                <div id="daily-message-area" class="bg-white p-4 rounded-xl shadow-sm mb-6 border border-teal-100 relative hidden animate-fade-in mx-1">
+                    <div class="text-xs text-gray-400 mb-1 flex items-center gap-1">
                         <i class="fa-solid fa-robot"></i> AIからのフィードバック
                     </div>
                     <p id="daily-message-text" class="text-sm text-gray-700 leading-relaxed"></p>
                     <button onclick="document.getElementById('daily-message-area').classList.add('hidden')" class="absolute top-2 right-3 text-gray-300 hover:text-gray-500"><i class="fa-solid fa-times"></i></button>
                 </div>
 
-                    <div class="bg-white p-6 rounded-3xl shadow-sm mb-6 border border-gray-100">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-lg font-bold text-gray-800">チェックイン</h2>
+                <!-- A. ツール選択メニュー -->
+                <div id="tool-menu-container" class="animate-fade-in space-y-6 pb-10">
+                    <div class="flex justify-between items-center px-1">
+                        <h2 class="text-lg font-bold text-gray-800">ノートを追加</h2>
                         <span class="text-xs text-gray-400" id="current-date"></span>
                     </div>
 
-                    <!-- スコア (強度) -->
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="text-center">
-                            <label class="block text-xs font-bold text-teal-600 mb-2">ココロの元気</label>
-                            <div class="flex justify-between px-1">
-                                <button class="icon-btn text-2xl text-gray-300 hover:text-indigo-400" onclick="setMental(1, this)"><i class="fa-solid fa-face-sad-tear"></i></button>
-                                <button class="icon-btn text-2xl text-gray-300 hover:text-blue-400" onclick="setMental(2, this)"><i class="fa-solid fa-face-frown"></i></button>
-                                <button class="icon-btn text-2xl text-gray-300 hover:text-gray-400" onclick="setMental(3, this)"><i class="fa-solid fa-face-meh"></i></button>
-                                <button class="icon-btn text-2xl text-gray-300 hover:text-teal-400" onclick="setMental(4, this)"><i class="fa-solid fa-face-smile"></i></button>
-                                <button class="icon-btn text-2xl text-gray-300 hover:text-yellow-400" onclick="setMental(5, this)"><i class="fa-solid fa-face-laugh-beam"></i></button>
+                    <!-- 認知行動療法シリーズ -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-3 ml-1">
+                            <span class="w-1 h-4 bg-teal-400 rounded-full"></span>
+                            <h3 class="text-xs font-bold text-gray-500">問題を整理し解決策を考える</h3>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3">
+                            <div class="tool-card bg-gradient-to-r from-teal-400 to-emerald-400" onclick="switchTool('cbt-3')">
+                                <div><h4 class="font-bold text-sm">3コラム法</h4></div>
+                                <i class="fa-solid fa-columns tool-bg-icon"></i>
+                                <div class="tool-mascot"><i class="fa-solid fa-3"></i></div>
                             </div>
-                            <input type="hidden" id="mental-val" value="3">
-                        </div>
-                        <div class="text-center">
-                            <label class="block text-xs font-bold text-teal-600 mb-2">カラダの元気</label>
-                            <div id="physical-hearts" class="flex justify-center gap-2">
-                                <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(1)"><i class="fa-solid fa-heart"></i></button>
-                                <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(2)"><i class="fa-solid fa-heart"></i></button>
-                                <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(3)"><i class="fa-solid fa-heart"></i></button>
-                                <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(4)"><i class="fa-solid fa-heart"></i></button>
-                                <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(5)"><i class="fa-solid fa-heart"></i></button>
+                            <div class="tool-card bg-gradient-to-r from-teal-500 to-emerald-500" onclick="switchTool('cbt-5')">
+                                <div><h4 class="font-bold text-sm">5コラム法</h4></div>
+                                <i class="fa-solid fa-table-columns tool-bg-icon"></i>
+                                <div class="tool-mascot"><i class="fa-solid fa-5"></i></div>
                             </div>
-                            <input type="hidden" id="physical-val" value="3">
                         </div>
                     </div>
 
-                    <!-- 感情カテゴリ -->
-                    <div class="mb-6">
-                        <label class="block text-xs font-bold text-teal-600 mb-3">感情カテゴリ</label>
-                        <div id="emotion-tags" class="grid grid-cols-3 gap-2">
-                            <button type="button" class="emotion-tag" data-emotion="うれしい">うれしい</button>
-                            <button type="button" class="emotion-tag" data-emotion="かなしい">かなしい</button>
-                            <button type="button" class="emotion-tag" data-emotion="いらいら">いらいら</button>
-                            <button type="button" class="emotion-tag" data-emotion="不安">不安</button>
-                            <button type="button" class="emotion-tag" data-emotion="落ち込み">落ち込み</button>
-                            <button type="button" class="emotion-tag" data-emotion="疲れ">疲れ</button>
+                    <!-- 日記・振り返り -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-3 ml-1">
+                            <span class="w-1 h-4 bg-blue-400 rounded-full"></span>
+                            <h3 class="text-xs font-bold text-gray-500">三行で1日をふり返る</h3>
                         </div>
-                        <input type="hidden" id="emotion-category" value="">
+                        <div class="grid grid-cols-1 gap-3">
+                            <div class="tool-card bg-gradient-to-r from-sky-400 to-blue-400" onclick="switchTool('tgt')">
+                                <div>
+                                    <h4 class="font-bold text-sm">スリー・グッド・シングス</h4>
+                                    <p class="text-[10px] opacity-90 mt-0.5">良かったことを3つ記録</p>
+                                </div>
+                                <i class="fa-solid fa-star tool-bg-icon"></i>
+                                <div class="tool-mascot"><i class="fa-solid fa-gift"></i></div>
+                            </div>
+                            <div class="tool-card bg-gradient-to-r from-indigo-400 to-purple-400" onclick="switchTool('free')">
+                                <div>
+                                    <h4 class="font-bold text-sm">自由記述・モヤモヤ整理</h4>
+                                    <p class="text-[10px] opacity-90 mt-0.5">気持ちを吐き出す</p>
+                                </div>
+                                <i class="fa-solid fa-pen-nib tool-bg-icon"></i>
+                                <div class="tool-mascot"><i class="fa-solid fa-feather"></i></div>
+                            </div>
+                        </div>
                     </div>
-
-                    <!-- CBT 4項目入力 -->
-                    <div class="space-y-4 pt-4 border-t border-gray-100">
-                        
-                        <!-- 1. 状況 -->
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">
-                                <i class="fa-regular fa-calendar text-teal-500 mr-1"></i> 1. 状況 (いつ、どこで、誰と？)
-                            </label>
-                            <input type="text" id="cbt-situation" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-base md:text-sm focus:outline-none focus:border-teal-500" placeholder="例：仕事中にミスをして上司に注意された">
-                        </div>
-
-                        <!-- 2. 感情 -->
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">
-                                <i class="fa-regular fa-face-flushed text-teal-500 mr-1"></i> 2. 感情 (どんな気持ち？)
-                            </label>
-                            <input type="text" id="cbt-emotion-text" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-base md:text-sm focus:outline-none focus:border-teal-500" placeholder="例：悲しい、情けない、不安 (80%)">
-                        </div>
-
-                        <!-- 3. 思考 -->
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">
-                                <i class="fa-solid fa-cloud text-teal-500 mr-1"></i> 3. 思考 (頭に浮かんだ考え)
-                            </label>
-                            <textarea id="cbt-thought" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-base md:text-sm focus:outline-none focus:border-teal-500 resize-none h-20" placeholder="例：自分はなんてダメなんだ、もう信用されないだろう"></textarea>
-                        </div>
-
-                        <!-- 4. 行動 -->
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 mb-1">
-                                <i class="fa-solid fa-person-walking text-teal-500 mr-1"></i> 4. 行動 (何をした？)
-                            </label>
-                            <input type="text" id="cbt-behavior" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-base md:text-sm focus:outline-none focus:border-teal-500" placeholder="例：謝ってすぐに修正に取り掛かった、トイレで深呼吸した">
-                        </div>
-
-                    </div>
-
-                    <button id="save-cbt-btn" class="w-full mt-6 bg-teal-600 text-white py-4 rounded-2xl text-sm font-bold shadow-lg shadow-teal-100 hover:bg-teal-700 transition transform active:scale-95 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-check"></i> チェックイン完了
-                    </button>
                 </div>
-                <h3 class="text-xs font-bold text-gray-400 mb-2 px-2">最近の記録</h3>
-                <div id="cbt-list" class="space-y-3 pb-10"></div>
+
+                <!-- B. 入力フォーム -->
+                <div id="tool-form-container" class="hidden h-full flex flex-col">
+                    <button onclick="showToolMenu()" class="mb-4 text-xs font-bold text-gray-500 hover:text-teal-600 flex items-center gap-1 self-start">
+                        <i class="fa-solid fa-chevron-left"></i> 戻る
+                    </button>
+
+                    <div class="bg-white p-6 rounded-3xl shadow-sm mb-6 border border-gray-100 flex-1">
+                        
+                        <!-- コンディション -->
+                        <div class="mb-6 pb-6 border-b border-gray-100">
+                             <div class="grid grid-cols-2 gap-4">
+                                <div class="text-center">
+                                    <label class="block text-xs font-bold text-teal-600 mb-2">ココロ</label>
+                                    <div class="flex justify-between px-1">
+                                        <button class="icon-btn text-2xl text-gray-300 hover:text-indigo-400" onclick="setMental(1, this)"><i class="fa-solid fa-face-sad-tear"></i></button>
+                                        <button class="icon-btn text-2xl text-gray-300 hover:text-blue-400" onclick="setMental(2, this)"><i class="fa-solid fa-face-frown"></i></button>
+                                        <button class="icon-btn text-2xl text-gray-300 hover:text-gray-400" onclick="setMental(3, this)"><i class="fa-solid fa-face-meh"></i></button>
+                                        <button class="icon-btn text-2xl text-gray-300 hover:text-teal-400" onclick="setMental(4, this)"><i class="fa-solid fa-face-smile"></i></button>
+                                        <button class="icon-btn text-2xl text-gray-300 hover:text-yellow-400" onclick="setMental(5, this)"><i class="fa-solid fa-face-laugh-beam"></i></button>
+                                    </div>
+                                    <input type="hidden" id="mental-val" value="3">
+                                </div>
+                                <div class="text-center">
+                                    <label class="block text-xs font-bold text-teal-600 mb-2">カラダ</label>
+                                    <div id="physical-hearts" class="flex justify-center gap-2">
+                                        <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(1)"><i class="fa-solid fa-heart"></i></button>
+                                        <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(2)"><i class="fa-solid fa-heart"></i></button>
+                                        <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(3)"><i class="fa-solid fa-heart"></i></button>
+                                        <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(4)"><i class="fa-solid fa-heart"></i></button>
+                                        <button class="icon-btn text-2xl text-gray-200 hover:text-pink-400" onclick="setPhysical(5)"><i class="fa-solid fa-heart"></i></button>
+                                    </div>
+                                    <input type="hidden" id="physical-val" value="3">
+                                </div>
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="current-tool-type" value="cbt-3">
+
+                        <!-- フォームコンテンツ -->
+                        <div id="form-content" class="space-y-6">
+                            <h3 id="form-title" class="text-sm font-bold text-teal-600 border-b pb-2">記録</h3>
+                            
+                            <!-- 感情スコア入力 -->
+                            <div class="mb-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-xs font-bold text-gray-500">感情の種類と強さ (0-100)</label>
+                                    <button onclick="toggleEmotionSelector()" class="text-xs text-teal-600 font-bold bg-teal-50 px-2 py-1 rounded hover:bg-teal-100"><i class="fa-solid fa-plus"></i> 追加</button>
+                                </div>
+                                <div id="active-emotions-container" class="space-y-3">
+                                    <!-- JSでスライダーを追加 -->
+                                </div>
+                                <div id="emotion-selector" class="hidden mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100 grid grid-cols-2 gap-2">
+                                    <!-- 感情リスト (JS生成) -->
+                                </div>
+                            </div>
+
+                            <!-- テキストフィールド (JSで切り替え) -->
+                            <div class="field-group space-y-4" data-fields="all">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">状況・出来事</label>
+                                    <input type="text" id="cbt-situation" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:border-teal-500" placeholder="例：上司に注意された">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">頭に浮かんだこと (自動思考)</label>
+                                    <textarea id="cbt-thought" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:border-teal-500 resize-none h-20" placeholder="例：自分はダメな人間だ"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="field-group hidden" data-fields="5,7">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">別の考え方 (適応的思考)</label>
+                                <textarea id="cbt-adaptive" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:border-teal-500 resize-none h-20" placeholder="例：誰でもミスはする、次は気をつけよう"></textarea>
+                            </div>
+
+                            <div class="field-group hidden" data-fields="tgt">
+                                <div class="space-y-3">
+                                    <input type="text" id="tgt-1" class="w-full bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm" placeholder="1. 良かったこと">
+                                    <input type="text" id="tgt-2" class="w-full bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm" placeholder="2. 良かったこと">
+                                    <input type="text" id="tgt-3" class="w-full bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm" placeholder="3. 良かったこと">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="save-entry-btn" class="w-full mt-6 bg-gray-800 text-white py-4 rounded-2xl text-sm font-bold shadow-lg hover:opacity-90 transition transform active:scale-95 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-check"></i> 記録する
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- 3. 分析 -->
-            <div id="view-analysis" class="view-section w-full h-full flex flex-col absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pt-16 pb-24 bg-white">
-                <div class="absolute right-4 bottom-20 z-20">
-                    <button id="analyze-btn" class="bg-gradient-to-r from-teal-500 to-teal-600 text-white px-3 py-2 rounded-full text-xs font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i> 分析
-                    </button>
+            <div id="view-analysis" class="view-section w-full h-full flex flex-col absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pt-14 pb-24 bg-white">
+                
+                <div class="sticky top-0 bg-white z-10 px-6 pt-4 border-b border-gray-100 flex">
+                    <button class="analysis-tab active" data-tab="daily" onclick="switchAnalysisTab('daily')">日々の変化</button>
+                    <button class="analysis-tab" data-tab="ai" onclick="switchAnalysisTab('ai')">AIじぶん分析</button>
                 </div>
-                <div class="px-6 py-6 border-b border-gray-100">
-                    <div class="flex items-center gap-2 mb-1"><span class="bg-teal-100 text-teal-700 text-[10px] font-bold px-2 py-0.5 rounded-full">AIレターのポイント</span></div>
-                    <h2 class="text-lg font-bold text-gray-800 mb-4">調子の波とできごと</h2>
-                    <div class="flex gap-4 mb-2 text-xs font-bold">
-                        <span class="flex items-center gap-1 text-gray-500"><span class="w-3 h-3 bg-teal-400 rounded-sm"></span>ココロ</span>
-                        <span class="flex items-center gap-1 text-gray-500"><span class="w-3 h-3 bg-orange-400 rounded-sm"></span>カラダ</span>
-                    </div>
-                    <div class="h-[200px] w-full relative mb-4"><canvas id="waveChart"></canvas></div>
-                    <div class="relative mt-2">
-                        <div class="bg-teal-50 p-4 rounded-2xl rounded-tr-none text-sm text-gray-700 shadow-sm border border-teal-100 relative z-0">
-                            <h4 class="text-teal-600 font-bold text-xs mb-1">今週の傾向</h4>
-                            <div id="wave-analysis-text">分析ボタンを押してください。</div>
+
+                <div id="analysis-daily" class="p-6 space-y-8">
+                    <!-- コンディション (Area Chart) -->
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">コンディションの変化</h3>
+                        <div class="bg-white rounded-none">
+                            <div class="h-[200px] w-full relative">
+                                <canvas id="conditionChart"></canvas>
+                            </div>
                         </div>
-                        <div class="absolute -right-2 -top-8 w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center text-teal-600 border border-teal-50 z-10"><i class="fa-solid fa-robot text-xl"></i></div>
+                    </div>
+
+                    <!-- 感情の構成 (Donut) -->
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">感情の構成</h3>
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-50 flex flex-col items-center">
+                            <div class="h-[200px] w-[200px] relative mb-6">
+                                <canvas id="emotionDoughnutChart"></canvas>
+                            </div>
+                            <!-- スコアカード -->
+                            <div class="grid grid-cols-4 gap-2 w-full">
+                                <div class="text-center p-2 rounded-lg bg-red-50 border border-red-100">
+                                    <div class="text-[10px] text-red-500 font-bold mb-1">怒り</div>
+                                    <div class="text-xl font-bold text-gray-800" id="score-anger">0</div>
+                                </div>
+                                <div class="text-center p-2 rounded-lg bg-purple-50 border border-purple-100">
+                                    <div class="text-[10px] text-purple-500 font-bold mb-1">不安</div>
+                                    <div class="text-xl font-bold text-gray-800" id="score-anxiety">0</div>
+                                </div>
+                                <div class="text-center p-2 rounded-lg bg-blue-50 border border-blue-100">
+                                    <div class="text-[10px] text-blue-500 font-bold mb-1">悲しみ</div>
+                                    <div class="text-xl font-bold text-gray-800" id="score-sadness">0</div>
+                                </div>
+                                <div class="text-center p-2 rounded-lg bg-green-50 border border-green-100">
+                                    <div class="text-[10px] text-green-600 font-bold mb-1">嫌悪</div>
+                                    <div class="text-xl font-bold text-gray-800" id="score-disgust">0</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="px-6 py-6 pb-10">
-                    <h2 class="text-lg font-bold text-gray-800 mb-4">思考パターン</h2>
-                    <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm mb-6">
-                        <div class="h-[300px] w-full relative"><canvas id="patternChart"></canvas></div>
+
+                <div id="analysis-ai" class="hidden p-6 pb-10">
+                    <div class="flex justify-end mb-4">
+                        <button id="analyze-btn" class="bg-gradient-to-r from-teal-500 to-teal-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> AI分析を実行
+                        </button>
                     </div>
-                    <h3 class="text-sm font-bold text-teal-700 mb-3">よく出るパターン</h3>
-                    <div class="grid grid-cols-3 gap-2 mb-6" id="top-patterns-container"></div>
+                    <div class="relative mb-8">
+                        <div class="bg-teal-50 p-5 rounded-2xl text-sm text-gray-700 shadow-sm border border-teal-100 relative z-0">
+                            <h4 class="text-teal-700 font-bold text-sm mb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-robot"></i> 今週の傾向とアドバイス
+                            </h4>
+                            <div id="wave-analysis-text" class="leading-relaxed">まだ分析データがありません。</div>
+                        </div>
+                    </div>
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">思考のクセ</h2>
+                    <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm mb-6">
+                        <div class="h-[250px] w-full relative"><canvas id="patternChart"></canvas></div>
+                    </div>
                 </div>
             </div>
 
             <!-- 4. メモリ -->
-            <div id="view-memory" class="view-section w-full h-full flex flex-col absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pt-16 pb-24 bg-white">
+            <div id="view-memory" class="view-section w-full h-full flex flex-col absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto pt-14 pb-24 bg-white">
                 <div class="px-6 py-6 border-b border-gray-100">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-bold text-gray-800">AIメモリ</h2>
@@ -255,19 +369,13 @@
                         </button>
                     </div>
                     <div class="bg-teal-50 border border-teal-100 rounded-2xl p-4 text-sm text-gray-700">
-                        <p id="memory-empty" class="text-xs text-gray-500">まだ要約がありません。チャットを続けるか、要約を実行してください。</p>
+                        <p id="memory-empty" class="text-xs text-gray-500">まだ要約がありません。</p>
                         <div id="memory-summary-text" class="hidden whitespace-pre-wrap"></div>
                     </div>
                 </div>
                 <div class="px-6 py-6">
-                    <h3 class="text-sm font-bold text-teal-700 mb-2">使い方</h3>
-                    <p class="text-xs text-gray-500 leading-relaxed">
-                        要約は「これまでの相談の要点」を短く保存します。次回の相談で同じ話題が続く場合でも、重複を避けて新しい一歩を提案しやすくなります。
-                    </p>
-                </div>
-                <div class="px-6 pb-10">
                     <h3 class="text-sm font-bold text-teal-700 mb-3">セルフケア</h3>
-                    <div id="selfcare-list" class="grid grid-cols-1 gap-3">
+                    <div class="grid grid-cols-1 gap-3">
                         <button class="selfcare-card">
                             <div>
                                 <div class="text-xs font-bold text-gray-800 mb-1">3分呼吸リセット</div>
@@ -297,7 +405,7 @@
         <!-- ナビゲーション -->
         <nav class="bg-white border-t border-gray-100 h-16 flex justify-around items-center z-20 absolute bottom-0 w-full shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
             <button class="nav-btn tab-active flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-chat"><i class="fa-solid fa-comments text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">チャット</span></button>
-            <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-work"><i class="fa-solid fa-pen-to-square text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">チェックイン</span></button>
+            <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-work"><i class="fa-solid fa-pen-to-square text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">記録</span></button>
             <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-analysis"><i class="fa-solid fa-chart-pie text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">分析</span></button>
             <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-memory"><i class="fa-solid fa-brain text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">メモリ</span></button>
         </nav>
@@ -305,12 +413,11 @@
 
     <!-- Firebase SDKs -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ▼▼▼ Firebase Config ▼▼▼
-        const firebaseConfig = {
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAm6Gi_FFunADHW36uP2ZexHO6cq06yG9g",
             authDomain: "my-mental-partner.firebaseapp.com",
             projectId: "my-mental-partner",
@@ -319,27 +426,8 @@
             appId: "1:804766436088:web:f49b22a1948cb91d3e090d",
             measurementId: "G-82DFXNL0VW"
         };
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-        // Init Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
-
-        // Environment Variables
         const GROQ_MODEL = "openai/gpt-oss-120b";
-
-        // Global State
-        let currentUser = null;
-        let state = {
-            chatHistory: [],
-            chatSummary: "",
-            chatSummaryUpdatedAt: 0,
-            cbtEntries: [],
-            patterns: { "全か無か思考": 0, "過度の一般化": 0, "心のフィルター": 0, "マイナス化思考": 0, "結論の飛躍": 0, "拡大解釈・過小評価": 0, "感情的決めつけ": 0, "べき思考": 0, "レッテル貼り": 0, "個人化": 0 }
-        };
-        const EMOTION_COLORS = ['#818cf8', '#60a5fa', '#9ca3af', '#2dd4bf', '#fbbf24'];
         const CHAT_SYSTEM_PROMPT = "あなたは優秀な精神保健福祉士で認知行動療法（CBT）のカウンセラーです。日本語で、思いやりのある口調で、要点を整理しつつ簡潔にまとめてください。1000字以内を厳守し、冗長な繰り返しは避けてください。既出のアドバイスは原則繰り返さず、必要なら『前回の要点』として1〜2行で参照してください。提案は必ず1〜2点までに制限し、同じ話題が続く場合は最初に1つだけ確認質問をしてから提案してください。箇条書きは最大3行まで。過度に断定せず、具体的な一歩を提案してください。";
         const MAX_INPUT_TOKENS = 5200;
         const TOKEN_PER_CHAR = 1 / 3.5;
@@ -348,8 +436,66 @@
         const AUTO_SUMMARY_COOLDOWN_MS = 5 * 60 * 1000;
         const AUTO_SUMMARY_MAX_TOKENS = 4200;
 
+        const DEFAULT_PATTERNS = {
+            "全か無か思考": 0,
+            "過度の一般化": 0,
+            "心のフィルター": 0,
+            "マイナス化思考": 0,
+            "結論の飛躍": 0,
+            "拡大解釈・過小評価": 0,
+            "感情的決めつけ": 0,
+            "べき思考": 0,
+            "レッテル貼り": 0,
+            "個人化": 0
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        let currentUser = null;
+        let state = {
+            chatHistory: [],
+            chatSummary: "",
+            chatSummaryUpdatedAt: 0,
+            cbtEntries: [],
+            patterns: { ...DEFAULT_PATTERNS },
+            analysisComment: ""
+        };
+        
+        // 感情定義
+        const EMOTIONS = [
+            { id: 'anger', label: '怒り', color: '#ef4444' },
+            { id: 'sadness', label: '悲しみ', color: '#3b82f6' },
+            { id: 'anxiety', label: '不安', color: '#a855f7' },
+            { id: 'disgust', label: '嫌悪', color: '#10b981' },
+            { id: 'joy', label: '喜び', color: '#f43f5e' },
+            { id: 'calm', label: '穏やか', color: '#64748b' }
+        ];
+
+        // --- Helpers ---
         function estimateTokens(text) {
             return Math.ceil((text || "").length * TOKEN_PER_CHAR);
+        }
+
+        function normalizeHistory(history) {
+            if (!Array.isArray(history)) return [];
+            return history.map((m) => {
+                if (!m) return null;
+                if (m.type === 'emotions' && m.content) return m;
+                if (typeof m.content === 'string') return { role: m.role || 'user', content: m.content };
+                if (m.parts && m.parts[0]?.text) {
+                    const role = m.role === 'model' ? 'assistant' : (m.role || 'user');
+                    return { role, content: m.parts[0].text };
+                }
+                return null;
+            }).filter(Boolean);
+        }
+
+        function emotionsToText(emotions) {
+            if (!emotions) return "";
+            return Object.entries(emotions).map(([k,v]) => `${k}:${v}`).join(', ');
         }
 
         function buildChatMessages(history) {
@@ -361,13 +507,32 @@
             const selected = [];
             for (let i = history.length - 1; i >= 0; i--) {
                 const msg = history[i];
-                const content = msg?.content || "";
+                let role = msg.role || 'user';
+                let content = msg.content || '';
+                if (msg.type === 'emotions') {
+                    role = 'user';
+                    content = `感情記録: ${emotionsToText(msg.content)}`;
+                }
                 const cost = estimateTokens(content);
                 if (total + cost > MAX_INPUT_TOKENS) break;
-                selected.push({ role: msg.role, content });
+                selected.push({ role, content });
                 total += cost;
             }
             return [system, ...selected.reverse()];
+        }
+
+        function estimateHistoryTokens(history) {
+            return history.reduce((sum, m) => {
+                if (m?.type === 'emotions') return sum + estimateTokens(emotionsToText(m.content));
+                return sum + estimateTokens(m?.content || "");
+            }, 0);
+        }
+
+        function shouldAutoSummarize() {
+            if (state.chatHistory.length < AUTO_SUMMARY_MIN_MESSAGES) return false;
+            if (Date.now() - (state.chatSummaryUpdatedAt || 0) < AUTO_SUMMARY_COOLDOWN_MS) return false;
+            const tokens = estimateHistoryTokens(state.chatHistory);
+            return tokens > AUTO_SUMMARY_MAX_TOKENS;
         }
 
         function buildSummaryInput(history, options = {}) {
@@ -386,8 +551,13 @@
             for (let i = history.length - 1; i >= 0; i--) {
                 if (count >= maxMessages) break;
                 const msg = history[i];
-                const role = msg.role === "user" ? "User" : "Assistant";
-                const line = `${role}: ${msg.content}\n`;
+                let line = '';
+                if (msg.type === 'emotions') {
+                    line = `Emotions: ${emotionsToText(msg.content)}\n`;
+                } else {
+                    const role = msg.role === 'user' ? 'User' : 'Assistant';
+                    line = `${role}: ${msg.content}\n`;
+                }
                 const cost = estimateTokens(line);
                 if (total + cost > maxTokens) break;
                 lines.push(line);
@@ -397,42 +567,6 @@
             lines.reverse();
             blocks.push(lines.join(""));
             return blocks.join("");
-        }
-
-        function estimateHistoryTokens(history) {
-            return history.reduce((sum, m) => sum + estimateTokens(m?.content || ""), 0);
-        }
-
-        function shouldAutoSummarize() {
-            if (state.chatHistory.length < AUTO_SUMMARY_MIN_MESSAGES) return false;
-            if (Date.now() - (state.chatSummaryUpdatedAt || 0) < AUTO_SUMMARY_COOLDOWN_MS) return false;
-            const tokens = estimateHistoryTokens(state.chatHistory);
-            return tokens > AUTO_SUMMARY_MAX_TOKENS;
-        }
-
-        // Auth Logic
-        const loginScreen = document.getElementById('login-screen');
-        const appContainer = document.getElementById('app-container');
-        const googleLoginBtn = document.getElementById('google-login-btn');
-        const logoutBtn = document.getElementById('logout-btn');
-        const userNameEl = document.getElementById('user-name');
-        const loginErrorContainer = document.getElementById('login-error-container');
-        const loginErrorMsg = document.getElementById('login-error-msg');
-        const domainInstruction = document.getElementById('domain-instruction');
-        const currentDomainEl = document.getElementById('current-domain');
-        const googleLoginDisabledMsg = document.getElementById('google-login-disabled');
-
-        const allowedAuthDomains = [
-            "localhost",
-            "127.0.0.1",
-            "my-mental-partner.firebaseapp.com",
-            "portfolio-flame-iota-d7n8dbh5mp.vercel.app"
-        ];
-        const currentDomain = window.location.hostname;
-        const isGoogleAuthAllowed = allowedAuthDomains.includes(currentDomain);
-        if (!isGoogleAuthAllowed) {
-            googleLoginBtn.classList.add('hidden');
-            googleLoginDisabledMsg.classList.remove('hidden');
         }
 
         async function callGroq(messages, options = {}) {
@@ -451,8 +585,7 @@
                     model: GROQ_MODEL,
                     messages,
                     temperature: options.temperature ?? 0.7,
-                    max_tokens: options.max_tokens ?? 300,
-                    response_format: options.response_format
+                    max_tokens: options.max_tokens ?? 1000
                 })
             });
             if (!res.ok) {
@@ -460,7 +593,7 @@
                 throw new Error(text || "Groq API error");
             }
             const data = await res.json();
-            return data?.content || "...";
+            return data?.content || "";
         }
 
         async function callAnalysis(prompt) {
@@ -487,133 +620,89 @@
             return await res.json();
         }
 
-        // Googleログイン
-        googleLoginBtn.addEventListener('click', async () => {
+        // --- Auth ---
+        const loginErrorContainer = document.getElementById('login-error-container');
+        const loginErrorMsg = document.getElementById('login-error-msg');
+
+        document.getElementById('google-login-btn').addEventListener('click', async () => {
             try {
-                if (!isGoogleAuthAllowed) {
-                    googleLoginDisabledMsg.classList.remove('hidden');
-                    return;
-                }
                 loginErrorContainer.classList.add('hidden');
                 await signInWithPopup(auth, provider);
-            } catch (error) {
-                console.error(error);
-                loginErrorMsg.textContent = error.message;
-                
-                // ドメイン許可エラーの場合の特別対応
-                if (error.code === 'auth/unauthorized-domain') {
-                    loginErrorMsg.textContent = "このプレビュー環境のドメインがFirebaseで許可されていません。";
-                    currentDomainEl.textContent = window.location.hostname;
-                    domainInstruction.classList.remove('hidden');
-                } else {
-                    domainInstruction.classList.add('hidden');
-                }
-                
+            } catch (e) {
+                loginErrorMsg.textContent = e?.message || "ログインに失敗しました";
                 loginErrorContainer.classList.remove('hidden');
             }
         });
-
-        // ゲストログイン（匿名認証）
-        logoutBtn.addEventListener('click', () => signOut(auth));
+        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+        if (typeof __initial_auth_token !== 'undefined') signInWithCustomToken(auth, __initial_auth_token).catch(()=>{});
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
-                userNameEl.textContent = user.isAnonymous ? "ゲスト" : (user.displayName || "ユーザー");
-                loginScreen.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                await loadDataFromFirestore(user.uid);
+                document.getElementById('user-name').textContent = user.isAnonymous ? "ゲスト" : (user.displayName || "ユーザー");
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+                loadFirestoreData(user.uid);
             } else {
                 currentUser = null;
-                loginScreen.classList.remove('hidden');
-                appContainer.classList.add('hidden');
-                state.chatHistory = [];
-                state.chatSummary = "";
-                state.chatSummaryUpdatedAt = 0;
-                state.cbtEntries = [];
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('app-container').classList.add('hidden');
+                state = { chatHistory: [], chatSummary: "", chatSummaryUpdatedAt: 0, cbtEntries: [], patterns: { ...DEFAULT_PATTERNS }, analysisComment: "" };
                 updateSummaryUI();
             }
         });
 
-        // コピペ用
-        currentDomainEl.addEventListener('click', () => {
-            const range = document.createRange();
-            range.selectNode(currentDomainEl);
-            window.getSelection().removeAllRanges();
-            window.getSelection().addRange(range);
-            document.execCommand('copy');
-            alert('ドメインをコピーしました');
-        });
-
-        // Firestore Logic
-        function normalizeHistory(history) {
-            if (!Array.isArray(history)) return [];
-            return history.map((m) => {
-                if (m && typeof m.content === "string") return { role: m.role || "user", content: m.content };
-                if (m && Array.isArray(m.parts) && m.parts[0]?.text) {
-                    return { role: m.role === "model" ? "assistant" : (m.role || "user"), content: m.parts[0].text };
+        // --- Data ---
+        function loadFirestoreData(uid) {
+            const chatRef = doc(db, "users", uid, "data", "chatHistory");
+            getDoc(chatRef).then(snap => {
+                if (snap.exists()) {
+                    const data = snap.data() || {};
+                    state.chatHistory = normalizeHistory(data.history || []);
+                    state.chatSummary = data.summary || "";
+                    state.chatSummaryUpdatedAt = data.summaryUpdatedAt || 0;
+                } else {
+                    state.chatHistory = [{role: "assistant", content: "こんにちは。今の気分を教えていただけますか？"}];
                 }
-                return null;
-            }).filter(Boolean);
-        }
+                renderChatHistory();
+            });
 
-        async function loadDataFromFirestore(uid) {
-            // 1. Chat History (One doc for simplicity or Collection)
-            // Using a single doc for chat history array to keep it simple and cheap
-            const chatDocRef = doc(db, "users", uid, "data", "chatHistory");
-            const chatSnap = await getDoc(chatDocRef);
-            if (chatSnap.exists()) {
-                const data = chatSnap.data() || {};
-                state.chatHistory = normalizeHistory(data.history || []);
-                state.chatSummary = data.summary || "";
-                state.chatSummaryUpdatedAt = data.summaryUpdatedAt || 0;
-            } else {
-                state.chatHistory = [{ role: "assistant", content: "こんにちは。心の調子はいかがですか？" }];
-                await setDoc(chatDocRef, { history: state.chatHistory, summary: "", summaryUpdatedAt: 0 });
-            }
-            renderChatHistory();
+            const patRef = doc(db, "users", uid, "data", "patterns");
+            getDoc(patRef).then(snap => {
+                if(snap.exists()) {
+                    const data = snap.data() || {};
+                    state.patterns = data.patterns || { ...DEFAULT_PATTERNS };
+                    state.analysisComment = data.comment || "";
+                    if (state.analysisComment) {
+                        document.getElementById('wave-analysis-text').textContent = state.analysisComment;
+                    }
+                    renderPatternChart();
+                }
+            });
 
-            // 2. Patterns (Analysis)
-            const patternDocRef = doc(db, "users", uid, "data", "patterns");
-            const patternSnap = await getDoc(patternDocRef);
-            if (patternSnap.exists()) {
-                const data = patternSnap.data();
-                if(data.patterns) state.patterns = data.patterns;
-                if(data.comment) document.getElementById('wave-analysis-text').textContent = data.comment;
-            }
-
-            // 3. CBT Entries (Subcollection for scalability)
-            // Real-time listener
-            const q = query(collection(db, "users", uid, "entries"), orderBy("date", "desc"), limit(20));
-            onSnapshot(q, (snapshot) => {
-                state.cbtEntries = [];
-                snapshot.forEach((doc) => {
-                    state.cbtEntries.push({ id: doc.id, ...doc.data() });
-                });
-                renderCbtList();
-                renderCharts();
-                renderTopPatterns();
+            const q = query(collection(db, "users", uid, "entries"), orderBy("date", "desc"), limit(50));
+            onSnapshot(q, (snap) => {
+                state.cbtEntries = snap.docs.map(d => ({id:d.id, ...d.data()}));
+                updateCharts();
             });
         }
 
-        async function saveChatToFirestore() {
-            if (!currentUser) return;
-            const chatDocRef = doc(db, "users", currentUser.uid, "data", "chatHistory");
-            await setDoc(chatDocRef, { history: state.chatHistory, summary: state.chatSummary, summaryUpdatedAt: state.chatSummaryUpdatedAt || 0 }, { merge: true });
+        async function saveChat() {
+            if(!currentUser) return;
+            await setDoc(doc(db, "users", currentUser.uid, "data", "chatHistory"), { 
+                history: state.chatHistory,
+                summary: state.chatSummary,
+                summaryUpdatedAt: state.chatSummaryUpdatedAt || 0
+            }, {merge:true});
         }
 
-        async function saveAnalysisToFirestore(newPatterns, comment) {
+        async function saveAnalysis(patterns, comment) {
             if (!currentUser) return;
-            const patternDocRef = doc(db, "users", currentUser.uid, "data", "patterns");
-            await setDoc(patternDocRef, { patterns: newPatterns, comment: comment }, { merge: true });
+            await setDoc(doc(db, "users", currentUser.uid, "data", "patterns"), { patterns, comment }, { merge: true });
         }
 
-        // --- App Logic (Adapted from v7) ---
-        
-        // Chat
+        // --- Chat ---
         const chatContainer = document.getElementById('chat-container');
-        const chatForm = document.getElementById('chat-form');
-        const userInput = document.getElementById('user-input');
         const summarizeBtn = document.getElementById('summarize-btn');
         const chatSummaryWrap = document.getElementById('chat-summary-wrap');
         const chatSummaryText = document.getElementById('chat-summary-text');
@@ -625,52 +714,66 @@
             if (state.chatSummary) {
                 chatSummaryText.textContent = state.chatSummary;
                 chatSummaryWrap.classList.remove('hidden');
-                if (memorySummaryText) {
-                    memorySummaryText.textContent = state.chatSummary;
-                    memorySummaryText.classList.remove('hidden');
-                }
-                if (memoryEmpty) memoryEmpty.classList.add('hidden');
+                memorySummaryText.textContent = state.chatSummary;
+                memorySummaryText.classList.remove('hidden');
+                memoryEmpty.classList.add('hidden');
             } else {
                 chatSummaryText.textContent = '';
                 chatSummaryWrap.classList.add('hidden');
-                if (memorySummaryText) {
-                    memorySummaryText.textContent = '';
-                    memorySummaryText.classList.add('hidden');
-                }
-                if (memoryEmpty) memoryEmpty.classList.remove('hidden');
+                memorySummaryText.textContent = '';
+                memorySummaryText.classList.add('hidden');
+                memoryEmpty.classList.remove('hidden');
             }
         }
 
         function renderChatHistory() {
             chatContainer.innerHTML = '';
             updateSummaryUI();
-            state.chatHistory.forEach(msg => {
-                const isUser = msg.role === 'user';
-                appendMsgToUI(msg.content, isUser ? 'user' : 'ai');
+            state.chatHistory.forEach(m => {
+                if(m.type === 'emotions') appendEmotionBubble(m.content);
+                else appendMsg(m.content, m.role === 'user' ? 'user' : 'ai');
             });
         }
 
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = userInput.value.trim();
-            if(!text) return;
-            
-            appendMsgToUI(text, 'user');
-            userInput.value = '';
-            state.chatHistory.push({ role: "user", content: text });
-            saveChatToFirestore(); // Cloud Save
+        function appendMsg(text, type) {
+            const div = document.createElement('div');
+            div.className = `flex ${type==='user'?'justify-end':'justify-start'} mb-4 animate-fade-in`;
+            const bg = type==='user'?'bg-teal-600 text-white rounded-br-none':'bg-white text-gray-800 rounded-bl-none shadow-sm';
+            div.innerHTML = `<div class="${bg} p-3 rounded-2xl max-w-[85%] text-sm leading-relaxed bubble">${DOMPurify.sanitize(marked.parse(text))}</div>`;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTo({top: chatContainer.scrollHeight, behavior:'smooth'});
+        }
 
-            try {
-                const messages = buildChatMessages(state.chatHistory);
-                const reply = await callGroq(messages, { temperature: 0.7, max_tokens: 1800 });
-                appendMsgToUI(reply, 'ai');
-                state.chatHistory.push({ role: "assistant", content: reply });
-                saveChatToFirestore(); // Cloud Save
-                if (shouldAutoSummarize()) {
-                    runSummary({ silent: true }).catch((e) => console.error(e));
-                }
-            } catch(e) { console.error(e); }
-        });
+        function appendEmotionBubble(emotions) {
+            const div = document.createElement('div');
+            div.className = `flex justify-end mb-4 animate-fade-in`;
+            
+            let ringsHtml = '';
+            Object.entries(emotions).forEach(([key, val]) => {
+                const em = EMOTIONS.find(e => e.label === key) || { color: '#ccc' };
+                const radius = 24;
+                const circumference = 2 * Math.PI * radius;
+                const offset = circumference - (val / 100) * circumference;
+                
+                ringsHtml += `
+                    <div class="ring-container">
+                        <svg class="ring-svg" viewBox="0 0 60 60">
+                            <circle class="ring-circle-bg" cx="30" cy="30" r="${radius}"></circle>
+                            <circle class="ring-circle-fg" cx="30" cy="30" r="${radius}" 
+                                style="stroke: ${em.color}; stroke-dasharray: ${circumference}; stroke-dashoffset: ${offset};"></circle>
+                        </svg>
+                        <div class="ring-text">
+                            <div class="ring-label">${key}</div>
+                            <div class="ring-score">${val}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            div.innerHTML = `<div class="bg-gray-800 p-3 rounded-2xl rounded-br-none shadow-lg flex gap-2">${ringsHtml}</div>`;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTo({top: chatContainer.scrollHeight, behavior:'smooth'});
+        }
 
         async function runSummary({ silent }) {
             const attempts = [
@@ -702,10 +805,33 @@
             state.chatSummary = (summary || "").trim();
             state.chatSummaryUpdatedAt = Date.now();
             state.chatHistory = state.chatHistory.slice(-6);
-            await saveChatToFirestore();
+            await saveChat();
             renderChatHistory();
             if (!silent) return;
         }
+
+        document.getElementById('chat-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('user-input');
+            const text = input.value.trim();
+            if(!text) return;
+            input.value = '';
+            
+            state.chatHistory.push({role:'user', content:text});
+            appendMsg(text, 'user');
+            saveChat();
+
+            try {
+                const messages = buildChatMessages(state.chatHistory);
+                const reply = await callGroq(messages, { temperature: 0.7, max_tokens: 1800 });
+                state.chatHistory.push({role:'assistant', content:reply});
+                appendMsg(reply, 'ai');
+                saveChat();
+                if (shouldAutoSummarize()) {
+                    runSummary({ silent: true }).catch((err) => console.error(err));
+                }
+            } catch(e){ console.error(e); }
+        });
 
         summarizeBtn.addEventListener('click', async () => {
             if (state.chatHistory.length < 2) return alert("要約する内容がありません");
@@ -717,7 +843,7 @@
                 console.error(e);
                 alert("要約に失敗しました。もう一度お試しください。");
             } finally {
-                summarizeBtn.textContent = "会話を要約して圧縮";
+                summarizeBtn.textContent = "会話を要約";
                 summarizeBtn.disabled = false;
             }
         });
@@ -739,223 +865,233 @@
             });
         }
 
-        function appendMsgToUI(text, type) {
-            const isUser = type === 'user';
-            const div = document.createElement('div');
-            div.className = `flex ${isUser ? 'justify-end' : 'justify-start items-end gap-2'} animate-fade-in`;
-            let html = '';
-            if(!isUser) html += `<div class="w-8 h-8 rounded-full bg-teal-100 flex-shrink-0 flex items-center justify-center text-teal-600 text-xs"><i class="fa-solid fa-robot"></i></div>`;
-            const bubbleClass = isUser ? 'bg-teal-600 text-white rounded-2xl rounded-br-none' : 'bg-white text-gray-800 rounded-2xl rounded-bl-none shadow-sm';
-            const safeHtml = DOMPurify.sanitize(marked.parse(text));
-            html += `<div class="${bubbleClass} p-4 chat-bubble text-sm">${safeHtml}</div>`;
-            div.innerHTML = html;
-            chatContainer.appendChild(div);
-            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-        }
+        // --- Tools Logic ---
+        const activeEmotionsContainer = document.getElementById('active-emotions-container');
+        const emotionSelector = document.getElementById('emotion-selector');
 
-        // Work / Check-in
-        const mentalValInput = document.getElementById('mental-val');
-        const physicalValInput = document.getElementById('physical-val');
-        const cbtSituation = document.getElementById('cbt-situation');
-        const cbtEmotionText = document.getElementById('cbt-emotion-text');
-        const cbtThought = document.getElementById('cbt-thought');
-        const cbtBehavior = document.getElementById('cbt-behavior');
-        const emotionCategoryInput = document.getElementById('emotion-category');
-        const emotionTags = document.querySelectorAll('.emotion-tag');
-        const saveCbtBtn = document.getElementById('save-cbt-btn');
-        const dailyMessageArea = document.getElementById('daily-message-area');
-        const dailyMessageText = document.getElementById('daily-message-text');
-
-        window.setMental = (val, btn) => {
-            mentalValInput.value = val;
-            const buttons = btn.parentElement.querySelectorAll('button');
-            buttons.forEach((b, i) => {
-                b.className = `icon-btn text-3xl ${i + 1 === val ? 'icon-selected ' + ['text-indigo-400','text-blue-400','text-gray-400','text-teal-400','text-yellow-400'][i] : 'text-gray-300'}`;
-            });
-        };
-
-        window.setPhysical = (val) => {
-            physicalValInput.value = val;
-            const container = document.getElementById('physical-hearts');
-            if (!container) return;
-            container.querySelectorAll('button').forEach((b, i) => {
-                b.className = `icon-btn text-2xl ${i < val ? 'text-pink-400' : 'text-gray-200'} ${i + 1 === val ? 'icon-selected' : ''}`;
-            });
-        };
-
-        emotionTags.forEach(tag => {
-            tag.addEventListener('click', () => {
-                const selected = tag.dataset.emotion || '';
-                emotionTags.forEach(t => t.classList.remove('is-active'));
-                if (emotionCategoryInput.value === selected) {
-                    emotionCategoryInput.value = '';
-                } else {
-                    tag.classList.add('is-active');
-                    emotionCategoryInput.value = selected;
-                }
-            });
-        });
-
-        saveCbtBtn.addEventListener('click', async () => {
-            if (!currentUser) return alert("ログインしてください");
+        window.switchTool = (type) => {
+            document.getElementById('tool-menu-container').classList.add('hidden');
+            document.getElementById('tool-form-container').classList.remove('hidden');
+            document.getElementById('current-tool-type').value = type;
             
-            saveCbtBtn.disabled = true;
-            saveCbtBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 保存中...';
+            // フィールド制御
+            document.querySelectorAll('.field-group').forEach(el => el.classList.add('hidden'));
+            if(type.startsWith('cbt')) {
+                document.querySelector('[data-fields="all"]').classList.remove('hidden');
+                if(type !== 'cbt-3') document.querySelector('[data-fields="5,7"]').classList.remove('hidden');
+            } else if (type === 'tgt') {
+                document.querySelector('[data-fields="tgt"]').classList.remove('hidden');
+            } else {
+                document.querySelector('[data-fields="all"]').classList.remove('hidden');
+            }
+            
+            // 感情セレクタ初期化
+            emotionSelector.innerHTML = '';
+            EMOTIONS.forEach(em => {
+                const btn = document.createElement('button');
+                btn.className = "flex items-center gap-2 text-xs font-bold p-2 rounded bg-white border hover:bg-teal-50";
+                btn.innerHTML = `<span class="w-3 h-3 rounded-full" style="background:${em.color}"></span> ${em.label}`;
+                btn.onclick = () => addEmotionSlider(em);
+                emotionSelector.appendChild(btn);
+            });
+        };
 
-            const entryData = {
+        window.showToolMenu = () => {
+            document.getElementById('tool-form-container').classList.add('hidden');
+            document.getElementById('tool-menu-container').classList.remove('hidden');
+            activeEmotionsContainer.innerHTML = '';
+        };
+
+        window.toggleEmotionSelector = () => {
+            emotionSelector.classList.toggle('hidden');
+        };
+
+        window.addEmotionSlider = (em) => {
+            if(document.getElementById(`slider-${em.id}`)) return;
+            const div = document.createElement('div');
+            div.id = `slider-${em.id}`;
+            div.className = "bg-white p-3 rounded-xl border border-gray-100 shadow-sm";
+            div.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full" style="background:${em.color}"></span>
+                        <span class="text-xs font-bold text-gray-700">${em.label}</span>
+                    </div>
+                    <span class="text-sm font-bold text-teal-600" id="val-${em.id}">50</span>
+                </div>
+                <input type="range" min="0" max="100" value="50" style="color:${em.color}" 
+                    oninput="document.getElementById('val-${em.id}').textContent = this.value">
+            `;
+            activeEmotionsContainer.appendChild(div);
+            emotionSelector.classList.add('hidden');
+        };
+
+        // Set Scores Helpers
+        window.setMental = (val, btn) => {
+            document.getElementById('mental-val').value = val;
+            btn.parentElement.querySelectorAll('button').forEach((b,i) => { b.className = `icon-btn text-3xl ${i+1===val ? 'icon-selected text-teal-400' : 'text-gray-200'}`; });
+        };
+        window.setPhysical = (val) => {
+             document.getElementById('physical-val').value = val;
+             document.getElementById('physical-hearts').querySelectorAll('button').forEach((b,i) => { b.className = `icon-btn text-2xl ${i<val ? 'text-pink-400' : 'text-gray-200'} icon-selected`; });
+        };
+
+        document.getElementById('save-entry-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('save-entry-btn');
+            btn.disabled = true;
+            
+            // 感情データ収集
+            const emotions = {};
+            activeEmotionsContainer.querySelectorAll('[id^="slider-"]').forEach(el => {
+                const id = el.id.replace('slider-', '');
+                const label = EMOTIONS.find(e => e.id === id).label;
+                const val = el.querySelector('input').value;
+                emotions[label] = parseInt(val);
+            });
+
+            const type = document.getElementById('current-tool-type').value;
+            let summary = "";
+            if (type.startsWith('cbt') || type === 'free') {
+                summary = document.getElementById('cbt-thought').value;
+            } else if (type === 'tgt') {
+                summary = [1,2,3].map(i => document.getElementById(`tgt-${i}`).value).join(" / ");
+            }
+
+            const entry = {
                 date: new Date().toISOString(),
-                mental: parseInt(mentalValInput.value) * 20,
-                physical: parseInt(physicalValInput.value) * 20,
-                situation: cbtSituation.value || "",
-                emotionCategory: emotionCategoryInput.value || "",
-                emotion: cbtEmotionText.value || "",
-                thought: cbtThought.value || "",
-                behavior: cbtBehavior.value || ""
+                type,
+                mental: parseInt(document.getElementById('mental-val').value) * 20,
+                physical: parseInt(document.getElementById('physical-val').value) * 20,
+                emotions,
+                summary
             };
 
-            // Cloud Save
-            await addDoc(collection(db, "users", currentUser.uid, "entries"), entryData);
-
-            // Generate Feedback
             try {
-                const prompt = `ユーザーがメンタルケアアプリでチェックインしました。優しく労るフィードバック（100文字程度）を生成してください。冒頭は「おはようございます、${currentUser.displayName || "ゲスト"}さん」等。スコア(5段階): ココロ ${mentalValInput.value}, カラダ ${physicalValInput.value} 感情カテゴリ: ${entryData.emotionCategory} 状況: ${entryData.situation} 感情: ${entryData.emotion} 思考: ${entryData.thought} 行動: ${entryData.behavior}`;
-                const reply = await callGroq([{ role: "user", content: prompt }], { temperature: 0.7, max_tokens: 200 });
-                dailyMessageText.innerText = reply || "保存しました。";
-                dailyMessageArea.classList.remove('hidden');
-            } catch(e) { console.error(e); }
+                await addDoc(collection(db, "users", currentUser.uid, "entries"), entry);
+                
+                // チャットに反映
+                if(Object.keys(emotions).length > 0) {
+                    state.chatHistory.push({ type: 'emotions', content: emotions });
+                    appendEmotionBubble(emotions);
+                    await saveChat();
+                }
 
-            cbtSituation.value = '';
-            emotionCategoryInput.value = '';
-            emotionTags.forEach(t => t.classList.remove('is-active'));
-            cbtEmotionText.value = '';
-            cbtThought.value = '';
-            cbtBehavior.value = '';
-            saveCbtBtn.innerHTML = '<i class="fa-solid fa-check"></i> チェックイン完了';
-            saveCbtBtn.disabled = false;
+                // AI Feedback
+                const prompt = `ユーザーが感情記録しました。感情: ${JSON.stringify(emotions)}。内容: ${summary}。労いの言葉を短く。`;
+                const reply = await callGroq([{role:'user', content: prompt}], { temperature: 0.6, max_tokens: 200 });
+                document.getElementById('daily-message-text').innerText = reply;
+                document.getElementById('daily-message-area').classList.remove('hidden');
+
+                // Clear
+                activeEmotionsContainer.innerHTML = '';
+                document.querySelectorAll('textarea, input[type="text"]').forEach(e => e.value = '');
+                showToolMenu();
+
+            } catch (e) { alert("保存エラー"); } finally { btn.disabled = false; }
         });
 
-        function renderCbtList() {
-            const list = document.getElementById('cbt-list');
-            list.innerHTML = '';
-            state.cbtEntries.slice(0, 5).forEach(entry => {
-                const el = document.createElement('div');
-                el.className = 'bg-white p-4 rounded-xl border border-gray-100 shadow-sm';
-                const date = new Date(entry.date);
-                const mentalIdx = Math.min(4, Math.max(0, (entry.mental / 20) - 1));
-                const faces = ['fa-face-sad-tear', 'fa-face-frown', 'fa-face-meh', 'fa-face-smile', 'fa-face-laugh-beam'];
-                const emotionBadge = entry.emotionCategory
-                    ? `<span class="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full">${entry.emotionCategory}</span>`
-                    : '';
-                el.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-solid ${faces[mentalIdx]}" style="color: ${EMOTION_COLORS[mentalIdx]}; font-size: 1.2rem;"></i>
-                            <div class="text-xs text-gray-400 font-bold">${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}</div>
-                        </div>
-                        ${emotionBadge}
-                        <div class="flex text-pink-400 text-xs gap-0.5">${Array(Math.floor(entry.physical/20)).fill('<i class="fa-solid fa-heart"></i>').join('')}</div>
-                    </div>
-                    ${entry.thought ? `<div class="text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">"${DOMPurify.sanitize(entry.thought)}"</div>` : ''}
-                `;
-                list.appendChild(el);
-            });
-        }
+        // --- Analysis ---
+        window.switchAnalysisTab = (tab) => {
+            document.querySelectorAll('.analysis-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.analysis-tab[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById('analysis-daily').classList.toggle('hidden', tab !== 'daily');
+            document.getElementById('analysis-ai').classList.toggle('hidden', tab !== 'ai');
+        };
 
-        // Analysis
         const analyzeBtn = document.getElementById('analyze-btn');
         analyzeBtn.addEventListener('click', async () => {
-            if(state.cbtEntries.length < 1) return alert("データがありません");
+            if (state.cbtEntries.length < 1) return alert("データがありません");
             analyzeBtn.disabled = true;
             analyzeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 分析中...';
-
-            const thoughts = state.cbtEntries
-                .slice(0, 10)
-                .map(e => [e.emotionCategory, e.situation, e.emotion, e.thought, e.behavior].filter(Boolean).join(" / "))
-                .filter(t => t)
-                .join("\n");
-            const scores = state.cbtEntries.slice(0,7).map(e => `[${new Date(e.date).toLocaleDateString()}] 心:${e.mental} 体:${e.physical}`).join(", ");
-            const prompt = `ユーザーの記録を分析し、<json>...</json> でJSONのみを返してください。1. patterns:「10の認知の歪み」カウント。2. comment: 今週の傾向コメント(100字)。データ: テキスト:${thoughts} スコア:${scores} 出力形式: <json>{"patterns":{"全か無か思考":0,"過度の一般化":0,"心のフィルター":0,"マイナス化思考":0,"結論の飛躍":0,"拡大解釈・過小評価":0,"感情的決めつけ":0,"べき思考":0,"レッテル貼り":0,"個人化":0},"comment":"..."}</json>`;
-
             try {
+                const notes = state.cbtEntries.slice(0, 10).map(e => {
+                    const emText = e.emotions ? emotionsToText(e.emotions) : "";
+                    return [emText, e.summary].filter(Boolean).join(" / ");
+                }).filter(Boolean).join("\n");
+                const scores = state.cbtEntries.slice(0, 7).map(e => `[${new Date(e.date).toLocaleDateString()}] 心:${e.mental} 体:${e.physical}`).join(", ");
+                const prompt = `ユーザーの記録を分析し、<json>...</json> でJSONのみを返してください。1. patterns:「10の認知の歪み」カウント。2. comment: 今週の傾向コメント(100字)。データ: テキスト:${notes} スコア:${scores} 出力形式: <json>{"patterns":{"全か無か思考":0,"過度の一般化":0,"心のフィルター":0,"マイナス化思考":0,"結論の飛躍":0,"拡大解釈・過小評価":0,"感情的決めつけ":0,"べき思考":0,"レッテル貼り":0,"個人化":0},"comment":"..."}</json>`;
                 const result = await callAnalysis(prompt);
-                
-                state.patterns = result.patterns;
-                document.getElementById('wave-analysis-text').textContent = result.comment;
-                
-                await saveAnalysisToFirestore(result.patterns, result.comment); // Cloud Save
-                renderCharts();
-                renderTopPatterns();
-            } catch(e) { console.error(e); } finally {
-                analyzeBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> データを分析する';
+                state.patterns = result.patterns || { ...DEFAULT_PATTERNS };
+                state.analysisComment = result.comment || "";
+                document.getElementById('wave-analysis-text').textContent = state.analysisComment || "";
+                await saveAnalysis(state.patterns, state.analysisComment);
+                renderPatternChart();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                analyzeBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI分析を実行';
                 analyzeBtn.disabled = false;
             }
         });
 
-        // Charts
-        let waveChartInstance, patternChartInstance;
-        function renderCharts() {
-            // Wave Chart
-            const ctxWave = document.getElementById('waveChart').getContext('2d');
-            const waveData = [...state.cbtEntries].sort((a,b) => new Date(a.date) - new Date(b.date)).slice(-7);
-            if(waveChartInstance) waveChartInstance.destroy();
-            waveChartInstance = new Chart(ctxWave, {
+        let charts = {};
+        function updateCharts() {
+            if (state.cbtEntries.length === 0) return;
+            const sorted = [...state.cbtEntries].sort((a,b) => new Date(a.date) - new Date(b.date)).slice(-7);
+            const labels = sorted.map(d => { const dt = new Date(d.date); return `${dt.getMonth()+1}/${dt.getDate()}`; });
+
+            // 1. Condition (Area Chart)
+            const ctxCond = document.getElementById('conditionChart').getContext('2d');
+            if(charts.cond) charts.cond.destroy();
+            charts.cond = new Chart(ctxCond, {
                 type: 'line',
                 data: {
-                    labels: waveData.map(d => new Date(d.date).toLocaleDateString(undefined, {weekday:'short'})),
+                    labels,
                     datasets: [
-                        { label: 'ココロ', data: waveData.map(d => d.mental), borderColor: '#2dd4bf', backgroundColor: 'rgba(45, 212, 191, 0.2)', fill: true, tension: 0.4 },
-                        { label: 'カラダ', data: waveData.map(d => d.physical), borderColor: '#fb923c', backgroundColor: 'rgba(251, 146, 60, 0.2)', fill: true, tension: 0.4 }
+                        { label: 'ココロ', data: sorted.map(d => d.mental), borderColor: '#2dd4bf', backgroundColor: 'rgba(45,212,191,0.2)', fill: true, tension: 0.4 },
+                        { label: 'カラダ', data: sorted.map(d => d.physical), borderColor: '#fb923c', backgroundColor: 'rgba(251,146,60,0.2)', fill: true, tension: 0.4 }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: {display:false, min:0, max:110}, x: {grid:{display:false}} }, plugins:{legend:{position:'top', align:'end'}} }
             });
 
-            // Pattern Chart
+            // 2. Emotion (Donut & Scores)
+            const agg = { '怒り':0, '悲しみ':0, '不安':0, '嫌悪':0 };
+            sorted.forEach(d => {
+                if(d.emotions) Object.entries(d.emotions).forEach(([k,v]) => { if(agg[k] !== undefined) agg[k] += v; });
+            });
+
+            document.getElementById('score-anger').textContent = agg['怒り'];
+            document.getElementById('score-sadness').textContent = agg['悲しみ'];
+            document.getElementById('score-anxiety').textContent = agg['不安'];
+            document.getElementById('score-disgust').textContent = agg['嫌悪'];
+
+            const ctxDonut = document.getElementById('emotionDoughnutChart').getContext('2d');
+            if(charts.donut) charts.donut.destroy();
+            charts.donut = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(agg),
+                    datasets: [{ data: Object.values(agg), backgroundColor: ['#ef4444', '#3b82f6', '#a855f7', '#10b981'], borderWidth: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: false } } }
+            });
+        }
+
+        function renderPatternChart() {
+            const labels = Object.keys(state.patterns || DEFAULT_PATTERNS);
+            const data = Object.values(state.patterns || DEFAULT_PATTERNS);
             const ctxPat = document.getElementById('patternChart').getContext('2d');
-            const labels = Object.keys(state.patterns);
-            const patData = Object.values(state.patterns);
-            if(patternChartInstance) patternChartInstance.destroy();
-            patternChartInstance = new Chart(ctxPat, {
+            if (charts.pattern) charts.pattern.destroy();
+            charts.pattern = new Chart(ctxPat, {
                 type: 'bar',
                 data: {
-                    labels: labels,
-                    datasets: [{ data: patData, backgroundColor: labels.map((_, i) => i%2===0?'#99f6e4':'#bae6fd'), borderRadius: 4, barThickness: 12 }]
+                    labels,
+                    datasets: [{ data, backgroundColor: labels.map((_, i) => i%2===0?'#99f6e4':'#bae6fd'), borderRadius: 4, barThickness: 12 }]
                 },
                 options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { grid: { display: false } } }, plugins: { legend: { display: false } } }
             });
         }
-
-        function renderTopPatterns() {
-            const container = document.getElementById('top-patterns-container');
-            container.innerHTML = '';
-            const sorted = Object.entries(state.patterns).sort((a, b) => b[1] - a[1]).slice(0, 3);
-            if(sorted.every(x => x[1] === 0)) { container.innerHTML = '<div class="col-span-3 text-center text-xs text-gray-400 py-4">データなし</div>'; return; }
-            sorted.forEach(([name]) => {
-                container.innerHTML += `<div class="p-3 rounded-xl border border-teal-50 shadow-sm flex flex-col items-center justify-center text-center bg-gradient-to-b from-white to-teal-50"><span class="text-[10px] font-bold text-gray-600">${name}</span></div>`;
-            });
-        }
-
-        // Navigation
-        const views = ['view-chat', 'view-work', 'view-analysis', 'view-memory'];
+        
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const target = btn.dataset.target;
-                views.forEach(id => {
-                    const el = document.getElementById(id);
-                    el.style.opacity = (id === target) ? '1' : '0';
-                    el.style.pointerEvents = (id === target) ? 'auto' : 'none';
-                });
-                document.querySelectorAll('.nav-btn').forEach(b => {
-                    const active = b.dataset.target === target;
-                    b.className = `nav-btn flex-1 flex flex-col items-center justify-center h-full gap-1 group ${active ? 'tab-active text-teal-600' : 'tab-inactive text-gray-400'}`;
-                });
-                if(target === 'view-analysis') setTimeout(renderCharts, 100);
+                document.querySelectorAll('.view-section').forEach(el => { el.style.opacity = (el.id === target) ? '1' : '0'; el.style.pointerEvents = (el.id === target) ? 'auto' : 'none'; });
+                document.querySelectorAll('.nav-btn').forEach(b => { b.classList.toggle('tab-active', b.dataset.target === target); b.classList.toggle('tab-inactive', b.dataset.target !== target); b.classList.toggle('text-teal-600', b.dataset.target === target); });
+                if(target === 'view-analysis') setTimeout(updateCharts, 100);
             });
         });
 
-        // Init UI
-        setMental(3, document.querySelectorAll('#view-work .icon-btn')[2]);
-        setPhysical(3);
         const d = new Date();
         document.getElementById('current-date').textContent = `${d.getMonth()+1}/${d.getDate()}`;
     </script>
