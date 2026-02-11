@@ -715,6 +715,8 @@
         let autoSummaryTimer = null;
         let unsummarizedUserTurns = 0;
         const entryCommentRetryTimers = new Map();
+        const entryCommentOverlay = new Map();
+        let entryCommentInFlight = false;
         let entriesUnsubscribe = null;
         let firestoreErrorShown = false;
         let state = {
@@ -889,6 +891,14 @@
             return getEntryDetailLines(entry).join(" | ").slice(0, 900);
         }
 
+        function normalizeAiCommentText(text) {
+            if (!text) return "";
+            return String(text)
+                .replace(/^["'`]+|["'`]+$/g, "")
+                .replace(/\n{3,}/g, "\n\n")
+                .trim();
+        }
+
         function isRetryableAiCommentError(err) {
             if (!err) return false;
             if (err?.status === 429 || err?.code === "rate_limit_exceeded" || err?.code === "rate_limit_hold") return true;
@@ -897,12 +907,34 @@
             return /network|fetch|timeout|temporar/i.test(msg);
         }
 
+        function getEntryWithOverlay(entry) {
+            if (!entry || !entry.id) return entry;
+            const overlay = entryCommentOverlay.get(entry.id);
+            return overlay ? { ...entry, ...overlay } : entry;
+        }
+
+        function setEntryOverlay(entryId, patch) {
+            if (!entryId) return;
+            const prev = entryCommentOverlay.get(entryId) || {};
+            entryCommentOverlay.set(entryId, { ...prev, ...patch });
+        }
+
+        function clearEntryOverlay(entryId) {
+            if (!entryId) return;
+            entryCommentOverlay.delete(entryId);
+        }
+
         function clearEntryCommentRetry(entryId) {
             const timer = entryCommentRetryTimers.get(entryId);
             if (timer) {
                 clearTimeout(timer);
                 entryCommentRetryTimers.delete(entryId);
             }
+        }
+
+        function clearAllEntryCommentRetries() {
+            entryCommentRetryTimers.forEach((timer) => clearTimeout(timer));
+            entryCommentRetryTimers.clear();
         }
 
         function scheduleEntryCommentRetry(entryId, entrySnapshot, retryMs = 12000) {
@@ -919,9 +951,10 @@
         function syncPendingEntryComments() {
             if (!currentUser) return;
             const targets = [...(state.cbtEntries || [])]
+                .map((e) => getEntryWithOverlay(e))
                 .filter((e) => e && !e.aiComment && (e.aiCommentStatus === "pending" || e.aiCommentStatus === "retrying"))
                 .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-                .slice(0, 2);
+                .slice(0, 1);
             targets.forEach((entry) => {
                 const delay = entry.aiCommentStatus === "retrying" ? 5000 : 2500;
                 scheduleEntryCommentRetry(entry.id, entry, delay);
@@ -1234,6 +1267,8 @@
                 currentUser = user;
                 unsummarizedUserTurns = 0;
                 firestoreErrorShown = false;
+                clearAllEntryCommentRetries();
+                entryCommentOverlay.clear();
                 resetFirestoreListener();
                 document.getElementById('user-name').textContent = user.isAnonymous ? "ゲスト" : (user.displayName || "ユーザー");
                 document.getElementById('login-screen').classList.add('hidden');
@@ -1242,6 +1277,8 @@
             } else {
                 currentUser = null;
                 unsummarizedUserTurns = 0;
+                clearAllEntryCommentRetries();
+                entryCommentOverlay.clear();
                 closeSettingsModal();
                 document.getElementById('user-name').textContent = "";
                 resetFirestoreListener();
@@ -1345,6 +1382,8 @@
                 analysisComment: ""
             };
             unsummarizedUserTurns = 0;
+            clearAllEntryCommentRetries();
+            entryCommentOverlay.clear();
             document.getElementById('wave-analysis-text').textContent = "まだ分析データがありません。";
             renderChatHistory();
             renderPatternChart();
@@ -1443,7 +1482,8 @@
                 return;
             }
 
-            sorted.forEach((entry) => {
+            sorted.forEach((rawEntry) => {
+                const entry = getEntryWithOverlay(rawEntry);
                 const card = document.createElement("article");
                 card.className = "bg-white border border-gray-100 rounded-2xl p-4 shadow-sm";
 
@@ -1897,58 +1937,92 @@
 
         async function generateEntryComment(entryId, entryInput, { silent = true, force = false } = {}) {
             if (!currentUser || !entryId) return;
-            const currentEntry = state.cbtEntries.find((e) => e.id === entryId) || entryInput || {};
-            if (!force && currentEntry.aiComment) return;
+            const currentEntry = getEntryWithOverlay(state.cbtEntries.find((e) => e.id === entryId)) || entryInput || {};
+            const currentComment = normalizeAiCommentText(currentEntry.aiComment);
+            if (!force && currentComment) return;
             if (currentEntry.aiCommentStatus === "generating") return;
 
+            if (entryCommentInFlight) {
+                const queuedPatch = { aiCommentStatus: "retrying", aiCommentUpdatedAt: new Date().toISOString() };
+                updateEntryInState(entryId, queuedPatch);
+                setEntryOverlay(entryId, queuedPatch);
+                renderEntryHistory();
+                scheduleEntryCommentRetry(entryId, currentEntry, 2500);
+                if (!silent) {
+                    alert("別のAIコメントを生成中です。完了後に自動で再試行します。");
+                }
+                return;
+            }
+
+            entryCommentInFlight = true;
             clearEntryCommentRetry(entryId);
-            updateEntryInState(entryId, { aiCommentStatus: "generating" });
-            renderEntryHistory();
 
             const entryRef = doc(db, "users", currentUser.uid, "entries", entryId);
+            const markGenerating = {
+                aiCommentStatus: "generating",
+                aiCommentUpdatedAt: new Date().toISOString()
+            };
+            updateEntryInState(entryId, markGenerating);
+            setEntryOverlay(entryId, markGenerating);
+            renderEntryHistory();
             try {
-                await setDoc(entryRef, { aiCommentStatus: "generating" }, { merge: true });
-            } catch {}
+                await setDoc(entryRef, markGenerating, { merge: true });
+                clearEntryOverlay(entryId);
+            } catch (persistError) {
+                console.warn("AIコメント生成状態の保存に失敗:", persistError);
+            }
 
             const emText = currentEntry.emotions ? emotionsToText(currentEntry.emotions) : "";
-            const detailText = buildEntryDetailText(currentEntry).slice(0, 450);
-            const prompt = `以下の記録に対して、共感と思いやりのあるコメントを返してください。構成は「共感1文 + 視点の言い換え1文 + 次の一歩1つ」。やさしい日本語で90〜150字。定型文にしないで、記録内容に触れてください。\n記録タイプ: ${getToolLabel(currentEntry.type)}\nココロ: ${currentEntry.mental || 0}\nカラダ: ${currentEntry.physical || 0}\n感情: ${emText || "なし"}\n要約: ${String(currentEntry.summary || "").slice(0, 260)}\n詳細: ${detailText || "なし"}`;
+            const detailText = buildEntryDetailText(currentEntry).slice(0, 320);
+            const promptPrimary = `次の記録に、心理職としての共感コメントを日本語で返してください。必ず「共感1文→リフレーミング1文→ワンポイント提案1つ」の順。やさしいが専門家らしい文体、90〜170字、記録内容を具体的に参照し、定型文は禁止。\n記録タイプ: ${getToolLabel(currentEntry.type)}\nココロ: ${currentEntry.mental || 0}\nカラダ: ${currentEntry.physical || 0}\n感情: ${emText || "なし"}\n要約: ${String(currentEntry.summary || "").slice(0, 240)}\n詳細: ${detailText || "なし"}`;
+            const promptFallback = `次の記録への短い共感コメントを作成してください。条件: 1) 1文目は気持ちの受け止め 2) 2文目は前向きな解釈 3) 3文目で次の一歩を1つだけ提案。合計100〜180字。前置き・見出し・箇条書き・定型句は禁止。\n記録タイプ:${getToolLabel(currentEntry.type)}\n要約:${String(currentEntry.summary || "").slice(0, 220)}\n感情:${emText || "なし"}\n詳細:${detailText || "なし"}`;
 
             try {
-                const comment = (await callGroqWithRetry(
-                    [{ role: "user", content: prompt }],
-                    { temperature: 0.4, max_tokens: 150 },
+                let comment = normalizeAiCommentText(await callGroqWithRetry(
+                    [{ role: "user", content: promptPrimary }],
+                    { temperature: 0.5, max_tokens: 180 },
                     3
-                ) || "").trim();
-
+                ));
+                if (!comment) {
+                    comment = normalizeAiCommentText(await callGroqWithRetry(
+                        [{ role: "user", content: promptFallback }],
+                        { temperature: 0.45, max_tokens: 190 },
+                        3
+                    ));
+                }
                 if (!comment) throw new Error("empty ai comment");
-                const patch = {
+
+                const readyPatch = {
                     aiComment: comment,
                     aiCommentStatus: "ready",
                     aiCommentUpdatedAt: new Date().toISOString()
                 };
-                updateEntryInState(entryId, patch);
+                updateEntryInState(entryId, readyPatch);
+                setEntryOverlay(entryId, readyPatch);
                 renderEntryHistory();
                 try {
-                    await setDoc(entryRef, patch, { merge: true });
+                    await setDoc(entryRef, readyPatch, { merge: true });
+                    clearEntryOverlay(entryId);
                 } catch (persistError) {
                     console.warn("AIコメント保存に失敗:", persistError);
                     if (!silent) {
-                        alert("AIコメントは表示しましたが、保存に失敗しました。通信状態をご確認ください。");
+                        alert("AIコメントは生成できましたが保存に失敗しました。通信状態をご確認ください。");
                     }
                 }
             } catch (e) {
                 const retryable = isRetryableAiCommentError(e);
                 const waitMs = e?.retryAfterMs ? (e.retryAfterMs + 700) : 12000;
                 const failPatch = {
-                    aiComment: "",
+                    aiComment: currentComment || "",
                     aiCommentStatus: retryable ? "retrying" : "failed",
                     aiCommentUpdatedAt: new Date().toISOString()
                 };
                 updateEntryInState(entryId, failPatch);
+                setEntryOverlay(entryId, failPatch);
                 renderEntryHistory();
                 try {
                     await setDoc(entryRef, failPatch, { merge: true });
+                    clearEntryOverlay(entryId);
                 } catch (persistError) {
                     console.warn("AIコメント状態保存に失敗:", persistError);
                 }
@@ -1956,13 +2030,16 @@
                     scheduleEntryCommentRetry(entryId, currentEntry, waitMs);
                     if (!silent) {
                         const secs = Math.ceil(waitMs / 1000);
-                        alert(`AIコメントはただいま混雑中です。約${secs}秒後に自動で再試行します。`);
+                        alert(`AIコメントは混雑中です。約${secs}秒後に自動で再試行します。`);
                     }
                 }
                 if (!silent && !retryable) {
                     const detail = formatErrorDetails(e);
                     alert(`AIコメントの生成に失敗しました。${detail ? `\n詳細: ${detail}` : ""}`);
                 }
+            } finally {
+                entryCommentInFlight = false;
+                syncPendingEntryComments();
             }
         }
 
