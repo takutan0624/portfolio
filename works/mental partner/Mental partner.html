@@ -1106,16 +1106,24 @@
 
                 // AI Feedback
                 const prompt = `ユーザーが感情記録しました。感情: ${JSON.stringify(emotions)}。内容: ${summary}。労いの言葉を短く。`;
-                const reply = await callGroq([{role:'user', content: prompt}], { temperature: 0.6, max_tokens: 200 });
-                document.getElementById('daily-message-text').innerText = reply;
-                document.getElementById('daily-message-area').classList.remove('hidden');
+                try {
+                    const reply = await callGroq([{role:'user', content: prompt}], { temperature: 0.6, max_tokens: 200 });
+                    document.getElementById('daily-message-text').innerText = reply;
+                    document.getElementById('daily-message-area').classList.remove('hidden');
+                } catch (e) {
+                    console.error(e);
+                    alert("AIフィードバックの取得に失敗しました。しばらくしてから再度お試しください。");
+                }
 
                 // Clear
                 activeEmotionsContainer.innerHTML = '';
                 document.querySelectorAll('textarea, input[type="text"]').forEach(e => e.value = '');
                 showToolMenu();
 
-            } catch (e) { alert("保存エラー"); } finally { btn.disabled = false; }
+            } catch (e) {
+                console.error(e);
+                alert("保存エラー：記録の保存に失敗しました。");
+            } finally { btn.disabled = false; }
         });
 
         // --- Analysis ---
