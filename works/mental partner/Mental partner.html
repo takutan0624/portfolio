@@ -595,6 +595,8 @@
         const AUTO_SUMMARY_MIN_MESSAGES = 12;
         const AUTO_SUMMARY_COOLDOWN_MS = 5 * 60 * 1000;
         const AUTO_SUMMARY_MAX_TOKENS = 4200;
+        const AUTO_SUMMARY_EVERY_USER_MESSAGES = 4;
+        const AUTO_SUMMARY_FORCE_USER_MESSAGES = 8;
 
         const DEFAULT_PATTERNS = {
             "全か無か思考": 0,
@@ -617,6 +619,7 @@
         let currentUser = null;
         let groqRateLimitUntil = 0;
         let autoSummaryTimer = null;
+        let unsummarizedUserTurns = 0;
         let entriesUnsubscribe = null;
         let firestoreErrorShown = false;
         let state = {
@@ -734,11 +737,15 @@
         }
 
         function shouldAutoSummarize() {
-            if (state.chatHistory.length < AUTO_SUMMARY_MIN_MESSAGES) return false;
-            if (Date.now() - (state.chatSummaryUpdatedAt || 0) < AUTO_SUMMARY_COOLDOWN_MS) return false;
             if (Date.now() < groqRateLimitUntil) return false;
+            const forceByTurns = unsummarizedUserTurns >= AUTO_SUMMARY_FORCE_USER_MESSAGES;
+            if (forceByTurns) return true;
+            if (state.chatHistory.length < 6) return false;
+            if (Date.now() - (state.chatSummaryUpdatedAt || 0) < AUTO_SUMMARY_COOLDOWN_MS) return false;
             const tokens = estimateHistoryTokens(state.chatHistory);
-            return tokens > AUTO_SUMMARY_MAX_TOKENS;
+            const byTurns = unsummarizedUserTurns >= AUTO_SUMMARY_EVERY_USER_MESSAGES;
+            const byTokens = tokens > AUTO_SUMMARY_MAX_TOKENS;
+            return byTurns || byTokens;
         }
 
         function buildSummaryInput(history, options = {}) {
@@ -822,10 +829,10 @@
             const unresolved = userTexts.length > 1 ? userTexts[userTexts.length - 2].slice(0, 120) : "次の相談で確認";
 
             return [
-                `- 背景/状況: ${background}`,
-                `- 感情/状態: ${emotion}`,
-                `- これまでの助言/対処: ${advice}`,
-                `- 未解決/次の一歩: ${unresolved}`
+                `- 今の状況: ${background}`,
+                `- 気持ち: ${emotion}`,
+                `- 試したこと: ${advice}`,
+                `- 次の一歩: ${unresolved}`
             ].join("\n");
         }
 
