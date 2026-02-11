@@ -170,6 +170,11 @@
                                 <i class="fa-solid fa-table-columns tool-bg-icon"></i>
                                 <div class="tool-mascot"><i class="fa-solid fa-5"></i></div>
                             </div>
+                            <div class="tool-card bg-gradient-to-r from-teal-600 to-emerald-600" onclick="switchTool('cbt-7')">
+                                <div><h4 class="font-bold text-sm">7コラム法</h4></div>
+                                <i class="fa-solid fa-table-cells-large tool-bg-icon"></i>
+                                <div class="tool-mascot"><i class="fa-solid fa-7"></i></div>
+                            </div>
                         </div>
                     </div>
 
@@ -180,10 +185,10 @@
                             <h3 class="text-xs font-bold text-gray-500">三行で1日をふり返る</h3>
                         </div>
                         <div class="grid grid-cols-1 gap-3">
-                            <div class="tool-card bg-gradient-to-r from-sky-400 to-blue-400" onclick="switchTool('tgt')">
+                            <div class="tool-card bg-gradient-to-r from-sky-400 to-blue-400" onclick="switchTool('gratitude')">
                                 <div>
-                                    <h4 class="font-bold text-sm">スリー・グッド・シングス</h4>
-                                    <p class="text-[10px] opacity-90 mt-0.5">良かったことを3つ記録</p>
+                                    <h4 class="font-bold text-sm">感謝日記</h4>
+                                    <p class="text-[10px] opacity-90 mt-0.5">今日感謝したい出来事を3つ振り返る</p>
                                 </div>
                                 <i class="fa-solid fa-star tool-bg-icon"></i>
                                 <div class="tool-mascot"><i class="fa-solid fa-gift"></i></div>
@@ -195,6 +200,40 @@
                                 </div>
                                 <i class="fa-solid fa-pen-nib tool-bg-icon"></i>
                                 <div class="tool-mascot"><i class="fa-solid fa-feather"></i></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ストレス対処 -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-3 ml-1">
+                            <span class="w-1 h-4 bg-violet-400 rounded-full"></span>
+                            <h3 class="text-xs font-bold text-gray-500">今のストレスを整えて対処する</h3>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3">
+                            <div class="tool-card bg-gradient-to-r from-violet-500 to-fuchsia-500" onclick="switchTool('cog-organize')">
+                                <div>
+                                    <h4 class="font-bold text-sm">認知行動整理</h4>
+                                    <p class="text-[10px] opacity-90 mt-0.5">状況を客観視して整理する</p>
+                                </div>
+                                <i class="fa-solid fa-brain tool-bg-icon"></i>
+                                <div class="tool-mascot"><i class="fa-solid fa-magnifying-glass"></i></div>
+                            </div>
+                            <div class="tool-card bg-gradient-to-r from-cyan-500 to-blue-500" onclick="switchTool('problem-solving')">
+                                <div>
+                                    <h4 class="font-bold text-sm">問題解決</h4>
+                                    <p class="text-[10px] opacity-90 mt-0.5">問題を分解して対処法を決める</p>
+                                </div>
+                                <i class="fa-solid fa-screwdriver-wrench tool-bg-icon"></i>
+                                <div class="tool-mascot"><i class="fa-solid fa-list-check"></i></div>
+                            </div>
+                            <div class="tool-card bg-gradient-to-r from-rose-500 to-orange-500" onclick="switchTool('quit-behavior')">
+                                <div>
+                                    <h4 class="font-bold text-sm">辞めたい行動</h4>
+                                    <p class="text-[10px] opacity-90 mt-0.5">きっかけと本当の欲求を見つける</p>
+                                </div>
+                                <i class="fa-solid fa-road-circle-xmark tool-bg-icon"></i>
+                                <div class="tool-mascot"><i class="fa-solid fa-seedling"></i></div>
                             </div>
                         </div>
                     </div>
@@ -257,7 +296,7 @@
                             </div>
 
                             <!-- テキストフィールド (JSで切り替え) -->
-                            <div class="field-group space-y-4" data-fields="all">
+                            <div class="field-group space-y-4" data-fields="cbt-common">
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 mb-1">状況・出来事</label>
                                     <input type="text" id="cbt-situation" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:border-teal-500" placeholder="例：上司に注意された">
@@ -268,17 +307,118 @@
                                 </div>
                             </div>
 
-                            <div class="field-group hidden" data-fields="5,7">
+                            <div class="field-group hidden" data-fields="cbt-advanced">
                                 <label class="block text-xs font-bold text-gray-500 mb-1">別の考え方 (適応的思考)</label>
                                 <textarea id="cbt-adaptive" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:border-teal-500 resize-none h-20" placeholder="例：誰でもミスはする、次は気をつけよう"></textarea>
                             </div>
 
-                            <div class="field-group hidden" data-fields="tgt">
-                                <div class="space-y-3">
-                                    <input type="text" id="tgt-1" class="w-full bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm" placeholder="1. 良かったこと">
-                                    <input type="text" id="tgt-2" class="w-full bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm" placeholder="2. 良かったこと">
-                                    <input type="text" id="tgt-3" class="w-full bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm" placeholder="3. 良かったこと">
+                            <div class="field-group hidden space-y-3" data-fields="cbt-7">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">その時の気分・感情</label>
+                                    <input type="text" id="cbt7-emotion" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm" placeholder="例：不安80%、焦り60%">
                                 </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">自動思考を裏づける根拠</label>
+                                    <textarea id="cbt7-evidence-for" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm resize-none h-20" placeholder="例：期限に遅れた"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">自動思考への反証</label>
+                                    <textarea id="cbt7-evidence-against" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm resize-none h-20" placeholder="例：これまでは多くの業務を完了できている"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">次に取る小さな行動</label>
+                                    <textarea id="cbt7-action" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm resize-none h-20" placeholder="例：明日の朝、優先順位を3つに絞る"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="field-group hidden space-y-3" data-fields="gratitude">
+                                <div class="space-y-3">
+                                    <textarea id="gratitude-1" class="w-full bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm resize-none h-16" placeholder="1. 感謝したい出来事"></textarea>
+                                    <textarea id="gratitude-2" class="w-full bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm resize-none h-16" placeholder="2. 感謝したい出来事"></textarea>
+                                    <textarea id="gratitude-3" class="w-full bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm resize-none h-16" placeholder="3. 感謝したい出来事"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="field-group hidden space-y-3" data-fields="cog-organize">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">ストレス状況 (事実ベース)</label>
+                                    <textarea id="cog-situation" class="w-full bg-violet-50 border border-violet-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="今起きていることを具体的に"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">浮かんだ解釈・考え</label>
+                                    <textarea id="cog-thought" class="w-full bg-violet-50 border border-violet-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="例：自分は失敗するかもしれない"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">客観的に見た別の捉え方</label>
+                                    <textarea id="cog-reframe" class="w-full bg-violet-50 border border-violet-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="第三者視点での見方"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">自分でコントロールできること</label>
+                                    <textarea id="cog-control" class="w-full bg-violet-50 border border-violet-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="今の自分ができる範囲"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">次の一歩</label>
+                                    <input type="text" id="cog-next" class="w-full bg-violet-50 border border-violet-100 rounded-lg p-3 text-sm" placeholder="今日中にやる小さな行動">
+                                </div>
+                            </div>
+
+                            <div class="field-group hidden space-y-3" data-fields="problem-solving">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">今の問題</label>
+                                    <textarea id="ps-problem" class="w-full bg-cyan-50 border border-cyan-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="解決したい問題を具体化"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">目標 (どうなればOKか)</label>
+                                    <input type="text" id="ps-goal" class="w-full bg-cyan-50 border border-cyan-100 rounded-lg p-3 text-sm" placeholder="達成したい状態">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">解決案の候補</label>
+                                    <textarea id="ps-options" class="w-full bg-cyan-50 border border-cyan-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="思いつく案を複数"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">採用する案</label>
+                                    <input type="text" id="ps-best" class="w-full bg-cyan-50 border border-cyan-100 rounded-lg p-3 text-sm" placeholder="今選ぶ案">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">最初の行動</label>
+                                    <input type="text" id="ps-first-step" class="w-full bg-cyan-50 border border-cyan-100 rounded-lg p-3 text-sm" placeholder="最小の1ステップ">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">障害への備え</label>
+                                    <textarea id="ps-obstacle" class="w-full bg-cyan-50 border border-cyan-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="詰まった時の代替案"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="field-group hidden space-y-3" data-fields="quit-behavior">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">辞めたい行動</label>
+                                    <input type="text" id="quit-behavior-name" class="w-full bg-rose-50 border border-rose-100 rounded-lg p-3 text-sm" placeholder="例：夜更かし、衝動買い">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">起きるきっかけ</label>
+                                    <textarea id="quit-trigger" class="w-full bg-rose-50 border border-rose-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="いつ・どこで・何があると起きるか"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">その時すぐ満たされるもの</label>
+                                    <textarea id="quit-short-reward" class="w-full bg-rose-50 border border-rose-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="例：安心感、気晴らし"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">本当に満たしたいもの</label>
+                                    <textarea id="quit-true-need" class="w-full bg-rose-50 border border-rose-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="例：休息、つながり、自信"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">代わりの行動</label>
+                                    <textarea id="quit-alternative" class="w-full bg-rose-50 border border-rose-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="辞めたい行動の代替"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">実行プラン (If-Then)</label>
+                                    <input type="text" id="quit-plan" class="w-full bg-rose-50 border border-rose-100 rounded-lg p-3 text-sm" placeholder="例：もし帰宅後に不安が強ければ、10分散歩する">
+                                </div>
+                            </div>
+
+                            <div class="field-group hidden" data-fields="free">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">自由記述</label>
+                                <textarea id="free-note" class="w-full bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-sm resize-none h-28" placeholder="今の気持ちや出来事を自由に書く"></textarea>
                             </div>
                         </div>
 
@@ -1065,22 +1205,127 @@
         // --- Tools Logic ---
         const activeEmotionsContainer = document.getElementById('active-emotions-container');
         const emotionSelector = document.getElementById('emotion-selector');
+        const TOOL_DEFINITIONS = {
+            'cbt-3': { title: '3コラム法', fields: ['cbt-common'] },
+            'cbt-5': { title: '5コラム法', fields: ['cbt-common', 'cbt-advanced'] },
+            'cbt-7': { title: '7コラム法', fields: ['cbt-common', 'cbt-advanced', 'cbt-7'] },
+            'gratitude': { title: '感謝日記', fields: ['gratitude'] },
+            'tgt': { title: 'スリー・グッド・シングス', fields: ['gratitude'] }, // 互換
+            'cog-organize': { title: '認知行動整理', fields: ['cog-organize'] },
+            'problem-solving': { title: '問題解決', fields: ['problem-solving'] },
+            'quit-behavior': { title: '辞めたい行動', fields: ['quit-behavior'] },
+            'free': { title: '自由記述・モヤモヤ整理', fields: ['free'] }
+        };
+
+        function readText(id) {
+            return (document.getElementById(id)?.value || '').trim();
+        }
+
+        function buildEntryPayload(type) {
+            if (type === 'cbt-3') {
+                const situation = readText('cbt-situation');
+                const thought = readText('cbt-thought');
+                if (!situation && !thought) return { validationError: '状況・出来事 か 自動思考 を入力してください。' };
+                return {
+                    summary: [situation ? `状況:${situation}` : '', thought ? `思考:${thought}` : ''].filter(Boolean).join(' / '),
+                    detail: { situation, thought }
+                };
+            }
+            if (type === 'cbt-5') {
+                const situation = readText('cbt-situation');
+                const thought = readText('cbt-thought');
+                const adaptive = readText('cbt-adaptive');
+                if (!situation && !thought && !adaptive) return { validationError: '入力内容が空です。最低1項目入力してください。' };
+                return {
+                    summary: [situation ? `状況:${situation}` : '', thought ? `思考:${thought}` : '', adaptive ? `別の考え:${adaptive}` : ''].filter(Boolean).join(' / '),
+                    detail: { situation, thought, adaptive }
+                };
+            }
+            if (type === 'cbt-7') {
+                const situation = readText('cbt-situation');
+                const thought = readText('cbt-thought');
+                const adaptive = readText('cbt-adaptive');
+                const emotion = readText('cbt7-emotion');
+                const evidenceFor = readText('cbt7-evidence-for');
+                const evidenceAgainst = readText('cbt7-evidence-against');
+                const action = readText('cbt7-action');
+                if (!situation && !thought && !adaptive) return { validationError: '7コラム法の主要項目（状況・思考・別の考え方）を入力してください。' };
+                return {
+                    summary: [
+                        situation ? `状況:${situation}` : '',
+                        thought ? `思考:${thought}` : '',
+                        adaptive ? `適応思考:${adaptive}` : '',
+                        action ? `行動:${action}` : ''
+                    ].filter(Boolean).join(' / '),
+                    detail: { situation, thought, adaptive, emotion, evidenceFor, evidenceAgainst, action }
+                };
+            }
+            if (type === 'gratitude' || type === 'tgt') {
+                const items = [1, 2, 3].map((i) => readText(`gratitude-${i}`));
+                const filled = items.filter(Boolean);
+                if (filled.length < 3) return { validationError: '感謝したい出来事を3つ入力してください。' };
+                return {
+                    summary: filled.map((v, idx) => `${idx + 1}. ${v}`).join(' / '),
+                    detail: { items: filled }
+                };
+            }
+            if (type === 'cog-organize') {
+                const situation = readText('cog-situation');
+                const thought = readText('cog-thought');
+                const reframe = readText('cog-reframe');
+                const control = readText('cog-control');
+                const next = readText('cog-next');
+                if (!situation || !next) return { validationError: '認知行動整理は「ストレス状況」と「次の一歩」を入力してください。' };
+                return {
+                    summary: [`状況:${situation}`, thought ? `考え:${thought}` : '', reframe ? `客観視:${reframe}` : '', `次:${next}`].filter(Boolean).join(' / '),
+                    detail: { situation, thought, reframe, control, next }
+                };
+            }
+            if (type === 'problem-solving') {
+                const problem = readText('ps-problem');
+                const goal = readText('ps-goal');
+                const options = readText('ps-options');
+                const best = readText('ps-best');
+                const firstStep = readText('ps-first-step');
+                const obstacle = readText('ps-obstacle');
+                if (!problem || !firstStep) return { validationError: '問題解決は「今の問題」と「最初の行動」を入力してください。' };
+                return {
+                    summary: [`問題:${problem}`, goal ? `目標:${goal}` : '', best ? `採用案:${best}` : '', `初動:${firstStep}`].filter(Boolean).join(' / '),
+                    detail: { problem, goal, options, best, firstStep, obstacle }
+                };
+            }
+            if (type === 'quit-behavior') {
+                const behavior = readText('quit-behavior-name');
+                const trigger = readText('quit-trigger');
+                const shortReward = readText('quit-short-reward');
+                const trueNeed = readText('quit-true-need');
+                const alternative = readText('quit-alternative');
+                const plan = readText('quit-plan');
+                if (!behavior || !trigger || !alternative) return { validationError: '辞めたい行動は「行動名」「きっかけ」「代わりの行動」を入力してください。' };
+                return {
+                    summary: [`行動:${behavior}`, `きっかけ:${trigger}`, trueNeed ? `本当に満たしたいもの:${trueNeed}` : '', `代替:${alternative}`].filter(Boolean).join(' / '),
+                    detail: { behavior, trigger, shortReward, trueNeed, alternative, plan }
+                };
+            }
+
+            const freeNote = readText('free-note');
+            if (!freeNote) return { validationError: '自由記述を入力してください。' };
+            return { summary: freeNote, detail: { note: freeNote } };
+        }
 
         window.switchTool = (type) => {
             document.getElementById('tool-menu-container').classList.add('hidden');
             document.getElementById('tool-form-container').classList.remove('hidden');
             document.getElementById('current-tool-type').value = type;
+            const toolDef = TOOL_DEFINITIONS[type] || TOOL_DEFINITIONS.free;
+            document.getElementById('form-title').textContent = toolDef.title;
             
             // フィールド制御
             document.querySelectorAll('.field-group').forEach(el => el.classList.add('hidden'));
-            if(type.startsWith('cbt')) {
-                document.querySelector('[data-fields="all"]').classList.remove('hidden');
-                if(type !== 'cbt-3') document.querySelector('[data-fields="5,7"]').classList.remove('hidden');
-            } else if (type === 'tgt') {
-                document.querySelector('[data-fields="tgt"]').classList.remove('hidden');
-            } else {
-                document.querySelector('[data-fields="all"]').classList.remove('hidden');
-            }
+            toolDef.fields.forEach((fieldKey) => {
+                const group = document.querySelector(`[data-fields="${fieldKey}"]`);
+                if (group) group.classList.remove('hidden');
+            });
             
             // 感情セレクタ初期化
             emotionSelector.innerHTML = '';
@@ -1147,12 +1392,13 @@
             });
 
             const type = document.getElementById('current-tool-type').value;
-            let summary = "";
-            if (type.startsWith('cbt') || type === 'free') {
-                summary = document.getElementById('cbt-thought').value;
-            } else if (type === 'tgt') {
-                summary = [1,2,3].map(i => document.getElementById(`tgt-${i}`).value).join(" / ");
+            const payload = buildEntryPayload(type);
+            if (payload.validationError) {
+                btn.disabled = false;
+                alert(payload.validationError);
+                return;
             }
+            const summary = payload.summary;
 
             const entry = {
                 date: new Date().toISOString(),
@@ -1160,7 +1406,8 @@
                 mental: parseInt(document.getElementById('mental-val').value) * 20,
                 physical: parseInt(document.getElementById('physical-val').value) * 20,
                 emotions,
-                summary
+                summary,
+                detail: payload.detail
             };
 
             try {
@@ -1174,7 +1421,8 @@
                 }
 
                 // AI Feedback
-                const prompt = `ユーザーが感情記録しました。感情: ${JSON.stringify(emotions)}。内容: ${summary}。労いの言葉を短く。`;
+                const toolName = TOOL_DEFINITIONS[type]?.title || type;
+                const prompt = `ユーザーが「${toolName}」ノートを記録しました。感情: ${JSON.stringify(emotions)}。内容: ${summary}。100字以内で、労い + 次の一歩を1つだけ返してください。`;
                 try {
                     const reply = await callGroq([{role:'user', content: prompt}], { temperature: 0.6, max_tokens: 200 });
                     document.getElementById('daily-message-text').innerText = reply;
