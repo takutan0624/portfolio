@@ -102,8 +102,8 @@
                 <i class="fa-solid fa-spa text-teal-500"></i> Mental Partner
             </h1>
             <div class="flex gap-3">
-                <button id="logout-btn" class="text-gray-400 hover:text-teal-600 transition text-xs flex items-center gap-1">
-                    <i class="fa-solid fa-right-from-bracket"></i> <span id="user-name"></span>
+                <button id="settings-btn" class="text-gray-400 hover:text-teal-600 transition text-xs flex items-center gap-1">
+                    <i class="fa-solid fa-gear"></i> <span>設定</span>
                 </button>
             </div>
         </header>
@@ -549,13 +549,33 @@
             <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-analysis"><i class="fa-solid fa-chart-pie text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">分析</span></button>
             <button class="nav-btn tab-inactive flex-1 flex flex-col items-center justify-center h-full gap-1 group" data-target="view-memory"><i class="fa-solid fa-brain text-xl mb-0.5 group-hover:scale-110 transition"></i><span class="text-[9px] font-bold">メモリ</span></button>
         </nav>
+
+        <div id="settings-modal" class="hidden absolute inset-0 z-40 bg-black/35 p-4 flex items-end md:items-center justify-center">
+            <div class="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-gray-100 p-4 animate-fade-in">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold text-gray-800">設定</h3>
+                    <button id="settings-close-btn" class="text-gray-400 hover:text-gray-600 text-sm">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 mb-4">ログイン中: <span id="user-name" class="font-bold text-gray-700"></span></p>
+                <div class="space-y-2">
+                    <button id="clear-logs-btn" class="w-full text-left bg-rose-50 text-rose-700 border border-rose-200 rounded-xl px-4 py-3 text-sm font-bold hover:bg-rose-100 transition">
+                        <i class="fa-solid fa-trash-can mr-2"></i> ログを削除
+                    </button>
+                    <button id="settings-logout-btn" class="w-full text-left bg-gray-50 text-gray-700 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold hover:bg-gray-100 transition">
+                        <i class="fa-solid fa-right-from-bracket mr-2"></i> ログアウト
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, doc, setDoc, getDoc, onSnapshot, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAm6Gi_FFunADHW36uP2ZexHO6cq06yG9g",
@@ -900,6 +920,19 @@
         // --- Auth ---
         const loginErrorContainer = document.getElementById('login-error-container');
         const loginErrorMsg = document.getElementById('login-error-msg');
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const settingsCloseBtn = document.getElementById('settings-close-btn');
+        const settingsLogoutBtn = document.getElementById('settings-logout-btn');
+        const clearLogsBtn = document.getElementById('clear-logs-btn');
+
+        function openSettingsModal() {
+            settingsModal.classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            settingsModal.classList.add('hidden');
+        }
 
         document.getElementById('google-login-btn').addEventListener('click', async () => {
             try {
@@ -910,7 +943,15 @@
                 loginErrorContainer.classList.remove('hidden');
             }
         });
-        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+        settingsBtn.addEventListener('click', openSettingsModal);
+        settingsCloseBtn.addEventListener('click', closeSettingsModal);
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) closeSettingsModal();
+        });
+        settingsLogoutBtn.addEventListener('click', async () => {
+            closeSettingsModal();
+            await signOut(auth);
+        });
         if (typeof __initial_auth_token !== 'undefined') signInWithCustomToken(auth, __initial_auth_token).catch(()=>{});
 
         onAuthStateChanged(auth, async (user) => {
@@ -924,6 +965,8 @@
                 loadFirestoreData(user.uid);
             } else {
                 currentUser = null;
+                closeSettingsModal();
+                document.getElementById('user-name').textContent = "";
                 resetFirestoreListener();
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('app-container').classList.add('hidden');
@@ -989,6 +1032,65 @@
             if (!currentUser) return;
             await setDoc(doc(db, "users", currentUser.uid, "data", "patterns"), { patterns, comment }, { merge: true });
         }
+
+        async function clearUserLogs(uid) {
+            resetFirestoreListener();
+
+            const entriesRef = collection(db, "users", uid, "entries");
+            const entriesSnapshot = await getDocs(entriesRef);
+            const docs = entriesSnapshot.docs;
+            for (let i = 0; i < docs.length; i += 450) {
+                const batch = writeBatch(db);
+                docs.slice(i, i + 450).forEach((d) => batch.delete(d.ref));
+                await batch.commit();
+            }
+
+            const initialHistory = [{ role: "assistant", content: "こんにちは。今の気分を教えていただけますか？" }];
+            await setDoc(doc(db, "users", uid, "data", "chatHistory"), {
+                history: initialHistory,
+                summary: "",
+                summaryUpdatedAt: 0
+            });
+            await setDoc(doc(db, "users", uid, "data", "patterns"), {
+                patterns: { ...DEFAULT_PATTERNS },
+                comment: ""
+            });
+
+            state = {
+                chatHistory: initialHistory,
+                chatSummary: "",
+                chatSummaryUpdatedAt: 0,
+                cbtEntries: [],
+                patterns: { ...DEFAULT_PATTERNS },
+                analysisComment: ""
+            };
+            document.getElementById('wave-analysis-text').textContent = "まだ分析データがありません。";
+            renderChatHistory();
+            renderPatternChart();
+            resetDailyCharts();
+            loadFirestoreData(uid);
+        }
+
+        clearLogsBtn.addEventListener('click', async () => {
+            if (!currentUser) return;
+            const ok = confirm("保存済みの記録・チャット要約・分析結果を削除します。元に戻せません。実行しますか？");
+            if (!ok) return;
+
+            const original = clearLogsBtn.innerHTML;
+            clearLogsBtn.disabled = true;
+            clearLogsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> 削除中...';
+            try {
+                await clearUserLogs(currentUser.uid);
+                closeSettingsModal();
+                alert("ログを削除しました。");
+            } catch (e) {
+                console.error(e);
+                alert("ログの削除に失敗しました。時間をおいて再度お試しください。");
+            } finally {
+                clearLogsBtn.disabled = false;
+                clearLogsBtn.innerHTML = original;
+            }
+        });
 
         // --- Chat ---
         const chatContainer = document.getElementById('chat-container');
@@ -1481,8 +1583,26 @@
         });
 
         let charts = {};
+        function resetDailyCharts() {
+            if (charts.cond) {
+                charts.cond.destroy();
+                charts.cond = null;
+            }
+            if (charts.donut) {
+                charts.donut.destroy();
+                charts.donut = null;
+            }
+            document.getElementById('score-anger').textContent = "0";
+            document.getElementById('score-sadness').textContent = "0";
+            document.getElementById('score-anxiety').textContent = "0";
+            document.getElementById('score-disgust').textContent = "0";
+        }
+
         function updateCharts() {
-            if (state.cbtEntries.length === 0) return;
+            if (state.cbtEntries.length === 0) {
+                resetDailyCharts();
+                return;
+            }
             const sorted = [...state.cbtEntries].sort((a,b) => new Date(a.date) - new Date(b.date)).slice(-7);
             const labels = sorted.map(d => { const dt = new Date(d.date); return `${dt.getMonth()+1}/${dt.getDate()}`; });
 
