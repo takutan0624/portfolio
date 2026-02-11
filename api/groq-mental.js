@@ -69,7 +69,7 @@ export default async function handler(req, res) {
 
     const now = Date.now();
     const windowMs = 60 * 1000;
-    const maxRequests = 20;
+    const maxRequests = 40;
     const ip = (req.headers["x-forwarded-for"] || "").toString().split(",")[0].trim();
     const key = decoded.uid || ip || "unknown";
     if (!globalThis.__groqRateLimit) {
@@ -78,7 +78,11 @@ export default async function handler(req, res) {
     const bucket = globalThis.__groqRateLimit.get(key) || [];
     const recent = bucket.filter((t) => now - t < windowMs);
     if (recent.length >= maxRequests) {
-      res.status(429).json({ error: "Rate limit exceeded" });
+      const oldest = recent[0] || now;
+      const retryAfterMs = Math.max(1000, windowMs - (now - oldest));
+      const retryAfterSec = Math.ceil(retryAfterMs / 1000);
+      res.setHeader("Retry-After", String(retryAfterSec));
+      res.status(429).json({ error: `Rate limit exceeded. Please try again in ${retryAfterSec}s.` });
       return;
     }
     recent.push(now);
