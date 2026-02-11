@@ -455,6 +455,8 @@
         const provider = new GoogleAuthProvider();
 
         let currentUser = null;
+        let groqRateLimitUntil = 0;
+        let autoSummaryTimer = null;
         let state = {
             chatHistory: [],
             chatSummary: "",
@@ -531,6 +533,7 @@
         function shouldAutoSummarize() {
             if (state.chatHistory.length < AUTO_SUMMARY_MIN_MESSAGES) return false;
             if (Date.now() - (state.chatSummaryUpdatedAt || 0) < AUTO_SUMMARY_COOLDOWN_MS) return false;
+            if (Date.now() < groqRateLimitUntil) return false;
             const tokens = estimateHistoryTokens(state.chatHistory);
             return tokens > AUTO_SUMMARY_MAX_TOKENS;
         }
@@ -574,6 +577,12 @@
             if (window.location.protocol === "file:") {
                 throw new Error("ローカルファイルではAPIが使えません。デプロイ先URLで開いてください。");
             }
+            if (Date.now() < groqRateLimitUntil) {
+                const err = new Error("rate_limit_hold");
+                err.retryAfterMs = groqRateLimitUntil - Date.now();
+                err.code = "rate_limit_hold";
+                throw err;
+            }
             const token = await currentUser.getIdToken(true);
             const res = await fetch("/api/groq-mental", {
                 method: "POST",
@@ -590,10 +599,41 @@
             });
             if (!res.ok) {
                 const text = await res.text();
-                throw new Error(text || "Groq API error");
+                let retryAfterMs = 0;
+                const match = text.match(/try again in\\s*([0-9.]+)s/i);
+                if (match) retryAfterMs = Math.ceil(parseFloat(match[1]) * 1000);
+                if (res.status === 429 && retryAfterMs) {
+                    groqRateLimitUntil = Date.now() + retryAfterMs + 500;
+                }
+                const err = new Error(text || "Groq API error");
+                err.retryAfterMs = retryAfterMs;
+                err.code = res.status === 429 ? "rate_limit_exceeded" : undefined;
+                throw err;
             }
             const data = await res.json();
             return data?.content || "";
+        }
+
+        function handleRateLimitError(err, { silent } = {}) {
+            const retryMs = err?.retryAfterMs || Math.max(0, groqRateLimitUntil - Date.now());
+            if (retryMs > 0 && !silent) {
+                const secs = Math.ceil(retryMs / 1000);
+                alert(`アクセス集中のため、${secs}秒後に再試行してください。`);
+            }
+            return retryMs;
+        }
+
+        function scheduleAutoSummary(delayMs = 12000) {
+            if (autoSummaryTimer) return;
+            autoSummaryTimer = setTimeout(async () => {
+                autoSummaryTimer = null;
+                try {
+                    await runSummary({ silent: true });
+                } catch (e) {
+                    const retryMs = handleRateLimitError(e, { silent: true });
+                    if (retryMs > 0) scheduleAutoSummary(retryMs + 500);
+                }
+            }, delayMs);
         }
 
         async function callAnalysis(prompt) {
@@ -798,6 +838,8 @@
                     if (summary) break;
                 } catch (e) {
                     lastError = e;
+                    const retryMs = handleRateLimitError(e, { silent });
+                    if (retryMs > 0) throw e;
                 }
             }
             if (!summary) throw lastError || new Error("summary failed");
@@ -828,7 +870,7 @@
                 appendMsg(reply, 'ai');
                 saveChat();
                 if (shouldAutoSummarize()) {
-                    runSummary({ silent: true }).catch((err) => console.error(err));
+                    scheduleAutoSummary(12000);
                 }
             } catch(e){ console.error(e); }
         });
@@ -840,8 +882,11 @@
             try {
                 await runSummary({ silent: false });
             } catch (e) {
-                console.error(e);
-                alert("要約に失敗しました。もう一度お試しください。");
+                const retryMs = handleRateLimitError(e, { silent: false });
+                if (!retryMs) {
+                    console.error(e);
+                    alert("要約に失敗しました。もう一度お試しください。");
+                }
             } finally {
                 summarizeBtn.textContent = "会話を要約";
                 summarizeBtn.disabled = false;
@@ -856,8 +901,11 @@
                 try {
                     await runSummary({ silent: false });
                 } catch (e) {
-                    console.error(e);
-                    alert("要約に失敗しました。もう一度お試しください。");
+                    const retryMs = handleRateLimitError(e, { silent: false });
+                    if (!retryMs) {
+                        console.error(e);
+                        alert("要約に失敗しました。もう一度お試しください。");
+                    }
                 } finally {
                     memoryRefreshBtn.textContent = "要約を更新";
                     memoryRefreshBtn.disabled = false;
