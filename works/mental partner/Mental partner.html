@@ -644,6 +644,18 @@
             return retryMs;
         }
 
+        function formatErrorDetails(err) {
+            if (!err) return "";
+            let msg = err?.message || String(err);
+            if (!msg) return "";
+            try {
+                const parsed = JSON.parse(msg);
+                if (parsed?.error?.message) msg = parsed.error.message;
+            } catch {}
+            if (msg.length > 400) msg = msg.slice(0, 400) + "...";
+            return msg;
+        }
+
         function sleep(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         }
@@ -965,7 +977,8 @@
                 const retryMs = handleRateLimitError(e, { silent: false });
                 if (!retryMs) {
                     console.error(e);
-                    alert("要約に失敗しました。もう一度お試しください。");
+                    const detail = formatErrorDetails(e);
+                    alert(`要約に失敗しました。もう一度お試しください。${detail ? `\n詳細: ${detail}` : ""}`);
                 }
             } finally {
                 summarizeBtn.textContent = "会話を要約";
@@ -984,7 +997,8 @@
                     const retryMs = handleRateLimitError(e, { silent: false });
                     if (!retryMs) {
                         console.error(e);
-                        alert("要約に失敗しました。もう一度お試しください。");
+                        const detail = formatErrorDetails(e);
+                        alert(`要約に失敗しました。もう一度お試しください。${detail ? `\n詳細: ${detail}` : ""}`);
                     }
                 } finally {
                     memoryRefreshBtn.textContent = "要約を更新";
@@ -1112,7 +1126,8 @@
                     document.getElementById('daily-message-area').classList.remove('hidden');
                 } catch (e) {
                     console.error(e);
-                    alert("AIフィードバックの取得に失敗しました。しばらくしてから再度お試しください。");
+                    const detail = formatErrorDetails(e);
+                    alert(`AIフィードバックの取得に失敗しました。しばらくしてから再度お試しください。${detail ? `\n詳細: ${detail}` : ""}`);
                 }
 
                 // Clear
@@ -1154,6 +1169,8 @@
                 renderPatternChart();
             } catch (e) {
                 console.error(e);
+                const detail = formatErrorDetails(e);
+                alert(`AI分析に失敗しました。しばらくしてから再度お試しください。${detail ? `\n詳細: ${detail}` : ""}`);
             } finally {
                 analyzeBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI分析を実行';
                 analyzeBtn.disabled = false;
