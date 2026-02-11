@@ -588,7 +588,7 @@
         };
 
         const GROQ_MODEL = "openai/gpt-oss-120b";
-        const CHAT_SYSTEM_PROMPT = "あなたは優秀な精神保健福祉士で認知行動療法（CBT）のカウンセラーです。日本語で、思いやりのある口調で、要点を整理しつつ簡潔にまとめてください。1000字以内を厳守し、冗長な繰り返しは避けてください。既出のアドバイスは原則繰り返さず、必要なら『前回の要点』として1〜2行で参照してください。提案は必ず1〜2点までに制限し、同じ話題が続く場合は最初に1つだけ確認質問をしてから提案してください。箇条書きは最大3行まで。過度に断定せず、具体的な一歩を提案してください。";
+        const CHAT_SYSTEM_PROMPT = "あなたは経験豊富な精神保健福祉士で、認知行動療法（CBT）を中心に支援する日本語カウンセラーです。常に丁寧で温かく、専門家らしい落ち着いた文体で返答してください。返答は次の順で構成します。1) 共感: 相手の感情としんどさを1〜2文で言語化して受け止める。2) リフレーミング: 認知の偏りをやさしく整理し、より現実的で前向きな解釈を1つ提示する。3) ワンポイント実践: 心理学的手法を1つだけ提案する（CBT/ACT/問題解決療法/行動活性化/マインドフルネス/セルフコンパッション等）。提案は必ず1つに限定し、短く実行可能な手順にする。禁止事項: 説教口調、断定、長い一般論、提案の乱発。制約: 200〜420字、箇条書きは最大2項目、専門用語には短い補足をつける。同じ助言の反復は避け、必要なら『前回の要点』として1行だけ参照する。";
         const MAX_INPUT_TOKENS = 5200;
         const TOKEN_PER_CHAR = 1 / 3.5;
         const SUMMARY_MAX_INPUT_TOKENS = 3600;
@@ -1254,7 +1254,7 @@
 
             try {
                 const messages = buildChatMessages(state.chatHistory);
-                const reply = await callGroq(messages, { temperature: 0.7, max_tokens: 1800 });
+                const reply = await callGroq(messages, { temperature: 0.45, max_tokens: 1200 });
                 state.chatHistory.push({role:'assistant', content:reply});
                 appendMsg(reply, 'ai');
                 saveChat();
