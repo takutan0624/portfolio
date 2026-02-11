@@ -638,6 +638,7 @@
         let groqRateLimitUntil = 0;
         let autoSummaryTimer = null;
         let unsummarizedUserTurns = 0;
+        const entryCommentRetryTimers = new Map();
         let entriesUnsubscribe = null;
         let firestoreErrorShown = false;
         let state = {
@@ -799,18 +800,43 @@
             return getEntryDetailLines(entry).join(" | ").slice(0, 900);
         }
 
-        function buildFallbackEntryComment(entry) {
-            const label = getToolLabel(entry?.type);
-            const summary = String(entry?.summary || "").trim();
-            const mental = typeof entry?.mental === "number" ? entry.mental : null;
-            const physical = typeof entry?.physical === "number" ? entry.physical : null;
-            const moodHint = (mental !== null && physical !== null)
-                ? `いまは心${mental}/体${physical}の状態で、`
-                : "";
-            const base = summary
-                ? `「${summary.slice(0, 70)}」と丁寧に記録できています。`
-                : `「${label}」をしっかり記録できています。`;
-            return `${base}${moodHint}まずは深呼吸を3回してから、次の一歩を1つだけ実行してみましょう。`;
+        function isRetryableAiCommentError(err) {
+            if (!err) return false;
+            if (err?.status === 429 || err?.code === "rate_limit_exceeded" || err?.code === "rate_limit_hold") return true;
+            if (typeof err?.status === "number" && err.status >= 500) return true;
+            const msg = String(err?.message || "");
+            return /network|fetch|timeout|temporar/i.test(msg);
+        }
+
+        function clearEntryCommentRetry(entryId) {
+            const timer = entryCommentRetryTimers.get(entryId);
+            if (timer) {
+                clearTimeout(timer);
+                entryCommentRetryTimers.delete(entryId);
+            }
+        }
+
+        function scheduleEntryCommentRetry(entryId, entrySnapshot, retryMs = 12000) {
+            if (!entryId) return;
+            if (entryCommentRetryTimers.has(entryId)) return;
+            const wait = Math.max(1500, Math.min(retryMs, 60000));
+            const timer = setTimeout(() => {
+                entryCommentRetryTimers.delete(entryId);
+                generateEntryComment(entryId, entrySnapshot, { silent: true, force: true }).catch((e) => console.error(e));
+            }, wait);
+            entryCommentRetryTimers.set(entryId, timer);
+        }
+
+        function syncPendingEntryComments() {
+            if (!currentUser) return;
+            const targets = [...(state.cbtEntries || [])]
+                .filter((e) => e && !e.aiComment && (e.aiCommentStatus === "pending" || e.aiCommentStatus === "retrying"))
+                .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                .slice(0, 2);
+            targets.forEach((entry) => {
+                const delay = entry.aiCommentStatus === "retrying" ? 5000 : 2500;
+                scheduleEntryCommentRetry(entry.id, entry, delay);
+            });
         }
 
         function buildChatMessages(history) {
@@ -1178,6 +1204,7 @@
                 state.cbtEntries = snap.docs.map(d => ({id:d.id, ...d.data()}));
                 updateCharts();
                 renderEntryHistory();
+                syncPendingEntryComments();
             }, (error) => {
                 notifyFirestoreError("entries/onSnapshot", error);
             });
@@ -1389,11 +1416,24 @@
                     regen.textContent = "再生成";
                     regen.addEventListener("click", () => generateEntryComment(entry.id, entry, { silent: true, force: true }));
                     aiBox.appendChild(regen);
-                } else if (status === "generating") {
+                } else if (status === "generating" || status === "retrying") {
                     const generating = document.createElement("p");
                     generating.className = "text-xs text-gray-500";
-                    generating.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> 生成中...';
+                    generating.innerHTML = status === "retrying"
+                        ? '<i class="fa-solid fa-clock-rotate-left mr-1"></i> 生成待ちです。自動で再試行します...'
+                        : '<i class="fa-solid fa-spinner fa-spin mr-1"></i> 生成中...';
                     aiBox.appendChild(generating);
+                } else if (status === "failed") {
+                    const failed = document.createElement("p");
+                    failed.className = "text-xs text-gray-500";
+                    failed.textContent = "コメント生成に失敗しました。再試行してください。";
+                    aiBox.appendChild(failed);
+
+                    const retryBtn = document.createElement("button");
+                    retryBtn.className = "mt-2 text-[10px] font-bold text-rose-700 bg-white border border-rose-200 px-2 py-1 rounded hover:bg-rose-100";
+                    retryBtn.textContent = "再試行";
+                    retryBtn.addEventListener("click", () => generateEntryComment(entry.id, entry, { silent: false, force: true }));
+                    aiBox.appendChild(retryBtn);
                 } else {
                     const btn = document.createElement("button");
                     btn.className = "text-[11px] font-bold text-rose-700 bg-white border border-rose-200 px-3 py-1.5 rounded hover:bg-rose-100";
@@ -1724,6 +1764,7 @@
             if (!force && currentEntry.aiComment) return;
             if (currentEntry.aiCommentStatus === "generating") return;
 
+            clearEntryCommentRetry(entryId);
             updateEntryInState(entryId, { aiCommentStatus: "generating" });
             renderEntryHistory();
 
@@ -1734,7 +1775,7 @@
 
             const emText = currentEntry.emotions ? emotionsToText(currentEntry.emotions) : "";
             const detailText = buildEntryDetailText(currentEntry).slice(0, 450);
-            const prompt = `以下の記録に対して、共感1文 + 前向きな捉え直し1文 + 次の一歩1つを、やさしい日本語で90〜150字で返してください。箇条書きは最大2つ。\n記録タイプ: ${getToolLabel(currentEntry.type)}\nココロ: ${currentEntry.mental || 0}\nカラダ: ${currentEntry.physical || 0}\n感情: ${emText || "なし"}\n要約: ${String(currentEntry.summary || "").slice(0, 260)}\n詳細: ${detailText || "なし"}`;
+            const prompt = `以下の記録に対して、共感と思いやりのあるコメントを返してください。構成は「共感1文 + 視点の言い換え1文 + 次の一歩1つ」。やさしい日本語で90〜150字。定型文にしないで、記録内容に触れてください。\n記録タイプ: ${getToolLabel(currentEntry.type)}\nココロ: ${currentEntry.mental || 0}\nカラダ: ${currentEntry.physical || 0}\n感情: ${emText || "なし"}\n要約: ${String(currentEntry.summary || "").slice(0, 260)}\n詳細: ${detailText || "なし"}`;
 
             try {
                 const comment = (await callGroqWithRetry(
@@ -1743,10 +1784,10 @@
                     3
                 ) || "").trim();
 
-                const finalComment = comment || buildFallbackEntryComment(currentEntry);
+                if (!comment) throw new Error("empty ai comment");
                 const patch = {
-                    aiComment: finalComment,
-                    aiCommentStatus: comment ? "ready" : "ready_local",
+                    aiComment: comment,
+                    aiCommentStatus: "ready",
                     aiCommentUpdatedAt: new Date().toISOString()
                 };
                 updateEntryInState(entryId, patch);
@@ -1760,22 +1801,30 @@
                     }
                 }
             } catch (e) {
-                const fallback = buildFallbackEntryComment(currentEntry);
-                const fallbackPatch = {
-                    aiComment: fallback,
-                    aiCommentStatus: "ready_local",
+                const retryable = isRetryableAiCommentError(e);
+                const waitMs = e?.retryAfterMs ? (e.retryAfterMs + 700) : 12000;
+                const failPatch = {
+                    aiComment: "",
+                    aiCommentStatus: retryable ? "retrying" : "failed",
                     aiCommentUpdatedAt: new Date().toISOString()
                 };
-                updateEntryInState(entryId, fallbackPatch);
+                updateEntryInState(entryId, failPatch);
                 renderEntryHistory();
                 try {
-                    await setDoc(entryRef, fallbackPatch, { merge: true });
+                    await setDoc(entryRef, failPatch, { merge: true });
                 } catch (persistError) {
-                    console.warn("フォールバックコメント保存に失敗:", persistError);
+                    console.warn("AIコメント状態保存に失敗:", persistError);
                 }
-                if (!silent) {
+                if (retryable) {
+                    scheduleEntryCommentRetry(entryId, currentEntry, waitMs);
+                    if (!silent) {
+                        const secs = Math.ceil(waitMs / 1000);
+                        alert(`AIコメントはただいま混雑中です。約${secs}秒後に自動で再試行します。`);
+                    }
+                }
+                if (!silent && !retryable) {
                     const detail = formatErrorDetails(e);
-                    alert(`AIコメントの生成に失敗したため、簡易コメントを表示しました。${detail ? `\n詳細: ${detail}` : ""}`);
+                    alert(`AIコメントの生成に失敗しました。${detail ? `\n詳細: ${detail}` : ""}`);
                 }
             }
         }
