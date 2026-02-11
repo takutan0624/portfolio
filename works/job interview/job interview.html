@@ -172,18 +172,30 @@
         import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-analytics.js";
 
-        // ==========================================
-        // 【重要】ここにあなたのFirebase設定を貼り付けてください
-        // ==========================================
-        const firebaseConfig = {
-            apiKey: "AIzaSyBA6tvYA4IMl2fxYXrzQtB66DVs_IICbGs",
-            authDomain: "jobinterview-c8055.firebaseapp.com",
-            projectId: "jobinterview-c8055",
-            storageBucket: "jobinterview-c8055.firebasestorage.app",
-            messagingSenderId: "649656476488",
-            appId: "1:649656476488:web:a37960764f9c169cb4097d",
-            measurementId: "G-656YN92YLP"
-        };
+        function readFirebaseConfigRuntime() {
+            if (typeof __firebase_config !== "undefined" && __firebase_config) {
+                try { return JSON.parse(__firebase_config); } catch {}
+            }
+            if (typeof window !== "undefined" && window.__FIREBASE_CONFIG__) {
+                if (typeof window.__FIREBASE_CONFIG__ === "string") {
+                    try { return JSON.parse(window.__FIREBASE_CONFIG__); } catch {}
+                } else if (typeof window.__FIREBASE_CONFIG__ === "object") {
+                    return window.__FIREBASE_CONFIG__;
+                }
+            }
+            const meta = typeof document !== "undefined"
+                ? document.querySelector('meta[name="firebase-config"]')
+                : null;
+            if (meta?.content) {
+                try { return JSON.parse(meta.content); } catch {}
+            }
+            return null;
+        }
+
+        const firebaseConfig = readFirebaseConfigRuntime();
+        if (!firebaseConfig) {
+            throw new Error("Firebase config is missing. Provide __firebase_config or window.__FIREBASE_CONFIG__.");
+        }
 
         // Groq Proxy (Vercel API)
         const GROQ_PROXY_URL = "/api/groq";

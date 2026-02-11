@@ -671,15 +671,30 @@
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, orderBy, limit, doc, setDoc, getDoc, onSnapshot, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "AIzaSyAm6Gi_FFunADHW36uP2ZexHO6cq06yG9g",
-            authDomain: "my-mental-partner.firebaseapp.com",
-            projectId: "my-mental-partner",
-            storageBucket: "my-mental-partner.firebasestorage.app",
-            messagingSenderId: "804766436088",
-            appId: "1:804766436088:web:f49b22a1948cb91d3e090d",
-            measurementId: "G-82DFXNL0VW"
-        };
+        function readFirebaseConfigRuntime() {
+            if (typeof __firebase_config !== "undefined" && __firebase_config) {
+                try { return JSON.parse(__firebase_config); } catch {}
+            }
+            if (typeof window !== "undefined" && window.__FIREBASE_CONFIG__) {
+                if (typeof window.__FIREBASE_CONFIG__ === "string") {
+                    try { return JSON.parse(window.__FIREBASE_CONFIG__); } catch {}
+                } else if (typeof window.__FIREBASE_CONFIG__ === "object") {
+                    return window.__FIREBASE_CONFIG__;
+                }
+            }
+            const meta = typeof document !== "undefined"
+                ? document.querySelector('meta[name="firebase-config"]')
+                : null;
+            if (meta?.content) {
+                try { return JSON.parse(meta.content); } catch {}
+            }
+            return null;
+        }
+
+        const firebaseConfig = readFirebaseConfigRuntime();
+        if (!firebaseConfig) {
+            throw new Error("Firebase config is missing. Provide __firebase_config or window.__FIREBASE_CONFIG__.");
+        }
 
         const GROQ_MODEL = "openai/gpt-oss-120b";
         const CHAT_SYSTEM_PROMPT = "あなたは経験豊富な日本語カウンセラーです。相手の気持ちを尊重し、共感的で自然な会話文で返答してください。固定の項目分けや見出し、箇条書きは使わず、会話の流れに沿って短く分かりやすく答えてください。必要なときだけ、押しつけにならない範囲で実行しやすい提案を1つ含めてください。";
