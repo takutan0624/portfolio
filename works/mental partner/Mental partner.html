@@ -572,6 +572,27 @@
             return blocks.join("");
         }
 
+        function chunkHistoryByTokens(history, maxTokens) {
+            const chunks = [];
+            let current = [];
+            let total = 0;
+            history.forEach((msg) => {
+                let text = "";
+                if (msg?.type === 'emotions') text = `Emotions: ${emotionsToText(msg.content)}`;
+                else text = msg?.content || "";
+                const cost = estimateTokens(text);
+                if (current.length > 0 && total + cost > maxTokens) {
+                    chunks.push(current);
+                    current = [];
+                    total = 0;
+                }
+                current.push(msg);
+                total += cost;
+            });
+            if (current.length > 0) chunks.push(current);
+            return chunks;
+        }
+
         async function callGroq(messages, options = {}) {
             if (!currentUser) throw new Error("Not authenticated");
             if (window.location.protocol === "file:") {
@@ -621,6 +642,27 @@
                 alert(`アクセス集中のため、${secs}秒後に再試行してください。`);
             }
             return retryMs;
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function callGroqWithRetry(messages, options = {}, maxRetries = 1) {
+            let attempt = 0;
+            while (true) {
+                try {
+                    return await callGroq(messages, options);
+                } catch (e) {
+                    const retryMs = handleRateLimitError(e, { silent: true });
+                    if (retryMs > 0 && attempt < maxRetries) {
+                        attempt += 1;
+                        await sleep(retryMs + 500);
+                        continue;
+                    }
+                    throw e;
+                }
+            }
         }
 
         function scheduleAutoSummary(delayMs = 12000) {
@@ -840,6 +882,44 @@
                     lastError = e;
                     const retryMs = handleRateLimitError(e, { silent });
                     if (retryMs > 0) throw e;
+                }
+            }
+            if (!summary) {
+                // Chunked summary fallback
+                const chunks = chunkHistoryByTokens(state.chatHistory, 1200);
+                const recentChunks = chunks.slice(-3);
+                const partials = [];
+                for (let i = 0; i < recentChunks.length; i++) {
+                    const chunk = recentChunks[i];
+                    const input = buildSummaryInput(chunk, { maxTokens: 1200, maxMessages: chunk.length, includeSummary: false });
+                    if (!input.trim()) continue;
+                    const prompt = `次の会話ログを短く要約してください。日本語で150〜250字。箇条書きで「状況/感情/行動/未解決」を含めてください。\n\n${input}`;
+                    try {
+                        const part = await callGroqWithRetry(
+                            [
+                                { role: "system", content: "あなたは会話要約の専門家です。指定形式の要約だけ返してください。" },
+                                { role: "user", content: prompt }
+                            ],
+                            { temperature: 0.3, max_tokens: 280 },
+                            1
+                        );
+                        if (part) partials.push(part.trim());
+                    } catch (e) {
+                        lastError = e;
+                    }
+                    await sleep(600);
+                }
+                if (partials.length > 0) {
+                    const combined = (state.chatSummary ? `【既存の要約】\n${state.chatSummary}\n\n` : "") + partials.map((p, i) => `【要約${i + 1}】\n${p}`).join("\n\n");
+                    const finalPrompt = `以下の要約を統合し、300〜500字で最終要約を作成してください。箇条書きで「背景/状況」「感情/状態」「これまでの助言/対処」「未解決/次の一歩」を含めてください。\n\n${combined}`;
+                    summary = await callGroqWithRetry(
+                        [
+                            { role: "system", content: "あなたは会話要約の専門家です。余計な前置きは不要で、指定形式の要約だけ返してください。" },
+                            { role: "user", content: finalPrompt }
+                        ],
+                        { temperature: 0.3, max_tokens: 500 },
+                        1
+                    );
                 }
             }
             if (!summary) throw lastError || new Error("summary failed");
