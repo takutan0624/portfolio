@@ -243,6 +243,32 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- 対人コミュニケーション -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-3 ml-1">
+                            <span class="w-1 h-4 bg-pink-400 rounded-full"></span>
+                            <h3 class="text-xs font-bold text-gray-500">相手を傷つけず、自分にも正直に伝える</h3>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3">
+                            <div class="tool-card bg-gradient-to-r from-pink-500 to-rose-500" onclick="switchTool('assertion')">
+                                <div>
+                                    <h4 class="font-bold text-sm">アサーション</h4>
+                                    <p class="text-[10px] opacity-90 mt-0.5">率直・対等・誠実に伝える練習</p>
+                                </div>
+                                <i class="fa-solid fa-comment-dots tool-bg-icon"></i>
+                                <div class="tool-mascot"><i class="fa-solid fa-scale-balanced"></i></div>
+                            </div>
+                            <div class="tool-card bg-gradient-to-r from-fuchsia-500 to-purple-500" onclick="switchTool('desc')">
+                                <div>
+                                    <h4 class="font-bold text-sm">DESC法</h4>
+                                    <p class="text-[10px] opacity-90 mt-0.5">D/E/S/Cで具体的に伝える</p>
+                                </div>
+                                <i class="fa-solid fa-list-ol tool-bg-icon"></i>
+                                <div class="tool-mascot"><i class="fa-solid fa-comments"></i></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- B. 入力フォーム -->
@@ -419,6 +445,56 @@
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 mb-1">実行プラン (If-Then)</label>
                                     <input type="text" id="quit-plan" class="w-full bg-rose-50 border border-rose-100 rounded-lg p-3 text-sm" placeholder="例：もし帰宅後に不安が強ければ、10分散歩する">
+                                </div>
+                            </div>
+
+                            <div class="field-group hidden space-y-3" data-fields="assertion">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">状況の事実 (評価を入れずに)</label>
+                                    <textarea id="assertion-fact" class="w-full bg-pink-50 border border-pink-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="例：締切前日に仕様変更の連絡がありました"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">その時の気持ち</label>
+                                    <input type="text" id="assertion-feeling" class="w-full bg-pink-50 border border-pink-100 rounded-lg p-3 text-sm" placeholder="例：焦りと不安を感じました">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">大切にしたいこと・ニーズ</label>
+                                    <input type="text" id="assertion-need" class="w-full bg-pink-50 border border-pink-100 rounded-lg p-3 text-sm" placeholder="例：準備時間と見通しが必要です">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">具体的なお願い</label>
+                                    <textarea id="assertion-request" class="w-full bg-pink-50 border border-pink-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="例：変更がある場合は2日前までに共有してください"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">相手への配慮</label>
+                                    <input type="text" id="assertion-consideration" class="w-full bg-pink-50 border border-pink-100 rounded-lg p-3 text-sm" placeholder="例：急ぎの事情があることは理解しています">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">伝え方の練習文 (Iメッセージ)</label>
+                                    <textarea id="assertion-script" class="w-full bg-pink-50 border border-pink-100 rounded-lg p-3 text-sm resize-none h-24" placeholder="例：私は〇〇だと△△と感じます。なので□□してもらえると助かります。"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="field-group hidden space-y-3" data-fields="desc">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">D: Describe (事実)</label>
+                                    <textarea id="desc-describe" class="w-full bg-fuchsia-50 border border-fuchsia-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="客観的に見える行動・出来事"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">E: Express (気持ち)</label>
+                                    <textarea id="desc-express" class="w-full bg-fuchsia-50 border border-fuchsia-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="その時の気持ち・困りごと"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">S: Specify (提案・依頼)</label>
+                                    <textarea id="desc-specify" class="w-full bg-fuchsia-50 border border-fuchsia-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="相手にしてほしい具体的行動"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">C: Consequence (結果)</label>
+                                    <textarea id="desc-consequence" class="w-full bg-fuchsia-50 border border-fuchsia-100 rounded-lg p-3 text-sm resize-none h-20" placeholder="実現するとどう良くなるか"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">最終メッセージ草案</label>
+                                    <textarea id="desc-script" class="w-full bg-fuchsia-50 border border-fuchsia-100 rounded-lg p-3 text-sm resize-none h-24" placeholder="D→E→S→Cの順に1つの文章へ"></textarea>
                                 </div>
                             </div>
 
@@ -735,6 +811,8 @@
                 "cog-organize": "認知行動整理",
                 "problem-solving": "問題解決",
                 "quit-behavior": "辞めたい行動",
+                "assertion": "アサーション",
+                "desc": "DESC法",
                 "free": "自由記述"
             };
             return map[type] || type || "ノート";
@@ -775,6 +853,17 @@
             trueNeed: "本当に満たしたいもの",
             alternative: "代替行動",
             plan: "If-Then",
+            assertionFact: "事実",
+            assertionFeeling: "気持ち",
+            assertionNeed: "ニーズ",
+            assertionRequest: "具体的なお願い",
+            assertionConsideration: "相手への配慮",
+            assertionScript: "Iメッセージ",
+            descDescribe: "D: Describe",
+            descExpress: "E: Express",
+            descSpecify: "S: Specify",
+            descConsequence: "C: Consequence",
+            descScript: "最終メッセージ草案",
             note: "自由記述"
         };
 
@@ -1653,6 +1742,8 @@
             'cog-organize': { title: '認知行動整理', fields: ['cog-organize'] },
             'problem-solving': { title: '問題解決', fields: ['problem-solving'] },
             'quit-behavior': { title: '辞めたい行動', fields: ['quit-behavior'] },
+            'assertion': { title: 'アサーション', fields: ['assertion'] },
+            'desc': { title: 'DESC法', fields: ['desc'] },
             'free': { title: '自由記述・モヤモヤ整理', fields: ['free'] }
         };
 
@@ -1744,6 +1835,52 @@
                 return {
                     summary: [`行動:${behavior}`, `きっかけ:${trigger}`, trueNeed ? `本当に満たしたいもの:${trueNeed}` : '', `代替:${alternative}`].filter(Boolean).join(' / '),
                     detail: { behavior, trigger, shortReward, trueNeed, alternative, plan }
+                };
+            }
+            if (type === 'assertion') {
+                const assertionFact = readText('assertion-fact');
+                const assertionFeeling = readText('assertion-feeling');
+                const assertionNeed = readText('assertion-need');
+                const assertionRequest = readText('assertion-request');
+                const assertionConsideration = readText('assertion-consideration');
+                const assertionScript = readText('assertion-script');
+                if (!assertionFact || !assertionFeeling || !assertionRequest) {
+                    return { validationError: 'アサーションは「事実」「気持ち」「具体的なお願い」を入力してください。' };
+                }
+                return {
+                    summary: [
+                        `事実:${assertionFact}`,
+                        `気持ち:${assertionFeeling}`,
+                        assertionNeed ? `ニーズ:${assertionNeed}` : '',
+                        `お願い:${assertionRequest}`
+                    ].filter(Boolean).join(' / '),
+                    detail: {
+                        assertionFact,
+                        assertionFeeling,
+                        assertionNeed,
+                        assertionRequest,
+                        assertionConsideration,
+                        assertionScript
+                    }
+                };
+            }
+            if (type === 'desc') {
+                const descDescribe = readText('desc-describe');
+                const descExpress = readText('desc-express');
+                const descSpecify = readText('desc-specify');
+                const descConsequence = readText('desc-consequence');
+                const descScript = readText('desc-script');
+                if (!descDescribe || !descExpress || !descSpecify || !descConsequence) {
+                    return { validationError: 'DESC法は D/E/S/C の4項目を入力してください。' };
+                }
+                return {
+                    summary: [
+                        `D:${descDescribe}`,
+                        `E:${descExpress}`,
+                        `S:${descSpecify}`,
+                        `C:${descConsequence}`
+                    ].join(' / '),
+                    detail: { descDescribe, descExpress, descSpecify, descConsequence, descScript }
                 };
             }
 
