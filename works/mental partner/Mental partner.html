@@ -457,6 +457,8 @@
         let currentUser = null;
         let groqRateLimitUntil = 0;
         let autoSummaryTimer = null;
+        let entriesUnsubscribe = null;
+        let firestoreErrorShown = false;
         let state = {
             chatHistory: [],
             chatSummary: "",
@@ -465,6 +467,37 @@
             patterns: { ...DEFAULT_PATTERNS },
             analysisComment: ""
         };
+
+        function explainFirestoreError(error) {
+            const message = `${error?.code || ""} ${error?.message || ""}`;
+            if (/databases\/\(default\)/i.test(message) || /not[\s-]?found/i.test(message)) {
+                return "Firestore データベースが見つかりません。Firebase Console で projectId と Firestore Database(default) の作成状態を確認してください。";
+            }
+            if (/permission[\s-]?denied/i.test(message)) {
+                return "Firestore のセキュリティルールでアクセス拒否されています。認証済みユーザーの読み書きルールを確認してください。";
+            }
+            return "Firebase 設定値 (apiKey / projectId / authDomain) と、接続先プロジェクトが一致しているか確認してください。";
+        }
+
+        function notifyFirestoreError(context, error) {
+            console.error(`[Firestore:${context}]`, error);
+            if (firestoreErrorShown) return;
+            firestoreErrorShown = true;
+            const hint = explainFirestoreError(error);
+            const fallbackMsg = "⚠️ データの読み込みに失敗しました。";
+            if (typeof appendMsg === 'function') {
+                appendMsg(`${fallbackMsg}\n${hint}`, 'ai');
+                return;
+            }
+            alert(`${fallbackMsg}\n${hint}`);
+        }
+
+        function resetFirestoreListener() {
+            if (typeof entriesUnsubscribe === 'function') {
+                entriesUnsubscribe();
+                entriesUnsubscribe = null;
+            }
+        }
         
         // 感情定義
         const EMOTIONS = [
@@ -743,12 +776,15 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
+                firestoreErrorShown = false;
+                resetFirestoreListener();
                 document.getElementById('user-name').textContent = user.isAnonymous ? "ゲスト" : (user.displayName || "ユーザー");
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-container').classList.remove('hidden');
                 loadFirestoreData(user.uid);
             } else {
                 currentUser = null;
+                resetFirestoreListener();
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('app-container').classList.add('hidden');
                 state = { chatHistory: [], chatSummary: "", chatSummaryUpdatedAt: 0, cbtEntries: [], patterns: { ...DEFAULT_PATTERNS }, analysisComment: "" };
@@ -758,6 +794,7 @@
 
         // --- Data ---
         function loadFirestoreData(uid) {
+            resetFirestoreListener();
             const chatRef = doc(db, "users", uid, "data", "chatHistory");
             getDoc(chatRef).then(snap => {
                 if (snap.exists()) {
@@ -769,6 +806,10 @@
                     state.chatHistory = [{role: "assistant", content: "こんにちは。今の気分を教えていただけますか？"}];
                 }
                 renderChatHistory();
+            }).catch((error) => {
+                state.chatHistory = [{role: "assistant", content: "こんにちは。今の気分を教えていただけますか？"}];
+                renderChatHistory();
+                notifyFirestoreError("chatHistory/getDoc", error);
             });
 
             const patRef = doc(db, "users", uid, "data", "patterns");
@@ -782,12 +823,16 @@
                     }
                     renderPatternChart();
                 }
+            }).catch((error) => {
+                notifyFirestoreError("patterns/getDoc", error);
             });
 
             const q = query(collection(db, "users", uid, "entries"), orderBy("date", "desc"), limit(50));
-            onSnapshot(q, (snap) => {
+            entriesUnsubscribe = onSnapshot(q, (snap) => {
                 state.cbtEntries = snap.docs.map(d => ({id:d.id, ...d.data()}));
                 updateCharts();
+            }, (error) => {
+                notifyFirestoreError("entries/onSnapshot", error);
             });
         }
 
