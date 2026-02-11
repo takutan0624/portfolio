@@ -691,9 +691,31 @@
             return null;
         }
 
-        const firebaseConfig = readFirebaseConfigRuntime();
+        async function fetchFirebaseConfigFromServer() {
+            try {
+                const res = await fetch("/api/firebase-config-mental", {
+                    method: "GET",
+                    cache: "no-store"
+                });
+                if (!res.ok) return null;
+                const data = await res.json();
+                if (data && typeof data === "object" && data.apiKey && data.projectId) {
+                    return data;
+                }
+            } catch {}
+            return null;
+        }
+
+        const firebaseConfig = readFirebaseConfigRuntime() || await fetchFirebaseConfigFromServer();
         if (!firebaseConfig) {
-            throw new Error("Firebase config is missing. Provide __firebase_config or window.__FIREBASE_CONFIG__.");
+            const msg = "Firebase config is missing. Provide __firebase_config, window.__FIREBASE_CONFIG__, or /api/firebase-config-mental.";
+            const errWrap = document.getElementById("login-error-container");
+            const errMsg = document.getElementById("login-error-msg");
+            if (errWrap && errMsg) {
+                errMsg.textContent = "Firebase設定の取得に失敗しました。時間をおいて再読み込みしてください。";
+                errWrap.classList.remove("hidden");
+            }
+            throw new Error(msg);
         }
 
         const GROQ_MODEL = "openai/gpt-oss-120b";
