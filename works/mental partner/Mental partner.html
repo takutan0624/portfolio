@@ -796,6 +796,39 @@
             return chunks;
         }
 
+        function buildLocalSummary(history) {
+            const recent = (history || []).slice(-12);
+            if (recent.length === 0) return "";
+
+            const userTexts = [];
+            const aiTexts = [];
+            const emotionNotes = [];
+            recent.forEach((msg) => {
+                if (!msg) return;
+                if (msg.type === 'emotions' && msg.content) {
+                    emotionNotes.push(emotionsToText(msg.content));
+                    return;
+                }
+                const text = (msg.content || "").toString().trim();
+                if (!text) return;
+                if (msg.role === 'assistant') aiTexts.push(text);
+                else userTexts.push(text);
+            });
+
+            const pick = (arr) => arr.length ? arr[arr.length - 1].slice(0, 120) : "記録なし";
+            const background = pick(userTexts);
+            const emotion = emotionNotes.length ? emotionNotes.slice(-2).join(" / ").slice(0, 120) : "感情記録なし";
+            const advice = pick(aiTexts);
+            const unresolved = userTexts.length > 1 ? userTexts[userTexts.length - 2].slice(0, 120) : "次の相談で確認";
+
+            return [
+                `- 背景/状況: ${background}`,
+                `- 感情/状態: ${emotion}`,
+                `- これまでの助言/対処: ${advice}`,
+                `- 未解決/次の一歩: ${unresolved}`
+            ].join("\n");
+        }
+
         async function callGroq(messages, options = {}) {
             if (!currentUser) throw new Error("Not authenticated");
             if (window.location.protocol === "file:") {
@@ -1246,6 +1279,9 @@
                         2
                     );
                 }
+            }
+            if (!summary) {
+                summary = buildLocalSummary(state.chatHistory);
             }
             if (!summary) throw lastError || new Error("summary failed");
 
