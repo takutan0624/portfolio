@@ -1104,18 +1104,20 @@
                 throw err;
             }
             const token = await currentUser.getIdToken(true);
+            const bodyObj = {
+                model: GROQ_MODEL,
+                messages,
+                temperature: options.temperature ?? 0.7,
+                max_tokens: options.max_tokens ?? 1000
+            };
+            if (options.reasoning_effort) bodyObj.reasoning_effort = options.reasoning_effort;
             const res = await fetch("/api/groq-mental", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    model: GROQ_MODEL,
-                    messages,
-                    temperature: options.temperature ?? 0.7,
-                    max_tokens: options.max_tokens ?? 1000
-                })
+                body: JSON.stringify(bodyObj)
             });
             if (!res.ok) {
                 const text = await res.text();
@@ -1198,8 +1200,8 @@
                     const retryMs = handleRateLimitError(e, { silent: true });
                     if (isRateLimit && attempt < maxRetries) {
                         attempt += 1;
-                        if (typeof retryOptions.max_tokens === "number" && retryOptions.max_tokens > 220) {
-                            retryOptions.max_tokens = Math.max(220, Math.floor(retryOptions.max_tokens * 0.7));
+                        if (typeof retryOptions.max_tokens === "number" && retryOptions.max_tokens > 350) {
+                            retryOptions.max_tokens = Math.max(350, Math.floor(retryOptions.max_tokens * 0.7));
                         }
                         const waitMs = retryMs > 0 ? (retryMs + 700) : (attempt * 2500);
                         await sleep(waitMs);
@@ -1330,7 +1332,7 @@
                             { role: "system", content: "あなたは認知行動療法に詳しい心理支援AIです。出力はJSONのみ。" },
                             { role: "user", content: prompt }
                         ],
-                        { temperature: 0.2, max_tokens: 340 },
+                        { temperature: 0.2, max_tokens: 600, reasoning_effort: "low" },
                         3
                     );
                     const parsed = extractJsonObject(raw);
@@ -1761,7 +1763,7 @@
                             { role: "system", content: "あなたは会話要約の専門家です。余計な前置きは不要で、指定形式の要約だけ返してください。" },
                             { role: "user", content: summaryPrompt }
                         ],
-                        { temperature: 0.25, max_tokens: 260 },
+                        { temperature: 0.25, max_tokens: 500, reasoning_effort: "low" },
                         2
                     );
                     if (summary) break;
@@ -1789,7 +1791,7 @@
                                 { role: "system", content: "あなたは会話要約の専門家です。指定形式の要約だけ返してください。" },
                                 { role: "user", content: prompt }
                             ],
-                            { temperature: 0.25, max_tokens: 170 },
+                            { temperature: 0.25, max_tokens: 400, reasoning_effort: "low" },
                             2
                         );
                         if (part) partials.push(part.trim());
@@ -1806,7 +1808,7 @@
                             { role: "system", content: "あなたは会話要約の専門家です。余計な前置きは不要で、指定形式の要約だけ返してください。" },
                             { role: "user", content: finalPrompt }
                         ],
-                        { temperature: 0.25, max_tokens: 260 },
+                        { temperature: 0.25, max_tokens: 500, reasoning_effort: "low" },
                         2
                     );
                 }
@@ -1839,7 +1841,7 @@
 
             try {
                 const messages = buildChatMessages(state.chatHistory);
-                const reply = await callGroqWithRetry(messages, { temperature: 0.45, max_tokens: 900 }, 2);
+                const reply = await callGroqWithRetry(messages, { temperature: 0.45, max_tokens: 1200 }, 2);
                 state.chatHistory.push({role:'assistant', content:reply});
                 appendMsg(reply, 'ai');
                 saveChat();
@@ -2109,20 +2111,20 @@
             try {
                 let comment = normalizeAiCommentText(await callGroqWithRetry(
                     [{ role: "user", content: promptPrimary }],
-                    { temperature: 0.45, max_tokens: 150 },
+                    { temperature: 0.45, max_tokens: 500, reasoning_effort: "low" },
                     3
                 ));
                 if (!comment) {
                     comment = normalizeAiCommentText(await callGroqWithRetry(
                         [{ role: "user", content: promptFallback }],
-                        { temperature: 0.4, max_tokens: 140 },
+                        { temperature: 0.4, max_tokens: 450, reasoning_effort: "low" },
                         3
                     ));
                 }
                 if (!comment) {
                     comment = normalizeAiCommentText(await callGroqWithRetry(
                         [{ role: "user", content: promptLite }],
-                        { temperature: 0.35, max_tokens: 120 },
+                        { temperature: 0.35, max_tokens: 400, reasoning_effort: "low" },
                         2
                     ));
                 }
