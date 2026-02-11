@@ -593,7 +593,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, doc, setDoc, getDoc, onSnapshot, getDocs, writeBatch, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, doc, setDoc, getDoc, onSnapshot, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAm6Gi_FFunADHW36uP2ZexHO6cq06yG9g",
@@ -797,6 +797,20 @@
 
         function buildEntryDetailText(entry) {
             return getEntryDetailLines(entry).join(" | ").slice(0, 900);
+        }
+
+        function buildFallbackEntryComment(entry) {
+            const label = getToolLabel(entry?.type);
+            const summary = String(entry?.summary || "").trim();
+            const mental = typeof entry?.mental === "number" ? entry.mental : null;
+            const physical = typeof entry?.physical === "number" ? entry.physical : null;
+            const moodHint = (mental !== null && physical !== null)
+                ? `いまは心${mental}/体${physical}の状態で、`
+                : "";
+            const base = summary
+                ? `「${summary.slice(0, 70)}」と丁寧に記録できています。`
+                : `「${label}」をしっかり記録できています。`;
+            return `${base}${moodHint}まずは深呼吸を3回してから、次の一歩を1つだけ実行してみましょう。`;
         }
 
         function buildChatMessages(history) {
@@ -1715,39 +1729,53 @@
 
             const entryRef = doc(db, "users", currentUser.uid, "entries", entryId);
             try {
-                await updateDoc(entryRef, { aiCommentStatus: "generating" });
+                await setDoc(entryRef, { aiCommentStatus: "generating" }, { merge: true });
             } catch {}
 
             const emText = currentEntry.emotions ? emotionsToText(currentEntry.emotions) : "";
-            const detailText = buildEntryDetailText(currentEntry);
-            const prompt = `以下の記録に対して、共感1文 + 前向きな捉え直し1文 + 次の一歩1つを、やさしい日本語で120〜180字で返してください。箇条書きは最大2つ。\n記録タイプ: ${getToolLabel(currentEntry.type)}\nココロ: ${currentEntry.mental || 0}\nカラダ: ${currentEntry.physical || 0}\n感情: ${emText || "なし"}\n要約: ${currentEntry.summary || ""}\n詳細: ${detailText || "なし"}`;
+            const detailText = buildEntryDetailText(currentEntry).slice(0, 450);
+            const prompt = `以下の記録に対して、共感1文 + 前向きな捉え直し1文 + 次の一歩1つを、やさしい日本語で90〜150字で返してください。箇条書きは最大2つ。\n記録タイプ: ${getToolLabel(currentEntry.type)}\nココロ: ${currentEntry.mental || 0}\nカラダ: ${currentEntry.physical || 0}\n感情: ${emText || "なし"}\n要約: ${String(currentEntry.summary || "").slice(0, 260)}\n詳細: ${detailText || "なし"}`;
 
             try {
                 const comment = (await callGroqWithRetry(
                     [{ role: "user", content: prompt }],
-                    { temperature: 0.45, max_tokens: 220 },
-                    2
+                    { temperature: 0.4, max_tokens: 150 },
+                    3
                 ) || "").trim();
 
-                if (!comment) throw new Error("empty ai comment");
-
+                const finalComment = comment || buildFallbackEntryComment(currentEntry);
                 const patch = {
-                    aiComment: comment,
-                    aiCommentStatus: "ready",
+                    aiComment: finalComment,
+                    aiCommentStatus: comment ? "ready" : "ready_local",
                     aiCommentUpdatedAt: new Date().toISOString()
                 };
                 updateEntryInState(entryId, patch);
                 renderEntryHistory();
-                await updateDoc(entryRef, patch);
+                try {
+                    await setDoc(entryRef, patch, { merge: true });
+                } catch (persistError) {
+                    console.warn("AIコメント保存に失敗:", persistError);
+                    if (!silent) {
+                        alert("AIコメントは表示しましたが、保存に失敗しました。通信状態をご確認ください。");
+                    }
+                }
             } catch (e) {
-                updateEntryInState(entryId, { aiCommentStatus: "failed" });
+                const fallback = buildFallbackEntryComment(currentEntry);
+                const fallbackPatch = {
+                    aiComment: fallback,
+                    aiCommentStatus: "ready_local",
+                    aiCommentUpdatedAt: new Date().toISOString()
+                };
+                updateEntryInState(entryId, fallbackPatch);
                 renderEntryHistory();
                 try {
-                    await updateDoc(entryRef, { aiCommentStatus: "failed" });
-                } catch {}
+                    await setDoc(entryRef, fallbackPatch, { merge: true });
+                } catch (persistError) {
+                    console.warn("フォールバックコメント保存に失敗:", persistError);
+                }
                 if (!silent) {
                     const detail = formatErrorDetails(e);
-                    alert(`AIコメントの生成に失敗しました。${detail ? `\n詳細: ${detail}` : ""}`);
+                    alert(`AIコメントの生成に失敗したため、簡易コメントを表示しました。${detail ? `\n詳細: ${detail}` : ""}`);
                 }
             }
         }
