@@ -1,3 +1,5 @@
+import admin from "firebase-admin";
+
 const ALLOWED_KEYS = [
   "apiKey",
   "authDomain",
@@ -10,6 +12,25 @@ const ALLOWED_KEYS = [
 let cachedConfig = null;
 let cachedConfigExpireAt = 0;
 let serviceAccountProjectId = "";
+let adminApp = null;
+
+function getAdminApp() {
+  if (adminApp) return adminApp;
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_MENTAL || "";
+  if (!raw) return null;
+  try {
+    const serviceAccount = JSON.parse(raw);
+    adminApp = admin.initializeApp(
+      {
+        credential: admin.credential.cert(serviceAccount),
+      },
+      "firebase-config-mental"
+    );
+    return adminApp;
+  } catch {
+    return null;
+  }
+}
 
 function setHeaders(res) {
   res.setHeader("Cache-Control", "no-store");
@@ -115,6 +136,7 @@ async function fromFirebaseApi() {
 
   try {
     const app = getAdminApp();
+    if (!app) return null;
     const credential = app?.options?.credential;
     if (!credential || typeof credential.getAccessToken !== "function") return null;
     const tokenInfo = await credential.getAccessToken();
@@ -161,6 +183,42 @@ async function fromFirebaseApi() {
   }
 }
 
+function guessProjectId() {
+  return (
+    process.env.MENTAL_FIREBASE_PROJECT_ID ||
+    process.env.FIREBASE_PROJECT_ID_MENTAL ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+    process.env.FIREBASE_PROJECT_ID ||
+    serviceAccountProjectId ||
+    "my-mental-partner"
+  );
+}
+
+async function fromFirebaseHostingInit() {
+  const explicitUrl = (process.env.MENTAL_FIREBASE_PUBLIC_CONFIG_URL || "").trim();
+  const projectId = guessProjectId();
+  const candidates = [
+    explicitUrl,
+    `https://${projectId}.web.app/__/firebase/init.json`,
+    `https://${projectId}.firebaseapp.com/__/firebase/init.json`,
+  ].filter(Boolean);
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const picked = pickConfig(data);
+      if (picked) {
+        cachedConfig = picked;
+        cachedConfigExpireAt = Date.now() + 10 * 60 * 1000;
+        return picked;
+      }
+    } catch {}
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   const allowedOrigins = getAllowedOrigins();
   const origin = req.headers.origin || "";
@@ -191,7 +249,11 @@ export default async function handler(req, res) {
     return;
   }
 
-  const config = fromJsonEnv() || fromFlatEnv() || await fromFirebaseApi();
+  const config =
+    fromJsonEnv() ||
+    fromFlatEnv() ||
+    await fromFirebaseApi() ||
+    await fromFirebaseHostingInit();
   if (!config) {
     res.status(500).json({ error: "Firebase web config is not set. Set FIREBASE_WEB_CONFIG_MENTAL or MENTAL_FIREBASE_API_KEY group." });
     return;
