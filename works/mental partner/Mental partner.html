@@ -943,7 +943,8 @@
             const wait = Math.max(1500, Math.min(retryMs, 60000));
             const timer = setTimeout(() => {
                 entryCommentRetryTimers.delete(entryId);
-                generateEntryComment(entryId, entrySnapshot, { silent: true, force: true }).catch((e) => console.error(e));
+                const latest = getEntryWithOverlay(state.cbtEntries.find((e) => e.id === entryId)) || entrySnapshot;
+                generateEntryComment(entryId, latest, { silent: true, force: true }).catch((e) => console.error(e));
             }, wait);
             entryCommentRetryTimers.set(entryId, timer);
         }
@@ -1122,8 +1123,16 @@
                 try {
                     const parsed = JSON.parse(text);
                     if (parsed?.error?.message) message = parsed.error.message;
+                    else if (typeof parsed?.error === "string") message = parsed.error;
                 } catch {}
                 let retryAfterMs = 0;
+                const retryHeader = res.headers.get("Retry-After");
+                if (retryHeader) {
+                    const sec = parseFloat(retryHeader);
+                    if (Number.isFinite(sec) && sec > 0) {
+                        retryAfterMs = Math.ceil(sec * 1000);
+                    }
+                }
                 const match = message.match(/try again in\s*([0-9.]+)s/i);
                 if (match) retryAfterMs = Math.ceil(parseFloat(match[1]) * 1000);
                 if (res.status === 429) {
@@ -1159,6 +1168,19 @@
             } catch {}
             if (msg.length > 400) msg = msg.slice(0, 400) + "...";
             return msg;
+        }
+
+        function buildQuickDailyFeedback(entry) {
+            const summary = truncateText(entry?.summary || "", 80);
+            const emotions = entry?.emotions && Object.keys(entry.emotions).length > 0
+                ? emotionsToText(entry.emotions)
+                : "";
+            const firstDetail = getEntryDetailLines(entry)[0] || "";
+            const cue = summary || firstDetail || "今日の記録";
+            if (emotions) {
+                return `${cue}を書き出せたのは大切な一歩です。${emotions}という感情に気づけているので、次は「今できる最小の行動」を1つだけ決めてみましょう。`;
+            }
+            return `${cue}を言葉にできた時点で整理は進んでいます。次は気持ちを10点でも軽くする行動を1つだけ選んで、短く実行してみましょう。`;
         }
 
         function sleep(ms) {
@@ -2044,8 +2066,8 @@
             if (!currentUser || !entryId) return;
             const currentEntry = getEntryWithOverlay(state.cbtEntries.find((e) => e.id === entryId)) || entryInput || {};
             const currentComment = normalizeAiCommentText(currentEntry.aiComment);
-            if (!force && currentComment) return;
-            if (currentEntry.aiCommentStatus === "generating") return;
+            if (!force && currentComment) return currentComment;
+            if (currentEntry.aiCommentStatus === "generating") return "";
 
             if (entryCommentInFlight) {
                 const queuedPatch = { aiCommentStatus: "retrying", aiCommentUpdatedAt: new Date().toISOString() };
@@ -2056,7 +2078,7 @@
                 if (!silent) {
                     alert("別のAIコメントを生成中です。完了後に自動で再試行します。");
                 }
-                return;
+                return "";
             }
 
             entryCommentInFlight = true;
@@ -2078,21 +2100,30 @@
             }
 
             const emText = currentEntry.emotions ? emotionsToText(currentEntry.emotions) : "";
-            const detailText = buildEntryDetailText(currentEntry).slice(0, 320);
-            const promptPrimary = `次の記録に、心理職としての共感コメントを日本語で返してください。必ず「共感1文→リフレーミング1文→ワンポイント提案1つ」の順。やさしいが専門家らしい文体、90〜170字、記録内容を具体的に参照し、定型文は禁止。\n記録タイプ: ${getToolLabel(currentEntry.type)}\nココロ: ${currentEntry.mental || 0}\nカラダ: ${currentEntry.physical || 0}\n感情: ${emText || "なし"}\n要約: ${String(currentEntry.summary || "").slice(0, 240)}\n詳細: ${detailText || "なし"}`;
-            const promptFallback = `次の記録への短い共感コメントを作成してください。条件: 1) 1文目は気持ちの受け止め 2) 2文目は前向きな解釈 3) 3文目で次の一歩を1つだけ提案。合計100〜180字。前置き・見出し・箇条書き・定型句は禁止。\n記録タイプ:${getToolLabel(currentEntry.type)}\n要約:${String(currentEntry.summary || "").slice(0, 220)}\n感情:${emText || "なし"}\n詳細:${detailText || "なし"}`;
+            const detailText = buildEntryDetailText(currentEntry).slice(0, 220);
+            const shortSummary = String(currentEntry.summary || "").slice(0, 180);
+            const promptPrimary = `次の記録に、心理職としての共感コメントを日本語で返してください。順序は「共感1文→リフレーミング1文→次の一歩1つ」。やさしいが専門家らしい文体、90〜160字、定型文は禁止。\n記録タイプ:${getToolLabel(currentEntry.type)}\nココロ:${currentEntry.mental || 0}\nカラダ:${currentEntry.physical || 0}\n感情:${emText || "なし"}\n要約:${shortSummary || "なし"}\n詳細:${detailText || "なし"}`;
+            const promptFallback = `次の記録への短い共感コメントを作成してください。1文目で受け止め、2文目で前向きな解釈、3文目で次の一歩を1つ。100〜170字。前置き・箇条書き・定型句は禁止。\n記録タイプ:${getToolLabel(currentEntry.type)}\n要約:${shortSummary || "なし"}\n感情:${emText || "なし"}`;
+            const promptLite = `記録への共感コメントを3文で返してください。1)共感 2)見方の言い換え 3)次の一歩。90〜140字。\n要約:${shortSummary || "なし"}\n感情:${emText || "なし"}`;
 
             try {
                 let comment = normalizeAiCommentText(await callGroqWithRetry(
                     [{ role: "user", content: promptPrimary }],
-                    { temperature: 0.5, max_tokens: 180 },
+                    { temperature: 0.45, max_tokens: 150 },
                     3
                 ));
                 if (!comment) {
                     comment = normalizeAiCommentText(await callGroqWithRetry(
                         [{ role: "user", content: promptFallback }],
-                        { temperature: 0.45, max_tokens: 190 },
+                        { temperature: 0.4, max_tokens: 140 },
                         3
+                    ));
+                }
+                if (!comment) {
+                    comment = normalizeAiCommentText(await callGroqWithRetry(
+                        [{ role: "user", content: promptLite }],
+                        { temperature: 0.35, max_tokens: 120 },
+                        2
                     ));
                 }
                 if (!comment) throw new Error("empty ai comment");
@@ -2114,6 +2145,7 @@
                         alert("AIコメントは生成できましたが保存に失敗しました。通信状態をご確認ください。");
                     }
                 }
+                return comment;
             } catch (e) {
                 const retryable = isRetryableAiCommentError(e);
                 const waitMs = e?.retryAfterMs ? (e.retryAfterMs + 700) : 12000;
@@ -2142,6 +2174,7 @@
                     const detail = formatErrorDetails(e);
                     alert(`AIコメントの生成に失敗しました。${detail ? `\n詳細: ${detail}` : ""}`);
                 }
+                return "";
             } finally {
                 entryCommentInFlight = false;
                 syncPendingEntryComments();
@@ -2256,7 +2289,10 @@
                 state.cbtEntries = [createdEntry, ...state.cbtEntries].slice(0, 50);
                 renderEntryHistory();
                 updateCharts();
-                generateEntryComment(created.id, createdEntry, { silent: true, force: true }).catch((e) => console.error(e));
+                const commentPromise = generateEntryComment(created.id, createdEntry, { silent: true, force: true }).catch((e) => {
+                    console.error(e);
+                    return "";
+                });
                 
                 // チャットに反映
                 if(Object.keys(emotions).length > 0) {
@@ -2265,18 +2301,18 @@
                     await saveChat();
                 }
 
-                // AI Feedback
-                const toolName = TOOL_DEFINITIONS[type]?.title || type;
-                const prompt = `ユーザーが「${toolName}」ノートを記録しました。感情: ${JSON.stringify(emotions)}。内容: ${summary}。100字以内で、労い + 次の一歩を1つだけ返してください。`;
-                try {
-                    const reply = await callGroqWithRetry([{role:'user', content: prompt}], { temperature: 0.6, max_tokens: 160 }, 2);
-                    document.getElementById('daily-message-text').innerText = reply;
+                // Daily feedback (API同時呼び出しを避けるためローカル生成)
+                const localFeedback = buildQuickDailyFeedback(createdEntry);
+                if (localFeedback) {
+                    document.getElementById('daily-message-text').innerText = localFeedback;
                     document.getElementById('daily-message-area').classList.remove('hidden');
-                } catch (e) {
-                    console.error(e);
-                    const detail = formatErrorDetails(e);
-                    alert(`AIフィードバックの取得に失敗しました。しばらくしてから再度お試しください。${detail ? `\n詳細: ${detail}` : ""}`);
                 }
+                commentPromise.then((aiComment) => {
+                    const text = normalizeAiCommentText(aiComment);
+                    if (!text) return;
+                    document.getElementById('daily-message-text').innerText = text;
+                    document.getElementById('daily-message-area').classList.remove('hidden');
+                });
 
                 // Clear
                 activeEmotionsContainer.innerHTML = '';
