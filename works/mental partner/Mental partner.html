@@ -591,7 +591,7 @@
         const CHAT_SYSTEM_PROMPT = "あなたは経験豊富な精神保健福祉士で、認知行動療法（CBT）を中心に支援する日本語カウンセラーです。常に丁寧で温かく、専門家らしい落ち着いた文体で返答してください。返答は次の順で構成します。1) 共感: 相手の感情としんどさを1〜2文で言語化して受け止める。2) リフレーミング: 認知の偏りをやさしく整理し、より現実的で前向きな解釈を1つ提示する。3) ワンポイント実践: 心理学的手法を1つだけ提案する（CBT/ACT/問題解決療法/行動活性化/マインドフルネス/セルフコンパッション等）。提案は必ず1つに限定し、短く実行可能な手順にする。禁止事項: 説教口調、断定、長い一般論、提案の乱発。制約: 200〜420字、箇条書きは最大2項目、専門用語には短い補足をつける。同じ助言の反復は避け、必要なら『前回の要点』として1行だけ参照する。";
         const MAX_INPUT_TOKENS = 5200;
         const TOKEN_PER_CHAR = 1 / 3.5;
-        const SUMMARY_MAX_INPUT_TOKENS = 3600;
+        const SUMMARY_MAX_INPUT_TOKENS = 2400;
         const AUTO_SUMMARY_MIN_MESSAGES = 12;
         const AUTO_SUMMARY_COOLDOWN_MS = 5 * 60 * 1000;
         const AUTO_SUMMARY_MAX_TOKENS = 4200;
@@ -823,13 +823,20 @@
             });
             if (!res.ok) {
                 const text = await res.text();
+                let message = text || "Groq API error";
+                try {
+                    const parsed = JSON.parse(text);
+                    if (parsed?.error?.message) message = parsed.error.message;
+                } catch {}
                 let retryAfterMs = 0;
-                const match = text.match(/try again in\\s*([0-9.]+)s/i);
+                const match = message.match(/try again in\s*([0-9.]+)s/i);
                 if (match) retryAfterMs = Math.ceil(parseFloat(match[1]) * 1000);
-                if (res.status === 429 && retryAfterMs) {
-                    groqRateLimitUntil = Date.now() + retryAfterMs + 500;
+                if (res.status === 429) {
+                    if (!retryAfterMs) retryAfterMs = 12000;
+                    groqRateLimitUntil = Date.now() + retryAfterMs + 700;
                 }
-                const err = new Error(text || "Groq API error");
+                const err = new Error(message || "Groq API error");
+                err.status = res.status;
                 err.retryAfterMs = retryAfterMs;
                 err.code = res.status === 429 ? "rate_limit_exceeded" : undefined;
                 throw err;
@@ -863,16 +870,22 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        async function callGroqWithRetry(messages, options = {}, maxRetries = 1) {
+        async function callGroqWithRetry(messages, options = {}, maxRetries = 2) {
             let attempt = 0;
+            const retryOptions = { ...options };
             while (true) {
                 try {
-                    return await callGroq(messages, options);
+                    return await callGroq(messages, retryOptions);
                 } catch (e) {
+                    const isRateLimit = e?.status === 429 || e?.code === "rate_limit_exceeded" || e?.code === "rate_limit_hold";
                     const retryMs = handleRateLimitError(e, { silent: true });
-                    if (retryMs > 0 && attempt < maxRetries) {
+                    if (isRateLimit && attempt < maxRetries) {
                         attempt += 1;
-                        await sleep(retryMs + 500);
+                        if (typeof retryOptions.max_tokens === "number" && retryOptions.max_tokens > 220) {
+                            retryOptions.max_tokens = Math.max(220, Math.floor(retryOptions.max_tokens * 0.7));
+                        }
+                        const waitMs = retryMs > 0 ? (retryMs + 700) : (attempt * 2500);
+                        await sleep(waitMs);
                         continue;
                     }
                     throw e;
@@ -1168,9 +1181,9 @@
 
         async function runSummary({ silent }) {
             const attempts = [
-                { maxTokens: SUMMARY_MAX_INPUT_TOKENS, maxMessages: state.chatHistory.length, includeSummary: true },
-                { maxTokens: 2200, maxMessages: 12, includeSummary: true },
-                { maxTokens: 1600, maxMessages: 8, includeSummary: false }
+                { maxTokens: SUMMARY_MAX_INPUT_TOKENS, maxMessages: Math.min(state.chatHistory.length, 20), includeSummary: true },
+                { maxTokens: 1600, maxMessages: 12, includeSummary: true },
+                { maxTokens: 1100, maxMessages: 8, includeSummary: false }
             ];
             let summary = "";
             let lastError;
@@ -1179,18 +1192,21 @@
                     const input = buildSummaryInput(state.chatHistory, attempt);
                     if (!input.trim()) throw new Error("empty summary input");
                     const summaryPrompt = `以下の会話を、次回以降の相談に必要な情報だけに圧縮してください。日本語で300〜500字。箇条書きで「背景/状況」「感情/状態」「これまでの助言/対処」「未解決/次の一歩」を含めてください。\n\n${input}`;
-                    summary = await callGroq(
+                    summary = await callGroqWithRetry(
                         [
                             { role: "system", content: "あなたは会話要約の専門家です。余計な前置きは不要で、指定形式の要約だけ返してください。" },
                             { role: "user", content: summaryPrompt }
                         ],
-                        { temperature: 0.3, max_tokens: 500 }
+                        { temperature: 0.3, max_tokens: 320 },
+                        2
                     );
                     if (summary) break;
                 } catch (e) {
                     lastError = e;
-                    const retryMs = handleRateLimitError(e, { silent });
-                    if (retryMs > 0) throw e;
+                    if (!silent && e?.code !== "rate_limit_exceeded") {
+                        const detail = formatErrorDetails(e);
+                        if (detail) console.warn("summary attempt failed:", detail);
+                    }
                 }
             }
             if (!summary) {
@@ -1209,8 +1225,8 @@
                                 { role: "system", content: "あなたは会話要約の専門家です。指定形式の要約だけ返してください。" },
                                 { role: "user", content: prompt }
                             ],
-                            { temperature: 0.3, max_tokens: 280 },
-                            1
+                            { temperature: 0.3, max_tokens: 200 },
+                            2
                         );
                         if (part) partials.push(part.trim());
                     } catch (e) {
@@ -1226,8 +1242,8 @@
                             { role: "system", content: "あなたは会話要約の専門家です。余計な前置きは不要で、指定形式の要約だけ返してください。" },
                             { role: "user", content: finalPrompt }
                         ],
-                        { temperature: 0.3, max_tokens: 500 },
-                        1
+                        { temperature: 0.3, max_tokens: 320 },
+                        2
                     );
                 }
             }
@@ -1254,7 +1270,7 @@
 
             try {
                 const messages = buildChatMessages(state.chatHistory);
-                const reply = await callGroq(messages, { temperature: 0.45, max_tokens: 1200 });
+                const reply = await callGroqWithRetry(messages, { temperature: 0.45, max_tokens: 900 }, 2);
                 state.chatHistory.push({role:'assistant', content:reply});
                 appendMsg(reply, 'ai');
                 saveChat();
@@ -1526,7 +1542,7 @@
                 const toolName = TOOL_DEFINITIONS[type]?.title || type;
                 const prompt = `ユーザーが「${toolName}」ノートを記録しました。感情: ${JSON.stringify(emotions)}。内容: ${summary}。100字以内で、労い + 次の一歩を1つだけ返してください。`;
                 try {
-                    const reply = await callGroq([{role:'user', content: prompt}], { temperature: 0.6, max_tokens: 200 });
+                    const reply = await callGroqWithRetry([{role:'user', content: prompt}], { temperature: 0.6, max_tokens: 160 }, 2);
                     document.getElementById('daily-message-text').innerText = reply;
                     document.getElementById('daily-message-area').classList.remove('hidden');
                 } catch (e) {
