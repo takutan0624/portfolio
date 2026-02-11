@@ -1010,6 +1010,7 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
+                unsummarizedUserTurns = 0;
                 firestoreErrorShown = false;
                 resetFirestoreListener();
                 document.getElementById('user-name').textContent = user.isAnonymous ? "ゲスト" : (user.displayName || "ユーザー");
@@ -1018,6 +1019,7 @@
                 loadFirestoreData(user.uid);
             } else {
                 currentUser = null;
+                unsummarizedUserTurns = 0;
                 closeSettingsModal();
                 document.getElementById('user-name').textContent = "";
                 resetFirestoreListener();
@@ -1117,6 +1119,7 @@
                 patterns: { ...DEFAULT_PATTERNS },
                 analysisComment: ""
             };
+            unsummarizedUserTurns = 0;
             document.getElementById('wave-analysis-text').textContent = "まだ分析データがありません。";
             renderChatHistory();
             renderPatternChart();
@@ -1231,13 +1234,13 @@
                 try {
                     const input = buildSummaryInput(state.chatHistory, attempt);
                     if (!input.trim()) throw new Error("empty summary input");
-                    const summaryPrompt = `以下の会話を、次回以降の相談に必要な情報だけに圧縮してください。日本語で300〜500字。箇条書きで「背景/状況」「感情/状態」「これまでの助言/対処」「未解決/次の一歩」を含めてください。\n\n${input}`;
+                    const summaryPrompt = `次の会話を、やさしい日本語で短く要約してください。難しい言葉は使わず、1文を短くしてください。文字数は180〜260字。出力は必ず次の4行のみ。\n- 今の状況:\n- 気持ち:\n- 試したこと:\n- 次の一歩:\n\n${input}`;
                     summary = await callGroqWithRetry(
                         [
                             { role: "system", content: "あなたは会話要約の専門家です。余計な前置きは不要で、指定形式の要約だけ返してください。" },
                             { role: "user", content: summaryPrompt }
                         ],
-                        { temperature: 0.3, max_tokens: 320 },
+                        { temperature: 0.25, max_tokens: 260 },
                         2
                     );
                     if (summary) break;
@@ -1258,14 +1261,14 @@
                     const chunk = recentChunks[i];
                     const input = buildSummaryInput(chunk, { maxTokens: 1200, maxMessages: chunk.length, includeSummary: false });
                     if (!input.trim()) continue;
-                    const prompt = `次の会話ログを短く要約してください。日本語で150〜250字。箇条書きで「状況/感情/行動/未解決」を含めてください。\n\n${input}`;
+                    const prompt = `次の会話ログを、やさしい日本語で100〜160字に要約してください。出力は次の4行のみ。\n- 今の状況:\n- 気持ち:\n- 試したこと:\n- 次の一歩:\n\n${input}`;
                     try {
                         const part = await callGroqWithRetry(
                             [
                                 { role: "system", content: "あなたは会話要約の専門家です。指定形式の要約だけ返してください。" },
                                 { role: "user", content: prompt }
                             ],
-                            { temperature: 0.3, max_tokens: 200 },
+                            { temperature: 0.25, max_tokens: 170 },
                             2
                         );
                         if (part) partials.push(part.trim());
@@ -1276,13 +1279,13 @@
                 }
                 if (partials.length > 0) {
                     const combined = (state.chatSummary ? `【既存の要約】\n${state.chatSummary}\n\n` : "") + partials.map((p, i) => `【要約${i + 1}】\n${p}`).join("\n\n");
-                    const finalPrompt = `以下の要約を統合し、300〜500字で最終要約を作成してください。箇条書きで「背景/状況」「感情/状態」「これまでの助言/対処」「未解決/次の一歩」を含めてください。\n\n${combined}`;
+                    const finalPrompt = `以下の要約を統合し、やさしい日本語で180〜260字の最終要約にしてください。出力は次の4行のみ。\n- 今の状況:\n- 気持ち:\n- 試したこと:\n- 次の一歩:\n\n${combined}`;
                     summary = await callGroqWithRetry(
                         [
                             { role: "system", content: "あなたは会話要約の専門家です。余計な前置きは不要で、指定形式の要約だけ返してください。" },
                             { role: "user", content: finalPrompt }
                         ],
-                        { temperature: 0.3, max_tokens: 320 },
+                        { temperature: 0.25, max_tokens: 260 },
                         2
                     );
                 }
@@ -1294,6 +1297,7 @@
 
             state.chatSummary = (summary || "").trim();
             state.chatSummaryUpdatedAt = Date.now();
+            unsummarizedUserTurns = 0;
             state.chatHistory = state.chatHistory.slice(-6);
             await saveChat();
             renderChatHistory();
@@ -1308,6 +1312,7 @@
             input.value = '';
             
             state.chatHistory.push({role:'user', content:text});
+            unsummarizedUserTurns += 1;
             appendMsg(text, 'user');
             saveChat();
 
