@@ -7,6 +7,9 @@ const ALLOWED_KEYS = [
   "appId",
   "measurementId",
 ];
+let cachedConfig = null;
+let cachedConfigExpireAt = 0;
+let serviceAccountProjectId = "";
 
 function setHeaders(res) {
   res.setHeader("Cache-Control", "no-store");
@@ -43,6 +46,7 @@ function fromJsonEnv() {
     process.env.FIREBASE_WEB_CONFIG_MENTAL ||
     process.env.MENTAL_FIREBASE_WEB_CONFIG ||
     process.env.FIREBASE_CONFIG_MENTAL ||
+    process.env.NEXT_PUBLIC_FIREBASE_CONFIG ||
     "";
   if (!raw) return null;
   try {
@@ -54,15 +58,107 @@ function fromJsonEnv() {
 
 function fromFlatEnv() {
   const obj = {
-    apiKey: process.env.MENTAL_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY_MENTAL,
-    authDomain: process.env.MENTAL_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN_MENTAL,
-    projectId: process.env.MENTAL_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID_MENTAL,
-    storageBucket: process.env.MENTAL_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET_MENTAL,
+    apiKey:
+      process.env.MENTAL_FIREBASE_API_KEY ||
+      process.env.FIREBASE_API_KEY_MENTAL ||
+      process.env.NEXT_PUBLIC_FIREBASE_API_KEY ||
+      process.env.FIREBASE_API_KEY,
+    authDomain:
+      process.env.MENTAL_FIREBASE_AUTH_DOMAIN ||
+      process.env.FIREBASE_AUTH_DOMAIN_MENTAL ||
+      process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ||
+      process.env.FIREBASE_AUTH_DOMAIN,
+    projectId:
+      process.env.MENTAL_FIREBASE_PROJECT_ID ||
+      process.env.FIREBASE_PROJECT_ID_MENTAL ||
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+      process.env.FIREBASE_PROJECT_ID,
+    storageBucket:
+      process.env.MENTAL_FIREBASE_STORAGE_BUCKET ||
+      process.env.FIREBASE_STORAGE_BUCKET_MENTAL ||
+      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+      process.env.FIREBASE_STORAGE_BUCKET,
     messagingSenderId: process.env.MENTAL_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID_MENTAL,
-    appId: process.env.MENTAL_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID_MENTAL,
-    measurementId: process.env.MENTAL_FIREBASE_MEASUREMENT_ID || process.env.FIREBASE_MEASUREMENT_ID_MENTAL,
+    appId:
+      process.env.MENTAL_FIREBASE_APP_ID ||
+      process.env.FIREBASE_APP_ID_MENTAL ||
+      process.env.NEXT_PUBLIC_FIREBASE_APP_ID ||
+      process.env.FIREBASE_APP_ID,
+    measurementId:
+      process.env.MENTAL_FIREBASE_MEASUREMENT_ID ||
+      process.env.FIREBASE_MEASUREMENT_ID_MENTAL ||
+      process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ||
+      process.env.FIREBASE_MEASUREMENT_ID,
   };
   return pickConfig(obj);
+}
+
+async function getServiceAccountMeta() {
+  if (serviceAccountProjectId) return { projectId: serviceAccountProjectId };
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_MENTAL || "";
+  if (!raw) return { projectId: "" };
+  try {
+    const parsed = JSON.parse(raw);
+    serviceAccountProjectId = parsed.project_id || "";
+    return { projectId: serviceAccountProjectId };
+  } catch {
+    return { projectId: "" };
+  }
+}
+
+async function fromFirebaseApi() {
+  const now = Date.now();
+  if (cachedConfig && now < cachedConfigExpireAt) return cachedConfig;
+
+  const sa = await getServiceAccountMeta();
+  if (!sa.projectId) return null;
+
+  try {
+    const app = getAdminApp();
+    const credential = app?.options?.credential;
+    if (!credential || typeof credential.getAccessToken !== "function") return null;
+    const tokenInfo = await credential.getAccessToken();
+    const token = tokenInfo?.access_token || tokenInfo?.accessToken || "";
+    if (!token) return null;
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+
+    const listRes = await fetch(
+      `https://firebase.googleapis.com/v1beta1/projects/${encodeURIComponent(sa.projectId)}/webApps`,
+      { method: "GET", headers }
+    );
+    if (!listRes.ok) return null;
+    const listData = await listRes.json();
+    const apps = Array.isArray(listData?.apps) ? listData.apps : [];
+    if (apps.length === 0) return null;
+
+    const preferredAppId = (process.env.MENTAL_FIREBASE_WEB_APP_ID || "").trim();
+    let selected = apps[0];
+    if (preferredAppId) {
+      const found = apps.find((a) => String(a?.appId || "") === preferredAppId);
+      if (found) selected = found;
+    }
+    const appName = selected?.name;
+    if (!appName) return null;
+
+    const cfgRes = await fetch(
+      `https://firebase.googleapis.com/v1beta1/${appName}/config`,
+      { method: "GET", headers }
+    );
+    if (!cfgRes.ok) return null;
+    const cfgData = await cfgRes.json();
+    const picked = pickConfig(cfgData);
+    if (!picked) return null;
+
+    cachedConfig = picked;
+    cachedConfigExpireAt = now + 10 * 60 * 1000;
+    return picked;
+  } catch {
+    return null;
+  }
 }
 
 export default async function handler(req, res) {
@@ -95,9 +191,9 @@ export default async function handler(req, res) {
     return;
   }
 
-  const config = fromJsonEnv() || fromFlatEnv();
+  const config = fromJsonEnv() || fromFlatEnv() || await fromFirebaseApi();
   if (!config) {
-    res.status(500).json({ error: "Firebase web config is not set" });
+    res.status(500).json({ error: "Firebase web config is not set. Set FIREBASE_WEB_CONFIG_MENTAL or MENTAL_FIREBASE_API_KEY group." });
     return;
   }
 

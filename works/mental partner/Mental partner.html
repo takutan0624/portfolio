@@ -712,7 +712,7 @@
             const errWrap = document.getElementById("login-error-container");
             const errMsg = document.getElementById("login-error-msg");
             if (errWrap && errMsg) {
-                errMsg.textContent = "Firebase設定の取得に失敗しました。時間をおいて再読み込みしてください。";
+                errMsg.textContent = "Firebase設定の取得に失敗しました。管理者設定（firebase-config-mental API / 環境変数）を確認してください。";
                 errWrap.classList.remove("hidden");
             }
             throw new Error(msg);
