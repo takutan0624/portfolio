@@ -990,11 +990,11 @@
             if (!currentUser) return;
             const targets = [...(state.cbtEntries || [])]
                 .map((e) => getEntryWithOverlay(e))
-                .filter((e) => e && !e.aiComment && (e.aiCommentStatus === "pending" || e.aiCommentStatus === "retrying" || e.aiCommentStatus === "failed"))
+                .filter((e) => e && !e.aiComment && (e.aiCommentStatus === "pending" || e.aiCommentStatus === "retrying"))
                 .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
                 .slice(0, 1);
             targets.forEach((entry) => {
-                const delay = entry.aiCommentStatus === "retrying" ? 5000 : (entry.aiCommentStatus === "failed" ? 4000 : 2500);
+                const delay = entry.aiCommentStatus === "retrying" ? 5000 : 2500;
                 scheduleEntryCommentRetry(entry.id, entry, delay);
             });
         }
@@ -1220,35 +1220,6 @@
                 return `${cue}を書き出せたのは大切な一歩です。${emotions}という感情に気づけているので、次は「今できる最小の行動」を1つだけ決めてみましょう。`;
             }
             return `${cue}を言葉にできた時点で整理は進んでいます。次は気持ちを10点でも軽くする行動を1つだけ選んで、短く実行してみましょう。`;
-        }
-
-        function buildEntryCommentFallback(entry, error) {
-            const tool = getToolLabel(entry?.type);
-            const summary = truncateText(entry?.summary || "", 90);
-            const detailLine = getEntryDetailLines(entry)[0] || "";
-            const emotions = entry?.emotions || {};
-            const topEmotion = Object.entries(emotions).sort((a, b) => (b[1] || 0) - (a[1] || 0))[0]?.[0] || "";
-            const avgScore = Math.round((((entry?.mental || 0) + (entry?.physical || 0)) / 2));
-            const cue = summary || truncateText(detailLine, 70) || "いまの記録";
-            const empathy = topEmotion
-                ? `「${topEmotion}」を感じる中で${tool}を記録したのですね。`
-                : `${tool}として今の状態を言葉にできたのは大切な一歩です。`;
-            const reframe = avgScore <= 45
-                ? `しんどさが強い時に「${cue}」を見える形にしたことで、気持ちを守る準備はもう始まっています。`
-                : `「${cue}」を整理して書けている時点で、状況を客観視する力はしっかり働いています。`;
-            const stepMap = {
-                "gratitude": "次は今日の中で少しでも楽だった瞬間を1つだけ追記して、気持ちの土台を増やしてみましょう。",
-                "cbt-7": "次は反証の欄を1行だけ追加して、考えの偏りを少しゆるめてみましょう。",
-                "problem-solving": "次は最初の行動を10分で終わる粒度にして、実行ハードルを下げてみましょう。",
-                "assertion": "次はお願いの文を「私は〜してもらえると助かる」に整えて、伝わりやすさを上げてみましょう。",
-                "desc": "次はDESCのS(提案)を1文で具体化して、相手に行動をイメージしてもらいましょう。"
-            };
-            const step = stepMap[entry?.type] || "次は今の負担を10%軽くする行動を1つだけ決めて、短く試してみましょう。";
-            const errHint = formatErrorDetails(error);
-            if (errHint && /anonymous users are not allowed|missing authorization|not authenticated/i.test(errHint)) {
-                return `${empathy}${reframe}${step}`;
-            }
-            return `${empathy}${reframe}${step}`;
         }
 
         function sleep(ms) {
@@ -1747,11 +1718,32 @@
                         ? '<i class="fa-solid fa-clock-rotate-left mr-1"></i> 生成待ちです。自動で再試行します...'
                         : '<i class="fa-solid fa-spinner fa-spin mr-1"></i> 生成中...';
                     aiBox.appendChild(generating);
+                    const retryDetail = (entry.aiCommentError || "").trim();
+                    if (retryDetail && status === "retrying") {
+                        const detail = document.createElement("p");
+                        detail.className = "mt-1 text-[10px] text-gray-500 break-all";
+                        detail.textContent = `直前エラー: ${retryDetail}`;
+                        aiBox.appendChild(detail);
+                    }
                 } else if (status === "failed") {
                     const failed = document.createElement("p");
                     failed.className = "text-xs text-gray-500";
                     failed.textContent = "コメント生成に失敗しました。再試行してください。";
                     aiBox.appendChild(failed);
+                    const detail = (entry.aiCommentError || "").trim();
+                    if (detail) {
+                        const detailBox = document.createElement("details");
+                        detailBox.className = "mt-2";
+                        const detailSummary = document.createElement("summary");
+                        detailSummary.className = "cursor-pointer text-[10px] font-bold text-gray-500";
+                        detailSummary.textContent = "エラー詳細";
+                        const detailText = document.createElement("p");
+                        detailText.className = "mt-1 text-[10px] text-gray-500 whitespace-pre-wrap break-all";
+                        detailText.textContent = detail;
+                        detailBox.appendChild(detailSummary);
+                        detailBox.appendChild(detailText);
+                        aiBox.appendChild(detailBox);
+                    }
 
                     const retryBtn = document.createElement("button");
                     retryBtn.className = "mt-2 text-[10px] font-bold text-rose-700 bg-white border border-rose-200 px-2 py-1 rounded hover:bg-rose-100";
@@ -2155,6 +2147,7 @@
             const entryRef = doc(db, "users", currentUser.uid, "entries", entryId);
             const markGenerating = {
                 aiCommentStatus: "generating",
+                aiCommentError: "",
                 aiCommentUpdatedAt: new Date().toISOString()
             };
             updateEntryInState(entryId, markGenerating);
@@ -2199,6 +2192,7 @@
                 const readyPatch = {
                     aiComment: comment,
                     aiCommentStatus: "ready",
+                    aiCommentError: "",
                     aiCommentUpdatedAt: new Date().toISOString()
                 };
                 updateEntryInState(entryId, readyPatch);
@@ -2217,9 +2211,12 @@
             } catch (e) {
                 const retryable = isRetryableAiCommentError(e);
                 const waitMs = e?.retryAfterMs ? (e.retryAfterMs + 700) : 12000;
+                const errorDetail = formatErrorDetails(e) || "unknown error";
+                const preservedComment = force ? "" : (currentComment || "");
                 const failPatch = {
-                    aiComment: currentComment || "",
+                    aiComment: preservedComment,
                     aiCommentStatus: retryable ? "retrying" : "failed",
+                    aiCommentError: errorDetail,
                     aiCommentUpdatedAt: new Date().toISOString()
                 };
                 updateEntryInState(entryId, failPatch);
@@ -2239,26 +2236,7 @@
                     }
                 }
                 if (!silent && !retryable) {
-                    const detail = formatErrorDetails(e);
-                    alert(`AIコメントの生成に失敗しました。${detail ? `\n詳細: ${detail}` : ""}`);
-                }
-                const fallbackComment = currentComment || buildEntryCommentFallback(currentEntry, e);
-                if (fallbackComment) {
-                    const fallbackPatch = {
-                        aiComment: fallbackComment,
-                        aiCommentStatus: "ready",
-                        aiCommentUpdatedAt: new Date().toISOString()
-                    };
-                    updateEntryInState(entryId, fallbackPatch);
-                    setEntryOverlay(entryId, fallbackPatch);
-                    renderEntryHistory();
-                    try {
-                        await setDoc(entryRef, fallbackPatch, { merge: true });
-                        clearEntryOverlay(entryId);
-                    } catch (persistError) {
-                        console.warn("フォールバックコメント保存に失敗:", persistError);
-                    }
-                    return fallbackComment;
+                    alert(`AIコメントの生成に失敗しました。${errorDetail ? `\n詳細: ${errorDetail}` : ""}`);
                 }
                 return "";
             } finally {
@@ -2366,6 +2344,7 @@
                 detail: payload.detail,
                 aiComment: "",
                 aiCommentStatus: "pending",
+                aiCommentError: "",
                 aiCommentUpdatedAt: ""
             };
 
