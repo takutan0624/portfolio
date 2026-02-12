@@ -990,11 +990,11 @@
             if (!currentUser) return;
             const targets = [...(state.cbtEntries || [])]
                 .map((e) => getEntryWithOverlay(e))
-                .filter((e) => e && !e.aiComment && (e.aiCommentStatus === "pending" || e.aiCommentStatus === "retrying"))
+                .filter((e) => e && !e.aiComment && (e.aiCommentStatus === "pending" || e.aiCommentStatus === "retrying" || e.aiCommentStatus === "failed"))
                 .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
                 .slice(0, 1);
             targets.forEach((entry) => {
-                const delay = entry.aiCommentStatus === "retrying" ? 5000 : 2500;
+                const delay = entry.aiCommentStatus === "retrying" ? 5000 : (entry.aiCommentStatus === "failed" ? 4000 : 2500);
                 scheduleEntryCommentRetry(entry.id, entry, delay);
             });
         }
@@ -1220,6 +1220,35 @@
                 return `${cue}を書き出せたのは大切な一歩です。${emotions}という感情に気づけているので、次は「今できる最小の行動」を1つだけ決めてみましょう。`;
             }
             return `${cue}を言葉にできた時点で整理は進んでいます。次は気持ちを10点でも軽くする行動を1つだけ選んで、短く実行してみましょう。`;
+        }
+
+        function buildEntryCommentFallback(entry, error) {
+            const tool = getToolLabel(entry?.type);
+            const summary = truncateText(entry?.summary || "", 90);
+            const detailLine = getEntryDetailLines(entry)[0] || "";
+            const emotions = entry?.emotions || {};
+            const topEmotion = Object.entries(emotions).sort((a, b) => (b[1] || 0) - (a[1] || 0))[0]?.[0] || "";
+            const avgScore = Math.round((((entry?.mental || 0) + (entry?.physical || 0)) / 2));
+            const cue = summary || truncateText(detailLine, 70) || "いまの記録";
+            const empathy = topEmotion
+                ? `「${topEmotion}」を感じる中で${tool}を記録したのですね。`
+                : `${tool}として今の状態を言葉にできたのは大切な一歩です。`;
+            const reframe = avgScore <= 45
+                ? `しんどさが強い時に「${cue}」を見える形にしたことで、気持ちを守る準備はもう始まっています。`
+                : `「${cue}」を整理して書けている時点で、状況を客観視する力はしっかり働いています。`;
+            const stepMap = {
+                "gratitude": "次は今日の中で少しでも楽だった瞬間を1つだけ追記して、気持ちの土台を増やしてみましょう。",
+                "cbt-7": "次は反証の欄を1行だけ追加して、考えの偏りを少しゆるめてみましょう。",
+                "problem-solving": "次は最初の行動を10分で終わる粒度にして、実行ハードルを下げてみましょう。",
+                "assertion": "次はお願いの文を「私は〜してもらえると助かる」に整えて、伝わりやすさを上げてみましょう。",
+                "desc": "次はDESCのS(提案)を1文で具体化して、相手に行動をイメージしてもらいましょう。"
+            };
+            const step = stepMap[entry?.type] || "次は今の負担を10%軽くする行動を1つだけ決めて、短く試してみましょう。";
+            const errHint = formatErrorDetails(error);
+            if (errHint && /anonymous users are not allowed|missing authorization|not authenticated/i.test(errHint)) {
+                return `${empathy}${reframe}${step}`;
+            }
+            return `${empathy}${reframe}${step}`;
         }
 
         function sleep(ms) {
@@ -2148,20 +2177,20 @@
             try {
                 let comment = normalizeAiCommentText(await callGroqWithRetry(
                     [{ role: "user", content: promptPrimary }],
-                    { temperature: 0.45, max_tokens: 500, reasoning_effort: "low" },
+                    { temperature: 0.45, max_tokens: 150, reasoning_effort: "low" },
                     3
                 ));
                 if (!comment) {
                     comment = normalizeAiCommentText(await callGroqWithRetry(
                         [{ role: "user", content: promptFallback }],
-                        { temperature: 0.4, max_tokens: 450, reasoning_effort: "low" },
+                        { temperature: 0.4, max_tokens: 140, reasoning_effort: "low" },
                         3
                     ));
                 }
                 if (!comment) {
                     comment = normalizeAiCommentText(await callGroqWithRetry(
                         [{ role: "user", content: promptLite }],
-                        { temperature: 0.35, max_tokens: 400, reasoning_effort: "low" },
+                        { temperature: 0.35, max_tokens: 120, reasoning_effort: "low" },
                         2
                     ));
                 }
@@ -2212,6 +2241,24 @@
                 if (!silent && !retryable) {
                     const detail = formatErrorDetails(e);
                     alert(`AIコメントの生成に失敗しました。${detail ? `\n詳細: ${detail}` : ""}`);
+                }
+                const fallbackComment = currentComment || buildEntryCommentFallback(currentEntry, e);
+                if (fallbackComment) {
+                    const fallbackPatch = {
+                        aiComment: fallbackComment,
+                        aiCommentStatus: "ready",
+                        aiCommentUpdatedAt: new Date().toISOString()
+                    };
+                    updateEntryInState(entryId, fallbackPatch);
+                    setEntryOverlay(entryId, fallbackPatch);
+                    renderEntryHistory();
+                    try {
+                        await setDoc(entryRef, fallbackPatch, { merge: true });
+                        clearEntryOverlay(entryId);
+                    } catch (persistError) {
+                        console.warn("フォールバックコメント保存に失敗:", persistError);
+                    }
+                    return fallbackComment;
                 }
                 return "";
             } finally {
