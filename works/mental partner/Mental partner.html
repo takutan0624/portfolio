@@ -741,6 +741,18 @@
             "レッテル貼り": 0,
             "個人化": 0
         };
+        const PATTERN_KEYWORDS = {
+            "全か無か思考": ["絶対", "必ず", "いつも", "全然", "完璧", "0か100", "100か0", "白黒"],
+            "過度の一般化": ["毎回", "どうせ", "結局", "全部だめ", "全部ダメ", "いつも失敗"],
+            "心のフィルター": ["失敗", "だめ", "ダメ", "悪いところ", "欠点", "不足"],
+            "マイナス化思考": ["意味ない", "無理", "価値がない", "無駄", "どうにもならない"],
+            "結論の飛躍": ["きっと", "に違いない", "嫌われ", "決めつけ", "思い込み"],
+            "拡大解釈・過小評価": ["最悪", "致命的", "大したことない", "たいしたことない"],
+            "感情的決めつけ": ["不安だから", "怖いから", "つらいから", "嫌な気分だから"],
+            "べき思考": ["べき", "ねば", "しなければ", "しなくては", "当然"],
+            "レッテル貼り": ["自分はダメ", "最低", "無能", "ダメ人間", "価値がない人間"],
+            "個人化": ["自分のせい", "私が悪い", "全部自分", "自分だけが悪い"]
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -838,6 +850,55 @@
                 });
             }
             return base;
+        }
+
+        function mergePatternCounts(base, incoming, mode = "add") {
+            const left = normalizePatterns(base);
+            const right = normalizePatterns(incoming);
+            const merged = { ...left };
+            Object.keys(merged).forEach((k) => {
+                const lv = Number(left[k]) || 0;
+                const rv = Number(right[k]) || 0;
+                merged[k] = mode === "max" ? Math.max(lv, rv) : (lv + rv);
+            });
+            return merged;
+        }
+
+        function buildPatternSourceText(entry) {
+            const detailText = buildEntryDetailText(entry);
+            const summaryText = String(entry?.summary || "");
+            const thoughtText = String(entry?.detail?.thought || "");
+            const adaptiveText = String(entry?.detail?.adaptive || "");
+            return [summaryText, detailText, thoughtText, adaptiveText].filter(Boolean).join(" ").toLowerCase();
+        }
+
+        function detectEntryPatterns(entry) {
+            const hits = normalizePatterns({});
+            const text = buildPatternSourceText(entry);
+            if (!text) return hits;
+
+            Object.entries(PATTERN_KEYWORDS).forEach(([label, words]) => {
+                const found = words.some((w) => text.includes(String(w).toLowerCase()));
+                if (found) hits[label] += 1;
+            });
+
+            if ((entry?.mental || 0) <= 40) hits["マイナス化思考"] += 1;
+            if ((entry?.physical || 0) <= 40) hits["感情的決めつけ"] += 1;
+
+            return hits;
+        }
+
+        function aggregatePatternsFromEntries(entries) {
+            return (entries || []).reduce((acc, entry) => {
+                if (!entry) return acc;
+                const hits = detectEntryPatterns(entry);
+                return mergePatternCounts(acc, hits, "add");
+            }, normalizePatterns({}));
+        }
+
+        function refreshPatternCountsFromEntries() {
+            state.patterns = aggregatePatternsFromEntries(state.cbtEntries);
+            renderPatternChart();
         }
 
         function getToolLabel(type) {
@@ -1495,6 +1556,7 @@
             entriesUnsubscribe = onSnapshot(q, (snap) => {
                 state.cbtEntries = snap.docs.map(d => ({id:d.id, ...d.data()}));
                 updateCharts();
+                refreshPatternCountsFromEntries();
                 renderEntryHistory();
                 syncPendingEntryComments();
             }, (error) => {
@@ -2354,6 +2416,7 @@
                 state.cbtEntries = [createdEntry, ...state.cbtEntries].slice(0, 50);
                 renderEntryHistory();
                 updateCharts();
+                refreshPatternCountsFromEntries();
                 const commentPromise = generateEntryComment(created.id, createdEntry, { silent: true, force: true }).catch((e) => {
                     console.error(e);
                     return "";
@@ -2410,7 +2473,9 @@
                     scores: input.scores,
                     recentEntries: input.recent
                 });
-                state.patterns = normalizePatterns(result.patterns);
+                const basePatterns = aggregatePatternsFromEntries(state.cbtEntries);
+                const aiPatterns = normalizePatterns(result.patterns);
+                state.patterns = mergePatternCounts(basePatterns, aiPatterns, "max");
                 state.analysisComment = result.comment || "";
                 document.getElementById('wave-analysis-text').textContent = state.analysisComment || "";
                 await saveAnalysis(state.patterns, state.analysisComment);
