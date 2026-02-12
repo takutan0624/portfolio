@@ -989,6 +989,28 @@
             return getEntryDetailLines(entry).join(" | ").slice(0, 900);
         }
 
+        function buildEntryCommentMessages(entry) {
+            const systemContent = state.chatSummary
+                ? `${CHAT_SYSTEM_PROMPT}\n\n【これまでの会話要約】\n${state.chatSummary}`
+                : CHAT_SYSTEM_PROMPT;
+            const emText = entry?.emotions ? emotionsToText(entry.emotions) : "";
+            const detailText = buildEntryDetailText(entry).slice(0, 420);
+            const userContent = [
+                "以下はユーザーの記録ノートです。内容を読んで、チャットと同じ自然なトーンで返答してください。",
+                `記録タイプ: ${getToolLabel(entry?.type)}`,
+                `ココロ: ${entry?.mental || 0}`,
+                `カラダ: ${entry?.physical || 0}`,
+                `感情: ${emText || "なし"}`,
+                `要約: ${String(entry?.summary || "").slice(0, 260) || "なし"}`,
+                `詳細: ${detailText || "なし"}`,
+                "上記に対する返答:"
+            ].join("\n");
+            return [
+                { role: "system", content: systemContent },
+                { role: "user", content: userContent }
+            ];
+        }
+
         function normalizeAiCommentText(text) {
             if (!text) return "";
             return String(text)
@@ -2222,33 +2244,14 @@
                 console.warn("AIコメント生成状態の保存に失敗:", persistError);
             }
 
-            const emText = currentEntry.emotions ? emotionsToText(currentEntry.emotions) : "";
-            const detailText = buildEntryDetailText(currentEntry).slice(0, 220);
-            const shortSummary = String(currentEntry.summary || "").slice(0, 180);
-            const promptPrimary = `次の記録に、心理職としての共感コメントを日本語で返してください。順序は「共感1文→リフレーミング1文→次の一歩1つ」。やさしいが専門家らしい文体、90〜160字、定型文は禁止。\n記録タイプ:${getToolLabel(currentEntry.type)}\nココロ:${currentEntry.mental || 0}\nカラダ:${currentEntry.physical || 0}\n感情:${emText || "なし"}\n要約:${shortSummary || "なし"}\n詳細:${detailText || "なし"}`;
-            const promptFallback = `次の記録への短い共感コメントを作成してください。1文目で受け止め、2文目で前向きな解釈、3文目で次の一歩を1つ。100〜170字。前置き・箇条書き・定型句は禁止。\n記録タイプ:${getToolLabel(currentEntry.type)}\n要約:${shortSummary || "なし"}\n感情:${emText || "なし"}`;
-            const promptLite = `記録への共感コメントを3文で返してください。1)共感 2)見方の言い換え 3)次の一歩。90〜140字。\n要約:${shortSummary || "なし"}\n感情:${emText || "なし"}`;
+            const messages = buildEntryCommentMessages(currentEntry);
 
             try {
-                let comment = normalizeAiCommentText(await callGroqWithRetry(
-                    [{ role: "user", content: promptPrimary }],
-                    { temperature: 0.45, max_tokens: 150, reasoning_effort: "low" },
-                    3
+                const comment = normalizeAiCommentText(await callGroqWithRetry(
+                    messages,
+                    { temperature: 0.45, max_tokens: 1200 },
+                    2
                 ));
-                if (!comment) {
-                    comment = normalizeAiCommentText(await callGroqWithRetry(
-                        [{ role: "user", content: promptFallback }],
-                        { temperature: 0.4, max_tokens: 140, reasoning_effort: "low" },
-                        3
-                    ));
-                }
-                if (!comment) {
-                    comment = normalizeAiCommentText(await callGroqWithRetry(
-                        [{ role: "user", content: promptLite }],
-                        { temperature: 0.35, max_tokens: 120, reasoning_effort: "low" },
-                        2
-                    ));
-                }
                 if (!comment) throw new Error("empty ai comment");
 
                 const readyPatch = {
