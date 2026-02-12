@@ -669,7 +669,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, doc, setDoc, getDoc, onSnapshot, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, limit, where, doc, setDoc, getDoc, onSnapshot, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         function readFirebaseConfigRuntime() {
             if (typeof __firebase_config !== "undefined" && __firebase_config) {
@@ -728,6 +728,8 @@
         const AUTO_SUMMARY_MAX_TOKENS = 4200;
         const AUTO_SUMMARY_EVERY_USER_MESSAGES = 4;
         const AUTO_SUMMARY_FORCE_USER_MESSAGES = 8;
+        const ENTRY_RETENTION_DAYS = 90;
+        const RETENTION_CLEANUP_COOLDOWN_MS = 12 * 60 * 60 * 1000;
 
         const DEFAULT_PATTERNS = {
             "全か無か思考": 0,
@@ -805,6 +807,61 @@
             if (typeof entriesUnsubscribe === 'function') {
                 entriesUnsubscribe();
                 entriesUnsubscribe = null;
+            }
+        }
+
+        function getRetentionCleanupStorageKey(uid) {
+            return `mental_partner_retention_cleanup_${uid}`;
+        }
+
+        function shouldRunRetentionCleanup(uid) {
+            if (!uid) return false;
+            try {
+                const key = getRetentionCleanupStorageKey(uid);
+                const last = Number(localStorage.getItem(key) || 0);
+                if (Number.isFinite(last) && Date.now() - last < RETENTION_CLEANUP_COOLDOWN_MS) {
+                    return false;
+                }
+                localStorage.setItem(key, String(Date.now()));
+                return true;
+            } catch {
+                return true;
+            }
+        }
+
+        async function cleanupOldEntries(uid) {
+            if (!uid) return 0;
+            const cutoff = new Date(Date.now() - ENTRY_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+            let deleted = 0;
+
+            while (true) {
+                const oldQuery = query(
+                    collection(db, "users", uid, "entries"),
+                    where("date", "<", cutoff),
+                    limit(400)
+                );
+                const oldSnap = await getDocs(oldQuery);
+                if (oldSnap.empty) break;
+
+                const batch = writeBatch(db);
+                oldSnap.docs.forEach((d) => batch.delete(d.ref));
+                await batch.commit();
+                deleted += oldSnap.size;
+                if (oldSnap.size < 400) break;
+            }
+
+            return deleted;
+        }
+
+        async function runEntryRetentionCleanup(uid) {
+            if (!shouldRunRetentionCleanup(uid)) return;
+            try {
+                const deleted = await cleanupOldEntries(uid);
+                if (deleted > 0) {
+                    console.log(`[Retention] ${deleted}件の古い記録を削除しました (${ENTRY_RETENTION_DAYS}日超)。`);
+                }
+            } catch (e) {
+                console.warn("記録保持クリーンアップに失敗:", e);
             }
         }
         
@@ -1523,6 +1580,7 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-container').classList.remove('hidden');
                 loadFirestoreData(user.uid);
+                runEntryRetentionCleanup(user.uid).catch((e) => console.error(e));
             } else {
                 currentUser = null;
                 unsummarizedUserTurns = 0;
