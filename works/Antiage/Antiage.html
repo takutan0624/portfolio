@@ -185,6 +185,39 @@
             if (trimmed.length === 0) return [createWelcomeMessage()];
             return trimmed;
         }
+
+        const chunkArray = (arr, size) => {
+            const out = [];
+            for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+            return out;
+        };
+
+        const dedupeByLink = (items) => {
+            const map = new Map();
+            (items || []).forEach((item) => {
+                if (!item || typeof item !== "object") return;
+                const key = String(item.link || item.title || "");
+                if (!key) return;
+                if (!map.has(key)) map.set(key, item);
+            });
+            return Array.from(map.values());
+        };
+
+        const toDateValue = (v) => {
+            const t = new Date(v || 0).getTime();
+            return Number.isFinite(t) ? t : 0;
+        };
+
+        async function fetchRss2JsonItems(rssUrl) {
+            const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+            const res = await fetch(apiUrl);
+            if (!res.ok) throw new Error(`RSS API ${res.status}`);
+            const data = await res.json();
+            if (data?.status !== "ok" || !Array.isArray(data?.items)) {
+                throw new Error(data?.message || "Invalid RSS response");
+            }
+            return data.items;
+        }
         
         const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-antiage", "/api/firebase-config-mental"];
         const FIREBASE_APP_NAME = "antiage-auth";
@@ -962,16 +995,45 @@
 
             const fetchRealNews = async () => {
                 setLoading(true); setError(null); setIsDemo(false);
-                const rssUrl = "https://prtimes.jp/rss/beauty.rdf";
-                const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
                 try {
-                    const res = await fetch(apiUrl);
-                    if(!res.ok) throw new Error("Network error");
-                    const data = await res.json();
-                    if(data.status==='ok') {
-                        const items = data.items.sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate)).map(item=>({title:item.title, date:item.pubDate.split(' ')[0], link:item.link, description:item.description.replace(/<[^>]*>?/gm,'').substring(0,60)+"..."}));
-                        setNews(items);
-                    } else throw new Error(data.message);
+                    const eventKeywords = [
+                        "\"コスメイベント\"",
+                        "\"美容イベント\"",
+                        "\"ポップアップストア コスメ\"",
+                        "\"百貨店 コスメ催事\"",
+                        "\"コスメ 新作\"",
+                        "\"美容セミナー\""
+                    ];
+                    const batches = chunkArray(eventKeywords, 4);
+                    const results = await Promise.all(
+                        batches.map(async (batch) => {
+                            const eventQuery = batch.join(" OR ");
+                            const rssUrl = `https://news.google.com/rss/search?q=${eventQuery}&hl=ja&gl=JP&ceid=JP:ja`;
+                            try {
+                                const rawItems = await fetchRss2JsonItems(rssUrl);
+                                return rawItems.map((item) => ({
+                                    title: item.title,
+                                    date: String(item.pubDate || "").split(" ")[0],
+                                    link: item.link,
+                                    description: String(item.description || "").replace(/<[^>]*>?/gm,'').substring(0, 120),
+                                    pubDate: item.pubDate
+                                }));
+                            } catch {
+                                return [];
+                            }
+                        })
+                    );
+
+                    const merged = dedupeByLink(results.flat())
+                        .sort((a, b) => toDateValue(b.pubDate) - toDateValue(a.pubDate));
+
+                    const eventMatcher = /(イベント|ポップアップ|催事|展示会|セミナー|フェア|体験会)/i;
+                    const eventOnly = merged.filter((item) => eventMatcher.test(`${item.title || ""} ${item.description || ""}`));
+                    const source = eventOnly.length > 0 ? eventOnly : merged;
+                    const items = source
+                        .slice(0, 40)
+                        .map(({ pubDate, ...item }) => ({ ...item, description: `${item.description}...` }));
+                    setNews(items);
                 } catch(e) { 
                     setError(e.message); 
                     setNews(demoNews); 
@@ -1026,16 +1088,34 @@
                     "\"たるみケア\"",
                     "\"乾燥肌ケア\""
                 ];
-                const topicQuery = topicKeywords.join(" OR ");
-                const rssUrl = `https://news.google.com/rss/search?q=${topicQuery}&hl=ja&gl=JP&ceid=JP:ja`;
-                const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
                 try {
-                    const res = await fetch(apiUrl);
-                    const data = await res.json();
-                    if(data.status==='ok') {
-                        const items = data.items.sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate)).map(item=>({title:item.title, date:item.pubDate.split(' ')[0], link:item.link, source:item.author||"Google News"}));
-                        setTopics(items);
-                    } else throw new Error();
+                    const batches = chunkArray(topicKeywords, 5);
+                    const results = await Promise.all(
+                        batches.map(async (batch) => {
+                            const topicQuery = batch.join(" OR ");
+                            const rssUrl = `https://news.google.com/rss/search?q=${topicQuery}&hl=ja&gl=JP&ceid=JP:ja`;
+                            try {
+                                const rawItems = await fetchRss2JsonItems(rssUrl);
+                                return rawItems.map((item) => ({
+                                    title: item.title,
+                                    date: String(item.pubDate || "").split(" ")[0],
+                                    link: item.link,
+                                    source: item.author || "Google News",
+                                    pubDate: item.pubDate
+                                }));
+                            } catch {
+                                return [];
+                            }
+                        })
+                    );
+
+                    const merged = dedupeByLink(results.flat())
+                        .sort((a, b) => toDateValue(b.pubDate) - toDateValue(a.pubDate))
+                        .slice(0, 80)
+                        .map(({ pubDate, ...rest }) => rest);
+
+                    if (merged.length === 0) throw new Error("No topics found");
+                    setTopics(merged);
                 } catch(e) { 
                     setTopics(demoTopics); 
                     setIsDemo(true);
