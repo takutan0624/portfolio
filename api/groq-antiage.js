@@ -154,8 +154,8 @@ function sanitizeGroqBody(rawBody, isAnalysis) {
   const requestedModel = typeof body.model === "string" ? body.model.trim() : DEFAULT_MODEL;
   const model = ALLOWED_MODELS.has(requestedModel) ? requestedModel : DEFAULT_MODEL;
   const temperature = clampNumber(body.temperature, 0, 1.2, isAnalysis ? 0.2 : 0.6);
-  const maxTokensDefault = isAnalysis ? 360 : 900;
-  const maxTokensHard = isAnalysis ? 480 : 1200;
+  const maxTokensDefault = isAnalysis ? 360 : 2200;
+  const maxTokensHard = isAnalysis ? 480 : 4096;
   const max_tokens = Math.floor(clampNumber(body.max_tokens, 64, maxTokensHard, maxTokensDefault));
   const points = 1 + Math.ceil(totalChars / 2000) + Math.ceil(max_tokens / 300);
 
@@ -340,7 +340,7 @@ export default async function handler(req, res) {
       res.status(200).json(finalizeAnalysis(content));
       return;
     }
-    res.status(200).json({ content: String(content).slice(0, 5000) });
+    res.status(200).json({ content: String(content).slice(0, 30000) });
   } catch (error) {
     const msg = String(error?.message || "Internal server error");
     if (/already exists/i.test(msg)) {
