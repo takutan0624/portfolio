@@ -209,7 +209,7 @@
         };
 
         async function fetchRss2JsonItems(rssUrl) {
-            const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+            const apiUrl = `/api/rss-antiage?rss_url=${encodeURIComponent(rssUrl)}&max_items=80`;
             const res = await fetch(apiUrl);
             if (!res.ok) throw new Error(`RSS API ${res.status}`);
             const data = await res.json();
