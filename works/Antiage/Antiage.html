@@ -362,6 +362,43 @@
             });
         };
 
+        const callGoogleAISearch = async (user, query) => {
+            if (!user) throw new Error("ログインしてください");
+            const token = await user.getIdToken(true);
+            const res = await fetch("/api/google-ai-search-antiage", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    query,
+                    temperature: 0.2,
+                    maxOutputTokens: 1600,
+                    systemPrompt: "あなたは美容イベントのリサーチ編集者です。最新性を重視し、イベントの要点を分かりやすくまとめ、最後に確認ポイントを短く提示してください。"
+                })
+            });
+            const text = await res.text();
+            if (!res.ok) {
+                let message = text || "Google AI API Request Failed";
+                try {
+                    const parsed = JSON.parse(text);
+                    message = parsed?.error || parsed?.message || message;
+                } catch {}
+                throw new Error(String(message));
+            }
+            try {
+                const parsed = JSON.parse(text);
+                return {
+                    content: String(parsed?.content || "").trim(),
+                    sources: Array.isArray(parsed?.sources) ? parsed.sources : [],
+                    model: String(parsed?.model || "")
+                };
+            } catch {
+                throw new Error("Google AI応答の形式が不正です");
+            }
+        };
+
         // --- Components ---
 
         // 1. Skin Diagnosis Component - Deep Analysis for Beauty Geeks
@@ -1036,6 +1073,11 @@
             const [summaryLoading, setSummaryLoading] = useState(false);
             const [summaryError, setSummaryError] = useState("");
             const [summaryTimestamp, setSummaryTimestamp] = useState("");
+            const [googleAiLoading, setGoogleAiLoading] = useState(false);
+            const [googleAiError, setGoogleAiError] = useState("");
+            const [googleAiSummary, setGoogleAiSummary] = useState("");
+            const [googleAiSources, setGoogleAiSources] = useState([]);
+            const [googleAiTimestamp, setGoogleAiTimestamp] = useState("");
 
             useEffect(() => { fetchRealNews(DEFAULT_EVENT_KEYWORDS); }, []);
             useEffect(() => { if(!loading && news.length>0) anime({targets:'.news-card', translateY:[20,0], opacity:[0,1], delay:anime.stagger(100), easing:'easeOutQuad', duration:500}); }, [loading, news]);
@@ -1060,6 +1102,10 @@
                 setSummary("");
                 setSummaryError("");
                 setSummaryTimestamp("");
+                setGoogleAiError("");
+                setGoogleAiSummary("");
+                setGoogleAiSources([]);
+                setGoogleAiTimestamp("");
                 try {
                     const parsed = Array.isArray(requestedKeywords) ? requestedKeywords : parseKeywordInput(requestedKeywords);
                     const selectedKeywords = parsed.length > 0 ? parsed : DEFAULT_EVENT_KEYWORDS;
@@ -1142,6 +1188,34 @@
                 }
             };
 
+            const handleGoogleAiSearch = async () => {
+                const parsedInputKeywords = parseKeywordInput(keywordInput);
+                const keywords = parsedInputKeywords.length > 0 ? parsedInputKeywords : activeKeywords;
+                if (!Array.isArray(keywords) || keywords.length === 0) {
+                    setGoogleAiError("キーワードを1つ以上入力してください。");
+                    return;
+                }
+                setGoogleAiLoading(true);
+                setGoogleAiError("");
+                try {
+                    const seedNewsText = news.slice(0, 8).map((item, idx) => `${idx + 1}. ${item.title}`).join("\n");
+                    const query = [
+                        "日本国内のコスメイベント/美容イベントをGoogle検索ベースで調査して要約してください。",
+                        `キーワード: ${keywords.join(" / ")}`,
+                        seedNewsText ? `既に取得済み候補:\n${seedNewsText}` : "",
+                        "出力条件: 直近性を意識し、開催名・場所・時期・特徴を簡潔に。"
+                    ].filter(Boolean).join("\n\n");
+                    const result = await callGoogleAISearch(user, query);
+                    setGoogleAiSummary(result.content || "Google AI検索の結果が空でした。");
+                    setGoogleAiSources(Array.isArray(result.sources) ? result.sources : []);
+                    setGoogleAiTimestamp(new Date().toLocaleString("ja-JP"));
+                } catch (e) {
+                    setGoogleAiError(e?.message || "Google AI検索に失敗しました。");
+                } finally {
+                    setGoogleAiLoading(false);
+                }
+            };
+
             return (
                 <div className="space-y-4 animate-fade-in pb-20">
                     <div className="flex justify-between items-center mb-2">
@@ -1159,7 +1233,28 @@
                             <button onClick={handleResetKeywords} disabled={loading} className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold border disabled:opacity-60">初期化</button>
                         </div>
                         <p className="text-[11px] text-gray-500 mt-2 line-clamp-2">現在の条件: {activeKeywords.join(" / ")}</p>
+                        <button onClick={handleGoogleAiSearch} disabled={googleAiLoading || loading} className="mt-3 w-full bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold disabled:opacity-60">{googleAiLoading ? "Google AI検索中..." : "Google AI検索でまとめる"}</button>
                     </div>
+                    {googleAiError && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{googleAiError}</div>}
+                    {googleAiSummary && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-bold text-blue-800 text-sm">Google AI検索まとめ</h4>
+                                <span className="text-[11px] text-blue-500">{googleAiTimestamp}</span>
+                            </div>
+                            <p className="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap">{googleAiSummary}</p>
+                            {googleAiSources.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-blue-200">
+                                    <p className="text-[11px] font-bold text-blue-700 mb-2">参照リンク</p>
+                                    <div className="space-y-1">
+                                        {googleAiSources.map((src, idx) => (
+                                            <a key={`${src.url || "src"}-${idx}`} href={safeExternalUrl(src.url)} target="_blank" rel="noopener noreferrer" className="block text-xs text-blue-700 hover:underline line-clamp-1">{src.title || src.url}</a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {summaryLoading && <div className="bg-purple-50 border border-purple-200 text-purple-700 px-4 py-3 rounded-xl text-sm">AIがイベント情報を要約中です...</div>}
                     {summaryError && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{summaryError}</div>}
                     {summary && <div className="bg-violet-50 border border-violet-200 rounded-xl p-4"><div className="flex justify-between items-center mb-2"><h4 className="font-bold text-violet-800 text-sm">AIイベントまとめ</h4><span className="text-[11px] text-violet-500">{summaryTimestamp}</span></div><p className="text-sm text-violet-900 leading-relaxed whitespace-pre-wrap">{summary}</p></div>}
