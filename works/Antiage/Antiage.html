@@ -1008,7 +1008,26 @@
 
             const fetchTopics = async () => {
                 setLoading(true); setIsDemo(false);
-                const rssUrl = "https://news.google.com/rss/search?q=アンチエイジング+OR+若返り+OR+美肌ケア&hl=ja&gl=JP&ceid=JP:ja";
+                const topicKeywords = [
+                    "\"アンチエイジング\"",
+                    "\"若返り\"",
+                    "\"美肌ケア\"",
+                    "\"コスメイベント\"",
+                    "\"美容イベント\"",
+                    "\"エイジングケア\"",
+                    "\"スキンケア\"",
+                    "\"コスメ新作\"",
+                    "\"美容展示会\"",
+                    "\"美容セミナー\"",
+                    "\"ポップアップストア コスメ\"",
+                    "\"百貨店 コスメ催事\"",
+                    "\"美容医療\"",
+                    "\"毛穴ケア\"",
+                    "\"たるみケア\"",
+                    "\"乾燥肌ケア\""
+                ];
+                const topicQuery = topicKeywords.join(" OR ");
+                const rssUrl = `https://news.google.com/rss/search?q=${topicQuery}&hl=ja&gl=JP&ceid=JP:ja`;
                 const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
                 try {
                     const res = await fetch(apiUrl);
