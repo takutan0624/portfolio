@@ -990,7 +990,7 @@
             const demoNews = [
                 { title: "【POP-UP】伊勢丹新宿店で秋の新作コスメイベント開催中", date: "2024-10-15", link: "#", description: "最新のアンチエイジング美容液を体験できる特設ブースが登場..." },
                 { title: "表参道ヒルズに期間限定「オーガニックコスメ・マルシェ」", date: "2024-10-18", link: "#", description: "厳選されたオーガニックブランドが集結..." },
-                { title: "【横浜】みなとみらいで先端スキンケア体験イベント開催", date: "2024-10-20", link: "#", description: "神奈川エリアで人気ブランドの新作を一度に試せる体験会..." }
+                { title: "【新製品】次世代レチノール配合クリームが登場", date: "2024-10-20", link: "#", description: "敏感肌でも使える画期的なレチノール成分を配合..." }
             ];
 
             const fetchRealNews = async () => {
@@ -1004,14 +1004,11 @@
                         "\"コスメ 新作\"",
                         "\"美容セミナー\""
                     ];
-                    const metroKeywords = ["\"東京\"", "\"神奈川\"", "\"千葉\"", "\"首都圏\""];
-                    const eventBatches = chunkArray(eventKeywords, 3);
-                    const queries = metroKeywords.flatMap((metro) =>
-                        eventBatches.map((batch) => `${metro} (${batch.join(" OR ")})`)
-                    );
+                    const batches = chunkArray(eventKeywords, 4);
                     const results = await Promise.all(
-                        queries.map(async (query) => {
-                            const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ja&gl=JP&ceid=JP:ja`;
+                        batches.map(async (batch) => {
+                            const eventQuery = batch.join(" OR ");
+                            const rssUrl = `https://news.google.com/rss/search?q=${eventQuery}&hl=ja&gl=JP&ceid=JP:ja`;
                             try {
                                 const rawItems = await fetchRss2JsonItems(rssUrl);
                                 return rawItems.map((item) => ({
@@ -1031,12 +1028,8 @@
                         .sort((a, b) => toDateValue(b.pubDate) - toDateValue(a.pubDate));
 
                     const eventMatcher = /(イベント|ポップアップ|催事|展示会|セミナー|フェア|体験会)/i;
-                    const metroMatcher = /(東京|都内|23区|神奈川|横浜|川崎|みなとみらい|千葉|千葉市|幕張|船橋|柏|首都圏)/i;
-                    const metroEventOnly = merged.filter((item) => {
-                        const text = `${item.title || ""} ${item.description || ""}`;
-                        return eventMatcher.test(text) && metroMatcher.test(text);
-                    });
-                    const source = metroEventOnly.length > 0 ? metroEventOnly : [];
+                    const eventOnly = merged.filter((item) => eventMatcher.test(`${item.title || ""} ${item.description || ""}`));
+                    const source = eventOnly.length > 0 ? eventOnly : merged;
                     const items = source
                         .slice(0, 40)
                         .map(({ pubDate, ...item }) => ({ ...item, description: `${item.description}...` }));
@@ -1054,7 +1047,6 @@
                     {loading ? <div className="flex justify-center py-10"><div className="loader"></div></div> : (
                         <>
                             {isDemo && <div className="bg-yellow-50 border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-xs mb-4 text-center">※ 現在はデモデータを表示しています</div>}
-                            {!isDemo && news.length === 0 && <div className="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-3 rounded-lg text-xs mb-4 text-center">東京・神奈川・千葉・首都圏のイベントニュースが見つかりませんでした。</div>}
                             {news.map((item,i)=><a key={i} href={safeExternalUrl(item.link)} target="_blank" rel="noopener noreferrer" className="news-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded font-bold">NEWS</span><span className="text-xs text-gray-400">{item.date}</span></div><h4 className="font-bold text-gray-800 mb-2 line-clamp-2">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-2">{item.description}</p></a>)}
                         </>
                     )}
