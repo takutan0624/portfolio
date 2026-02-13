@@ -50,6 +50,8 @@ function setHeaders(res) {
 
 function getGoogleApiKey() {
   return (
+    process.env.ANTIAGE_GOOGLE_AI_API_KEY ||
+    process.env.ANTIAGE_GEMINI_API_KEY ||
     process.env.GOOGLE_AI_API_KEY ||
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_API_KEY ||
@@ -212,7 +214,10 @@ export default async function handler(req, res) {
 
   const googleApiKey = getGoogleApiKey();
   if (!googleApiKey) {
-    res.status(500).json({ error: "GOOGLE_AI_API_KEY is not set" });
+    res.status(500).json({
+      error:
+        "Google AI API key is not set. Set one of: ANTIAGE_GOOGLE_AI_API_KEY, ANTIAGE_GEMINI_API_KEY, GOOGLE_AI_API_KEY, GEMINI_API_KEY, GOOGLE_API_KEY",
+    });
     return;
   }
   if (!process.env.FIREBASE_SERVICE_ACCOUNT_ANTIAGE) {
