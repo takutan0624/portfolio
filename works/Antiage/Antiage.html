@@ -164,6 +164,27 @@
                 return <React.Fragment key={`e-${idx}`}>{chunk}</React.Fragment>;
             });
         };
+
+        const CONSULT_WELCOME_TEXT = "美容専門AIです。マニアックな成分の質問もどうぞ。";
+        const CONSULT_MAX_HISTORY = 30;
+        const CONSULT_STORAGE_PREFIX = "antiage_consult_history_";
+
+        const createWelcomeMessage = () => ({ role: "model", text: CONSULT_WELCOME_TEXT });
+
+        function normalizeConsultMessages(messages) {
+            if (!Array.isArray(messages)) return [createWelcomeMessage()];
+            const out = messages.map((m) => {
+                if (!m || typeof m !== "object") return null;
+                const role = m.role === "user" ? "user" : "model";
+                const text = String(m.text || "").trim();
+                if (!text) return null;
+                return { role, text };
+            }).filter(Boolean);
+
+            const trimmed = out.slice(-CONSULT_MAX_HISTORY);
+            if (trimmed.length === 0) return [createWelcomeMessage()];
+            return trimmed;
+        }
         
         const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-antiage", "/api/firebase-config-mental"];
         const FIREBASE_APP_NAME = "antiage-auth";
@@ -1015,8 +1036,7 @@
             );
         };
 
-        const AIConsultation = ({ user }) => {
-            const [messages, setMessages] = useState([{ role: 'model', text: '美容専門AIです。マニアックな成分の質問もどうぞ。' }]);
+        const AIConsultation = ({ user, messages, onMessagesChange }) => {
             const [input, setInput] = useState('');
             const [loading, setLoading] = useState(false);
             const messagesEndRef = useRef(null);
@@ -1024,14 +1044,14 @@
             const sendMessage = async () => {
                 if (!input.trim()) return;
                 const userMsg = input;
-                setMessages(p => [...p, { role: 'user', text: userMsg }]);
+                onMessagesChange((prev) => normalizeConsultMessages([...(Array.isArray(prev) ? prev : []), { role: 'user', text: userMsg }]));
                 setInput(''); setLoading(true);
                 try {
                     const text = await callGroqConsult(user, userMsg);
-                    setMessages(p => [...p, { role: 'model', text: text }]);
+                    onMessagesChange((prev) => normalizeConsultMessages([...(Array.isArray(prev) ? prev : []), { role: 'model', text: text }]));
                 } catch (e) {
                     const detail = e?.message ? ` (${e.message})` : "";
-                    setMessages(p => [...p, { role: 'model', text: `エラーが発生しました${detail}` }]);
+                    onMessagesChange((prev) => normalizeConsultMessages([...(Array.isArray(prev) ? prev : []), { role: 'model', text: `エラーが発生しました${detail}` }]));
                 }
                 finally { setLoading(false); }
             };
@@ -1049,6 +1069,7 @@
             const [authBusy, setAuthBusy] = useState(false);
             const [authCtx, setAuthCtx] = useState(null);
             const [user, setUser] = useState(null);
+            const [consultMessages, setConsultMessages] = useState([createWelcomeMessage()]);
 
             useEffect(() => {
                 let unsub = null;
@@ -1075,6 +1096,33 @@
                 };
             }, []);
 
+            useEffect(() => {
+                if (!user?.uid) {
+                    setConsultMessages([createWelcomeMessage()]);
+                    return;
+                }
+                const key = `${CONSULT_STORAGE_PREFIX}${user.uid}`;
+                try {
+                    const raw = localStorage.getItem(key) || "";
+                    if (!raw) {
+                        setConsultMessages([createWelcomeMessage()]);
+                        return;
+                    }
+                    const parsed = JSON.parse(raw);
+                    setConsultMessages(normalizeConsultMessages(parsed));
+                } catch {
+                    setConsultMessages([createWelcomeMessage()]);
+                }
+            }, [user?.uid]);
+
+            useEffect(() => {
+                if (!user?.uid) return;
+                const key = `${CONSULT_STORAGE_PREFIX}${user.uid}`;
+                try {
+                    localStorage.setItem(key, JSON.stringify(normalizeConsultMessages(consultMessages)));
+                } catch {}
+            }, [consultMessages, user?.uid]);
+
             const handleLogin = async () => {
                 if (!authCtx) return;
                 setAuthBusy(true);
@@ -1096,6 +1144,18 @@
                 } catch (e) {
                     alert("ログアウトに失敗しました。");
                 }
+            };
+
+            const handleClearConsultHistory = () => {
+                if (!confirm("チャット履歴を削除します。よろしいですか？")) return;
+                const reset = [createWelcomeMessage()];
+                setConsultMessages(reset);
+                if (user?.uid) {
+                    try {
+                        localStorage.removeItem(`${CONSULT_STORAGE_PREFIX}${user.uid}`);
+                    } catch {}
+                }
+                alert("チャット履歴を削除しました。");
             };
 
             if (!authReady) {
@@ -1129,13 +1189,13 @@
                 <div className="max-w-md mx-auto min-h-[100dvh] bg-gray-50 pb-24 relative overflow-hidden flex flex-col">
                     <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-purple-100 to-transparent -z-10"></div>
                     <header className="p-6 flex justify-between items-center flex-shrink-0"><div><h1 className="text-2xl font-bold gradient-text">LUMIÈRE</h1><p className="text-xs text-gray-500">Anti-Aging & Holistic Care</p></div><button onClick={() => setShowSettings(true)} className="p-2 bg-white rounded-full shadow-sm text-gray-500 hover:text-purple-500"><Settings size={20} /></button></header>
-                    {showSettings && <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-700">設定</h3><button onClick={() => setShowSettings(false)}><X size={20} /></button></div><p className="text-xs text-gray-500 mb-1">ログイン中</p><p className="text-sm text-gray-700 mb-2 break-all">{user.displayName || user.email || "ユーザー"}</p><p className="text-xs text-gray-500 mb-4">AI APIキーはサーバー側で共通管理されています。</p><button onClick={handleLogout} className="w-full bg-red-500 text-white py-3 rounded-lg font-bold text-sm mb-2">ログアウト</button><button onClick={() => setShowSettings(false)} className="w-full bg-black text-white py-3 rounded-lg font-bold text-sm">閉じる</button></div></div>}
+                    {showSettings && <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-700">設定</h3><button onClick={() => setShowSettings(false)}><X size={20} /></button></div><p className="text-xs text-gray-500 mb-1">ログイン中</p><p className="text-sm text-gray-700 mb-2 break-all">{user.displayName || user.email || "ユーザー"}</p><p className="text-xs text-gray-500 mb-4">AI APIキーはサーバー側で共通管理されています。</p><button onClick={handleClearConsultHistory} className="w-full bg-gray-100 text-gray-800 py-3 rounded-lg font-bold text-sm mb-2 border border-gray-200">チャット履歴を削除</button><button onClick={handleLogout} className="w-full bg-red-500 text-white py-3 rounded-lg font-bold text-sm mb-2">ログアウト</button><button onClick={() => setShowSettings(false)} className="w-full bg-black text-white py-3 rounded-lg font-bold text-sm">閉じる</button></div></div>}
                     <main className="px-6 flex-grow overflow-y-auto no-scrollbar">
                         {activeTab === "skin" && <SkinDiagnosis />}
                         {activeTab === "tcm" && <TCMDiagnosis />}
                         {activeTab === "news" && <NewsFeed />}
                         {activeTab === "topics" && <AgingTopics />}
-                        {activeTab === "consult" && <AIConsultation user={user} />}
+                        {activeTab === "consult" && <AIConsultation user={user} messages={consultMessages} onMessagesChange={setConsultMessages} />}
                     </main>
                     <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 flex justify-around items-center pb-6 pt-3 px-2 z-40 max-w-md mx-auto left-0 right-0">
                         <button onClick={() => setActiveTab("news")} className={`flex flex-col items-center space-y-1 w-1/5 ${activeTab === 'news' ? 'text-pink-600' : 'text-gray-400'}`}><Newspaper size={24} strokeWidth={activeTab === 'news' ? 2.5 : 2} /><span className="text-[10px] font-bold">News</span></button>
