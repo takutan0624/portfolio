@@ -247,6 +247,10 @@ export default async function handler(req, res) {
     res.status(500).json({ error: "Server is not configured" });
     return;
   }
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_ANTIAGE) {
+    res.status(500).json({ error: "FIREBASE_SERVICE_ACCOUNT_ANTIAGE is not set" });
+    return;
+  }
 
   const authHeader = req.headers.authorization || "";
   const match = authHeader.match(/^Bearer (.+)$/);
@@ -257,7 +261,13 @@ export default async function handler(req, res) {
 
   try {
     getAdminApp();
-    const decoded = await admin.auth().verifyIdToken(match[1], true);
+    let decoded;
+    try {
+      decoded = await admin.auth().verifyIdToken(match[1], true);
+    } catch {
+      res.status(401).json({ error: "Invalid Firebase ID token" });
+      return;
+    }
     if (decoded?.firebase?.sign_in_provider === "anonymous") {
       res.status(403).json({ error: "Anonymous users are not allowed" });
       return;
@@ -331,7 +341,16 @@ export default async function handler(req, res) {
       return;
     }
     res.status(200).json({ content: String(content).slice(0, 5000) });
-  } catch {
-    res.status(500).json({ error: "Internal server error" });
+  } catch (error) {
+    const msg = String(error?.message || "Internal server error");
+    if (/already exists/i.test(msg)) {
+      res.status(500).json({ error: "Firebase Admin app init conflict. Check function app naming." });
+      return;
+    }
+    if (/private key|credential|service account|json/i.test(msg)) {
+      res.status(500).json({ error: `Firebase Admin SDK config error: ${msg}` });
+      return;
+    }
+    res.status(500).json({ error: `Internal server error: ${msg}` });
   }
 }
