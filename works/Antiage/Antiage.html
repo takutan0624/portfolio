@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anti-Aging AI Concierge</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Anime.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Zen Kaku Gothic New', sans-serif;
+            background-color: #fdfdfd;
+            overscroll-behavior-y: none;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #d946ef, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #d946ef;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .chat-bubble { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; opacity: 0; transform: scale(0.9); }
+        @keyframes popIn { to { opacity: 1; transform: scale(1); } }
+        .chat-text { white-space: pre-wrap; word-break: break-word; }
+        
+        .geek-box {
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 10px 10px;
+        }
+        .search-link {
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-underline-offset: 4px;
+            transition: all 0.2s;
+        }
+        .search-link:hover {
+            color: #d946ef;
+            background-color: rgba(217, 70, 239, 0.1);
+        }
+        /* Custom scrollbar for detail card */
+        .detail-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .detail-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .detail-scroll::-webkit-scrollbar-thumb {
+            background-color: rgba(0,0,0,0.1);
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Icons (Inline SVG) ---
+        const IconBase = ({ size = 24, className = "", children }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const Sparkles = (props) => <IconBase {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></IconBase>;
+        const Activity = (props) => <IconBase {...props}><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></IconBase>;
+        const Newspaper = (props) => <IconBase {...props}><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8"/></IconBase>;
+        const Settings = (props) => <IconBase {...props}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.35a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></IconBase>;
+        const X = (props) => <IconBase {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
+        const RefreshCw = (props) => <IconBase {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></IconBase>;
+        const Check = (props) => <IconBase {...props}><polyline points="20 6 9 17 4 12" /></IconBase>;
+        const ArrowRight = (props) => <IconBase {...props}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></IconBase>;
+        const BookOpen = (props) => <IconBase {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></IconBase>;
+        const ChevronRight = (props) => <IconBase {...props}><polyline points="9 18 15 12 9 6" /></IconBase>;
+        const FlaskConical = (props) => <IconBase {...props}><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2" /><path d="M8.5 2h7" /><path d="M7 16h10" /></IconBase>;
+        const Search = (props) => <IconBase {...props}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></IconBase>;
+        const ExternalLink = (props) => <IconBase {...props}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></IconBase>;
+        const AlertTriangle = (props) => <IconBase {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></IconBase>;
+        const Sun = (props) => <IconBase {...props}><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></IconBase>;
+        const Moon = (props) => <IconBase {...props}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></IconBase>;
+        const Lightbulb = (props) => <IconBase {...props}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /><path d="M9 18h6" /><path d="M10 22h4" /></IconBase>;
+        const MessageCircle = (props) => <IconBase {...props}><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></IconBase>;
+        const Send = (props) => <IconBase {...props}><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></IconBase>;
+        const Info = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></IconBase>;
+        const Clock = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></IconBase>;
+        const Utensils = (props) => <IconBase {...props}><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" /><path d="M7 2v20" /><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3" /></IconBase>;
+        const Smile = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></IconBase>;
+        const Pill = (props) => <IconBase {...props}><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" /><path d="m8.5 8.5 7 7" /></IconBase>;
+
+        // --- Helper ---
+        const googleSearch = (term) => window.open(`https://www.google.com/search?q=${encodeURIComponent(term)}`, '_blank');
+
+        // --- Gemini API Helper ---
+        const callGemini = async (apiKey, systemPrompt, userPrompt, responseType = "json") => {
+            if (!apiKey) throw new Error("APIキーを設定してください");
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: userPrompt }] }], systemInstruction: { parts: [{ text: systemPrompt }] } };
+            if (responseType === "json") { payload.generationConfig = { responseMimeType: "application/json" }; }
+            try {
+                const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error("API Request Failed");
+                const data = await response.json();
+                const text = data.candidates[0].content.parts[0].text;
+                return responseType === "json" ? JSON.parse(text) : text;
+            } catch (error) { console.error(error); throw error; }
+        };
+
+        // --- Components ---
+
+        // 1. Skin Diagnosis Component - Deep Analysis for Beauty Geeks
+        const SkinDiagnosis = () => {
+            const [step, setStep] = useState(0);
+            const [answers, setAnswers] = useState({});
+            const [result, setResult] = useState(null);
+            const [loading, setLoading] = useState(false);
+
+            // Questions Definition (12 Questions)
+            const questions = [
+                { id: 'age', text: "Q1. あなたの年代は？（肌のターンオーバー速度の目安）", options: [{ label: "20代前半", value: "20e" }, { label: "20代後半", value: "20l" }, { label: "30代前半", value: "30e" }, { label: "30代後半", value: "30l" }, { label: "40代", value: "40s" }, { label: "50代以上", value: "50s" }] },
+                { id: 'skin_base', text: "Q2. 洗顔後、何もつけずに10分放置した肌の状態は？", options: [{ label: "全体的に突っ張る（皮脂不足）", value: "dry" }, { label: "Tゾーンのみテカる（混合）", value: "mix" }, { label: "全体的にテカる（脂性）", value: "oily" }, { label: "特に変化なし（普通）", value: "norm" }] },
+                { id: 'sensitivity', text: "Q3. 新しい化粧品を使う時の肌反応は？", options: [{ label: "すぐに赤みや痒みが出やすい（敏感）", value: "high" }, { label: "体調によって時々刺激を感じる", value: "mid" }, { label: "ほぼトラブルなし", value: "low" }] },
+                { id: 'sugar_intake', text: "Q4. 甘いものや炭水化物の摂取頻度は？（糖化リスク）", options: [{ label: "毎日欠かせない", value: "high" }, { label: "週に数回程度", value: "mid" }, { label: "あまり食べない", value: "low" }] },
+                { id: 'uv_exposure', text: "Q5. 過去の日焼け・紫外線暴露歴は？（光老化レベル）", options: [{ label: "部活や趣味で真っ黒に焼いていた", value: "high" }, { label: "日常的に浴びる程度", value: "mid" }, { label: "徹底的にガードしてきた", value: "low" }] },
+                { id: 'current_care', text: "Q6. 現在のスキンケアステップ数は？", options: [{ label: "1〜2品（シンプル）", value: "simple" }, { label: "3〜4品（標準）", value: "normal" }, { label: "5品以上（レイヤリング重視）", value: "complex" }] },
+                { id: 'main_concern', text: "Q7. 最も解決したい悩み（メインカテゴリ）は？", options: [{ label: "シワ・たるみ（真皮・筋肉）", value: "aging" }, { label: "シミ・くすみ（メラニン・血行）", value: "bright" }, { label: "毛穴・皮脂（角化異常・過剰皮脂）", value: "pore" }, { label: "肌荒れ・ゆらぎ（バリア機能）", value: "trouble" }] },
+                { 
+                    id: 'sub_concern', text: "Q8. その悩みの具体的な状態は？", dynamic: true,
+                    options: {
+                        aging: [{ label: "目元・口元の乾燥小じわ", value: "fine" }, { label: "ほうれい線・深い刻まれジワ", value: "deep" }, { label: "フェイスラインの崩れ・たるみ", value: "sagging" }],
+                        bright: [{ label: "全体的な黄ぐすみ・透明感不足", value: "dull" }, { label: "点在する濃いシミ（老人性）", value: "spot" }, { label: "左右対称のもやっとしたシミ（肝斑）", value: "melasma" }],
+                        pore: [{ label: "鼻や頬の黒ずみ・角栓", value: "black" }, { label: "涙型のたるみ毛穴", value: "sagging_pore" }, { label: "皮脂による開き・テカリ", value: "open" }],
+                        trouble: [{ label: "赤み・ヒリつき（炎症）", value: "red" }, { label: "同じ場所に繰り返すニキビ", value: "acne" }, { label: "ニキビ跡の色素沈着・凹凸", value: "scar" }]
+                    }
+                },
+                {
+                    id: 'worsening_factor', text: "Q9. 悩みが悪化するタイミングは？", dynamic: true,
+                    options: {
+                        aging: [{ label: "夕方になると目立つ（乾燥・疲れ）", value: "pm" }, { label: "朝起きた時から気になる（枕・むくみ）", value: "am" }, { label: "常に変わらない（定着）", value: "const" }],
+                        bright: [{ label: "生理前やストレス時（ホルモン）", value: "hormone" }, { label: "紫外線を浴びた後（UV）", value: "uv" }, { label: "夕方の顔色が悪い（血行・酸化）", value: "oxid" }],
+                        pore: [{ label: "メイクをして時間が経つと（皮脂）", value: "sebum" }, { label: "乾燥すると目立つ（キメ乱れ）", value: "dry" }, { label: "生理前に詰まりやすい", value: "hormone" }],
+                        trouble: [{ label: "季節の変わり目（バリア低下）", value: "season" }, { label: "ストレス・睡眠不足（自律神経）", value: "stress" }, { label: "マスクや摩擦（物理刺激）", value: "physical" }]
+                    }
+                },
+                { id: 'texture_pref', text: "Q10. 好みのテクスチャは？（継続性の鍵）", options: [{ label: "さっぱり・みずみずしい", value: "light" }, { label: "しっとり・とろみがある", value: "rich" }, { label: "こっくり・重め", value: "heavy" }] },
+                { id: 'budget_prio', text: "Q11. コスメ選びで重視するのは？", options: [{ label: "成分濃度・科学的エビデンス", value: "science" }, { label: "使用感・香り", value: "sensory" }, { label: "コストパフォーマンス", value: "cost" }] },
+                { id: 'active_exp', text: "Q12. 高濃度ビタミンCやレチノールの使用経験は？", options: [{ label: "日常的に使っている", value: "expert" }, { label: "使ったことがある", value: "mid" }, { label: "未経験・怖い", value: "beginner" }] }
+            ];
+
+            // Geeky Ingredient Database with Expanded Details
+            const ingredientDB = {
+                retinol: { 
+                    name: "純粋レチノール", kana: "Pure Retinol", cat:"Vitamin A", 
+                    benefit: "深いシワ・たるみの根本改善",
+                    desc: "肌のターンオーバーを強力に促進し、真皮のコラーゲン産生をサポート。", 
+                    mechanism: "皮膚内で代謝されレチノイン酸に変換後、核内受容体（RAR/RXR）に結合。遺伝子発現レベルで細胞のターンオーバーとECM（細胞外マトリックス）産生を制御します。表皮の厚みを増し、真皮の弾力を回復させます。",
+                    pairing_good: "セラミド（A反応による乾燥・バリア機能低下を補う）、ナイアシンアミド（刺激緩和作用）",
+                    pairing_bad: "高濃度ビタミンC（pH差による刺激増）、AHA/BHA（角質剥離過多によりバリア破壊のリスク）",
+                    geek_note: "光と熱に極めて不安定なため、夜のみ使用が鉄則。不活性な誘導体（パルミチン酸レチノール等）と異なり、「純粋」なものは効果が高い反面、A反応（皮むけ・赤み）のリスクも高い。最初は週2回から始める「レチノール・サンドイッチ法（クリームで挟む）」が推奨されます。",
+                    concentration: "初心者: 0.01%〜0.04% / 中級者: 0.05%〜0.1% / 上級者: 0.3%以上 (※製品による)",
+                    side_effects: "レチノイド反応（A反応）：使用開始数日〜数週間、乾燥、赤み、皮むけ、ヒリヒリ感が起こる可能性がある。紫外線感受性が高まるため日中のUVケア必須。"
+                },
+                hpr: { 
+                    name: "HPR (レチノイン酸ヒドロキシピナコロン)", kana: "Granactive Retinoid", cat:"Vitamin A", 
+                    benefit: "低刺激での強力なエイジングケア",
+                    desc: "次世代レチノール。変換不要で直接作用するため、低刺激かつ即効性が高い。", 
+                    mechanism: "従来のレチノールは皮膚内で「レチノール→レチナール→レチノイン酸」と2段階の酸化を経て活性化しますが、HPRは代謝変換プロセスを経ずに直接レチノイン酸受容体（RAR）に結合可能です。これにより、刺激反応（レチノイド反応）のリスクを抑えつつ、トレチノインに近い活性を発揮します。",
+                    pairing_good: "ペプチド（相乗効果でハリ感アップ）、ヒアルロン酸（水分保持）",
+                    pairing_bad: "特になし（比較的併用しやすいが、強い酸性成分は避けるのが無難）",
+                    geek_note: "「グラナクティブ・レチノイド」の主成分。敏感肌でも攻めのエイジングケアを可能にした革命的成分です。安定性が高く、変色しにくいのも特徴。",
+                    concentration: "製品の推奨濃度に従う（通常2%〜5%の原料複合体として配合されることが多い）",
+                    side_effects: "レチノールより少ないが、稀に軽度の刺激や乾燥を感じる場合がある。"
+                },
+                bakuchiol: { 
+                    name: "バクチオール", kana: "Bakuchiol", cat:"Plant Extract", 
+                    benefit: "日中も使えるシワ・ハリ対策",
+                    desc: "レチノール類似作用を持つ植物成分。光安定性が高く、日中も使用可能。", 
+                    mechanism: "化学構造はビタミンAと全く異なりますが、遺伝子発現プロファイルにおいてレチノールと同様のパターン（I型・III型・IV型コラーゲンの生成促進など）を誘導することが確認されています。さらに強力な抗酸化・抗炎症・抗菌作用も併せ持ちます。",
+                    pairing_good: "ビタミンC（日中の抗酸化ネットワーク強化）、レチノール（レチノールの酸化を防ぎ安定化させる）",
+                    pairing_bad: "なし",
+                    geek_note: "オランダビユ（バブチ）の種子から抽出。レチノールとの併用で「レチノールの寿命を延ばす」効果も報告されています。妊娠中でも使用可能なケースが多い（※要確認）。",
+                    concentration: "0.5%〜1.0%程度で有効性が確認されている。",
+                    side_effects: "植物由来のため稀にアレルギー反応が出る場合があるが、レチノールのようなA反応はない。"
+                },
+                matrixyl: { 
+                    name: "マトリキシル3000", kana: "Palmitoyl Tripeptide-1, 7", cat:"Peptide", 
+                    benefit: "肌の修復と密度の向上",
+                    desc: "細胞外マトリックスの修復を促すシグナルペプチド。", 
+                    mechanism: "コラーゲンの分解産物（マトリカイン）を模倣した構造を持ちます。これを塗布することで、線維芽細胞に「コラーゲンが分解された＝組織が壊れているから修復せよ」という偽のシグナルを送り、新規コラーゲンやグリコサミノグリカンの合成をスイッチONにします。",
+                    pairing_good: "ビタミンC、レチノール、ナイアシンアミド（全てのエイジングケア成分と相性良し）",
+                    pairing_bad: "なし",
+                    geek_note: "「塗るボトックス」のアルジルリンとは異なり、こちらは「組織修復」系。即効性はないが、長期使用（2ヶ月以上）で真皮の密度を着実に高めます。",
+                    concentration: "3%〜推奨（原料メーカー推奨濃度）",
+                    side_effects: "ほぼなし。非常に安全性が高い。"
+                },
+                dmae: { 
+                    name: "DMAE", kana: "Dimethylaminoethanol", cat:"Amine", 
+                    benefit: "即効性のあるリフトアップ・引き締め",
+                    desc: "筋肉の収縮を高め、物理的に肌を引き締める。", 
+                    mechanism: "神経伝達物質アセチルコリンの前駆体として働きます。加齢により低下した筋収縮シグナルを増強し、筋繊維の緊張（トーヌス）を高めることで、肌のハリを物理的に向上させます。また、細胞膜のリン脂質二重層に入り込み、膜を安定化させて活性酸素から守る作用もあります。",
+                    pairing_good: "αリポ酸（抗酸化の相乗効果）、ビタミンCエステル",
+                    pairing_bad: "なし",
+                    geek_note: "塗布後30分程度で効果が現れ、約24時間持続します。根本治療というよりは、イベント前のスペシャルケアとして最適です。魚（特にサケ）に含まれる成分。",
+                    concentration: "化粧品では数%程度。",
+                    side_effects: "高濃度の場合、稀に肌のピリつきや赤みが出ることがある。"
+                },
+                fullerene: { 
+                    name: "フラーレン", kana: "Fullerene", cat:"Antioxidant", 
+                    benefit: "長時間持続する強力な抗酸化力",
+                    desc: "ビタミンCの172倍の抗酸化力。活性酸素をスポンジのように吸着・無害化。", 
+                    mechanism: "炭素60個からなるサッカーボール状の分子構造を持ちます。この構造が「ラジカルスポンジ」として働き、活性酸素を吸着して無害化します。自身が酸化されるビタミンCなどと異なり、触媒のように働くため、抗酸化力が長時間（11時間以上）持続するのが最大の特徴です。",
+                    pairing_good: "ビタミンC（酸化したビタミンCをリサイクルする）、APPS",
+                    pairing_bad: "なし",
+                    geek_note: "紫外線による炎症抑制効果が非常に高く、日焼け止めの下地に最適です。ロゴマーク（Radical Spongeなど）のある「規定値以上配合」の商品を選ぶのが鉄則。",
+                    concentration: "規定値以上（ロゴマーク取得基準）",
+                    side_effects: "なし。安全性が高い。"
+                },
+                hydroquinone: { 
+                    name: "ハイドロキノン", kana: "Hydroquinone", cat:"Phenol", 
+                    benefit: "できたシミの漂白・強力な美白",
+                    desc: "「肌の漂白剤」の異名を持つ、現時点で最強クラスの還元成分。", 
+                    mechanism: "メラニン合成酵素チロシナーゼの活性阻害に加え、メラノサイトそのものへの細胞毒性（DNA・RNA合成阻害など）を持ち、メラニン生成工場を強力にシャットダウンします。さらに、既存の酸化メラニンを還元して色を薄くする作用もあります。",
+                    pairing_good: "トレチノイン（浸透を促進し、メラニン排出を早める）",
+                    pairing_bad: "ベンゾイルペルオキシド（過酸化ベンゾイル）- 一時的に皮膚が変色する可能性あり",
+                    geek_note: "強力すぎるため、長期間（3ヶ月以上）の連続使用は白斑のリスクがあります。休薬期間を設け、使用中は徹底的な紫外線対策が必須です。酸化して茶色くなりやすいので保管に注意。",
+                    concentration: "市販では1%〜4%程度。4%以上は医師の指導下で。",
+                    side_effects: "赤み、かぶれ（接触性皮膚炎）、白斑、刺激感。紫外線対策を怠ると逆にシミが濃くなる。"
+                },
+                vc_ethyl: { 
+                    name: "VCエチル", kana: "3-O-Ethyl Ascorbic Acid", cat:"Vitamin C", 
+                    benefit: "即効性のくすみ抜け・透明感",
+                    desc: "即効性と持続性を兼ね備えた、進化したビタミンC誘導体。", 
+                    mechanism: "多くのビタミンC誘導体は皮膚内での酵素分解を必要としますが、VCエチルはそのままの形でビタミンCとしての効果（チロシナーゼ阻害活性）を発揮するため即効性があります。さらに72時間持続すると言われる高い代謝安定性も持ちます。",
+                    pairing_good: "フラーレン、ビタミンE",
+                    pairing_bad: "ナイアシンアミド（高濃度同士だと変色の可能性あり ※諸説あり）",
+                    geek_note: "水溶性でありながら浸透性が高く、メラニン単体還元率が他の誘導体より圧倒的に高いのが特徴。使用感が少しペタつくことがあります。",
+                    concentration: "1%〜2%程度でも効果あり。",
+                    side_effects: "高濃度では乾燥や刺激を感じることがある。"
+                },
+                tranexamic: { 
+                    name: "トラネキサム酸", kana: "Tranexamic Acid", cat:"Amino Acid", 
+                    benefit: "肝斑・肌荒れ後の色素沈着改善",
+                    desc: "抗炎症・抗プラスミン作用。肝斑治療の第一選択肢。", 
+                    mechanism: "紫外線刺激を受けるとケラチノサイトから放出される情報伝達物質（プロスタグランジン）や、プラスミンの働きをブロックします。「メラニンを作れ」という命令がメラノサイトに届くのを遮断することで、初期段階でシミを防ぎます。微弱炎症を抑えるため、赤みのある肌にも有効。",
+                    pairing_good: "コウジ酸、ビタミンC",
+                    pairing_bad: "なし",
+                    geek_note: "元々は止血剤や抗炎症薬。摩擦などの微弱炎症（マイクロインフラメーション）による色素沈着に特に有効です。イオン導入での浸透も効果的。",
+                    concentration: "医薬部外品として一定濃度配合される。",
+                    side_effects: "塗布では副作用は少ない。非常に稀にかぶれ。"
+                },
+                glutathione: { 
+                    name: "グルタチオン", kana: "Glutathione", cat:"Tripeptide", 
+                    benefit: "強力な抗酸化・白玉肌へのアプローチ",
+                    desc: "白玉点滴の主成分。強力な抗酸化作用でメラニンの黒色化を防ぐ。", 
+                    mechanism: "チロシナーゼの活性阻害だけでなく、ドーパキノンから黒色メラニン（ユーメラニン）への合成経路をブロックし、淡色メラニン（フェオメラニン）へと誘導する作用があります。これにより、肌の色を明るく保ちます。",
+                    pairing_good: "ビタミンC、αリポ酸（抗酸化ネットワークの構築）",
+                    pairing_bad: "なし",
+                    geek_note: "特有の硫黄臭がすることがあるのは高濃度の証。経口摂取や点滴での効果が有名ですが、塗布でも優れた抗酸化作用を発揮します。",
+                    concentration: "製品による。",
+                    side_effects: "ほぼなし。"
+                },
+                azelaic: { 
+                    name: "アゼライン酸", kana: "Azelaic Acid", cat:"Acid", 
+                    benefit: "ニキビ・赤み・皮脂トラブルの改善",
+                    desc: "皮脂抑制、角化正常化、抗炎症の3作用を持つマルチ成分。", 
+                    mechanism: "5αリダクターゼを阻害しDHT（活性型男性ホルモン）の生成を抑制することで、過剰な皮脂分泌を元から断ちます。また、毛穴の入口の角質肥厚を防ぎ、アクネ菌への抗菌作用も持ちます。",
+                    pairing_good: "ナイアシンアミド、グリシルグリシン",
+                    pairing_bad: "レチノール（刺激が強くなる可能性あり、肌状態による）",
+                    geek_note: "海外ではニキビ治療薬として認可されています。使用直後にピリピリとした刺激感（痒み）が出やすいですが、使い続けると耐性がつきます。酒さ（赤ら顔）にも有効。",
+                    concentration: "化粧品では〜10%程度、海外医薬品では15-20%。",
+                    side_effects: "塗布直後のピリピリ感、熱感、痒み。"
+                },
+                glycyl: { 
+                    name: "グリシルグリシン", kana: "Glycylglycine", cat:"Peptide", 
+                    benefit: "すり鉢状毛穴の縮小",
+                    desc: "すり鉢状毛穴の原因となる「不全角化」を正常化する。", 
+                    mechanism: "皮脂中の不飽和脂肪酸（オレイン酸など）によって引き起こされる細胞内のイオンバランスの乱れを補正します。これにより炎症性サイトカインの産生を抑制し、毛穴周りの異常角化（不全角化）を防ぎ、毛穴を目立たなくさせます。",
+                    pairing_good: "アゼライン酸、ビタミンC",
+                    pairing_bad: "なし",
+                    geek_note: "資生堂の研究により発見された成分。毛穴の「開き」そのものよりも、毛穴周りの肌が盛り上がって目立つ状態を治すことで、結果的に毛穴レスに見せます。",
+                    concentration: "1%〜3%程度。",
+                    side_effects: "なし。安全性が高い。"
+                },
+                ceramide_human: { 
+                    name: "ヒト型セラミド", kana: "Ceramide EOP/NP/AP", cat:"Lipid", 
+                    benefit: "バリア機能の修復・水分保持",
+                    desc: "ラメラ構造を形成し、最強のバリア機能を構築する。", 
+                    mechanism: "角質細胞間で水分と油分がミルフィーユ状に重なる「ラメラ構造」の主成分です。細胞間脂質の約50%を占め、水分を抱え込んで逃さないだけでなく、外部刺激を物理的に遮断します。",
+                    pairing_good: "コレステロール、脂肪酸（3:1:1の黄金比率での配合が理想）",
+                    pairing_bad: "なし",
+                    geek_note: "「ヒト型」でないとラメラ構造を形成しにくいです。成分表示で「セラミドNP」「セラミドEOP」などのアルファベット表記があるものを選びましょう。植物性や合成セラミドとは別格の効果。",
+                    concentration: "濃度よりも「種類」と「比率」が重要。",
+                    side_effects: "なし。アトピー肌でも使える場合が多い。"
+                },
+                niacinamide: { 
+                    name: "ナイアシンアミド", kana: "Niacinamide", cat:"Vitamin B3", 
+                    benefit: "シワ・美白・肌荒れのマルチケア",
+                    desc: "シワ改善・美白・バリア機能強化のマルチプレイヤー。", 
+                    mechanism: "補酵素NADの前駆体としてATP（エネルギー）産生に関与します。真皮でのコラーゲン産生促進、表皮でのセラミド合成促進、メラノソームの転送阻害など、濃度によって多岐にわたる作用を持ちます。",
+                    pairing_good: "レチノール（刺激緩和）、セラミド、ペプチド",
+                    pairing_bad: "高濃度ビタミンC（pHの影響で効果減弱の可能性 ※最近は問題ない説も有力）",
+                    geek_note: "万能ですが、高濃度（10%以上）だと刺激を感じる人もいます。医薬部外品としてシワ改善・美白の承認を受けている信頼のエビデンス成分。",
+                    concentration: "医薬部外品なら有効成分として規定量。化粧品なら2%〜10%程度。",
+                    side_effects: "高濃度で稀に刺激感、赤み。"
+                },
+                cica_pure: {
+                    name: "高純度CICA (マデカッソシド)", kana: "Madecassoside", cat:"Plant Extract",
+                    benefit: "肌荒れの鎮静・再生促進",
+                    desc: "創傷治癒効果のあるツボクサ由来成分。",
+                    mechanism: "I型コラーゲンの生成を促しつつ、炎症性因子の発現を抑制します。基底膜の修復を助け、荒れた肌のリカバリーを早めるため、美容医療後のダウンタイムケアにも使われます。",
+                    pairing_good: "アゼライン酸、パンテノール",
+                    pairing_bad: "なし",
+                    geek_note: "単なる「ツボクサエキス」ではなく、有効成分である「マデカッソシド」「アシアチコシド」などが定量化されている製品がベストです。ツボクサエキスだけでは濃度不明瞭。",
+                    concentration: "0.1%以上推奨（製品による）。",
+                    side_effects: "なし。"
+                },
+                astaxanthin: {
+                    name: "アスタキサンチン", kana: "Astaxanthin", cat:"Carotenoid",
+                    benefit: "眼精疲労ケア・光老化防止",
+                    desc: "強力な抗酸化成分。光老化を防ぐ。",
+                    mechanism: "細胞膜を貫通する形で配置され、膜の内側と外側の両方で酸化ストレスから細胞を保護します。一重項酸素の消去能力はコエンザイムQ10の800倍と言われます。",
+                    pairing_good: "トコフェロール（ビタミンE）",
+                    pairing_bad: "なし",
+                    geek_note: "天然の赤い色素。サケやエビに含まれます。紫外線によるDNAダメージを軽減するため、朝の使用が特におすすめです。",
+                    concentration: "製品による。",
+                    side_effects: "なし。"
+                }
+            };
+
+            const handleSelect = (val) => {
+                const newAnswers = { ...answers, [questions[step].id]: val };
+                setAnswers(newAnswers);
+
+                if (step < questions.length - 1) {
+                    setStep(step + 1);
+                } else {
+                    calculateResult(newAnswers);
+                }
+            };
+
+            const calculateResult = (finalAnswers) => {
+                setLoading(true);
+                setTimeout(() => {
+                    // Logic for Beauty Geeks
+                    let main = null;
+                    let sub = null;
+                    let booster = null;
+                    let adviceTitle = "";
+
+                    const { main_concern, sub_concern, sensitivity, active_exp, uv_exposure, sugar_intake } = finalAnswers;
+
+                    // --- Determine Main Ingredient ---
+                    if (main_concern === 'aging') {
+                        if (sub_concern === 'fine') { main = 'matrixyl'; adviceTitle = "皮膚密度再構築プログラム"; }
+                        else if (sub_concern === 'deep') { main = (active_exp === 'beginner' || sensitivity === 'high') ? 'hpr' : 'retinol'; adviceTitle = "遺伝子レベルのシワ改善"; }
+                        else { main = 'dmae'; adviceTitle = "筋層アプローチリフト"; }
+                    } else if (main_concern === 'bright') {
+                        if (sub_concern === 'melasma') { main = 'tranexamic'; adviceTitle = "肝斑シグナル遮断ケア"; }
+                        else if (sub_concern === 'spot') { main = 'hydroquinone'; adviceTitle = "メラニン工場停止プロトコル"; }
+                        else { main = 'vc_ethyl'; adviceTitle = "即効型ブライトニング"; }
+                    } else if (main_concern === 'pore') {
+                        if (sub_concern === 'sagging_pore') { main = 'glycyl'; adviceTitle = "不全角化是正プログラム"; }
+                        else { main = 'azelaic'; adviceTitle = "皮脂腺コントロール療法"; }
+                    } else { main = 'ceramide_human'; adviceTitle = "バリア機能再生プロジェクト"; }
+
+                    // --- Determine Sub Ingredient ---
+                    if (sensitivity === 'high' || finalAnswers.current_care === 'simple') {
+                        sub = 'cica_pure'; // 鎮静サポート
+                    } else if (uv_exposure === 'high') {
+                        sub = 'fullerene'; // 抗酸化サポート
+                    } else if (sugar_intake === 'high') {
+                        sub = 'niacinamide'; // 抗糖化も期待
+                    } else {
+                        sub = 'niacinamide'; // 万能サポート
+                    }
+
+                    // --- Determine Booster (Geek Choice) ---
+                    if (main_concern === 'aging') booster = 'bakuchiol';
+                    else if (main_concern === 'bright') booster = 'glutathione';
+                    else if (main_concern === 'pore') booster = 'retinol'; // パルミチン酸レチノールがないので代用
+                    else booster = 'astaxanthin';
+
+                    // Circadian Schedule Logic
+                    const schedule = {
+                        am: "洗顔 → 抗酸化化粧水(VC) → **" + ingredientDB[sub].name + "** → 日焼け止め",
+                        noon: "ミスト保湿 → 日焼け止め塗り直し",
+                        pm: "クレンジング → **" + ingredientDB[main].name + "** → **" + ingredientDB[booster].name + "** → クリーム",
+                        sleep: "22:00〜02:00は成長ホルモン分泌のピーク。就寝直後の90分を深く眠ることが肌再生の鍵。"
+                    };
+
+                    setResult({
+                        main: ingredientDB[main],
+                        sub: ingredientDB[sub],
+                        booster: ingredientDB[booster],
+                        title: adviceTitle,
+                        schedule: schedule
+                    });
+                    setLoading(false);
+                }, 2000); // Analysis takes longer for effect
+            };
+
+            const currentQ = questions[step];
+            let currentOptions = currentQ.options;
+            if (currentQ.dynamic) {
+                const prevKey = currentQ.id === 'sub_concern' ? 'main_concern' : (currentQ.id === 'worsening_factor' ? 'main_concern' : 'main_concern');
+                const prevVal = answers[prevKey] || 'aging';
+                currentOptions = currentQ.options[prevVal] || currentQ.options['aging'];
+            }
+
+            if (result) {
+                return (
+                    <div className="animate-fade-in pb-20">
+                        <div className="glass-panel p-6 rounded-2xl border-t-4 border-purple-600 relative overflow-hidden h-[80vh] overflow-y-auto detail-scroll">
+                            <div className="flex justify-between items-end mb-6 relative z-10 sticky top-0 bg-white/95 backdrop-blur py-2 border-b">
+                                <div>
+                                    <span className="text-[10px] font-bold text-purple-500 tracking-widest uppercase bg-purple-100 px-2 py-1 rounded">PERSONALIZED REPORT</span>
+                                    <h2 className="text-2xl font-bold text-gray-800 mt-2 leading-tight">{result.title}</h2>
+                                </div>
+                                <button onClick={() => {setStep(0); setAnswers({}); setResult(null);}} className="text-gray-400 hover:text-purple-600 p-2"><RefreshCw size={20}/></button>
+                            </div>
+
+                            {/* Main Ingredient */}
+                            <div className="bg-gradient-to-br from-purple-50 to-white border border-purple-100 p-5 rounded-xl mb-6 relative shadow-sm">
+                                <span className="absolute top-0 left-0 bg-purple-600 text-white text-[10px] font-bold px-3 py-1 rounded-br-lg">HERO INGREDIENT</span>
+                                <div className="mt-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center">
+                                            <h3 className="text-xl font-bold text-gray-900 cursor-pointer hover:text-purple-600 border-b border-dashed border-gray-400 hover:border-purple-600 transition search-link" onClick={() => googleSearch(result.main.name + " 化粧品")}>
+                                                {result.main.name}
+                                            </h3>
+                                            <span onClick={() => googleSearch(result.main.name + " 化粧品")} className="ml-1 cursor-pointer text-gray-400 hover:text-purple-500"><Search size={14}/></span>
+                                        </div>
+                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200">{result.main.cat}</span>
+                                    </div>
+                                    <p className="text-xs text-purple-600 font-mono mb-3">{result.main.kana}</p>
+                                    <p className="text-sm text-gray-700 mb-4 font-bold border-l-4 border-purple-300 pl-3">{result.main.benefit}</p>
+                                    <p className="text-sm text-gray-600 mb-4">{result.main.desc}</p>
+                                    
+                                    <div className="bg-white p-3 rounded-lg border border-purple-100 mb-3">
+                                        <h4 className="text-xs font-bold text-gray-400 mb-1 flex items-center"><FlaskConical size={12} className="mr-1"/> 詳細メカニズム (Mechanism)</h4>
+                                        <p className="text-xs text-gray-600 leading-relaxed text-justify chat-text" dangerouslySetInnerHTML={{ __html: result.main.mechanism.replace(/(RAR|RXR|ATP|NAD|DNA|RNA|5αリダクターゼ|DHT|チロシナーゼ)/g, '<span class="text-purple-600 font-bold cursor-pointer hover:underline" onclick="window.open(\'https://www.google.com/search?q=$1\')">$1</span>') }}></p>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2 mb-3">
+                                        <div className="bg-blue-50 p-2 rounded border border-blue-100 text-[10px] text-blue-800">
+                                            <span className="font-bold block mb-1">推奨濃度</span>
+                                            {result.main.concentration}
+                                        </div>
+                                        <div className="bg-red-50 p-2 rounded border border-red-100 text-[10px] text-red-800">
+                                            <span className="font-bold block mb-1">副作用・注意</span>
+                                            {result.main.side_effects}
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100">
+                                        <h4 className="text-xs font-bold text-yellow-600 mb-1 flex items-center"><Lightbulb size={12} className="mr-1"/> Geek's Note</h4>
+                                        <p className="text-xs text-gray-700 leading-relaxed">{result.main.geek_note}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Pairing Info */}
+                            <div className="mb-6 p-4 rounded-xl border border-gray-100 bg-gray-50">
+                                <h4 className="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider text-center">Pairing Logic</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="text-center">
+                                        <div className="w-8 h-8 rounded-full bg-green-100 text-green-500 flex items-center justify-center mx-auto mb-1"><Check size={16}/></div>
+                                        <span className="text-[10px] font-bold text-green-600 block mb-1">BEST MATCH</span>
+                                        <p className="text-xs text-gray-600 cursor-pointer hover:text-green-600" onClick={() => googleSearch(result.main.pairing_good)}>{result.main.pairing_good}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="w-8 h-8 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto mb-1"><X size={16}/></div>
+                                        <span className="text-[10px] font-bold text-red-600 block mb-1">CAUTION</span>
+                                        <p className="text-xs text-gray-600">{result.main.pairing_bad}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sub & Booster Grid */}
+                            <div className="grid grid-cols-1 gap-4 mb-6">
+                                {/* Sub */}
+                                <div className="bg-white border-l-4 border-teal-400 p-4 rounded-r-xl shadow-sm">
+                                    <span className="text-[10px] font-bold text-teal-500 tracking-wider uppercase mb-1 block">SYNERGY SUPPORT</span>
+                                    <div className="flex items-center mb-1">
+                                        <h3 className="text-md font-bold text-gray-800 cursor-pointer hover:text-teal-600 search-link" onClick={() => googleSearch(result.sub.name + " 化粧品")}>{result.sub.name}</h3>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mb-2">{result.sub.desc}</p>
+                                    <div className="text-[10px] text-gray-500 bg-gray-50 p-2 rounded">
+                                        <span className="font-bold block mb-1 text-teal-600">▼ Mechanism</span>
+                                        {result.sub.mechanism}
+                                    </div>
+                                </div>
+
+                                {/* Booster */}
+                                <div className="bg-white border-l-4 border-orange-400 p-4 rounded-r-xl shadow-sm">
+                                    <span className="text-[10px] font-bold text-orange-500 tracking-wider uppercase mb-1 block">GEEK'S BOOSTER</span>
+                                    <div className="flex items-center mb-1">
+                                        <h3 className="text-md font-bold text-gray-800 cursor-pointer hover:text-orange-600 search-link" onClick={() => googleSearch(result.booster.name + " 化粧品")}>{result.booster.name}</h3>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mb-2">{result.booster.desc}</p>
+                                    <div className="text-[10px] text-gray-500 bg-gray-50 p-2 rounded">
+                                        <span className="font-bold block mb-1 text-orange-600">▼ Mechanism</span>
+                                        {result.booster.mechanism}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section 3: Circadian Schedule */}
+                            <div className="mb-6">
+                                <h3 className="text-sm font-bold text-gray-700 border-b pb-2 mb-4 flex items-center"><span className="text-lg mr-2">⏰</span> 24時間 美容スケジュール</h3>
+                                <div className="space-y-3">
+                                    <div className="flex">
+                                        <div className="w-16 text-xs font-bold text-orange-400 pt-1">AM 7:00</div>
+                                        <div className="flex-1 bg-orange-50 p-3 rounded-lg border border-orange-100 text-xs text-gray-700 chat-text" dangerouslySetInnerHTML={{ __html: result.schedule.am.replace(/\*\*(.*?)\*\*/g, '<strong class="text-orange-600">$1</strong>') }}></div>
+                                    </div>
+                                    <div className="flex">
+                                        <div className="w-16 text-xs font-bold text-blue-400 pt-1">PM 12:00</div>
+                                        <div className="flex-1 bg-blue-50 p-3 rounded-lg border border-blue-100 text-xs text-gray-700">{result.schedule.noon}</div>
+                                    </div>
+                                    <div className="flex">
+                                        <div className="w-16 text-xs font-bold text-indigo-500 pt-1">PM 9:00</div>
+                                        <div className="flex-1 bg-indigo-50 p-3 rounded-lg border border-indigo-100 text-xs text-gray-700 chat-text" dangerouslySetInnerHTML={{ __html: result.schedule.pm.replace(/\*\*(.*?)\*\*/g, '<strong class="text-indigo-600">$1</strong>') }}></div>
+                                    </div>
+                                    <div className="flex">
+                                        <div className="w-16 text-xs font-bold text-purple-500 pt-1">PM 11:00</div>
+                                        <div className="flex-1 bg-purple-50 p-3 rounded-lg border border-purple-100 text-xs text-gray-700 font-medium">{result.schedule.sleep}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button onClick={() => { const q = `${result.main.name} ${result.sub.name} 化粧品`; window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank'); }} className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-gray-800 transition flex items-center justify-center space-x-2"><Search size={18}/><span>この成分の組み合わせで検索</span></button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="space-y-4 animate-fade-in pb-20">
+                    <div className="glass-panel p-6 rounded-2xl min-h-[450px] flex flex-col relative">
+                        <div className="w-full bg-gray-100 h-1.5 rounded-full mb-6"><div className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full transition-all duration-500" style={{width: `${((step + 1) / questions.length) * 100}%`}}></div></div>
+                        <div className="flex-grow flex flex-col justify-center"><span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">QUESTION {step + 1} / {questions.length}</span><h3 className="text-xl font-bold text-gray-800 mb-8 leading-snug">{currentQ.text}</h3><div className="space-y-3">{currentOptions.map((opt) => (<button key={opt.value} onClick={() => handleSelect(opt.value)} className="w-full text-left p-4 rounded-xl border border-gray-100 bg-white hover:border-purple-300 hover:shadow-md transition-all duration-200 flex justify-between items-center group active:scale-[0.98]"><span className="font-medium text-gray-700 group-hover:text-purple-700 text-sm">{opt.label}</span><div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-purple-100 transition"><ArrowRight size={14} className="text-gray-300 group-hover:text-purple-600" /></div></button>))}</div></div>
+                        {step > 0 && <button onClick={() => setStep(step - 1)} className="mt-6 text-xs font-bold text-gray-400 hover:text-gray-600 text-center">← Back</button>}
+                        {loading && <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl z-20"><div className="loader mb-4"></div><p className="text-sm font-bold text-gray-800">Deep Analyzing...</p><p className="text-xs text-gray-500 mt-2">分子構造と適合性を照合中</p></div>}
+                    </div>
+                </div>
+            );
+        };
+
+        // ... (Other components remain unchanged) ...
+        // 2. TCM (Traditional Chinese Medicine) Diagnosis Component - 8 Types Wizard Style + Encyclopedia
+        const TCMDiagnosis = () => {
+            const [mode, setMode] = useState("intro"); 
+            const [currentQIndex, setCurrentQIndex] = useState(0);
+            const [encyclopediaType, setEncyclopediaType] = useState(null);
+            const [scores, setScores] = useState({kikyo: 0, kitai: 0, kekkyo: 0, oketsu: 0, inkyo: 0, youkyo: 0, suitai: 0, shitsunetsu: 0});
+            const [result, setResult] = useState(null);
+
+            // Detailed TCM Data (Same as previous)
+            const tcmTypes = {
+                kikyo: { 
+                    id: 'kikyo', name: "気虚（ききょ）", title: "エネルギー不足タイプ", color: "#fbbf24", 
+                    summary: "生命エネルギーである「気」が量的に不足している状態。車で例えるならガス欠。臓器を正しい位置に留める力（固摂作用）も弱く、胃下垂や脱腸になりやすい。",
+                    causes: "過労、睡眠不足、不規則な食生活、生まれつき胃腸が弱い、大病の後。特に「脾（消化器）」の機能低下が根本原因。",
+                    symptoms: ["疲れが取れない", "食後に極度の眠気", "風邪をひきやすく長引く", "声が小さくボソボソ話す", "日中、動いていないのに汗が出る"],
+                    kampo: [
+                        { name: "補中益気湯（ほちゅうえっきとう）", desc: "「中（胃腸）」を補い「気」を増す代表的な処方。胃腸が弱く、疲れが抜けない、元気が湧かない人に。免疫力アップにも。" },
+                        { name: "六君子湯（りっくんしとう）", desc: "胃腸の水分代謝を改善し、食欲不振や胃もたれ、嘔気を治す。胃腸の働きを底上げして気を生み出す。" }
+                    ],
+                    food: {
+                        good: "芋類（山芋、里芋）、穀類（米、もち米）、鶏肉、牛肉、キノコ類、高麗人参、ナツメ、蜂蜜",
+                        bad: "生もの（刺身、生野菜）、冷たい飲み物、脂っこいもの、消化に悪い繊維質の多いもの",
+                        menu: "「参鶏湯（サムゲタン）」：鶏肉と高麗人参で気を補う最強スープ。 「山芋のポタージュ」：消化に良く、肺と脾を潤す。"
+                    },
+                    lifestyle: {
+                        advice: "エネルギーの無駄遣いを防ぐことが最重要。「早寝早起き」と「朝ごはん」が特効薬です。食事はよく噛んで、胃腸の負担を減らしましょう。",
+                        exercise: "激しい運動は気を消耗するので逆効果。ヨガや太極拳、ウォーキングなど、ゆったりした呼吸を伴う動きがおすすめ。",
+                        bath: "長風呂は体力を消耗するため避け、ぬるめのお湯に短時間浸かるか、半身浴で。"
+                    },
+                    beauty: "肌にハリがなく、フェイスラインがたるみやすい傾向があります。重力に負けやすい肌。顔色がくすんで黄色っぽくなることも。",
+                    mental: "やる気が出ないのは性格ではなく体質のせい。無理せず「今日は60点でOK」と自分を許してあげましょう。断る勇気も必要です。",
+                    clock_advice: "辰の刻（7-9時）：胃経が活発になる時間。ここで温かく消化の良い朝食を摂ることで、一日のエネルギーが決まります。",
+                    tsubo: [{name: "足三里", desc: "膝の下、向こう脛の外側。胃腸を整え、全身の気を補う万能ツボ。"}, {name: "気海", desc: "おへそから指2本分下。元気の源が集まる場所。"}]
+                },
+                // ... (Other types kitai, kekkyo, oketsu, inkyo, youkyo, suitai, shitsunetsu remain same as previous step to keep length manageable) ...
+                 kitai: { id: 'kitai', name: "気滞（きたい）", title: "ストレス停滞タイプ", color: "#34d399", summary: "気の巡りが悪く、体の一部に詰まっている状態。車で例えるなら渋滞。自律神経の乱れ、張痛（張った痛み）が特徴。", causes: "精神的ストレス、緊張状態の持続、不規則な生活、几帳面な性格。「肝（自律神経）」の疎泄機能失調が主な原因。", symptoms: ["イライラしやすい", "お腹や胸が張る", "ゲップやガスが多い", "喉に何かつかえている感じ（梅核気）", "PMSが重い"], kampo: [{ name: "加味逍遙散（かみしょうようさん）", desc: "気の巡りを良くし、こもった熱を冷ます。イライラ、ホットフラッシュ、肩こりなど、更年期やPMSの不定愁訴に。" }, { name: "半夏厚朴湯（はんげこうぼくとう）", desc: "喉のつかえ感（ヒステリー球）や、不安感、胃腸の不調に。気を巡らせて気分をスッキリさせる。" }], food: { good: "柑橘類（レモン、グレープフルーツ）、香味野菜（セロリ、紫蘇、パクチー、春菊）、ミントティー、ジャスミン茶", bad: "早食い、炭酸飲料の飲み過ぎ（ガスが溜まる）、芋類、豆類（お腹が張りやすい）、食べ過ぎ", menu: "「セロリとイカの塩炒め」：セロリの香りで気を巡らせ、イカで血を補う。 「アサリと三つ葉のスープ」：肝を助ける最高の組み合わせ。" }, lifestyle: { advice: "香りの力を借りるのが一番の近道。アロマや入浴剤を活用しましょう。溜め込まず「発散」することが大切なので、カラオケなどで声を出すのも吉。", exercise: "リズム運動がおすすめ。ダンス、エアロビクス、ボクササイズなど、楽しみながらストレス発散できるものを。", bath: "炭酸入浴剤を使用し、ぬるめのお湯でリラックス。好みの香りのバスソルトを使うと効果倍増。" }, beauty: "ストレスでニキビができたり、顔色がどんよりしがち。眉間にシワが寄りやすい。炭酸パックなど、巡りを良くするケアが相性抜群。", mental: "完璧主義なところがあります。「ま、いっか」を口癖に。深呼吸を1日10回意識するだけでも、横隔膜が動いて気が巡ります。", clock_advice: "丑の刻（1-3時）：肝経が修復される時間。この時間に熟睡していないと、翌日のイライラや情緒不安定に直結します。", tsubo: [{name: "太衝", desc: "足の甲、親指と人差し指の骨が交わる手前のくぼみ。イライラ解消の特効ツボ。"}, {name: "膻中", desc: "左右の乳首を結んだ線の真ん中。胸のつかえを取る。"}] },
+                 kekkyo: { id: 'kekkyo', name: "血虚（けっきょ）", title: "潤い・栄養不足タイプ", color: "#f87171", summary: "全身に栄養を運ぶ「血」が不足している状態。貧血とは異なり、血液の質や機能の低下も含む。車で例えるならガソリン不足。", causes: "偏食（ダイエット）、胃腸虚弱（吸収不良）、夜更かし（血の消耗）、目の使いすぎ、月経過多。", symptoms: ["顔色が青白い・黄色い", "肌・髪・爪が乾燥してツヤがない", "立ちくらみ・めまい", "目がかすむ", "眠りが浅い"], kampo: [{ name: "当帰芍薬散（とうきしゃくやくさん）", desc: "血を補い、巡りを良くし、余分な水分を除く。冷え性で貧血気味、むくみもある女性の聖薬。" }, { name: "四物湯（しもつとう）", desc: "体を温め、血を補う基本処方。皮膚が乾燥してカサカサする人に。胃腸が弱い人は注意が必要。" }], food: { good: "赤身の肉・魚（マグロ、カツオ）、レバー、ほうれん草、黒ごま、黒豆、ひじき、クコの実、ナツメ、レーズン", bad: "冷たいもの、甘いお菓子（血糖値スパイクは血を汚す）、過度なダイエット、夜遅くの食事", menu: "「レバニラ炒め」：鉄分とビタミン豊富。 「黒豆ごはん」：腎を補い血を作る。 「人参とツナのしりしり」：血を補う最強コンビ。" }, lifestyle: { advice: "血は寝ている間に作られます。何をおいても「23時までの就寝」を目指してください。スマホの見過ぎは血を大量に消費するので、夜はデジタルデトックスを。", exercise: "激しい運動は血を消耗します。ストレッチや軽いヨガなど、血流を促す程度の運動に留めましょう。", bath: "熱いお湯は肌を乾燥させるのでNG。保湿入浴剤を入れ、長湯しすぎないように。" }, beauty: "乾燥肌対策が必須。化粧水だけでなく、オイル美容液やこっくりしたクリームで油分を補いましょう。髪のパサつきケアも忘れずに。", mental: "不安感や心配性が強くなりがち。夜に考え事をすると悪い方にいきやすいので、悩み事は朝、太陽の下で考えましょう。", clock_advice: "酉の刻（17-19時）：腎経の準備時間。夕食はこの時間帯に済ませると、その後の造血作用がスムーズになります。", tsubo: [{name: "三陰交", desc: "内くるぶしから指4本分上。女性ホルモンと血の巡りを整える最重要ツボ。"}, {name: "血海", desc: "膝のお皿の内側、指3本分上。血を生み出し巡らせる。"}] },
+                 oketsu: { id: 'oketsu', name: "瘀血（おけつ）", title: "ドロドロ血行不良タイプ", color: "#818cf8", summary: "血の流れが滞り、汚れてドロドロになっている状態。車で例えるなら事故渋滞。万病の元と言われる。", causes: "冷え、ストレス（気滞）、脂質・糖質過多の食事、運動不足、打撲などの古傷。", symptoms: ["肩こり・頭痛（刺すような痛み）", "シミ・そばかす・クマが多い", "唇や舌の色が紫っぽい", "生理痛が重い・塊が出る"], kampo: [{ name: "桂枝茯苓丸（けいしぶくりょうがん）", desc: "血行を良くして熱バランスを整える。のぼせがあり、足は冷える人に。シミやニキビ、生理痛に。" }, { name: "桃核承気湯（とうかくじょうきとう）", desc: "かなり体力があり、便秘がちで、のぼせが強い人の強力な瘀血改善薬。" }], food: { good: "青魚（サバ、イワシ＝EPA/DHA）、玉ねぎ、らっきょう、納豆、黒酢、桃、サフラン、ターメリック", bad: "油っこい食事、冷たい飲み物、甘いお菓子、アルコール、バターやラードなどの動物性脂肪", menu: "「玉ねぎとサーモンのマリネ」：血液サラサラ効果抜群。 「納豆キムチ」：発酵食品のダブルパワーで血流改善。" }, lifestyle: { advice: "とにかく「温める」ことと「動かす」こと。毎日湯船に浸かり、ウォーキングなどの軽い運動を習慣に。長時間同じ姿勢でいるのは避けましょう。", exercise: "下半身の筋肉を使う運動が効果的。スクワットや階段昇降で、ふくらはぎのポンプ機能を活性化させて。", bath: "全身浴でしっかり汗をかくこと。入浴中にマッサージをするのも効果的。" }, beauty: "シミ、くすみ、クマが最大の悩み。美白ケアだけでなく、マッサージや美顔器で物理的に血流を促すケアが効果的。ピーリングもおすすめ。", mental: "頑固になりやすく、一つの考えに固執してしまうことも。柔軟体操をして体も心も柔らかく保ちましょう。", clock_advice: "午の刻（11-13時）：心経が活発。心臓に負担がかかりやすい時間なので、激しい運動は避け、少し昼寝をして血を休めましょう。", tsubo: [{name: "血海", desc: "膝のお皿の内側、指3本分上。"}, {name: "膈兪（かくゆ）", desc: "背中の肩甲骨の下あたり。血の会（え）と呼ばれる血流改善の要。"}] },
+                 inkyo: { id: 'inkyo', name: "陰虚（いんきょ）", title: "ほてり・乾燥タイプ", color: "#f472b6", summary: "体を潤す体液（陰）が不足し、相対的に熱がこもっている状態。ラジエーターの水不足でエンジンがオーバーヒート気味。", causes: "加齢（40代以降に急増）、夜更かし、発汗過多、辛いものの食べ過ぎ、消耗性疾患。", symptoms: ["手足がほてる", "口や喉が渇く", "寝汗をかく", "便がコロコロして硬い", "空咳が出る"], kampo: [{ name: "六味丸（ろくみがん）", desc: "「腎陰」を補う基本処方。ほてり、口渇、排尿困難、足腰のダルさに。子供の発育不良にも。" }, { name: "麦門冬湯（ばくもんどうとう）", desc: "肺と胃を潤す。空咳、口の渇き、肌の乾燥が強い人に。" }], food: { good: "【白いネバネバ食材】梨、豆腐、豆乳、白きくらげ、山芋、レンコン、豚肉、牡蠣、ホタテ、アスパラガス", bad: "激辛料理（唐辛子、山椒、胡椒）、熱すぎるお風呂、サウナでの大量発汗、コーヒーなどの利尿作用が強いもの", menu: "「白きくらげと梨のコンポート」：最強の潤いデザート。 「豚肉とレンコンの炒め物」：体を潤し熱を冷ます。" }, lifestyle: { advice: "水分補給だけでは追いつきません。保水力のある食材を摂りましょう。汗をかきすぎるとさらに潤いを失うので、ホットヨガやサウナはほどほどに。", exercise: "激しい発汗を伴う運動はNG。水泳やストレッチなど、汗をかきすぎない運動を。", bath: "熱いお湯は厳禁。38〜40度のぬるま湯で、肌の潤いを守りましょう。" }, beauty: "インナードライ肌になりやすく、小じわができやすい。化粧水を何度も重ね付けする「水分補給」重視のケアを。シートマスクの活用を。", mental: "焦燥感があり、落ち着かない気分になりがち。静かな音楽を聴いたり、瞑想をして心を鎮める時間を持って。", clock_advice: "夕方以降、陰気が不足し熱が出やすくなります。夜は間接照明にして、神経を興奮させないようにしましょう。", tsubo: [{name: "太渓", desc: "内くるぶしとアキレス腱の間。生命力と潤いを補う。"}, {name: "照海", desc: "内くるぶしの真下。不眠や喉の乾燥に。"}] },
+                 youkyo: { id: 'youkyo', name: "陽虚（ようきょ）", title: "冷え冷えエネルギー不足", color: "#60a5fa", summary: "体を温める力（陽）が不足し、芯から冷えている状態。気虚が進行したタイプ。新陳代謝が極端に落ちている。", causes: "加齢、生冷食の摂りすぎ、過労、慢性的な冷え環境、抗生物質の多用。", symptoms: ["手足だけでなくお腹や腰も冷たい", "寒がりで厚着", "頻尿・尿の色が薄い", "下痢しやすい", "むくみ"], kampo: [{ name: "八味地黄丸（はちみじおうがん）", desc: "体を芯から温め、腎機能を高める。高齢者の頻尿、腰痛、冷え、かすみ目に。" }, { name: "真武湯（しんぶとう）", desc: "新陳代謝が低下し、冷えてむくみやめまいがある人に。余分な水を温めて飛ばすイメージ。" }], food: { good: "【黒い食材・温める食材】羊肉、牛肉、エビ、くるみ、ニラ、生姜、シナモン、杜仲茶、紅茶", bad: "生野菜サラダ、南国のフルーツ（バナナ、マンゴー）、薄着、冷房の効きすぎた部屋", menu: "「羊肉のスパイス串焼き」：羊肉は最強の温熱食材。 「海老とニラの炒め物」：腎の陽気を高める。" }, lifestyle: { advice: "「冷え」は万病の元。腹巻き、レッグウォーマーは必須アイテム。朝一番に白湯を飲み、内臓を温めることから一日を始めましょう。", exercise: "筋トレがおすすめ。筋肉は熱を生み出す工場です。特に太ももやお尻の大きな筋肉を鍛えましょう。", bath: "必ず湯船に浸かること。薬湯（よもぎ湯、生姜湯）などを利用して、芯まで温まりましょう。" }, beauty: "血行不良による青クマやくすみ、たるみが目立ちます。炭酸入浴剤で全身の巡りを良くし、温感コスメを使うのも手。", mental: "消極的になりやすく、引きこもりがちに。晴れた日は外に出て日光を浴びるだけで「陽気」を補えます。", clock_advice: "朝（陽気が昇る時間）に活動的に動くことが大切。逆に夜は陽気が減るので、早めに温かくして寝ましょう。", tsubo: [{name: "関元", desc: "おへそから指4本分下。元気の源が集まる場所で、カイロで温めるのも有効。"}, {name: "命門", desc: "おへその真裏の背骨の上。生命の門という意味。"}] },
+                 suitai: { id: 'suitai', name: "水滞（すいたい）", title: "むくみ・重だるタイプ", color: "#93c5fd", summary: "水分代謝が悪く、体内に余分な水（湿邪）が溜まっている状態。雨の日に不調になりやすい。", causes: "水分の摂りすぎ、脂っこい食事、お酒の飲み過ぎ、運動不足、湿気の多い環境。", symptoms: ["夕方に靴がきつくなる", "雨の日に頭痛やめまい", "体が重だるい", "舌がボテッと大きく歯型がつく"], kampo: [{ name: "五苓散（ごれいさん）", desc: "体内の水分バランスを調整する名薬。むくみ、頭痛、めまい、下痢、二日酔いに。" }, { name: "防已黄耆湯（ぼういおうぎとう）", desc: "色白で筋肉が柔らかく、汗っかきでむくみやすい人（水太り）に。関節痛にも。" }], food: { good: "小豆、ハトムギ、黒豆、冬瓜、きゅうり（加熱推奨）、海藻類、トウモロコシのひげ茶、アサリ", bad: "冷たい水のガブ飲み、脂っこい食事（水をドロドロにする）、味の濃いもの（塩分過多）、アルコール、甘いもの", menu: "「冬瓜と鶏肉のスープ」：利尿作用抜群。 「小豆茶」：むくみ取りの定番。" }, lifestyle: { advice: "「水」は冷えると固まります。冷やさないことが第一。また、適度な運動で汗をかき、強制的に排出するサイクルを作ることが大切です。", exercise: "じんわり汗をかく有酸素運動。ホットヨガや岩盤浴も良いですが、出た後の水分補給は常温で。", bath: "半身浴でじっくり汗を出すのがおすすめ。お風呂上がりのビールは控えめに。" }, beauty: "フェイスラインのむくみや、まぶたの腫れが出やすい。頭皮マッサージやリンパマッサージを毎日の習慣に。", mental: "なんとなくやる気が出ない、体が重くて動きたくない気分に。とりあえず立ち上がってストレッチすると気分が変わります。", clock_advice: "巳の刻（9-11時）：脾経が活発。脾は湿気に弱いので、この時間は冷たいものを摂らず、活動して代謝を上げましょう。", tsubo: [{name: "豊隆", desc: "すねの外側、膝と足首の中間地点。余分な水分と老廃物を排出する名穴。"}, {name: "陰陵泉", desc: "膝の内側の下、骨の際。利尿効果が高い。"}] },
+                 shitsunetsu: { id: 'shitsunetsu', name: "湿熱（しつねつ）", title: "ベタベタ・オイリー", color: "#f59e0b", summary: "余分な水分と熱が体内にこもっている状態。ゴミ溜め（ヘドロ）のようになっている。生活習慣病予備軍。", causes: "暴飲暴食、お酒、脂っこいもの・甘いものの過食、ストレス。", symptoms: ["顔が脂っぽい", "赤く腫れた吹き出物", "口の中が粘つく・苦い", "体臭が気になる", "暑がりで汗っかき"], kampo: [{ name: "黄連解毒湯（おうれんげどくとう）", desc: "体の熱を冷まし、炎症を抑える。のぼせ、イライラ、赤ら顔、皮膚炎に。" }, { name: "茵蔯蒿湯（いんちんこうとう）", desc: "湿熱を尿から排出する。口の渇き、尿量が少ない、湿疹や蕁麻疹に。" }], food: { good: "【清熱利湿】食材：トマト、キュウリ、セロリ、緑豆、ハトムギ、緑茶、ウーロン茶、ゴーヤ", bad: "揚げ物、辛すぎるもの、お酒（特にビール）、甘いお菓子、乳製品、ナッツ類、肉の脂身", menu: "「ゴーヤチャンプルー（豚肉少なめ）」：苦味が熱を冷ます。 「冷やしトマト」：体の熱を取る即効薬。" }, lifestyle: { advice: "体の中の「ゴミ掃除」が必要です。デトックスを意識し、食事は腹八分目に。アルコールと脂っこい食事のセットは最悪の組み合わせです。", exercise: "しっかり汗をかく運動が必要。ボクシングやランニングなど強度の高い運動で老廃物を出し切りましょう。", bath: "長湯はのぼせるので注意。さっぱりした入り方が向いています。" }, beauty: "Tゾーンのテカリや炎症ニキビが悩み。オイルフリーのスキンケアを選び、洗顔を丁寧に行いましょう。枕カバーを毎日変えるのも有効。", mental: "イライラしやすく、せっかちになりがち。クールダウンが必要です。熱中できる趣味でエネルギーを発散させましょう。", clock_advice: "熱がこもりやすい夜間は、冷却枕などで頭部を冷やすと入眠しやすくなります。夜遅い食事は湿熱の元凶です。", tsubo: [{name: "曲池", desc: "肘を曲げた時にできるシワの外端。余分な熱を冷まし、整腸作用がある。"}, {name: "内庭", desc: "足の人差し指と中指の付け根の間。胃熱を取る。"}] }
+            };
+            
+            const questions = [
+                { text: "少し動いただけで疲れや息切れを感じる", type: "kikyo" }, { text: "食後に強い眠気におそわれる", type: "kikyo" }, { text: "風邪をひきやすく、長引きやすい", type: "kikyo" },
+                { text: "些細なことでイライラしたり、憂鬱になる", type: "kitai" }, { text: "お腹が張ったり、ガスが出やすい", type: "kitai" }, { text: "喉に違和感がある", type: "kitai" },
+                { text: "爪が割れやすい、髪がパサつく", type: "kekkyo" }, { text: "立ちくらみやめまいを起こしやすい", type: "kekkyo" }, { text: "眠りが浅く、夢をよく見る", type: "kekkyo" },
+                { text: "肩こりや頭痛があり、痛む場所が固定", type: "oketsu" }, { text: "目の下のクマ、唇の色が悪い", type: "oketsu" }, { text: "肌にしみやそばかすが増えた", type: "oketsu" },
+                { text: "夕方になると手足がほてる", type: "inkyo" }, { text: "口や喉が乾燥して水を欲しがる", type: "inkyo" }, { text: "寝汗をかく", type: "inkyo" },
+                { text: "手足だけでなくお腹や腰も冷える", type: "youkyo" }, { text: "トイレが近く尿の色が薄い", type: "youkyo" }, { text: "寒がりで冷房が苦手", type: "youkyo" },
+                { text: "夕方に靴がきつくなる（むくみ）", type: "suitai" }, { text: "雨の日に体調が悪くなる", type: "suitai" }, { text: "体が重だるい", type: "suitai" },
+                { text: "顔や頭皮が脂っぽくベタつく", type: "shitsunetsu" }, { text: "赤く腫れた吹き出物ができる", type: "shitsunetsu" }, { text: "口の中がネバつく", type: "shitsunetsu" }
+            ];
+
+            const handleStart = () => { setScores({kikyo: 0, kitai: 0, kekkyo: 0, oketsu: 0, inkyo: 0, youkyo: 0, suitai: 0, shitsunetsu: 0}); setCurrentQIndex(0); setMode("quiz"); };
+            const handleAnswer = (isYes) => {
+                const q = questions[currentQIndex];
+                if(isYes) setScores(p => ({...p, [q.type]: p[q.type]+1}));
+                if(currentQIndex < questions.length -1) setCurrentQIndex(currentQIndex+1);
+                else setTimeout(() => setMode("result"), 300);
+            };
+
+            useEffect(() => {
+                if(mode==="result") {
+                    let maxS = -1, maxT = "";
+                    let sorted = [];
+                    Object.keys(scores).forEach(k => {
+                        sorted.push({type:k, score:scores[k]});
+                        if(scores[k] > maxS) { maxS = scores[k]; maxT = k; }
+                    });
+                    sorted.sort((a,b) => b.score - a.score);
+                    setResult({mainType: tcmTypes[maxT], scores: sorted});
+                }
+            }, [mode]);
+
+            // Reusing TypeDetailCard logic with Rich Content and Search
+            const TypeDetailCard = ({ typeData, isResult = false }) => (
+                <div className="glass-panel p-6 rounded-2xl text-center mb-6 relative overflow-hidden h-[80vh] overflow-y-auto detail-scroll" style={{ borderTop: `6px solid ${typeData.color}` }}>
+                    {/* Header */}
+                    <button onClick={() => isResult ? setMode("intro") : setEncyclopediaType(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-20 bg-white/80 rounded-full p-1">{isResult ? <RefreshCw size={20} /> : <X size={24} />}</button>
+                    {isResult && <span className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-3 bg-gray-100 text-gray-500">あなたの診断結果</span>}
+                    <h2 className="text-3xl font-bold text-gray-800 mb-1 cursor-pointer hover:text-teal-600 search-link" onClick={() => googleSearch(typeData.name + " 漢方")}>{typeData.name}</h2>
+                    <p className="text-md font-bold mb-6" style={{color: typeData.color}}>{typeData.title}</p>
+                    
+                    {/* Summary Section */}
+                    <div className="bg-gray-50 p-5 rounded-xl text-left mb-8 relative border border-gray-100">
+                        <span className="absolute -top-3 left-4 bg-gray-800 text-white text-[10px] px-3 py-1 rounded font-bold tracking-widest">PATHOLOGY & CAUSE</span>
+                        <p className="text-sm text-gray-700 leading-relaxed font-bold mt-2 mb-3">{typeData.summary}</p>
+                        <div className="text-xs text-gray-600 space-y-2">
+                            <p><span className="font-bold text-gray-400">■ 原因:</span> {typeData.causes}</p>
+                            <p><span className="font-bold text-gray-400">■ 主な症状:</span> {typeData.symptoms.join(" / ")}</p>
+                        </div>
+                    </div>
+
+                    {/* Kampo Medicine Section (New!) */}
+                    <div className="mb-8 text-left">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2"><Pill size={20} className="mr-2 text-purple-600"/> おすすめの漢方薬</h3>
+                        <div className="space-y-3">
+                            {typeData.kampo.map((k, i) => (
+                                <div key={i} className="bg-purple-50 p-4 rounded-xl border border-purple-100 hover:shadow-md transition cursor-pointer" onClick={() => googleSearch(k.name)}>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <h4 className="font-bold text-purple-800 text-md">{k.name}</h4>
+                                        <ExternalLink size={14} className="text-purple-300"/>
+                                    </div>
+                                    <p className="text-xs text-purple-900 leading-relaxed">{k.desc}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-2 text-right">※服用前に薬剤師・医師にご相談ください</p>
+                    </div>
+
+                    {/* Food Therapy */}
+                    <div className="mb-8 text-left">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2"><Utensils size={20} className="mr-2 text-green-600"/> 食養生レシピ</h3>
+                        <div className="grid grid-cols-1 gap-3">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
+                                <span className="block text-xs font-bold text-green-600 mb-1 uppercase">Power Ingredients</span>
+                                <p className="text-sm text-gray-800 mb-2">{typeData.food.good}</p>
+                                <div className="bg-green-50 p-2 rounded text-xs text-green-800 font-bold">
+                                    🍽 おすすめメニュー: {typeData.food.menu}
+                                </div>
+                            </div>
+                            <div className="bg-white p-3 rounded-xl shadow-sm border-l-4 border-red-400">
+                                <span className="block text-xs font-bold text-red-600 mb-1 uppercase">Avoid</span>
+                                <p className="text-xs text-gray-600">{typeData.food.bad}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Beauty & Mental */}
+                    <div className="mb-8 text-left">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2"><Sparkles size={20} className="mr-2 text-pink-500"/> 美容＆メンタルケア</h3>
+                        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                            <div>
+                                <h4 className="font-bold text-pink-500 text-sm mb-1">美容リスク</h4>
+                                <p className="text-sm text-gray-700 leading-relaxed">{typeData.beauty}</p>
+                            </div>
+                            <div className="border-t border-dashed border-gray-200 pt-3">
+                                <h4 className="font-bold text-blue-500 text-sm mb-1 flex items-center"><Smile size={14} className="mr-1"/> メンタル処方箋</h4>
+                                <p className="text-sm text-gray-700 leading-relaxed">{typeData.mental}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Lifestyle & Clock */}
+                    <div className="text-left">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center border-b pb-2"><Clock size={20} className="mr-2 text-indigo-600"/> ライフスタイル処方</h3>
+                        <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-xl shadow-sm border border-indigo-100">
+                            <p className="text-sm text-gray-800 leading-relaxed font-bold mb-4">{typeData.lifestyle.advice}</p>
+                            
+                            <div className="grid grid-cols-2 gap-2 mb-4">
+                                <div className="bg-white p-2 rounded border border-indigo-100 text-xs">
+                                    <span className="block font-bold text-indigo-400 mb-1">運動</span>
+                                    {typeData.lifestyle.exercise}
+                                </div>
+                                <div className="bg-white p-2 rounded border border-indigo-100 text-xs">
+                                    <span className="block font-bold text-indigo-400 mb-1">入浴</span>
+                                    {typeData.lifestyle.bath}
+                                </div>
+                            </div>
+
+                            <div className="flex items-start bg-indigo-100/50 p-3 rounded-lg">
+                                <Info size={16} className="text-indigo-500 mt-0.5 mr-2 flex-shrink-0"/>
+                                <div className="text-xs text-indigo-900">
+                                    <span className="font-bold block mb-1">時間医学 (子午流注)</span>
+                                    {typeData.clock_advice}
+                                </div>
+                            </div>
+                            
+                            <div className="mt-4 pt-4 border-t border-indigo-200">
+                                <span className="text-xs font-bold text-gray-500 uppercase block mb-2">THERAPY POINTS (TSUBO)</span>
+                                <div className="flex space-x-2 overflow-x-auto pb-2">
+                                    {typeData.tsubo.map((t,i) => (
+                                        <div key={i} className="flex-shrink-0 bg-white border border-gray-200 p-3 rounded-lg w-40 cursor-pointer hover:border-indigo-400 transition" onClick={() => googleSearch(t.name + " ツボ")}>
+                                            <span className="block font-bold text-indigo-600 mb-1">{t.name}</span>
+                                            <span className="text-[10px] text-gray-500 block leading-tight">{t.desc}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            // Intro/Quiz/Encyclopedia/Result Views
+            if(mode==="intro") return (
+                <div className="glass-panel p-8 rounded-2xl text-center animate-fade-in">
+                    <Activity size={32} className="text-purple-600 mx-auto mb-4"/>
+                    <h3 className="text-2xl font-bold mb-2 text-gray-800">東洋医学・8体質診断</h3>
+                    <p className="text-sm text-gray-500 mb-6">24の質問で気・血・水のバランスを分析し、最適な養生法を導き出します。</p>
+                    <div className="space-y-3"><button onClick={handleStart} className="w-full bg-gradient-to-r from-teal-500 to-emerald-600 text-white py-4 rounded-xl font-bold shadow-lg">診断スタート</button><button onClick={()=>setMode("encyclopedia")} className="w-full bg-white text-gray-600 py-3 rounded-xl font-bold border">体質図鑑を見る</button></div>
+                </div>
+            );
+            if(mode==="quiz") {
+                const q = questions[currentQIndex];
+                return (
+                    <div className="glass-panel p-6 rounded-2xl animate-fade-in min-h-[400px] flex flex-col">
+                        <div className="w-full bg-gray-100 h-2 rounded-full mb-6"><div className="bg-teal-500 h-2 rounded-full" style={{width: `${((currentQIndex)/questions.length)*100}%`}}></div></div>
+                        <div className="flex-grow flex flex-col justify-center items-center text-center"><span className="text-xs font-bold text-gray-400 mb-2">Q {currentQIndex+1} / {questions.length}</span><h3 className="text-xl font-medium text-gray-800 mb-8">{q.text}</h3></div>
+                        <div className="grid grid-cols-2 gap-4 mt-auto"><button onClick={()=>handleAnswer(false)} className="py-4 rounded-xl border-2 font-bold">いいえ</button><button onClick={()=>handleAnswer(true)} className="py-4 rounded-xl bg-teal-500 text-white font-bold">はい</button></div>
+                    </div>
+                );
+            }
+            if(mode==="encyclopedia") {
+                if(encyclopediaType) return <div className="animate-fade-in"><div className="mb-4"><button onClick={()=>setEncyclopediaType(null)} className="text-sm">← 戻る</button></div><TypeDetailCard typeData={tcmTypes[encyclopediaType]}/></div>;
+                return <div className="glass-panel p-6 rounded-2xl animate-fade-in h-[80vh] overflow-y-auto detail-scroll"><div className="flex justify-between mb-6 sticky top-0 bg-white/95 backdrop-blur py-2 z-10 border-b"><h3 className="text-xl font-bold text-gray-800">体質図鑑</h3><button onClick={()=>setMode("intro")}><X size={20}/></button></div><div className="space-y-3">{Object.values(tcmTypes).map(t=><div key={t.id} onClick={()=>setEncyclopediaType(t.id)} className="p-4 rounded-xl border bg-white shadow-sm flex justify-between cursor-pointer" style={{borderLeft:`4px solid ${t.color}`}}><div><div className="font-bold">{t.name}</div><div className="text-xs text-gray-500">{t.title}</div></div><ChevronRight size={20} className="text-gray-300 group-hover:text-teal-500 transition"/></div>)}</div></div>;
+            }
+            if(mode==="result" && result) return <div className="animate-fade-in"><TypeDetailCard typeData={result.mainType} isResult={true}/><div className="glass-panel p-5 rounded-2xl mt-4"><h4 className="text-xs font-bold text-gray-400 mb-4 uppercase">体質バランス (Top 3)</h4><div className="space-y-4">{result.scores.slice(0,3).map(s=><div key={s.type} className="flex flex-col text-xs"><div className="flex justify-between mb-1"><span className="font-bold text-gray-600">{tcmTypes[s.type].name}</span><span className="font-bold text-gray-500">{s.score}</span></div><div className="w-full bg-gray-100 rounded-full h-2"><div className="h-full rounded-full" style={{width:`${(s.score/3)*100}%`, background:tcmTypes[s.type].color}}></div></div></div>)}</div></div></div>;
+            return null;
+        };
+
+        // 3. News Feed & 4. Aging Topics & 5. AI Consultation (Same as before)
+        const NewsFeed = () => {
+            const [news, setNews] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [isDemo, setIsDemo] = useState(false);
+            useEffect(() => { fetchRealNews(); }, []);
+            useEffect(() => { if(!loading && news.length>0) anime({targets:'.news-card', translateY:[20,0], opacity:[0,1], delay:anime.stagger(100), easing:'easeOutQuad', duration:500}); }, [loading, news]);
+            
+            // Demo Data fallback
+            const demoNews = [
+                { title: "【POP-UP】伊勢丹新宿店で秋の新作コスメイベント開催中", date: "2024-10-15", link: "#", description: "最新のアンチエイジング美容液を体験できる特設ブースが登場..." },
+                { title: "表参道ヒルズに期間限定「オーガニックコスメ・マルシェ」", date: "2024-10-18", link: "#", description: "厳選されたオーガニックブランドが集結..." },
+                { title: "【新製品】次世代レチノール配合クリームが登場", date: "2024-10-20", link: "#", description: "敏感肌でも使える画期的なレチノール成分を配合..." }
+            ];
+
+            const fetchRealNews = async () => {
+                setLoading(true); setError(null); setIsDemo(false);
+                const rssUrl = "https://prtimes.jp/rss/beauty.rdf";
+                const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+                try {
+                    const res = await fetch(apiUrl);
+                    if(!res.ok) throw new Error("Network error");
+                    const data = await res.json();
+                    if(data.status==='ok') {
+                        const items = data.items.sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate)).map(item=>({title:item.title, date:item.pubDate.split(' ')[0], link:item.link, description:item.description.replace(/<[^>]*>?/gm,'').substring(0,60)+"..."}));
+                        setNews(items);
+                    } else throw new Error(data.message);
+                } catch(e) { 
+                    setError(e.message); 
+                    setNews(demoNews); 
+                    setIsDemo(true);
+                }
+                finally { setLoading(false); }
+            };
+            return (
+                <div className="space-y-4 animate-fade-in pb-20">
+                    <div className="flex justify-between items-center mb-2"><h3 className="text-xl font-bold text-gray-700">Event News</h3><button onClick={fetchRealNews} className="text-sm text-purple-500 font-bold"><RefreshCw size={14} className="inline"/>更新</button></div>
+                    {loading ? <div className="flex justify-center py-10"><div className="loader"></div></div> : (
+                        <>
+                            {isDemo && <div className="bg-yellow-50 border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-xs mb-4 text-center">※ 現在はデモデータを表示しています</div>}
+                            {news.map((item,i)=><a key={i} href={item.link} target="_blank" className="news-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded font-bold">NEWS</span><span className="text-xs text-gray-400">{item.date}</span></div><h4 className="font-bold text-gray-800 mb-2 line-clamp-2">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-2">{item.description}</p></a>)}
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        const AgingTopics = () => {
+            const [topics, setTopics] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [isDemo, setIsDemo] = useState(false);
+            useEffect(() => { fetchTopics(); }, []);
+            useEffect(() => { if(!loading && topics.length>0) anime({targets:'.topic-card', translateY:[20,0], opacity:[0,1], delay:anime.stagger(100), easing:'easeOutQuad', duration:500}); }, [loading, topics]);
+            
+            // Demo Data
+            const demoTopics = [
+                { title: "【知識】「糖化」は肌のコゲ？老け見えの真犯人を解説", date: "2024-10-15", link: "#", source: "Demo Source" },
+                { title: "【習慣】1分でできる！顔のたるみ引き上げ「舌回し体操」", date: "2024-10-16", link: "#", source: "Demo Source" },
+                { title: "【食事】若返りのビタミン「ビタミンE」をアーモンドで摂取", date: "2024-10-18", link: "#", source: "Demo Source" }
+            ];
+
+            const fetchTopics = async () => {
+                setLoading(true); setIsDemo(false);
+                const rssUrl = "https://news.google.com/rss/search?q=アンチエイジング+OR+若返り+OR+美肌ケア&hl=ja&gl=JP&ceid=JP:ja";
+                const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+                try {
+                    const res = await fetch(apiUrl);
+                    const data = await res.json();
+                    if(data.status==='ok') {
+                        const items = data.items.sort((a,b)=>new Date(b.pubDate)-new Date(a.pubDate)).map(item=>({title:item.title, date:item.pubDate.split(' ')[0], link:item.link, source:item.author||"Google News"}));
+                        setTopics(items);
+                    } else throw new Error();
+                } catch(e) { 
+                    setTopics(demoTopics); 
+                    setIsDemo(true);
+                }
+                finally { setLoading(false); }
+            };
+            return (
+                <div className="space-y-4 animate-fade-in pb-20">
+                    <div className="flex justify-between items-center mb-2"><h3 className="text-xl font-bold text-gray-700">Tips</h3><button onClick={fetchTopics} className="text-sm text-yellow-600 font-bold"><RefreshCw size={14} className="inline"/>更新</button></div>
+                    {loading ? <div className="flex justify-center py-10"><div className="loader"></div></div> : (
+                        <>
+                            {isDemo && <div className="bg-yellow-50 border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-xs mb-4 text-center">※ 現在はデモデータを表示しています</div>}
+                            {topics.map((t,i)=><a key={i} href={t.link} target="_blank" className="topic-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded font-bold">TOPIC</span><span className="text-xs text-gray-400">{t.date}</span></div><h4 className="font-bold text-gray-800 mb-2">{t.title}</h4><div className="flex justify-between items-center mt-2"><span className="text-xs text-gray-400">{t.source}</span><ExternalLink size={14} className="text-gray-300"/></div></a>)}
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        const AIConsultation = ({ apiKey }) => {
+            const [messages, setMessages] = useState([{ role: 'model', text: '美容専門AIです。マニアックな成分の質問もどうぞ。' }]);
+            const [input, setInput] = useState('');
+            const [loading, setLoading] = useState(false);
+            const messagesEndRef = useRef(null);
+            useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
+            const sendMessage = async () => {
+                if (!input.trim() || !apiKey) return !apiKey && alert("APIキーが必要です");
+                const userMsg = input;
+                setMessages(p => [...p, { role: 'user', text: userMsg }]);
+                setInput(''); setLoading(true);
+                try {
+                    const text = await callGemini(apiKey, "あなたは美容化学に精通した専門家です。成分の化学的構造や作用機序も含めて回答してください。", userMsg, "text");
+                    setMessages(p => [...p, { role: 'model', text: text }]);
+                } catch (e) { setMessages(p => [...p, { role: 'model', text: "エラーが発生しました。" }]); }
+                finally { setLoading(false); }
+            };
+            return (
+                <div className="flex flex-col h-[calc(100dvh-180px)]"><div className="flex-1 overflow-y-auto px-4 py-2 space-y-4 no-scrollbar">{messages.map((m,i)=><div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] p-3 rounded-2xl text-sm chat-bubble chat-text ${m.role==='user'?'bg-purple-600 text-white rounded-tr-none':'bg-white border text-gray-700 rounded-tl-none'}`}>{m.text}</div></div>)}{loading && <div className="flex justify-start"><div className="bg-white border p-3 rounded-2xl rounded-tl-none shadow-sm flex items-center space-x-2"><div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"></div><div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{animationDelay:'0.1s'}}></div></div></div>}<div ref={messagesEndRef}/></div><div className="p-3 bg-white border-t pb-safe"><div className="flex items-end bg-gray-50 rounded-2xl px-3 py-2 border"><textarea className="flex-1 bg-transparent outline-none text-sm p-1 resize-none h-10" placeholder="質問を入力..." value={input} onChange={(e)=>setInput(e.target.value)}/><button onClick={sendMessage} disabled={loading} className="ml-2 p-2 rounded-full text-purple-600"><Send size={20}/></button></div></div></div>
+            );
+        };
+
+        // --- Main App Component ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState("news");
+            const [apiKey, setApiKey] = useState("");
+            const [showSettings, setShowSettings] = useState(false);
+
+            return (
+                <div className="max-w-md mx-auto min-h-[100dvh] bg-gray-50 pb-24 relative overflow-hidden flex flex-col">
+                    <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-purple-100 to-transparent -z-10"></div>
+                    <header className="p-6 flex justify-between items-center flex-shrink-0"><div><h1 className="text-2xl font-bold gradient-text">LUMIÈRE</h1><p className="text-xs text-gray-500">Anti-Aging & Holistic Care</p></div><button onClick={() => setShowSettings(true)} className="p-2 bg-white rounded-full shadow-sm text-gray-500 hover:text-purple-500"><Settings size={20} /></button></header>
+                    {showSettings && <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-700">設定</h3><button onClick={() => setShowSettings(false)}><X size={20} /></button></div><p className="text-sm text-gray-500 mb-2">Gemini APIキーを入力</p><input type="password" className="w-full p-3 border rounded-lg bg-gray-50 text-sm mb-4" value={apiKey} onChange={(e) => setApiKey(e.target.value)}/><button onClick={() => setShowSettings(false)} className="w-full bg-black text-white py-3 rounded-lg font-bold text-sm">閉じる</button></div></div>}
+                    <main className="px-6 flex-grow overflow-y-auto no-scrollbar">
+                        {activeTab === "skin" && <SkinDiagnosis />}
+                        {activeTab === "tcm" && <TCMDiagnosis />}
+                        {activeTab === "news" && <NewsFeed />}
+                        {activeTab === "topics" && <AgingTopics />}
+                        {activeTab === "consult" && <AIConsultation apiKey={apiKey} />}
+                    </main>
+                    <nav className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 flex justify-around items-center pb-6 pt-3 px-2 z-40 max-w-md mx-auto left-0 right-0">
+                        <button onClick={() => setActiveTab("news")} className={`flex flex-col items-center space-y-1 w-1/5 ${activeTab === 'news' ? 'text-pink-600' : 'text-gray-400'}`}><Newspaper size={24} strokeWidth={activeTab === 'news' ? 2.5 : 2} /><span className="text-[10px] font-bold">News</span></button>
+                        <button onClick={() => setActiveTab("topics")} className={`flex flex-col items-center space-y-1 w-1/5 ${activeTab === 'topics' ? 'text-yellow-600' : 'text-gray-400'}`}><Lightbulb size={24} strokeWidth={activeTab === 'topics' ? 2.5 : 2} /><span className="text-[10px] font-bold">Topics</span></button>
+                        <button onClick={() => setActiveTab("consult")} className={`flex flex-col items-center space-y-1 w-1/5 ${activeTab === 'consult' ? 'text-blue-500' : 'text-gray-400'}`}><MessageCircle size={24} strokeWidth={activeTab === 'consult' ? 2.5 : 2} /><span className="text-[10px] font-bold">Consult</span></button>
+                        <button onClick={() => setActiveTab("skin")} className={`flex flex-col items-center space-y-1 w-1/5 ${activeTab === 'skin' ? 'text-purple-600' : 'text-gray-400'}`}><Sparkles size={24} strokeWidth={activeTab === 'skin' ? 2.5 : 2} /><span className="text-[10px] font-bold">Skin</span></button>
+                        <button onClick={() => setActiveTab("tcm")} className={`flex flex-col items-center space-y-1 w-1/5 ${activeTab === 'tcm' ? 'text-teal-600' : 'text-gray-400'}`}><Activity size={24} strokeWidth={activeTab === 'tcm' ? 2.5 : 2} /><span className="text-[10px] font-bold">TCM</span></button>
+                    </nav>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
