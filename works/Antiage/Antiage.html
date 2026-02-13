@@ -17,6 +17,10 @@
 
     <!-- Anime.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    
+    <!-- Firebase (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;500;700&display=swap');
@@ -116,6 +120,69 @@
 
         // --- Helper ---
         const googleSearch = (term) => window.open(`https://www.google.com/search?q=${encodeURIComponent(term)}`, '_blank');
+        
+        const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-antiage", "/api/firebase-config-mental"];
+        const FIREBASE_APP_NAME = "antiage-auth";
+        let firebaseAuthInitPromise = null;
+
+        function parseFirebaseConfigCandidate(candidate) {
+            if (!candidate) return null;
+            if (typeof candidate === "string") {
+                try { return JSON.parse(candidate); } catch { return null; }
+            }
+            if (typeof candidate === "object") return candidate;
+            return null;
+        }
+
+        function isValidFirebaseConfig(config) {
+            return !!(config && config.apiKey && config.projectId && config.authDomain);
+        }
+
+        function readFirebaseConfigRuntime() {
+            const direct = parseFirebaseConfigCandidate(typeof __firebase_config !== "undefined" ? __firebase_config : null);
+            if (isValidFirebaseConfig(direct)) return direct;
+
+            const fromWindow = parseFirebaseConfigCandidate(window.__FIREBASE_CONFIG__);
+            if (isValidFirebaseConfig(fromWindow)) return fromWindow;
+
+            const meta = document.querySelector('meta[name="firebase-config"]');
+            const fromMeta = parseFirebaseConfigCandidate(meta?.content);
+            if (isValidFirebaseConfig(fromMeta)) return fromMeta;
+            return null;
+        }
+
+        async function fetchFirebaseConfigFromServer() {
+            for (const endpoint of FIREBASE_CONFIG_ENDPOINTS) {
+                try {
+                    const res = await fetch(endpoint, { method: "GET", cache: "no-store" });
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    if (isValidFirebaseConfig(data)) return data;
+                } catch {}
+            }
+            return null;
+        }
+
+        async function initFirebaseAuth() {
+            if (firebaseAuthInitPromise) return firebaseAuthInitPromise;
+            firebaseAuthInitPromise = (async () => {
+                if (typeof firebase === "undefined") {
+                    throw new Error("Firebase SDKの読み込みに失敗しました。");
+                }
+                const firebaseConfig = readFirebaseConfigRuntime() || await fetchFirebaseConfigFromServer();
+                if (!isValidFirebaseConfig(firebaseConfig)) {
+                    throw new Error("Firebase設定が見つかりません。__firebase_config または /api/firebase-config-antiage を設定してください。");
+                }
+
+                const existing = firebase.apps.find((app) => app.name === FIREBASE_APP_NAME);
+                const app = existing || firebase.initializeApp(firebaseConfig, FIREBASE_APP_NAME);
+                const auth = firebase.auth(app);
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: "select_account" });
+                return { auth, provider };
+            })();
+            return firebaseAuthInitPromise;
+        }
 
         // --- Gemini API Helper ---
         const callGemini = async (apiKey, systemPrompt, userPrompt, responseType = "json") => {
@@ -905,12 +972,104 @@
             const [activeTab, setActiveTab] = useState("news");
             const [apiKey, setApiKey] = useState("");
             const [showSettings, setShowSettings] = useState(false);
+            const [authReady, setAuthReady] = useState(false);
+            const [authError, setAuthError] = useState("");
+            const [authBusy, setAuthBusy] = useState(false);
+            const [authCtx, setAuthCtx] = useState(null);
+            const [user, setUser] = useState(null);
+
+            const apiStorageKey = user ? `antiage_gemini_api_key_${user.uid}` : "antiage_gemini_api_key_guest";
+
+            useEffect(() => {
+                let unsub = null;
+                let mounted = true;
+                (async () => {
+                    try {
+                        const ctx = await initFirebaseAuth();
+                        if (!mounted) return;
+                        setAuthCtx(ctx);
+                        unsub = ctx.auth.onAuthStateChanged((u) => {
+                            if (!mounted) return;
+                            setUser(u || null);
+                            setAuthReady(true);
+                        });
+                    } catch (e) {
+                        if (!mounted) return;
+                        setAuthError(e?.message || "Firebase認証の初期化に失敗しました。");
+                        setAuthReady(true);
+                    }
+                })();
+                return () => {
+                    mounted = false;
+                    if (typeof unsub === "function") unsub();
+                };
+            }, []);
+
+            useEffect(() => {
+                const saved = localStorage.getItem(apiStorageKey) || "";
+                setApiKey(saved);
+            }, [apiStorageKey]);
+
+            const handleApiKeyChange = (value) => {
+                setApiKey(value);
+                localStorage.setItem(apiStorageKey, value);
+            };
+
+            const handleLogin = async () => {
+                if (!authCtx) return;
+                setAuthBusy(true);
+                setAuthError("");
+                try {
+                    await authCtx.auth.signInWithPopup(authCtx.provider);
+                } catch (e) {
+                    setAuthError(e?.message || "Googleログインに失敗しました。");
+                } finally {
+                    setAuthBusy(false);
+                }
+            };
+
+            const handleLogout = async () => {
+                if (!authCtx) return;
+                try {
+                    await authCtx.auth.signOut();
+                    setShowSettings(false);
+                } catch (e) {
+                    alert("ログアウトに失敗しました。");
+                }
+            };
+
+            if (!authReady) {
+                return (
+                    <div className="max-w-md mx-auto min-h-[100dvh] bg-gray-50 flex items-center justify-center px-6">
+                        <div className="glass-panel w-full p-6 rounded-2xl text-center">
+                            <div className="loader mx-auto mb-4"></div>
+                            <p className="text-sm text-gray-600">認証を初期化しています...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!user) {
+                return (
+                    <div className="max-w-md mx-auto min-h-[100dvh] bg-gray-50 relative overflow-hidden flex items-center justify-center px-6">
+                        <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-purple-100 to-transparent -z-10"></div>
+                        <div className="glass-panel w-full p-6 rounded-2xl text-center">
+                            <h1 className="text-2xl font-bold gradient-text mb-1">LUMIÈRE</h1>
+                            <p className="text-xs text-gray-500 mb-6">Anti-Aging & Holistic Care</p>
+                            <button onClick={handleLogin} disabled={authBusy || !authCtx} className="w-full bg-black text-white py-3 rounded-xl font-bold text-sm disabled:opacity-60">
+                                {authBusy ? "ログイン中..." : "Googleでログイン"}
+                            </button>
+                            {authError && <p className="text-xs text-red-600 mt-3 whitespace-pre-wrap">{authError}</p>}
+                        </div>
+                    </div>
+                );
+            }
 
             return (
                 <div className="max-w-md mx-auto min-h-[100dvh] bg-gray-50 pb-24 relative overflow-hidden flex flex-col">
                     <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-purple-100 to-transparent -z-10"></div>
                     <header className="p-6 flex justify-between items-center flex-shrink-0"><div><h1 className="text-2xl font-bold gradient-text">LUMIÈRE</h1><p className="text-xs text-gray-500">Anti-Aging & Holistic Care</p></div><button onClick={() => setShowSettings(true)} className="p-2 bg-white rounded-full shadow-sm text-gray-500 hover:text-purple-500"><Settings size={20} /></button></header>
-                    {showSettings && <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-700">設定</h3><button onClick={() => setShowSettings(false)}><X size={20} /></button></div><p className="text-sm text-gray-500 mb-2">Gemini APIキーを入力</p><input type="password" className="w-full p-3 border rounded-lg bg-gray-50 text-sm mb-4" value={apiKey} onChange={(e) => setApiKey(e.target.value)}/><button onClick={() => setShowSettings(false)} className="w-full bg-black text-white py-3 rounded-lg font-bold text-sm">閉じる</button></div></div>}
+                    {showSettings && <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-700">設定</h3><button onClick={() => setShowSettings(false)}><X size={20} /></button></div><p className="text-xs text-gray-500 mb-1">ログイン中</p><p className="text-sm text-gray-700 mb-4 break-all">{user.displayName || user.email || "ユーザー"}</p><p className="text-sm text-gray-500 mb-2">Gemini APIキーを入力</p><input type="password" className="w-full p-3 border rounded-lg bg-gray-50 text-sm mb-4" value={apiKey} onChange={(e) => handleApiKeyChange(e.target.value)}/><button onClick={handleLogout} className="w-full bg-red-500 text-white py-3 rounded-lg font-bold text-sm mb-2">ログアウト</button><button onClick={() => setShowSettings(false)} className="w-full bg-black text-white py-3 rounded-lg font-bold text-sm">閉じる</button></div></div>}
                     <main className="px-6 flex-grow overflow-y-auto no-scrollbar">
                         {activeTab === "skin" && <SkinDiagnosis />}
                         {activeTab === "tcm" && <TCMDiagnosis />}
