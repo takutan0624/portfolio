@@ -119,7 +119,51 @@
         const Pill = (props) => <IconBase {...props}><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" /><path d="m8.5 8.5 7 7" /></IconBase>;
 
         // --- Helper ---
-        const googleSearch = (term) => window.open(`https://www.google.com/search?q=${encodeURIComponent(term)}`, '_blank');
+        const MECHANISM_HIGHLIGHT_TERMS = new Set(["RAR", "RXR", "ATP", "NAD", "DNA", "RNA", "5αリダクターゼ", "DHT", "チロシナーゼ"]);
+        const googleSearch = (term) => window.open(`https://www.google.com/search?q=${encodeURIComponent(term)}`, "_blank", "noopener,noreferrer");
+        
+        const safeExternalUrl = (rawUrl) => {
+            if (typeof rawUrl !== "string" || !rawUrl.trim()) return "#";
+            try {
+                const parsed = new URL(rawUrl, window.location.origin);
+                if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+                    return parsed.href;
+                }
+            } catch {}
+            return "#";
+        };
+
+        const renderMechanismText = (text) => {
+            const source = String(text || "");
+            const chunks = source.split(/(RAR|RXR|ATP|NAD|DNA|RNA|5αリダクターゼ|DHT|チロシナーゼ)/g);
+            return chunks.map((chunk, idx) => {
+                if (!MECHANISM_HIGHLIGHT_TERMS.has(chunk)) {
+                    return <React.Fragment key={`m-${idx}`}>{chunk}</React.Fragment>;
+                }
+                return (
+                    <button
+                        key={`m-${idx}`}
+                        type="button"
+                        className="text-purple-600 font-bold cursor-pointer hover:underline"
+                        onClick={() => googleSearch(chunk)}
+                    >
+                        {chunk}
+                    </button>
+                );
+            });
+        };
+
+        const renderEmphasisText = (text, strongClassName) => {
+            const source = String(text || "");
+            const chunks = source.split(/(\*\*.*?\*\*)/g);
+            return chunks.map((chunk, idx) => {
+                if (chunk.startsWith("**") && chunk.endsWith("**")) {
+                    const value = chunk.slice(2, -2);
+                    return <strong key={`e-${idx}`} className={strongClassName}>{value}</strong>;
+                }
+                return <React.Fragment key={`e-${idx}`}>{chunk}</React.Fragment>;
+            });
+        };
         
         const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-antiage"];
         const FIREBASE_APP_NAME = "antiage-auth";
@@ -557,7 +601,7 @@
                                     
                                     <div className="bg-white p-3 rounded-lg border border-purple-100 mb-3">
                                         <h4 className="text-xs font-bold text-gray-400 mb-1 flex items-center"><FlaskConical size={12} className="mr-1"/> 詳細メカニズム (Mechanism)</h4>
-                                        <p className="text-xs text-gray-600 leading-relaxed text-justify chat-text" dangerouslySetInnerHTML={{ __html: result.main.mechanism.replace(/(RAR|RXR|ATP|NAD|DNA|RNA|5αリダクターゼ|DHT|チロシナーゼ)/g, '<span class="text-purple-600 font-bold cursor-pointer hover:underline" onclick="window.open(\'https://www.google.com/search?q=$1\')">$1</span>') }}></p>
+                                        <p className="text-xs text-gray-600 leading-relaxed text-justify chat-text">{renderMechanismText(result.main.mechanism)}</p>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-2 mb-3">
@@ -630,7 +674,7 @@
                                 <div className="space-y-3">
                                     <div className="flex">
                                         <div className="w-16 text-xs font-bold text-orange-400 pt-1">AM 7:00</div>
-                                        <div className="flex-1 bg-orange-50 p-3 rounded-lg border border-orange-100 text-xs text-gray-700 chat-text" dangerouslySetInnerHTML={{ __html: result.schedule.am.replace(/\*\*(.*?)\*\*/g, '<strong class="text-orange-600">$1</strong>') }}></div>
+                                        <div className="flex-1 bg-orange-50 p-3 rounded-lg border border-orange-100 text-xs text-gray-700 chat-text">{renderEmphasisText(result.schedule.am, "text-orange-600")}</div>
                                     </div>
                                     <div className="flex">
                                         <div className="w-16 text-xs font-bold text-blue-400 pt-1">PM 12:00</div>
@@ -638,7 +682,7 @@
                                     </div>
                                     <div className="flex">
                                         <div className="w-16 text-xs font-bold text-indigo-500 pt-1">PM 9:00</div>
-                                        <div className="flex-1 bg-indigo-50 p-3 rounded-lg border border-indigo-100 text-xs text-gray-700 chat-text" dangerouslySetInnerHTML={{ __html: result.schedule.pm.replace(/\*\*(.*?)\*\*/g, '<strong class="text-indigo-600">$1</strong>') }}></div>
+                                        <div className="flex-1 bg-indigo-50 p-3 rounded-lg border border-indigo-100 text-xs text-gray-700 chat-text">{renderEmphasisText(result.schedule.pm, "text-indigo-600")}</div>
                                     </div>
                                     <div className="flex">
                                         <div className="w-16 text-xs font-bold text-purple-500 pt-1">PM 11:00</div>
@@ -647,7 +691,7 @@
                                 </div>
                             </div>
 
-                            <button onClick={() => { const q = `${result.main.name} ${result.sub.name} 化粧品`; window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank'); }} className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-gray-800 transition flex items-center justify-center space-x-2"><Search size={18}/><span>この成分の組み合わせで検索</span></button>
+                            <button onClick={() => { const q = `${result.main.name} ${result.sub.name} 化粧品`; googleSearch(q); }} className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-gray-800 transition flex items-center justify-center space-x-2"><Search size={18}/><span>この成分の組み合わせで検索</span></button>
                         </div>
                     </div>
                 );
@@ -920,7 +964,7 @@
                     {loading ? <div className="flex justify-center py-10"><div className="loader"></div></div> : (
                         <>
                             {isDemo && <div className="bg-yellow-50 border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-xs mb-4 text-center">※ 現在はデモデータを表示しています</div>}
-                            {news.map((item,i)=><a key={i} href={item.link} target="_blank" className="news-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded font-bold">NEWS</span><span className="text-xs text-gray-400">{item.date}</span></div><h4 className="font-bold text-gray-800 mb-2 line-clamp-2">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-2">{item.description}</p></a>)}
+                            {news.map((item,i)=><a key={i} href={safeExternalUrl(item.link)} target="_blank" rel="noopener noreferrer" className="news-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded font-bold">NEWS</span><span className="text-xs text-gray-400">{item.date}</span></div><h4 className="font-bold text-gray-800 mb-2 line-clamp-2">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-2">{item.description}</p></a>)}
                         </>
                     )}
                 </div>
@@ -964,7 +1008,7 @@
                     {loading ? <div className="flex justify-center py-10"><div className="loader"></div></div> : (
                         <>
                             {isDemo && <div className="bg-yellow-50 border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-xs mb-4 text-center">※ 現在はデモデータを表示しています</div>}
-                            {topics.map((t,i)=><a key={i} href={t.link} target="_blank" className="topic-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded font-bold">TOPIC</span><span className="text-xs text-gray-400">{t.date}</span></div><h4 className="font-bold text-gray-800 mb-2">{t.title}</h4><div className="flex justify-between items-center mt-2"><span className="text-xs text-gray-400">{t.source}</span><ExternalLink size={14} className="text-gray-300"/></div></a>)}
+                            {topics.map((t,i)=><a key={i} href={safeExternalUrl(t.link)} target="_blank" rel="noopener noreferrer" className="topic-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded font-bold">TOPIC</span><span className="text-xs text-gray-400">{t.date}</span></div><h4 className="font-bold text-gray-800 mb-2">{t.title}</h4><div className="flex justify-between items-center mt-2"><span className="text-xs text-gray-400">{t.source}</span><ExternalLink size={14} className="text-gray-300"/></div></a>)}
                         </>
                     )}
                 </div>
