@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pastel Sweeper - AnimeJS Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Import AnimeJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap');
+
+        :root {
+            --bg-main: #fdfbf7;
+            --bg-panel: #ffffff;
+            --pastel-blue: #a2d2ff;
+            --pastel-green: #caffbf;
+            --pastel-pink: #ffafcc;
+            --pastel-purple: #cdb4db;
+            --pastel-yellow: #fdffb6;
+            --text-main: #4a4e69;
+            --tile-bg: #e2e8f0;
+            --tile-hover: #cbd5e1;
+            --tile-revealed: #f8fafc;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            background-image: radial-gradient(circle at 10% 20%, #eff6ff 0%, #fdfbf7 100%);
+            color: var(--text-main);
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        .stat-box {
+            background: #ffffff;
+            box-shadow: 0 4px 15px rgba(162, 210, 255, 0.2);
+            border-radius: 12px;
+            transition: transform 0.2s;
+            border: 2px solid transparent;
+        }
+        .stat-box:hover {
+            transform: translateY(-2px);
+        }
+
+        .shield-active {
+            box-shadow: 0 0 0 4px var(--pastel-blue) !important;
+            border-radius: 12px;
+        }
+
+        .tile {
+            aspect-ratio: 1 / 1;
+            perspective: 1000px;
+        }
+
+        .tile-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+        }
+
+        .tile-front, .tile-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .tile-front {
+            background: var(--tile-bg);
+            border: 2px solid #ffffff;
+        }
+
+        .tile:hover:not(.revealed) .tile-front {
+            background: var(--tile-hover);
+        }
+
+        .tile-back {
+            background: var(--tile-revealed);
+            transform: rotateY(180deg);
+            border: 2px solid #f1f5f9;
+        }
+
+        .num-1 { color: #5dade2; } 
+        .num-2 { color: #58d68d; }
+        .num-3 { color: #ec7063; }
+        .num-4 { color: #a569bd; }
+        .num-5 { color: #f5b041; }
+        .num-6 { color: #566573; }
+        .num-7 { color: #2e4053; }
+        .num-8 { color: #922b21; }
+
+        .mine-detonated {
+            background: #ffafcc !important;
+            box-shadow: 0 0 15px rgba(255, 175, 204, 0.6);
+            z-index: 10;
+            border: 2px solid #fff !important;
+            color: #fff !important;
+        }
+
+        .skill-btn {
+            position: relative;
+            overflow: hidden;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        
+        .skill-btn:active {
+            transform: scale(0.95);
+        }
+
+        .skill-btn:disabled {
+            opacity: 0.6;
+            background: #f1f5f9;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .skill-btn::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--pastel-blue), var(--pastel-pink));
+            width: var(--progress, 0%);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .energy-bar-fill {
+            background: linear-gradient(90deg, var(--pastel-blue), var(--pastel-purple), var(--pastel-pink));
+            background-size: 200% 100%;
+            animation: gradientMove 3s ease infinite;
+            border-radius: 99px;
+            width: 0%;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 100% 0; }
+            100% { background-position: -100% 0; }
+        }
+
+        .log-entry {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            font-weight: 700;
+            color: #8d99ae;
+            opacity: 0;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            height: 10px;
+            width: 10px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 5px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 5px;
+            border: 2px solid #f1f5f9;
+        }
+        .flag-icon {
+            display: inline-block;
+            transform-origin: center bottom;
+        }
+
+        /* Level Select Styles */
+        #level-select {
+            background-color: transparent;
+            text-align-last: center;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        #level-select:hover {
+            color: #fbbf24; /* darker yellow */
+        }
+        #level-select option {
+            background-color: #ffffff;
+            color: #4a4e69;
+            font-size: 1rem;
+        }
+
+        /* Particle for Explosion */
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+
+    <!-- Header Stats -->
+    <div class="w-full max-w-4xl mb-4 grid grid-cols-4 gap-3 sm:gap-4 text-center">
+        <div class="stat-box p-3 border-b-4 border-yellow-200 relative group">
+            <div class="text-xs text-gray-400 uppercase font-bold tracking-widest pointer-events-none">Level</div>
+            <div class="relative w-full">
+                <select id="level-select" class="w-full text-2xl font-black text-yellow-400 appearance-none outline-none border-none py-0">
+                    <!-- Options populated by JS -->
+                </select>
+                <!-- Subtle indicator that it's clickable -->
+                <div class="absolute inset-0 flex items-center justify-end pointer-events-none opacity-0 group-hover:opacity-50 transition-opacity pr-1">
+                    <svg class="w-4 h-4 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+            </div>
+        </div>
+        <div class="stat-box p-3 border-b-4 border-blue-200">
+            <div class="text-xs text-gray-400 uppercase font-bold tracking-widest">Mines</div>
+            <div id="mine-count" class="text-2xl font-black text-blue-300">00</div>
+        </div>
+        <div class="stat-box p-3 border-b-4 border-pink-200">
+            <div class="text-xs text-gray-400 uppercase font-bold tracking-widest">Score</div>
+            <div id="score" class="text-2xl font-black text-pink-300">0000</div>
+        </div>
+        <div class="stat-box p-3 border-b-4 border-purple-200">
+            <div class="text-xs text-gray-400 uppercase font-bold tracking-widest">Combo</div>
+            <div id="combo" class="text-2xl font-black text-purple-300">x1</div>
+        </div>
+    </div>
+
+    <!-- Energy Bar -->
+    <div class="w-full max-w-4xl mb-4">
+        <div class="flex justify-between text-xs mb-1 uppercase tracking-widest text-gray-400 font-bold">
+            <span>Energy Core</span>
+            <span id="energy-text">0%</span>
+        </div>
+        <div class="h-4 w-full bg-white rounded-full overflow-hidden border border-gray-100 p-0.5 shadow-sm">
+            <div id="energy-fill" class="energy-bar-fill h-full"></div>
+        </div>
+    </div>
+
+    <!-- System Log -->
+    <div class="w-full max-w-4xl mb-4 h-6 overflow-hidden relative flex justify-center items-center">
+         <div id="system-log" class="text-xs font-bold text-gray-400 text-center uppercase tracking-wider">
+             Let's Start!
+         </div>
+    </div>
+
+    <!-- Game Board Container -->
+    <div id="game-container" class="relative group w-full max-w-full flex justify-center">
+        <div class="overflow-auto max-w-full custom-scroll p-4 rounded-3xl bg-white/50 border border-white shadow-xl backdrop-blur-sm">
+            <div id="board" class="grid gap-px sm:gap-1 bg-gray-100/50 p-2 rounded-2xl mx-auto">
+                <!-- Tiles generated by JS -->
+            </div>
+        </div>
+        
+        <!-- Game Over / Level Complete Overlay -->
+        <div id="overlay" class="hidden absolute inset-0 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center z-50 rounded-3xl p-6 text-center m-4 border border-white shadow-lg opacity-0 transform scale-90">
+            <h2 id="overlay-title" class="text-5xl font-black mb-4 tracking-tighter text-gray-700">Oops!</h2>
+            <p id="overlay-msg" class="text-gray-500 mb-8 max-w-md text-lg font-bold">Don't give up!</p>
+            <button id="overlay-btn" class="px-10 py-4 bg-gradient-to-r from-blue-300 to-purple-300 hover:from-blue-400 hover:to-purple-400 text-white font-bold rounded-2xl uppercase tracking-widest shadow-lg">
+                Try Again
+            </button>
+        </div>
+    </div>
+
+    <!-- Skills UI -->
+    <div class="w-full max-w-4xl mt-8 grid grid-cols-3 gap-4">
+        <button id="skill-scan" onclick="activateSkill('scan')" class="skill-btn flex flex-col items-center p-4 group">
+            <div class="skill-icon-scan">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mb-2 text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <span class="text-xs uppercase font-bold text-gray-400 group-hover:text-blue-400">Scan</span>
+            <span class="text-[10px] text-blue-300 mt-1 font-mono">COST: 30</span>
+        </button>
+
+        <button id="skill-hack" onclick="activateSkill('hack')" class="skill-btn flex flex-col items-center p-4 group">
+            <div class="skill-icon-hack">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mb-2 text-purple-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/><path d="m9.05 9 1.41 1.41"/><path d="M14.5 11.5c.3-.3.8-.3 1.1 0l2.3 2.3c.3.3.3.8 0 1.1l-2.3 2.3c-.3.3-.8.3-1.1 0l-2.3-2.3c-.3-.3-.3-.8 0-1.1z"/></svg>
+            </div>
+            <span class="text-xs uppercase font-bold text-gray-400 group-hover:text-purple-400">Hack</span>
+            <span class="text-[10px] text-purple-300 mt-1 font-mono">COST: 60</span>
+        </button>
+
+        <button id="skill-shield" onclick="activateSkill('shield')" class="skill-btn flex flex-col items-center p-4 group">
+            <div class="skill-icon-shield">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mb-2 text-pink-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <span class="text-xs uppercase font-bold text-gray-400 group-hover:text-pink-400">Shield</span>
+            <span class="text-[10px] text-pink-300 mt-1 font-mono">COST: 90</span>
+        </button>
+    </div>
+
+    <!-- Mode Toggle -->
+    <div class="mt-8 flex gap-4 bg-white p-2 rounded-full border border-gray-100 shadow-sm">
+        <button id="mode-reveal" onclick="setMode('reveal')" class="mode-btn px-8 py-3 rounded-full font-bold text-sm uppercase flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-blue-300"></span> Reveal
+        </button>
+        <button id="mode-flag" onclick="setMode('flag')" class="mode-btn px-8 py-3 rounded-full font-bold text-sm uppercase flex items-center gap-2">
+             Flag
+        </button>
+    </div>
+
+    <script>
+        // Game State
+        let currentLevel = 1;
+        let board = [];
+        let gameOver = false;
+        let score = 0;
+        let displayScore = { value: 0 };
+        let energy = 0;
+        let combo = 0;
+        let lastRevealTime = 0;
+        let inputMode = 'reveal';
+        let hasShield = false;
+        let firstClick = true;
+        let currentConfig = {};
+
+        // Config
+        function getLevelConfig(level) {
+            let size;
+            if (level === 1) size = 10;
+            else if (level === 2) size = 15;
+            else if (level === 3) size = 20;
+            else if (level === 4) size = 25;
+            else if (level === 5) size = 30;
+            else if (level === 6) size = 35;
+            else size = 40;
+
+            const density = Math.min(0.20, 0.12 + (level * 0.015));
+            const mineCount = Math.floor(size * size * density);
+
+            return {
+                width: size,
+                height: size,
+                mines: mineCount,
+                energyPerTile: Math.max(0.5, 3.5 - (size * 0.07)), 
+                costs: { scan: 30, hack: 60, shield: 90 }
+            };
+        }
+
+        // Initialize Select and Game
+        window.onload = () => {
+            const select = document.getElementById('level-select');
+            for(let i=1; i<=20; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.innerText = i;
+                select.appendChild(opt);
+            }
+            select.addEventListener('change', () => {
+                currentLevel = parseInt(select.value);
+                initGame('reset');
+            });
+            initGame('reset');
+        };
+
+        function initGame(resetType = 'reset') { // 'reset', 'next', 'retry'
+            if (resetType === 'reset') {
+                // Manual selection or full reset
+                score = 0;
+                displayScore.value = 0;
+                energy = 0;
+                logMessage(`Level ${currentLevel} Selected.`);
+            } else if (resetType === 'next') {
+                // Keep score/energy, increment level
+                logMessage(`Next Challenge: Level ${currentLevel}`);
+            } else if (resetType === 'retry') {
+                // Reset score/energy, keep level
+                score = 0;
+                displayScore.value = 0;
+                energy = 0;
+                logMessage(`Retrying Level ${currentLevel}...`);
+            }
+
+            // Sync Dropdown
+            document.getElementById('level-select').value = currentLevel;
+
+            gameOver = false;
+            combo = 0;
+            hasShield = false;
+            firstClick = true;
+            board = [];
+            currentConfig = getLevelConfig(currentLevel);
+
+            const boardEl = document.getElementById('board');
+            boardEl.style.gridTemplateColumns = `repeat(${currentConfig.width}, minmax(0, 1fr))`;
+            boardEl.innerHTML = '';
+            
+            boardEl.style.transform = '';
+            document.getElementById('board').classList.remove('shield-active');
+            
+            const overlay = document.getElementById('overlay');
+            overlay.classList.add('hidden');
+            overlay.style.opacity = 0;
+            overlay.style.pointerEvents = 'none';
+
+            updateUI();
+            setMode('reveal');
+
+            // Dynamic sizing
+            let tileClass = 'w-5 h-5 sm:w-6 sm:h-6'; 
+            let textSize = 'text-[0px]'; 
+
+            if (currentConfig.width <= 10) {
+                tileClass = 'w-10 h-10 sm:w-14 sm:h-14';
+                textSize = 'text-lg sm:text-xl';
+            } else if (currentConfig.width <= 15) {
+                tileClass = 'w-8 h-8 sm:w-10 sm:h-10';
+                textSize = 'text-sm sm:text-base';
+            } else if (currentConfig.width <= 20) {
+                tileClass = 'w-7 h-7 sm:w-9 sm:h-9';
+                textSize = 'text-xs sm:text-sm';
+            } else if (currentConfig.width <= 25) {
+                tileClass = 'w-6 h-6 sm:w-7 sm:h-7';
+                textSize = 'text-[10px] sm:text-xs';
+            } else {
+                tileClass = 'w-5 h-5 sm:w-6 sm:h-6';
+                textSize = 'text-[9px] sm:text-[10px]'; 
+            }
+
+            // Animate board entrance
+            anime({
+                targets: '#board',
+                scale: [0.9, 1],
+                opacity: [0, 1],
+                easing: 'easeOutExpo',
+                duration: 800
+            });
+
+            for (let y = 0; y < currentConfig.height; y++) {
+                board[y] = [];
+                for (let x = 0; x < currentConfig.width; x++) {
+                    const tile = {
+                        x, y,
+                        isMine: false,
+                        revealed: false,
+                        flagged: false,
+                        neighborMines: 0,
+                        el: null,
+                        innerEl: null
+                    };
+
+                    const el = document.createElement('div');
+                    el.className = `tile cursor-pointer ${tileClass}`;
+                    el.innerHTML = `
+                        <div class="tile-inner">
+                            <div class="tile-front"></div>
+                            <div class="tile-back ${textSize} font-black leading-none flex items-center justify-center"></div>
+                        </div>
+                    `;
+                    
+                    el.addEventListener('click', () => handleTileClick(x, y));
+                    el.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        toggleFlag(x, y);
+                    });
+
+                    tile.el = el;
+                    tile.innerEl = el.querySelector('.tile-inner');
+                    boardEl.appendChild(el);
+                    board[y][x] = tile;
+                }
+            }
+            
+            anime({
+                targets: '.tile',
+                scale: [0, 1],
+                delay: anime.stagger(10, {grid: [currentConfig.width, currentConfig.height], from: 'center'}),
+                easing: 'easeOutElastic(1, .8)'
+            });
+        }
+
+        function logMessage(msg) {
+            const logEl = document.getElementById('system-log');
+            logEl.innerText = `♥ ${msg}`;
+            
+            anime.remove(logEl);
+            anime({
+                targets: logEl,
+                opacity: [0, 1],
+                translateY: [10, 0],
+                duration: 400,
+                easing: 'easeOutExpo'
+            });
+        }
+
+        function createExplosion(x, y) {
+            const particleCount = 30;
+            const colors = ['#ffafcc', '#f87171', '#fbbf24', '#ffffff'];
+            
+            for (let i = 0; i < particleCount; i++) {
+                const p = document.createElement('div');
+                p.classList.add('particle');
+                p.style.left = x + 'px';
+                p.style.top = y + 'px';
+                p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                document.body.appendChild(p);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = Math.random() * 100 + 50;
+                
+                anime({
+                    targets: p,
+                    translateX: Math.cos(angle) * velocity,
+                    translateY: Math.sin(angle) * velocity,
+                    opacity: [1, 0],
+                    scale: [1, 0],
+                    duration: Math.random() * 800 + 400,
+                    easing: 'easeOutExpo',
+                    complete: () => p.remove()
+                });
+            }
+        }
+
+        function placeMines(startX, startY) {
+            let minesPlaced = 0;
+            while (minesPlaced < currentConfig.mines) {
+                const x = Math.floor(Math.random() * currentConfig.width);
+                const y = Math.floor(Math.random() * currentConfig.height);
+                
+                if (!board[y][x].isMine && (Math.abs(x - startX) > 1 || Math.abs(y - startY) > 1)) {
+                    board[y][x].isMine = true;
+                    minesPlaced++;
+                }
+            }
+
+            for (let y = 0; y < currentConfig.height; y++) {
+                for (let x = 0; x < currentConfig.width; x++) {
+                    if (board[y][x].isMine) continue;
+                    let count = 0;
+                    getNeighbors(x, y).forEach(n => {
+                        if (n.isMine) count++;
+                    });
+                    board[y][x].neighborMines = count;
+                }
+            }
+        }
+
+        function getNeighbors(x, y) {
+            const neighbors = [];
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < currentConfig.width && ny >= 0 && ny < currentConfig.height) {
+                        neighbors.push(board[ny][nx]);
+                    }
+                }
+            }
+            return neighbors;
+        }
+
+        function handleTileClick(x, y) {
+            if (gameOver) return;
+
+            if (inputMode === 'flag') {
+                toggleFlag(x, y);
+                return;
+            }
+
+            const tile = board[y][x];
+            if (tile.revealed || tile.flagged) return;
+
+            if (firstClick) {
+                placeMines(x, y);
+                firstClick = false;
+            }
+
+            if (tile.isMine) {
+                if (hasShield) {
+                    hasShield = false;
+                    document.getElementById('board').classList.remove('shield-active');
+                    anime({
+                        targets: '#board',
+                        translateX: [0, -10, 10, -10, 10, 0],
+                        duration: 500,
+                        easing: 'easeInOutSine'
+                    });
+                    logMessage("Saved! Shield protected you.");
+                    updateUI();
+                    return;
+                }
+                triggerGameOver(false, x, y);
+                return;
+            }
+
+            revealTile(x, y);
+            checkWin();
+        }
+
+        function revealTile(x, y) {
+            const tile = board[y][x];
+            if (tile.revealed || tile.flagged) return;
+
+            tile.revealed = true;
+            
+            anime({
+                targets: tile.innerEl,
+                rotateY: 180,
+                scale: [1, 1.1, 1],
+                duration: 600,
+                easing: 'spring(1, 80, 10, 0)'
+            });
+            
+            const back = tile.el.querySelector('.tile-back');
+            if (tile.neighborMines > 0) {
+                back.innerText = tile.neighborMines;
+                const colorClass = `num-${tile.neighborMines}`;
+                back.classList.add(colorClass);
+            }
+
+            const now = Date.now();
+            if (now - lastRevealTime < 1000) {
+                combo++;
+            } else {
+                combo = 1;
+            }
+            lastRevealTime = now;
+
+            energy = Math.min(100, energy + currentConfig.energyPerTile);
+            score += 10 * combo;
+            
+            updateUI();
+
+            if (tile.neighborMines === 0) {
+                getNeighbors(x, y).forEach(n => revealTile(n.x, n.y));
+            }
+        }
+
+        function toggleFlag(x, y) {
+            if (gameOver || board[y][x].revealed) return;
+            const tile = board[y][x];
+            tile.flagged = !tile.flagged;
+            
+            const front = tile.el.querySelector('.tile-front');
+            
+            if (tile.flagged) {
+                front.innerHTML = '<span class="flag-icon text-pink-400 drop-shadow-sm text-sm sm:text-base">❤</span>';
+                anime({
+                    targets: front.querySelector('.flag-icon'),
+                    scale: [0, 1.2, 1],
+                    rotate: [-15, 0],
+                    duration: 500,
+                    easing: 'easeOutElastic(1, .5)'
+                });
+            } else {
+                front.innerHTML = '';
+            }
+            updateUI();
+        }
+
+        function setMode(mode) {
+            inputMode = mode;
+            const revBtn = document.getElementById('mode-reveal');
+            const flagBtn = document.getElementById('mode-flag');
+            
+            if (mode === 'reveal') {
+                anime({targets: revBtn, scale: 1.05, backgroundColor: '#dbeafe', color: '#2563eb', duration: 300});
+                anime({targets: flagBtn, scale: 1, backgroundColor: '#ffffff', color: '#9ca3af', duration: 300});
+                logMessage("Mode: REVEAL");
+            } else {
+                anime({targets: flagBtn, scale: 1.05, backgroundColor: '#fce7f3', color: '#db2777', duration: 300});
+                anime({targets: revBtn, scale: 1, backgroundColor: '#ffffff', color: '#9ca3af', duration: 300});
+                logMessage("Mode: FLAG");
+            }
+        }
+
+        function activateSkill(type) {
+            if (energy < currentConfig.costs[type]) {
+                logMessage(`Not enough energy! Need ${currentConfig.costs[type]}%`);
+                anime({
+                    targets: '#energy-fill',
+                    translateX: [0, -5, 5, -5, 5, 0],
+                    duration: 400,
+                    easing: 'easeInOutSine'
+                });
+                return;
+            }
+
+            if (type === 'shield' && hasShield) {
+                logMessage("Shield is already ON!");
+                return;
+            }
+
+            const btn = document.getElementById(`skill-${type}`);
+            anime({
+                targets: btn,
+                scale: [0.9, 1],
+                duration: 200,
+                easing: 'easeOutQuad'
+            });
+
+            energy -= currentConfig.costs[type];
+            
+            if (type === 'scan') {
+                let targets = [];
+                board.forEach(row => row.forEach(tile => {
+                    if (!tile.revealed && !tile.isMine) targets.push(tile);
+                }));
+                if (targets.length) {
+                    const t = targets[Math.floor(Math.random() * targets.length)];
+                    revealTile(t.x, t.y);
+                    
+                    const pingEl = document.createElement('div');
+                    pingEl.style.position = 'absolute';
+                    pingEl.style.left = t.el.offsetLeft + 'px';
+                    pingEl.style.top = t.el.offsetTop + 'px';
+                    pingEl.style.width = t.el.offsetWidth + 'px';
+                    pingEl.style.height = t.el.offsetHeight + 'px';
+                    pingEl.style.borderRadius = '50%';
+                    pingEl.style.border = '2px solid #60a5fa';
+                    pingEl.style.pointerEvents = 'none';
+                    pingEl.style.zIndex = 100;
+                    document.getElementById('board').appendChild(pingEl);
+                    
+                    anime({
+                        targets: pingEl,
+                        scale: [1, 3],
+                        opacity: [1, 0],
+                        duration: 800,
+                        easing: 'easeOutExpo',
+                        complete: () => pingEl.remove()
+                    });
+
+                    logMessage("Scan: Found a safe spot!");
+                } else {
+                    logMessage("Scan: Nothing to scan.");
+                }
+            } else if (type === 'hack') {
+                let mineTargets = [];
+                board.forEach(row => row.forEach(tile => {
+                    if (tile.isMine && !tile.flagged) mineTargets.push(tile);
+                }));
+                const count = Math.min(3, mineTargets.length);
+                const chosen = mineTargets.sort(() => Math.random() - 0.5).slice(0, count);
+                chosen.forEach(t => toggleFlag(t.x, t.y));
+                logMessage(`Hack: Marked ${count} mines!`);
+            } else if (type === 'shield') {
+                hasShield = true;
+                document.getElementById('board').classList.add('shield-active');
+                
+                anime({
+                    targets: '#board',
+                    borderColor: ['#fff', '#a2d2ff', '#fff'],
+                    duration: 1000,
+                });
+                logMessage("Shield Activated!");
+            }
+
+            updateUI();
+        }
+
+        function updateUI() {
+            const scoreEl = document.getElementById('score');
+            anime({
+                targets: displayScore,
+                value: score,
+                round: 1,
+                easing: 'linear',
+                duration: 500,
+                update: function() {
+                    scoreEl.innerHTML = displayScore.value.toString().padStart(4, '0');
+                }
+            });
+
+            document.getElementById('combo').innerText = `x${combo}`;
+            
+            anime({
+                targets: '#energy-fill',
+                width: `${energy}%`,
+                easing: 'easeOutExpo',
+                duration: 800
+            });
+            
+            document.getElementById('energy-text').innerText = `${Math.floor(energy)}%`;
+            
+            let flags = 0;
+            board.forEach(row => row.forEach(t => { if(t.flagged) flags++ }));
+            document.getElementById('mine-count').innerText = (currentConfig.mines - flags).toString().padStart(2, '0');
+
+            ['scan', 'hack', 'shield'].forEach(s => {
+                const btn = document.getElementById(`skill-${s}`);
+                const isAffordable = energy >= currentConfig.costs[s];
+                
+                btn.disabled = !isAffordable;
+                
+                const progress = Math.min(100, (energy / currentConfig.costs[s]) * 100);
+                btn.style.setProperty('--progress', `${progress}%`);
+
+                if (s === 'shield' && hasShield) {
+                    btn.classList.add('border-blue-200');
+                    btn.style.background = "#eff6ff";
+                } else {
+                    btn.classList.remove('border-blue-200');
+                    btn.style.background = "#ffffff";
+                }
+            });
+        }
+
+        function checkWin() {
+            let win = true;
+            board.forEach(row => row.forEach(tile => {
+                if (!tile.isMine && !tile.revealed) win = false;
+            }));
+
+            if (win) triggerGameOver(true);
+        }
+
+        function triggerGameOver(isWin, centerX, centerY) {
+            gameOver = true;
+            const overlay = document.getElementById('overlay');
+            const title = document.getElementById('overlay-title');
+            const msg = document.getElementById('overlay-msg');
+            const btn = document.getElementById('overlay-btn');
+            
+            if (isWin) {
+                // (勝利時の処理は変更なし)
+                overlay.classList.remove('hidden');
+                overlay.style.pointerEvents = 'auto';
+                
+                anime({
+                    targets: overlay,
+                    opacity: [0, 1],
+                    scale: [0.8, 1],
+                    duration: 800,
+                    easing: 'easeOutElastic(1, .8)'
+                });
+
+                title.innerText = "Level Complete!";
+                title.className = "text-5xl font-black text-blue-400 mb-4 drop-shadow-sm";
+                msg.innerHTML = `Awesome job!<br>Score: <span class="text-pink-400 font-bold text-2xl">${score}</span>`;
+                btn.innerText = "Next Level";
+                btn.onclick = () => {
+                    anime({
+                        targets: overlay,
+                        opacity: 0,
+                        scale: 1.2,
+                        duration: 300,
+                        easing: 'easeInQuad',
+                        complete: () => {
+                            currentLevel++;
+                            initGame('next');
+                        }
+                    });
+                };
+                score += 100 * currentLevel;
+                updateUI();
+                
+                anime({
+                    targets: '.tile-inner',
+                    rotateY: '+=360',
+                    delay: anime.stagger(50, {grid: [currentConfig.width, currentConfig.height], from: 'center'}),
+                    easing: 'easeInOutSine'
+                });
+            } else {
+                // (敗北時の処理)
+                
+                // 1. まずクリックした場所で大爆発
+                const targetTile = board[centerY][centerX];
+                const rect = targetTile.el.getBoundingClientRect();
+                const absoluteX = rect.left + rect.width / 2;
+                const absoluteY = rect.top + rect.height / 2;
+                
+                createExplosion(absoluteX, absoluteY);
+                
+                // 爆発したタイルを赤くする
+                targetTile.el.querySelector('.tile-back').classList.add('mine-detonated');
+                targetTile.innerEl.style.transform = 'rotateY(180deg)'; // 即座に裏返す（AnimeJSより優先）
+
+                // 画面を揺らす
+                anime({
+                    targets: 'body',
+                    translateX: [
+                        { value: -10, duration: 50 },
+                        { value: 10, duration: 50 },
+                        { value: -10, duration: 50 },
+                        { value: 10, duration: 50 },
+                        { value: 0, duration: 50 }
+                    ],
+                    easing: 'linear'
+                });
+
+                // 少し遅れてオーバーレイと他の地雷表示
+                setTimeout(() => {
+                    overlay.classList.remove('hidden');
+                    overlay.style.pointerEvents = 'auto';
+                    
+                    title.innerText = "Game Over";
+                    title.className = "text-5xl font-black text-pink-400 mb-4 drop-shadow-sm game-over-title";
+                    msg.innerText = "Don't worry, try again!";
+                    btn.innerText = "Retry";
+                    btn.onclick = () => {
+                        anime({
+                            targets: overlay,
+                            opacity: 0,
+                            duration: 300,
+                            easing: 'easeOutQuad',
+                            complete: () => initGame('retry')
+                        });
+                    };
+                    
+                    anime({
+                        targets: overlay,
+                        opacity: [0, 1],
+                        scale: [0.8, 1],
+                        duration: 800,
+                        easing: 'easeOutElastic(1, .8)'
+                    });
+
+                    document.getElementById('board').classList.remove('shield-active');
+                    
+                    // 連鎖爆発エフェクト
+                    board.forEach(row => row.forEach(tile => {
+                        if (tile.isMine) {
+                            tile.revealed = true;
+                            const back = tile.el.querySelector('.tile-back');
+                            back.innerHTML = '☠';
+                            back.className = 'tile-back flex items-center justify-center text-white font-bold bg-pink-300 border border-white shadow-sm';
+                            
+                            if (tile.x === centerX && tile.y === centerY) {
+                                tile.el.querySelector('.tile-back').classList.add('mine-detonated');
+                            } else {
+                                const dist = Math.sqrt(Math.pow(tile.x - centerX, 2) + Math.pow(tile.y - centerY, 2));
+                                anime({
+                                    targets: tile.innerEl,
+                                    rotateY: 180,
+                                    delay: dist * 50,
+                                    duration: 800,
+                                    easing: 'spring(1, 80, 10, 0)'
+                                });
+                            }
+                        }
+                    }));
+                }, 600); // 爆発演出の待ち時間
+            }
+        }
+    </script>
+</body>
+</html>
