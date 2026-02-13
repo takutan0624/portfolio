@@ -284,7 +284,7 @@
 
         // --- Groq API Helper ---
         const GROQ_MODEL = "openai/gpt-oss-120b";
-        const callGroqConsult = async (user, userPrompt) => {
+        const callGroqText = async (user, { systemPrompt, userPrompt, temperature = 0.45, maxTokens = 2400 }) => {
             if (!user) throw new Error("ログインしてください");
             const token = await user.getIdToken(true);
             const res = await fetch("/api/groq-antiage", {
@@ -295,14 +295,11 @@
                 },
                 body: JSON.stringify({
                     model: GROQ_MODEL,
-                    temperature: 0.45,
-                    max_tokens: 2400,
+                    temperature,
+                    max_tokens: maxTokens,
                     messages: [
-                        {
-                            role: "system",
-                            content: "あなたは日本語の美容カウンセラーです。相手の不安や期待にまず共感し、安心感のある言葉で丁寧に回答してください。医学的断定は避けつつ、皮膚科学の一般知識に基づいた実用的な助言を行ってください。押しつけず、今すぐ実践できる提案を優先してください。回答は会話文として自然につなげ、専門用語には短い補足を入れてください。最後に「今日からできる一歩」を1つ示してください。最終回答は日本語で1200〜1700文字（目安1500文字）に収めてください。"
-                        },
-                        { role: "user", content: userPrompt }
+                        { role: "system", content: String(systemPrompt || "") },
+                        { role: "user", content: String(userPrompt || "") }
                     ]
                 })
             });
@@ -321,6 +318,48 @@
             } catch {
                 throw new Error("AI応答の形式が不正です");
             }
+        };
+
+        const callGroqConsult = async (user, userPrompt) => {
+            return callGroqText(user, {
+                systemPrompt: "あなたは日本語の美容カウンセラーです。相手の不安や期待にまず共感し、安心感のある言葉で丁寧に回答してください。医学的断定は避けつつ、皮膚科学の一般知識に基づいた実用的な助言を行ってください。押しつけず、今すぐ実践できる提案を優先してください。回答は会話文として自然につなげ、専門用語には短い補足を入れてください。最後に「今日からできる一歩」を1つ示してください。最終回答は日本語で1200〜1700文字（目安1500文字）に収めてください。",
+                userPrompt,
+                temperature: 0.45,
+                maxTokens: 2400,
+            });
+        };
+
+        const callGroqEventNewsSummary = async (user, keywords, items) => {
+            const normalizedKeywords = Array.isArray(keywords) ? keywords.filter(Boolean).slice(0, 12) : [];
+            const keywordLabel = normalizedKeywords.length > 0 ? normalizedKeywords.join(" / ") : "コスメイベント";
+            const compactItems = (Array.isArray(items) ? items : []).slice(0, 30).map((item, index) => {
+                const date = String(item?.date || "日付不明");
+                const source = String(item?.source || "Google News");
+                const title = String(item?.title || "").trim();
+                const description = String(item?.description || "").replace(/\s+/g, " ").trim();
+                return `${index + 1}. [${date}] ${title} / ${source} / ${description}`;
+            }).join("\n");
+
+            const prompt = [
+                `検索キーワード: ${keywordLabel}`,
+                "以下は抽出済みのコスメイベント関連ニュースです。",
+                compactItems,
+                "",
+                "上記情報のみを根拠に、イベントニュースとして自然な日本語で要約してください。",
+                "要件:",
+                "・最初に全体トレンドを2〜3文",
+                "・次に注目イベントを3〜6件（名称と注目理由）",
+                "・最後に参加前チェックポイントを2〜3個",
+                "・推測や断定はせず、不明な点は「不明」と書く",
+                "・700〜1200文字"
+            ].join("\n");
+
+            return callGroqText(user, {
+                systemPrompt: "あなたは美容メディア編集部のニュースライターです。与えられた情報だけを使い、過剰な誇張や推測を避け、読みやすく有益なイベントまとめを作成してください。",
+                userPrompt: prompt,
+                temperature: 0.3,
+                maxTokens: 1200,
+            });
         };
 
         // --- Components ---
@@ -978,13 +1017,36 @@
         };
 
         // 3. News Feed & 4. Aging Topics & 5. AI Consultation (Same as before)
-        const NewsFeed = () => {
+        const NewsFeed = ({ user }) => {
+            const DEFAULT_EVENT_KEYWORDS = [
+                "コスメイベント",
+                "美容イベント",
+                "ポップアップストア コスメ",
+                "百貨店 コスメ催事",
+                "コスメ 新作",
+                "美容セミナー"
+            ];
             const [news, setNews] = useState([]);
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState(null);
             const [isDemo, setIsDemo] = useState(false);
-            useEffect(() => { fetchRealNews(); }, []);
+            const [keywordInput, setKeywordInput] = useState(DEFAULT_EVENT_KEYWORDS.join("、"));
+            const [activeKeywords, setActiveKeywords] = useState(DEFAULT_EVENT_KEYWORDS);
+            const [summary, setSummary] = useState("");
+            const [summaryLoading, setSummaryLoading] = useState(false);
+            const [summaryError, setSummaryError] = useState("");
+            const [summaryTimestamp, setSummaryTimestamp] = useState("");
+
+            useEffect(() => { fetchRealNews(DEFAULT_EVENT_KEYWORDS); }, []);
             useEffect(() => { if(!loading && news.length>0) anime({targets:'.news-card', translateY:[20,0], opacity:[0,1], delay:anime.stagger(100), easing:'easeOutQuad', duration:500}); }, [loading, news]);
+
+            const parseKeywordInput = (raw) => {
+                const values = String(raw || "")
+                    .split(/[\n,、，]/g)
+                    .map((v) => v.trim())
+                    .filter(Boolean);
+                return Array.from(new Set(values)).slice(0, 12);
+            };
             
             // Demo Data fallback
             const demoNews = [
@@ -993,22 +1055,22 @@
                 { title: "【新製品】次世代レチノール配合クリームが登場", date: "2024-10-20", link: "#", description: "敏感肌でも使える画期的なレチノール成分を配合..." }
             ];
 
-            const fetchRealNews = async () => {
+            const fetchRealNews = async (requestedKeywords) => {
                 setLoading(true); setError(null); setIsDemo(false);
+                setSummary("");
+                setSummaryError("");
+                setSummaryTimestamp("");
                 try {
-                    const eventKeywords = [
-                        "\"コスメイベント\"",
-                        "\"美容イベント\"",
-                        "\"ポップアップストア コスメ\"",
-                        "\"百貨店 コスメ催事\"",
-                        "\"コスメ 新作\"",
-                        "\"美容セミナー\""
-                    ];
+                    const parsed = Array.isArray(requestedKeywords) ? requestedKeywords : parseKeywordInput(requestedKeywords);
+                    const selectedKeywords = parsed.length > 0 ? parsed : DEFAULT_EVENT_KEYWORDS;
+                    setActiveKeywords(selectedKeywords);
+
+                    const eventKeywords = selectedKeywords.map((keyword) => `"${String(keyword).replace(/"/g, "").trim()}"`);
                     const batches = chunkArray(eventKeywords, 4);
                     const results = await Promise.all(
                         batches.map(async (batch) => {
                             const eventQuery = batch.join(" OR ");
-                            const rssUrl = `https://news.google.com/rss/search?q=${eventQuery}&hl=ja&gl=JP&ceid=JP:ja`;
+                            const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(eventQuery)}&hl=ja&gl=JP&ceid=JP:ja`;
                             try {
                                 const rawItems = await fetchRss2JsonItems(rssUrl);
                                 return rawItems.map((item) => ({
@@ -1016,7 +1078,8 @@
                                     date: String(item.pubDate || "").split(" ")[0],
                                     link: item.link,
                                     description: String(item.description || "").replace(/<[^>]*>?/gm,'').substring(0, 120),
-                                    pubDate: item.pubDate
+                                    pubDate: item.pubDate,
+                                    source: item.author || "Google News"
                                 }));
                             } catch {
                                 return [];
@@ -1032,8 +1095,11 @@
                     const source = eventOnly.length > 0 ? eventOnly : merged;
                     const items = source
                         .slice(0, 40)
-                        .map(({ pubDate, ...item }) => ({ ...item, description: `${item.description}...` }));
+                        .map(({ pubDate, ...item }) => ({ ...item, description: item.description ? `${item.description}...` : "" }));
                     setNews(items);
+                    if (items.length === 0) {
+                        setError("該当するニュースが見つかりませんでした。キーワードを変えてお試しください。");
+                    }
                 } catch(e) { 
                     setError(e.message); 
                     setNews(demoNews); 
@@ -1041,13 +1107,67 @@
                 }
                 finally { setLoading(false); }
             };
+
+            const handleSearch = () => {
+                const parsed = parseKeywordInput(keywordInput);
+                if (parsed.length === 0) {
+                    setError("キーワードを1つ以上入力してください。");
+                    setNews([]);
+                    return;
+                }
+                fetchRealNews(parsed);
+            };
+
+            const handleResetKeywords = () => {
+                const defaults = [...DEFAULT_EVENT_KEYWORDS];
+                setKeywordInput(defaults.join("、"));
+                fetchRealNews(defaults);
+            };
+
+            const handleSummarizeNews = async () => {
+                if (news.length === 0) {
+                    setSummaryError("先にニュースを取得してください。");
+                    return;
+                }
+                setSummaryLoading(true);
+                setSummaryError("");
+                try {
+                    const text = await callGroqEventNewsSummary(user, activeKeywords, news);
+                    setSummary(text || "要約を生成できませんでした。");
+                    setSummaryTimestamp(new Date().toLocaleString("ja-JP"));
+                } catch (e) {
+                    setSummaryError(e?.message || "要約生成に失敗しました。");
+                } finally {
+                    setSummaryLoading(false);
+                }
+            };
+
             return (
                 <div className="space-y-4 animate-fade-in pb-20">
-                    <div className="flex justify-between items-center mb-2"><h3 className="text-xl font-bold text-gray-700">Event News</h3><button onClick={fetchRealNews} className="text-sm text-purple-500 font-bold"><RefreshCw size={14} className="inline"/>更新</button></div>
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-xl font-bold text-gray-700">Event News</h3>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => fetchRealNews(activeKeywords)} className="text-sm text-purple-500 font-bold"><RefreshCw size={14} className="inline"/>更新</button>
+                            <button onClick={handleSummarizeNews} disabled={summaryLoading || loading || news.length === 0} className="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-full font-bold disabled:opacity-60">AIで要約</button>
+                        </div>
+                    </div>
+                    <div className="bg-white border rounded-xl p-3 shadow-sm">
+                        <label className="block text-[11px] font-bold text-gray-500 mb-2">コスメイベント検索キーワード（読点・カンマ区切り）</label>
+                        <div className="flex gap-2">
+                            <input value={keywordInput} onChange={(e) => setKeywordInput(e.target.value)} placeholder="例: コスメイベント、ポップアップストア コスメ、美容セミナー" className="flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-400" />
+                            <button onClick={handleSearch} disabled={loading} className="bg-pink-500 text-white px-3 py-2 rounded-lg text-sm font-bold disabled:opacity-60">検索</button>
+                            <button onClick={handleResetKeywords} disabled={loading} className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold border disabled:opacity-60">初期化</button>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-2 line-clamp-2">現在の条件: {activeKeywords.join(" / ")}</p>
+                    </div>
+                    {summaryLoading && <div className="bg-purple-50 border border-purple-200 text-purple-700 px-4 py-3 rounded-xl text-sm">AIがイベント情報を要約中です...</div>}
+                    {summaryError && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{summaryError}</div>}
+                    {summary && <div className="bg-violet-50 border border-violet-200 rounded-xl p-4"><div className="flex justify-between items-center mb-2"><h4 className="font-bold text-violet-800 text-sm">AIイベントまとめ</h4><span className="text-[11px] text-violet-500">{summaryTimestamp}</span></div><p className="text-sm text-violet-900 leading-relaxed whitespace-pre-wrap">{summary}</p></div>}
+                    {error && !loading && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-2 rounded-lg text-xs">{error}</div>}
                     {loading ? <div className="flex justify-center py-10"><div className="loader"></div></div> : (
                         <>
                             {isDemo && <div className="bg-yellow-50 border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-xs mb-4 text-center">※ 現在はデモデータを表示しています</div>}
-                            {news.map((item,i)=><a key={i} href={safeExternalUrl(item.link)} target="_blank" rel="noopener noreferrer" className="news-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded font-bold">NEWS</span><span className="text-xs text-gray-400">{item.date}</span></div><h4 className="font-bold text-gray-800 mb-2 line-clamp-2">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-2">{item.description}</p></a>)}
+                            {news.map((item,i)=><a key={i} href={safeExternalUrl(item.link)} target="_blank" rel="noopener noreferrer" className="news-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded font-bold">NEWS</span><span className="text-xs text-gray-400">{item.date}</span></div><h4 className="font-bold text-gray-800 mb-2 line-clamp-2">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-2">{item.description}</p><div className="text-[11px] text-gray-400 mt-2">{item.source || "Google News"}</div></a>)}
                         </>
                     )}
                 </div>
@@ -1292,7 +1412,7 @@
                     <main className="px-6 flex-grow overflow-y-auto no-scrollbar">
                         {activeTab === "skin" && <SkinDiagnosis />}
                         {activeTab === "tcm" && <TCMDiagnosis />}
-                        {activeTab === "news" && <NewsFeed />}
+                        {activeTab === "news" && <NewsFeed user={user} />}
                         {activeTab === "topics" && <AgingTopics />}
                         {activeTab === "consult" && <AIConsultation user={user} messages={consultMessages} onMessagesChange={setConsultMessages} />}
                     </main>
