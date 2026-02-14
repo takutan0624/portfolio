@@ -1,0 +1,23 @@
+{
+  "name": "LUMIERE Antiage",
+  "short_name": "LUMIERE",
+  "description": "Anti-Aging & Holistic Care",
+  "start_url": "./Antiage.html",
+  "display": "standalone",
+  "background_color": "#fdf2f8",
+  "theme_color": "#ec4899",
+  "icons": [
+    {
+      "src": "./icons/antiage-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/antiage-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
