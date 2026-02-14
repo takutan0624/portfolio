@@ -1168,7 +1168,6 @@
                         <h3 className="text-xl font-bold text-gray-700">Event News</h3>
                         <div className="flex items-center gap-2">
                             <button onClick={() => fetchRealNews(activeKeywords)} className="text-sm text-purple-500 font-bold"><RefreshCw size={14} className="inline"/>更新</button>
-                            <button onClick={handleSummarizeNews} disabled={summaryLoading || loading || news.length === 0} className="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-full font-bold disabled:opacity-60">AIで要約</button>
                         </div>
                     </div>
                     <div className="bg-white border rounded-xl p-3 shadow-sm">
