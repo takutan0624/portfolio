@@ -218,6 +218,34 @@
             }
             return data.items;
         }
+
+        async function fetchCosmeEventNewsItems(keywords, maxItems = 40) {
+            const params = new URLSearchParams();
+            params.set("max", String(Math.max(1, Math.min(100, Number(maxItems) || 40))));
+            if (Array.isArray(keywords) && keywords.length > 0) {
+                params.set("keywords", keywords.join("、"));
+            }
+            const apiUrl = `/api/cosme-event-news-antiage?${params.toString()}`;
+            const res = await fetch(apiUrl);
+            const text = await res.text();
+            if (!res.ok) {
+                let message = `Cosme event API ${res.status}`;
+                try {
+                    const parsed = JSON.parse(text);
+                    message = parsed?.error || parsed?.message || message;
+                } catch {}
+                throw new Error(message);
+            }
+            try {
+                const data = JSON.parse(text);
+                if (data?.status !== "ok" || !Array.isArray(data?.items)) {
+                    throw new Error("Invalid cosme event response");
+                }
+                return data.items;
+            } catch (e) {
+                throw new Error(e?.message || "Failed to parse cosme event response");
+            }
+        }
         
         const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-antiage", "/api/firebase-config-mental"];
         const FIREBASE_APP_NAME = "antiage-auth";
@@ -1065,37 +1093,18 @@
                     const selectedKeywords = parsed.length > 0 ? parsed : DEFAULT_EVENT_KEYWORDS;
                     setActiveKeywords(selectedKeywords);
 
-                    const eventKeywords = selectedKeywords.map((keyword) => `"${String(keyword).replace(/"/g, "").trim()}"`);
-                    const batches = chunkArray(eventKeywords, 4);
-                    const results = await Promise.all(
-                        batches.map(async (batch) => {
-                            const eventQuery = batch.join(" OR ");
-                            const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(eventQuery)}&hl=ja&gl=JP&ceid=JP:ja`;
-                            try {
-                                const rawItems = await fetchRss2JsonItems(rssUrl);
-                                return rawItems.map((item) => ({
-                                    title: item.title,
-                                    date: String(item.pubDate || "").split(" ")[0],
-                                    link: item.link,
-                                    description: String(item.description || "").replace(/<[^>]*>?/gm,'').substring(0, 120),
-                                    pubDate: item.pubDate,
-                                    source: item.author || "Google News"
-                                }));
-                            } catch {
-                                return [];
-                            }
-                        })
-                    );
-
-                    const merged = dedupeByLink(results.flat())
-                        .sort((a, b) => toDateValue(b.pubDate) - toDateValue(a.pubDate));
-
-                    const eventMatcher = /(イベント|ポップアップ|催事|展示会|セミナー|フェア|体験会)/i;
-                    const eventOnly = merged.filter((item) => eventMatcher.test(`${item.title || ""} ${item.description || ""}`));
-                    const source = eventOnly.length > 0 ? eventOnly : merged;
-                    const items = source
-                        .slice(0, 40)
-                        .map(({ pubDate, ...item }) => ({ ...item, description: item.description ? `${item.description}...` : "" }));
+                    const rawItems = await fetchCosmeEventNewsItems(selectedKeywords, 40);
+                    const items = rawItems.map((item) => {
+                        const description = String(item.description || "").replace(/<[^>]*>?/gm, "").substring(0, 120);
+                        return {
+                            title: item.title,
+                            date: String(item.date || item.pubDate || "").split(" ")[0],
+                            link: item.link,
+                            description: description ? `${description}...` : "",
+                            pubDate: item.pubDate || "",
+                            source: item.source || item.author || "Google News"
+                        };
+                    });
                     setNews(items);
                     if (items.length === 0) {
                         setError("該当するニュースが見つかりませんでした。キーワードを変えてお試しください。");
