@@ -1,6 +1,27 @@
 const ALLOWED_HOSTS = new Set([
   "news.google.com",
+  "prtimes.jp",
+  "www.fashionsnap.com",
+  "fashionsnap.com",
 ]);
+
+const STATIC_FEEDS = [
+  {
+    key: "prtimes_beauty",
+    source: "PR TIMES",
+    url: "https://prtimes.jp/tv/category/beauty/rss.xml",
+  },
+  {
+    key: "prtimes_beauty_alt",
+    source: "PR TIMES",
+    url: "https://prtimes.jp/rss/beauty.rdf",
+  },
+  {
+    key: "fashionsnap_beauty",
+    source: "FASHIONSNAP",
+    url: "https://www.fashionsnap.com/beauty/feed/",
+  },
+];
 
 function setHeaders(res) {
   res.setHeader("Cache-Control", "no-store");
@@ -78,6 +99,39 @@ function parseRssItems(xml) {
     out.push({ title, link, pubDate, description, author });
   }
   return out;
+}
+
+function parseAtomEntries(xml) {
+  const blocks = String(xml || "").match(/<entry\b[\s\S]*?<\/entry>/gi) || [];
+  const out = [];
+  for (const block of blocks) {
+    const title = getTagValue(block, ["title"]);
+    const updated = getTagValue(block, ["updated", "published"]);
+    const summary = stripHtml(getTagValue(block, ["summary", "content"]));
+    const author = getTagValue(block, ["name", "author"]);
+    let link = "";
+    const relAlt = block.match(/<link\b[^>]*rel=["']alternate["'][^>]*href=["']([^"']+)["'][^>]*>/i);
+    if (relAlt && relAlt[1]) link = decodeXmlEntities(relAlt[1]);
+    if (!link) {
+      const anyLink = block.match(/<link\b[^>]*href=["']([^"']+)["'][^>]*>/i);
+      if (anyLink && anyLink[1]) link = decodeXmlEntities(anyLink[1]);
+    }
+    if (!title || !link) continue;
+    out.push({
+      title,
+      link,
+      pubDate: updated,
+      description: summary,
+      author,
+    });
+  }
+  return out;
+}
+
+function parseFeedItems(xml) {
+  const rss = parseRssItems(xml);
+  if (rss.length > 0) return rss;
+  return parseAtomEntries(xml);
 }
 
 function readQuery(req, key, fallback = "") {
@@ -166,6 +220,7 @@ function buildQueries(keywords, recentDays) {
   const donki = "(\"ドン・キホーテ\" OR \"ドンキ\" OR \"MEGAドンキ\" OR \"majica\")";
   const donkiEvent = "(\"コスメフェスティバル\" OR \"コスメフェス\" OR \"コスメ祭\" OR \"ビューティーフェス\" OR \"ビューティーイベント\" OR \"催事\" OR \"ポップアップ\")";
   const donkiSite = "(site:donki.com OR site:ppih.co.jp)";
+  const broad = "(intitle:ポップアップ OR intitle:イベント OR intitle:フェス) (コスメ OR 美容 OR メイク) (東京 OR 神奈川 OR 千葉 OR 横浜 OR ドンキ)";
   const extra = keywords.length > 0 ? `(${keywords.map((v) => `"${String(v).replace(/"/g, "")}"`).join(" OR ")})` : "";
   const extraClause = extra ? ` ${extra}` : "";
   const recencyClause = recentDays > 0 ? ` when:${recentDays}d` : "";
@@ -176,31 +231,35 @@ function buildQueries(keywords, recentDays) {
     `${donki} ${donkiEvent}${extraClause}${recencyClause}`.trim(),
     `${donki} ${cosme} ${eventWords}${extraClause}${recencyClause}`.trim(),
     `${donkiSite} ${cosme} ${donkiEvent}${extraClause}${recencyClause}`.trim(),
+    `${broad}${extraClause}${recencyClause}`.trim(),
   ];
 }
 
 function isTargetEvent(item) {
   const text = `${item.title || ""} ${item.description || ""}`;
-  const hasCosme = /(コスメ|化粧品|ビューティー|メイク)/i.test(text);
+  const hasCosme = /(コスメ|化粧品|ビューティー|メイク|美容)/i.test(text);
   const hasEvent = /(ポップアップ|イベント|催事|フェス|フェスティバル|フェア|体験会|展示会)/i.test(text);
-  const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張)/i.test(text);
+  const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張|千葉市|船橋|柏)/i.test(text);
   const hasDonki = /(ドンキ|ドン・キホーテ|MEGAドンキ)/i.test(text);
   return hasCosme && hasEvent && (hasRegion || hasDonki);
 }
 
 function scoreItem(item, nowTs) {
   const text = `${item.title || ""} ${item.description || ""} ${item.link || ""}`;
+  const sourceText = String(item.feedSource || item.source || "");
   const ageDays = toAgeDays(item.pubDate, nowTs);
   const hasDonki = /(ドンキ|ドン・キホーテ|MEGAドンキ|majica|donki\.com|ppih\.co\.jp)/i.test(text);
-  const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張)/i.test(text);
+  const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張|千葉市|船橋|柏)/i.test(text);
   const hasEvent = /(ポップアップ|イベント|催事|フェス|フェスティバル|フェア|体験会|展示会)/i.test(text);
-  const hasCosme = /(コスメ|化粧品|ビューティー|メイク)/i.test(text);
+  const hasCosme = /(コスメ|化粧品|ビューティー|メイク|美容)/i.test(text);
+  const fromPrimary = /(PR TIMES|FASHIONSNAP)/i.test(sourceText);
 
   let score = 0;
   if (hasDonki) score += 3000;
   if (hasRegion) score += 500;
   if (hasEvent) score += 500;
   if (hasCosme) score += 350;
+  if (fromPrimary) score += 260;
 
   if (Number.isFinite(ageDays)) {
     if (ageDays <= 7) score += 1200;
@@ -253,9 +312,17 @@ export default async function handler(req, res) {
   const nowTs = Date.now();
 
   try {
+    const googleFeeds = queries.map((q) => ({
+      key: "google_news",
+      source: "Google News",
+      query: q,
+      url: buildGoogleNewsRssUrl(q),
+    }));
+    const allFeeds = [...googleFeeds, ...STATIC_FEEDS];
+
     const fetches = await Promise.all(
-      queries.map(async (q) => {
-        const rssUrl = sanitizeNewsHostUrl(buildGoogleNewsRssUrl(q));
+      allFeeds.map(async (feed) => {
+        const rssUrl = sanitizeNewsHostUrl(feed.url);
         if (!rssUrl) return [];
         const upstream = await fetch(rssUrl, {
           method: "GET",
@@ -266,10 +333,12 @@ export default async function handler(req, res) {
         });
         if (!upstream.ok) return [];
         const xml = await upstream.text();
-        return parseRssItems(xml).map((item) => ({
+        return parseFeedItems(xml).map((item) => ({
           ...item,
-          query: q,
-          source: item.author || "Google News",
+          query: feed.query || "",
+          feedKey: feed.key,
+          feedSource: feed.source,
+          source: item.author || feed.source || "Google News",
         }));
       })
     );
@@ -311,6 +380,12 @@ export default async function handler(req, res) {
       .slice(0, max)
       .map(({ _ageDays, _score, ...item }) => item);
 
+    const sourceStats = picked.reduce((acc, item) => {
+      const key = String(item.feedSource || item.source || "unknown");
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
     const donkiCount = picked.filter((item) =>
       /(ドンキ|ドン・キホーテ|MEGAドンキ|majica|donki\.com|ppih\.co\.jp)/i.test(
         `${item.title || ""} ${item.description || ""} ${item.link || ""}`
@@ -329,6 +404,7 @@ export default async function handler(req, res) {
       strictRecent,
       donkiCount,
       oldestDays,
+      sourceStats,
       queries,
       items: picked,
     });

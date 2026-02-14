@@ -219,7 +219,7 @@
             return data.items;
         }
 
-        async function fetchCosmeEventNewsItems(keywords, maxItems = 40, recentDays = 60, strictRecent = true) {
+        async function fetchCosmeEventNewsItems(keywords, maxItems = 40, recentDays = 30, strictRecent = true) {
             const params = new URLSearchParams();
             params.set("max", String(Math.max(1, Math.min(100, Number(maxItems) || 40))));
             params.set("days", String(Math.max(7, Math.min(365, Number(recentDays) || 60))));
@@ -1080,13 +1080,6 @@
                 return Array.from(new Set(values)).slice(0, 12);
             };
             
-            // Demo Data fallback
-            const demoNews = [
-                { title: "【POP-UP】伊勢丹新宿店で秋の新作コスメイベント開催中", date: "2024-10-15", link: "#", description: "最新のアンチエイジング美容液を体験できる特設ブースが登場..." },
-                { title: "表参道ヒルズに期間限定「オーガニックコスメ・マルシェ」", date: "2024-10-18", link: "#", description: "厳選されたオーガニックブランドが集結..." },
-                { title: "【新製品】次世代レチノール配合クリームが登場", date: "2024-10-20", link: "#", description: "敏感肌でも使える画期的なレチノール成分を配合..." }
-            ];
-
             const fetchRealNews = async (requestedKeywords) => {
                 setLoading(true); setError(null); setIsDemo(false);
                 setSummary("");
@@ -1115,8 +1108,8 @@
                     }
                 } catch(e) { 
                     setError(e.message); 
-                    setNews(demoNews); 
-                    setIsDemo(true);
+                    setNews([]);
+                    setIsDemo(false);
                 }
                 finally { setLoading(false); }
             };
