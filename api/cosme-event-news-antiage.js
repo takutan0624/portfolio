@@ -11,6 +11,11 @@ const STATIC_FEEDS = [
     url: "https://meguro-nono.com/event_info/?date=&type=&pref%5B%5D=101&pref%5B%5D=81&pref%5B%5D=89",
   },
 ];
+const MEGURO_MAX_PAGINATION_PAGES = 12;
+const UPSTREAM_HEADERS = {
+  "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+  "User-Agent": "AntiageCosmeEventProxy/1.0 (+https://portfolio-flame-iota-d7n8dbh5mp.vercel.app)",
+};
 
 function setHeaders(res) {
   res.setHeader("Cache-Control", "no-store");
@@ -248,6 +253,129 @@ function sanitizeNewsHostUrl(rawUrl) {
   }
 }
 
+function normalizeAbsoluteUrl(rawUrl) {
+  try {
+    const u = new URL(String(rawUrl || "").trim());
+    u.hash = "";
+    return u.toString();
+  } catch {
+    return "";
+  }
+}
+
+function parseMeguroPaginationLinks(html, pageUrl) {
+  const raw = String(html || "");
+  const current = normalizeAbsoluteUrl(pageUrl);
+  const out = new Set();
+  const anchorRegex = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = anchorRegex.exec(raw)) !== null) {
+    const href = decodeXmlEntities(match[1] || "").trim();
+    if (!href) continue;
+    let absolute = "";
+    try {
+      absolute = new URL(href, pageUrl).toString();
+    } catch {
+      continue;
+    }
+    const safeUrl = sanitizeNewsHostUrl(absolute);
+    if (!safeUrl) continue;
+    const normalized = normalizeAbsoluteUrl(safeUrl);
+    if (!normalized || normalized === current) continue;
+
+    const anchorText = stripHtml(decodeXmlEntities(match[2] || "")).trim();
+    const looksLikePaginationUrl =
+      /[?&](?:page|paged|p)=\d+/i.test(normalized) ||
+      /\/page\/\d+\/?$/i.test(normalized) ||
+      /\/event_info\/\d+\/?$/i.test(normalized);
+    const looksLikePaginationText = /^\d{1,3}$/.test(anchorText) || /^(次|next)/i.test(anchorText);
+    if (!looksLikePaginationUrl && !looksLikePaginationText) continue;
+    out.add(normalized);
+  }
+  return Array.from(out);
+}
+
+function buildMeguroProbeUrls(baseUrl) {
+  let base;
+  try {
+    base = new URL(baseUrl);
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (let page = 2; page <= 8; page += 1) {
+    for (const key of ["page", "paged", "p"]) {
+      const u = new URL(base.toString());
+      u.searchParams.set(key, String(page));
+      out.push(u.toString());
+    }
+    const pathBase = base.pathname.endsWith("/") ? base.pathname : `${base.pathname}/`;
+    const uPath = new URL(base.toString());
+    uPath.pathname = `${pathBase}page/${page}/`;
+    out.push(uPath.toString());
+  }
+  const unique = [];
+  const seen = new Set();
+  for (const candidate of out) {
+    const safeUrl = sanitizeNewsHostUrl(candidate);
+    const normalized = normalizeAbsoluteUrl(safeUrl);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    unique.push(normalized);
+  }
+  return unique;
+}
+
+async function fetchMeguroPaginatedItems(baseUrl) {
+  const firstUrl = normalizeAbsoluteUrl(sanitizeNewsHostUrl(baseUrl));
+  if (!firstUrl) return [];
+
+  const firstRes = await fetch(firstUrl, { method: "GET", headers: UPSTREAM_HEADERS });
+  if (!firstRes.ok) return [];
+  const firstHtml = await firstRes.text();
+
+  let items = parseMeguroEventInfoPage(firstHtml, firstUrl);
+  const pageLinksFromHtml = parseMeguroPaginationLinks(firstHtml, firstUrl);
+  const pageCandidates = pageLinksFromHtml.length > 0 || items.length > 12
+    ? pageLinksFromHtml
+    : buildMeguroProbeUrls(firstUrl);
+
+  let staleCount = 0;
+  const seenPages = new Set([firstUrl]);
+  for (const pageUrl of pageCandidates.slice(0, MEGURO_MAX_PAGINATION_PAGES)) {
+    if (seenPages.has(pageUrl)) continue;
+    seenPages.add(pageUrl);
+    try {
+      const res = await fetch(pageUrl, { method: "GET", headers: UPSTREAM_HEADERS });
+      if (!res.ok) {
+        staleCount += 1;
+        if (staleCount >= 3 && pageLinksFromHtml.length === 0) break;
+        continue;
+      }
+      const html = await res.text();
+      const parsed = parseMeguroEventInfoPage(html, pageUrl);
+      if (parsed.length === 0) {
+        staleCount += 1;
+        if (staleCount >= 3 && pageLinksFromHtml.length === 0) break;
+        continue;
+      }
+      const before = items.length;
+      items = dedupeByLink([...items, ...parsed]);
+      if (items.length === before) {
+        staleCount += 1;
+        if (staleCount >= 3 && pageLinksFromHtml.length === 0) break;
+      } else {
+        staleCount = 0;
+      }
+    } catch {
+      staleCount += 1;
+      if (staleCount >= 3 && pageLinksFromHtml.length === 0) break;
+    }
+  }
+
+  return items;
+}
+
 function isTargetEvent(item) {
   const text = `${item.title || ""} ${item.description || ""}`;
   const hasCosme = /(コスメ|化粧品|ビューティー|メイク|美容)/i.test(text);
@@ -337,18 +465,15 @@ export default async function handler(req, res) {
       allFeeds.map(async (feed) => {
         const rssUrl = sanitizeNewsHostUrl(feed.url);
         if (!rssUrl) return [];
-        const upstream = await fetch(rssUrl, {
-          method: "GET",
-          headers: {
-            "Accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-            "User-Agent": "AntiageCosmeEventProxy/1.0 (+https://portfolio-flame-iota-d7n8dbh5mp.vercel.app)",
-          },
-        });
-        if (!upstream.ok) return [];
-        const xml = await upstream.text();
-        const parsedItems = feed.type === "page"
-          ? parseMeguroEventInfoPage(xml, rssUrl)
-          : parseFeedItems(xml);
+        let parsedItems = [];
+        if (feed.type === "page") {
+          parsedItems = await fetchMeguroPaginatedItems(rssUrl);
+        } else {
+          const upstream = await fetch(rssUrl, { method: "GET", headers: UPSTREAM_HEADERS });
+          if (!upstream.ok) return [];
+          const xml = await upstream.text();
+          parsedItems = parseFeedItems(xml);
+        }
         return parsedItems.map((item) => ({
           ...item,
           query: feed.query || "",
