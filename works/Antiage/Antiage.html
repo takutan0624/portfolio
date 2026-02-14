@@ -169,8 +169,31 @@
         const CONSULT_MAX_HISTORY = 10;
         const CONSULT_STORAGE_PREFIX = "antiage_consult_history_";
         const SKIN_RESULT_STORAGE_PREFIX = "antiage_skin_last_result_";
+        const NEWS_CACHE_KEY = "antiage_news_cache_v1";
+        const TOPICS_CACHE_KEY = "antiage_topics_cache_v1";
+        const NEWS_CACHE_TTL_MS = 15 * 60 * 1000;
+        const TOPICS_CACHE_TTL_MS = 15 * 60 * 1000;
 
         const createWelcomeMessage = () => ({ role: "model", text: CONSULT_WELCOME_TEXT });
+
+        function readLocalJson(key) {
+            try {
+                const raw = localStorage.getItem(key) || "";
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch {
+                return null;
+            }
+        }
+
+        function writeLocalJson(key, value) {
+            try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+        }
+
+        function isFreshTimestamp(ts, ttlMs) {
+            const n = Number(ts);
+            return Number.isFinite(n) && n > 0 && (Date.now() - n) < ttlMs;
+        }
 
         function isValidSkinResultPayload(candidate) {
             if (!candidate || typeof candidate !== "object") return false;
@@ -1136,11 +1159,29 @@
             const [news, setNews] = useState([]);
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState(null);
+            const [lastFetchedAt, setLastFetchedAt] = useState(0);
             useEffect(() => { fetchRealNews(); }, []);
+            useEffect(() => {
+                if (!lastFetchedAt) return;
+                const delay = Math.max(1000, (lastFetchedAt + NEWS_CACHE_TTL_MS) - Date.now());
+                const timer = setTimeout(() => {
+                    fetchRealNews({ force: true, silent: true });
+                }, delay);
+                return () => clearTimeout(timer);
+            }, [lastFetchedAt]);
             useEffect(() => { if(!loading && news.length>0) anime({targets:'.news-card', translateY:[20,0], opacity:[0,1], delay:anime.stagger(100), easing:'easeOutQuad', duration:500}); }, [loading, news]);
             
-            const fetchRealNews = async () => {
-                setLoading(true); setError(null);
+            const fetchRealNews = async ({ force = false, silent = false } = {}) => {
+                const cached = readLocalJson(NEWS_CACHE_KEY);
+                if (!force && cached && Array.isArray(cached.items) && isFreshTimestamp(cached.savedAt, NEWS_CACHE_TTL_MS)) {
+                    setNews(cached.items);
+                    setError(null);
+                    setLastFetchedAt(Number(cached.savedAt) || Date.now());
+                    return;
+                }
+
+                if (!silent) setLoading(true);
+                setError(null);
                 try {
                     const rawItems = await fetchCosmeEventNewsItems([], "all", 365, false, true);
                     const items = rawItems.map((item) => {
@@ -1154,15 +1195,24 @@
                             source: item.source || item.author || "Event Source"
                         };
                     });
+                    const savedAt = Date.now();
                     setNews(items);
+                    setLastFetchedAt(savedAt);
+                    writeLocalJson(NEWS_CACHE_KEY, { savedAt, items });
                     if (items.length === 0) {
                         setError("表示できるニュースが見つかりませんでした。");
                     }
                 } catch(e) { 
-                    setError(e.message); 
-                    setNews([]);
+                    if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
+                        setNews(cached.items);
+                        setLastFetchedAt(Date.now());
+                        setError(`最新取得に失敗したため保存データを表示しています。 (${e.message})`);
+                    } else {
+                        setError(e.message);
+                        setNews([]);
+                    }
                 }
-                finally { setLoading(false); }
+                finally { if (!silent) setLoading(false); }
             };
 
             return (
@@ -1173,7 +1223,7 @@
                             <p className="text-[11px] text-gray-500">現在 {news.length} 件表示（全件）</p>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button onClick={fetchRealNews} className="text-sm text-purple-500 font-bold"><RefreshCw size={14} className="inline"/>更新</button>
+                            <button onClick={() => fetchRealNews({ force: true })} className="text-sm text-purple-500 font-bold"><RefreshCw size={14} className="inline"/>更新</button>
                         </div>
                     </div>
                     {error && !loading && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-2 rounded-lg text-xs">{error}</div>}
@@ -1190,7 +1240,16 @@
             const [topics, setTopics] = useState([]);
             const [loading, setLoading] = useState(false);
             const [isDemo, setIsDemo] = useState(false);
+            const [lastFetchedAt, setLastFetchedAt] = useState(0);
             useEffect(() => { fetchTopics(); }, []);
+            useEffect(() => {
+                if (!lastFetchedAt) return;
+                const delay = Math.max(1000, (lastFetchedAt + TOPICS_CACHE_TTL_MS) - Date.now());
+                const timer = setTimeout(() => {
+                    fetchTopics({ force: true, silent: true });
+                }, delay);
+                return () => clearTimeout(timer);
+            }, [lastFetchedAt]);
             useEffect(() => { if(!loading && topics.length>0) anime({targets:'.topic-card', translateY:[20,0], opacity:[0,1], delay:anime.stagger(100), easing:'easeOutQuad', duration:500}); }, [loading, topics]);
             
             // Demo Data
@@ -1200,8 +1259,17 @@
                 { title: "【食事】若返りのビタミン「ビタミンE」をアーモンドで摂取", date: "2024-10-18", link: "#", source: "Demo Source" }
             ];
 
-            const fetchTopics = async () => {
-                setLoading(true); setIsDemo(false);
+            const fetchTopics = async ({ force = false, silent = false } = {}) => {
+                const cached = readLocalJson(TOPICS_CACHE_KEY);
+                if (!force && cached && Array.isArray(cached.items) && isFreshTimestamp(cached.savedAt, TOPICS_CACHE_TTL_MS)) {
+                    setTopics(cached.items);
+                    setIsDemo(!!cached.isDemo);
+                    setLastFetchedAt(Number(cached.savedAt) || Date.now());
+                    return;
+                }
+
+                if (!silent) setLoading(true);
+                setIsDemo(false);
                 const topicKeywords = [
                     "\"アンチエイジング\"",
                     "\"若返り\"",
@@ -1247,16 +1315,29 @@
                         .map(({ pubDate, ...rest }) => rest);
 
                     if (merged.length === 0) throw new Error("No topics found");
+                    const savedAt = Date.now();
                     setTopics(merged);
+                    setIsDemo(false);
+                    setLastFetchedAt(savedAt);
+                    writeLocalJson(TOPICS_CACHE_KEY, { savedAt, items: merged, isDemo: false });
                 } catch(e) { 
-                    setTopics(demoTopics); 
-                    setIsDemo(true);
+                    if (cached && Array.isArray(cached.items) && cached.items.length > 0) {
+                        setTopics(cached.items);
+                        setIsDemo(!!cached.isDemo);
+                        setLastFetchedAt(Date.now());
+                    } else {
+                        const savedAt = Date.now();
+                        setTopics(demoTopics);
+                        setIsDemo(true);
+                        setLastFetchedAt(savedAt);
+                        writeLocalJson(TOPICS_CACHE_KEY, { savedAt, items: demoTopics, isDemo: true });
+                    }
                 }
-                finally { setLoading(false); }
+                finally { if (!silent) setLoading(false); }
             };
             return (
                 <div className="space-y-4 animate-fade-in pb-20">
-                    <div className="flex justify-between items-center mb-2"><h3 className="text-xl font-bold text-gray-700">Tips</h3><button onClick={fetchTopics} className="text-sm text-yellow-600 font-bold"><RefreshCw size={14} className="inline"/>更新</button></div>
+                    <div className="flex justify-between items-center mb-2"><h3 className="text-xl font-bold text-gray-700">Tips</h3><button onClick={() => fetchTopics({ force: true })} className="text-sm text-yellow-600 font-bold"><RefreshCw size={14} className="inline"/>更新</button></div>
                     {loading ? <div className="flex justify-center py-10"><div className="loader"></div></div> : (
                         <>
                             {isDemo && <div className="bg-yellow-50 border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-xs mb-4 text-center">※ 現在はデモデータを表示しています</div>}
