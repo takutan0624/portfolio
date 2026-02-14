@@ -8,7 +8,7 @@ const STATIC_FEEDS = [
     key: "meguro_nono_event_info",
     source: "meguro-nono.com",
     type: "page",
-    url: "https://meguro-nono.com/event_info/",
+    url: "https://meguro-nono.com/event_info/?date=&type=&pref%5B%5D=101&pref%5B%5D=81&pref%5B%5D=89",
   },
 ];
 
