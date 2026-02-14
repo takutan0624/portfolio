@@ -3,23 +3,34 @@ const ALLOWED_HOSTS = new Set([
   "prtimes.jp",
   "www.fashionsnap.com",
   "fashionsnap.com",
+  "meguro-nono.com",
+  "www.meguro-nono.com",
 ]);
 
 const STATIC_FEEDS = [
   {
     key: "prtimes_beauty",
     source: "PR TIMES",
+    type: "rss",
     url: "https://prtimes.jp/tv/category/beauty/rss.xml",
   },
   {
     key: "prtimes_beauty_alt",
     source: "PR TIMES",
+    type: "rss",
     url: "https://prtimes.jp/rss/beauty.rdf",
   },
   {
     key: "fashionsnap_beauty",
     source: "FASHIONSNAP",
+    type: "rss",
     url: "https://www.fashionsnap.com/beauty/feed/",
+  },
+  {
+    key: "meguro_nono_event_info",
+    source: "meguro-nono.com",
+    type: "page",
+    url: "https://meguro-nono.com/event_info/",
   },
 ];
 
@@ -134,6 +145,76 @@ function parseFeedItems(xml) {
   return parseAtomEntries(xml);
 }
 
+function pad2(v) {
+  return String(v).padStart(2, "0");
+}
+
+function parseDateTextToIso(text) {
+  const source = String(text || "");
+  const full = source.match(/(20\d{2})\s*[\/\-.年]\s*(\d{1,2})\s*[\/\-.月]\s*(\d{1,2})/);
+  if (full) {
+    const y = Number(full[1]);
+    const m = Number(full[2]);
+    const d = Number(full[3]);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return `${y}-${pad2(m)}-${pad2(d)}`;
+  }
+  const short = source.match(/(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?/);
+  if (short) {
+    const now = new Date();
+    let y = now.getFullYear();
+    const m = Number(short[1]);
+    const d = Number(short[2]);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      if (m < now.getMonth() + 1 - 2) y += 1;
+      return `${y}-${pad2(m)}-${pad2(d)}`;
+    }
+  }
+  return "";
+}
+
+function extractLastHeading(htmlSnippet) {
+  const matches = Array.from(String(htmlSnippet || "").matchAll(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi));
+  if (matches.length === 0) return "";
+  const last = matches[matches.length - 1]?.[1] || "";
+  return stripHtml(decodeXmlEntities(last)).trim();
+}
+
+function parseMeguroEventInfoPage(html, pageUrl) {
+  const out = [];
+  const raw = String(html || "");
+  const nowIso = new Date().toISOString();
+  const anchorRegex = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = anchorRegex.exec(raw)) !== null) {
+    const href = decodeXmlEntities(match[1] || "").trim();
+    const anchorText = stripHtml(decodeXmlEntities(match[2] || "")).trim();
+    if (!href) continue;
+    if (!/(詳細|詳しく|detail|more|view)/i.test(anchorText)) continue;
+
+    let absoluteLink = "";
+    try {
+      absoluteLink = new URL(href, pageUrl).toString();
+    } catch {
+      continue;
+    }
+    const before = raw.slice(Math.max(0, match.index - 2600), match.index);
+    const title = extractLastHeading(before) || "イベント情報";
+    const contextText = stripHtml(decodeXmlEntities(before.slice(-1400))).trim();
+    if (/(終了|開催終了|closed)/i.test(contextText)) continue;
+    const detectedDate = parseDateTextToIso(contextText);
+    const description = contextText.slice(-220);
+
+    out.push({
+      title,
+      link: absoluteLink,
+      pubDate: detectedDate ? `${detectedDate}T00:00:00+09:00` : nowIso,
+      description,
+      author: "meguro-nono.com",
+    });
+  }
+  return out;
+}
+
 function readQuery(req, key, fallback = "") {
   if (req?.query && typeof req.query[key] === "string") return req.query[key];
   try {
@@ -239,8 +320,10 @@ function isTargetEvent(item) {
   const text = `${item.title || ""} ${item.description || ""}`;
   const hasCosme = /(コスメ|化粧品|ビューティー|メイク|美容)/i.test(text);
   const hasEvent = /(ポップアップ|イベント|催事|フェス|フェスティバル|フェア|体験会|展示会)/i.test(text);
-  const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張|千葉市|船橋|柏)/i.test(text);
+  const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張|千葉市|船橋|柏|目黒)/i.test(text);
   const hasDonki = /(ドンキ|ドン・キホーテ|MEGAドンキ)/i.test(text);
+  const isMeguroNono = /(meguro-nono\.com)/i.test(`${item.feedSource || ""} ${item.source || ""} ${item.link || ""}`);
+  if (isMeguroNono) return hasEvent || hasCosme;
   return hasCosme && hasEvent && (hasRegion || hasDonki);
 }
 
@@ -249,10 +332,11 @@ function scoreItem(item, nowTs) {
   const sourceText = String(item.feedSource || item.source || "");
   const ageDays = toAgeDays(item.pubDate, nowTs);
   const hasDonki = /(ドンキ|ドン・キホーテ|MEGAドンキ|majica|donki\.com|ppih\.co\.jp)/i.test(text);
-  const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張|千葉市|船橋|柏)/i.test(text);
+  const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張|千葉市|船橋|柏|目黒)/i.test(text);
   const hasEvent = /(ポップアップ|イベント|催事|フェス|フェスティバル|フェア|体験会|展示会)/i.test(text);
   const hasCosme = /(コスメ|化粧品|ビューティー|メイク|美容)/i.test(text);
   const fromPrimary = /(PR TIMES|FASHIONSNAP)/i.test(sourceText);
+  const fromMeguroNono = /(meguro-nono\.com)/i.test(sourceText) || /meguro-nono\.com/i.test(text);
 
   let score = 0;
   if (hasDonki) score += 3000;
@@ -260,6 +344,7 @@ function scoreItem(item, nowTs) {
   if (hasEvent) score += 500;
   if (hasCosme) score += 350;
   if (fromPrimary) score += 260;
+  if (fromMeguroNono) score += 900;
 
   if (Number.isFinite(ageDays)) {
     if (ageDays <= 7) score += 1200;
@@ -333,7 +418,10 @@ export default async function handler(req, res) {
         });
         if (!upstream.ok) return [];
         const xml = await upstream.text();
-        return parseFeedItems(xml).map((item) => ({
+        const parsedItems = feed.type === "page"
+          ? parseMeguroEventInfoPage(xml, rssUrl)
+          : parseFeedItems(xml);
+        return parsedItems.map((item) => ({
           ...item,
           query: feed.query || "",
           feedKey: feed.key,
