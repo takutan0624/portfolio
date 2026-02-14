@@ -168,8 +168,31 @@
         const CONSULT_WELCOME_TEXT = "美容専門AIです。マニアックな成分の質問もどうぞ。";
         const CONSULT_MAX_HISTORY = 10;
         const CONSULT_STORAGE_PREFIX = "antiage_consult_history_";
+        const SKIN_RESULT_STORAGE_PREFIX = "antiage_skin_last_result_";
 
         const createWelcomeMessage = () => ({ role: "model", text: CONSULT_WELCOME_TEXT });
+
+        function isValidSkinResultPayload(candidate) {
+            if (!candidate || typeof candidate !== "object") return false;
+            return !!(
+                typeof candidate.title === "string" &&
+                candidate.main && typeof candidate.main.name === "string" &&
+                candidate.sub && typeof candidate.sub.name === "string" &&
+                candidate.booster && typeof candidate.booster.name === "string" &&
+                candidate.schedule && typeof candidate.schedule.am === "string" &&
+                typeof candidate.schedule.pm === "string"
+            );
+        }
+
+        function formatJaDateTime(isoText) {
+            const t = new Date(isoText || 0).getTime();
+            if (!Number.isFinite(t) || t <= 0) return "";
+            try {
+                return new Date(t).toLocaleString("ja-JP");
+            } catch {
+                return "";
+            }
+        }
 
         function normalizeConsultMessages(messages) {
             if (!Array.isArray(messages)) return [createWelcomeMessage()];
@@ -400,11 +423,43 @@
         // --- Components ---
 
         // 1. Skin Diagnosis Component - Deep Analysis for Beauty Geeks
-        const SkinDiagnosis = () => {
+        const SkinDiagnosis = ({ user }) => {
             const [step, setStep] = useState(0);
             const [answers, setAnswers] = useState({});
             const [result, setResult] = useState(null);
             const [loading, setLoading] = useState(false);
+            const [lastResult, setLastResult] = useState(null);
+            const [lastResultAt, setLastResultAt] = useState("");
+
+            useEffect(() => {
+                const uid = user?.uid;
+                if (!uid) {
+                    setLastResult(null);
+                    setLastResultAt("");
+                    return;
+                }
+                const key = `${SKIN_RESULT_STORAGE_PREFIX}${uid}`;
+                try {
+                    const raw = localStorage.getItem(key) || "";
+                    if (!raw) {
+                        setLastResult(null);
+                        setLastResultAt("");
+                        return;
+                    }
+                    const parsed = JSON.parse(raw);
+                    const candidate = parsed?.result || parsed;
+                    if (!isValidSkinResultPayload(candidate)) {
+                        setLastResult(null);
+                        setLastResultAt("");
+                        return;
+                    }
+                    setLastResult(candidate);
+                    setLastResultAt(String(parsed?.savedAt || ""));
+                } catch {
+                    setLastResult(null);
+                    setLastResultAt("");
+                }
+            }, [user?.uid]);
 
             // Questions Definition (12 Questions)
             const questions = [
@@ -629,6 +684,19 @@
                 }
             };
 
+            const persistLastResult = (nextResult) => {
+                if (!isValidSkinResultPayload(nextResult)) return;
+                const uid = user?.uid;
+                if (!uid) return;
+                const key = `${SKIN_RESULT_STORAGE_PREFIX}${uid}`;
+                const savedAt = new Date().toISOString();
+                try {
+                    localStorage.setItem(key, JSON.stringify({ savedAt, result: nextResult }));
+                } catch {}
+                setLastResult(nextResult);
+                setLastResultAt(savedAt);
+            };
+
             const calculateResult = (finalAnswers) => {
                 setLoading(true);
                 setTimeout(() => {
@@ -679,13 +747,16 @@
                         sleep: "22:00〜02:00は成長ホルモン分泌のピーク。就寝直後の90分を深く眠ることが肌再生の鍵。"
                     };
 
-                    setResult({
+                    const nextResult = {
                         main: ingredientDB[main],
                         sub: ingredientDB[sub],
                         booster: ingredientDB[booster],
                         title: adviceTitle,
                         schedule: schedule
-                    });
+                    };
+
+                    setResult(nextResult);
+                    persistLastResult(nextResult);
                     setLoading(false);
                 }, 2000); // Analysis takes longer for effect
             };
@@ -706,6 +777,7 @@
                                 <div>
                                     <span className="text-[10px] font-bold text-purple-500 tracking-widest uppercase bg-purple-100 px-2 py-1 rounded">PERSONALIZED REPORT</span>
                                     <h2 className="text-2xl font-bold text-gray-800 mt-2 leading-tight">{result.title}</h2>
+                                    {lastResultAt && <p className="text-[11px] text-gray-500 mt-1">最終保存: {formatJaDateTime(lastResultAt)}</p>}
                                 </div>
                                 <button onClick={() => {setStep(0); setAnswers({}); setResult(null);}} className="text-gray-400 hover:text-purple-600 p-2"><RefreshCw size={20}/></button>
                             </div>
@@ -828,6 +900,14 @@
             return (
                 <div className="space-y-4 animate-fade-in pb-20">
                     <div className="glass-panel p-6 rounded-2xl min-h-[450px] flex flex-col relative">
+                        {lastResult && (
+                            <div className="mb-4 p-3 rounded-xl border border-purple-200 bg-purple-50">
+                                <p className="text-xs text-purple-700 font-bold">前回の診断結果を表示できます</p>
+                                <p className="text-[11px] text-purple-600 mt-1 line-clamp-1">{lastResult.title}</p>
+                                {lastResultAt && <p className="text-[10px] text-purple-500 mt-1">保存日時: {formatJaDateTime(lastResultAt)}</p>}
+                                <button onClick={() => setResult(lastResult)} className="mt-2 text-xs font-bold text-purple-700 hover:text-purple-900 underline">前回の結果を見る</button>
+                            </div>
+                        )}
                         <div className="w-full bg-gray-100 h-1.5 rounded-full mb-6"><div className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full transition-all duration-500" style={{width: `${((step + 1) / questions.length) * 100}%`}}></div></div>
                         <div className="flex-grow flex flex-col justify-center"><span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-2">QUESTION {step + 1} / {questions.length}</span><h3 className="text-xl font-bold text-gray-800 mb-8 leading-snug">{currentQ.text}</h3><div className="space-y-3">{currentOptions.map((opt) => (<button key={opt.value} onClick={() => handleSelect(opt.value)} className="w-full text-left p-4 rounded-xl border border-gray-100 bg-white hover:border-purple-300 hover:shadow-md transition-all duration-200 flex justify-between items-center group active:scale-[0.98]"><span className="font-medium text-gray-700 group-hover:text-purple-700 text-sm">{opt.label}</span><div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-purple-100 transition"><ArrowRight size={14} className="text-gray-300 group-hover:text-purple-600" /></div></button>))}</div></div>
                         {step > 0 && <button onClick={() => setStep(step - 1)} className="mt-6 text-xs font-bold text-gray-400 hover:text-gray-600 text-center">← Back</button>}
@@ -1342,7 +1422,7 @@
                     <header className="p-6 flex justify-between items-center flex-shrink-0"><div><h1 className="text-2xl font-bold gradient-text">LUMIÈRE</h1><p className="text-xs text-gray-500">Anti-Aging & Holistic Care</p></div><button onClick={() => setShowSettings(true)} className="p-2 bg-white rounded-full shadow-sm text-gray-500 hover:text-purple-500"><Settings size={20} /></button></header>
                     {showSettings && <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-700">設定</h3><button onClick={() => setShowSettings(false)}><X size={20} /></button></div><p className="text-xs text-gray-500 mb-1">ログイン中</p><p className="text-sm text-gray-700 mb-2 break-all">{user.displayName || user.email || "ユーザー"}</p><p className="text-xs text-gray-500 mb-4">AI APIキーはサーバー側で共通管理されています。</p><button onClick={handleClearConsultHistory} className="w-full bg-gray-100 text-gray-800 py-3 rounded-lg font-bold text-sm mb-2 border border-gray-200">チャット履歴を削除</button><button onClick={handleLogout} className="w-full bg-red-500 text-white py-3 rounded-lg font-bold text-sm mb-2">ログアウト</button><button onClick={() => setShowSettings(false)} className="w-full bg-black text-white py-3 rounded-lg font-bold text-sm">閉じる</button></div></div>}
                     <main className="px-6 flex-grow overflow-y-auto no-scrollbar">
-                        {activeTab === "skin" && <SkinDiagnosis />}
+                        {activeTab === "skin" && <SkinDiagnosis user={user} />}
                         {activeTab === "tcm" && <TCMDiagnosis />}
                         {activeTab === "news" && <NewsFeed />}
                         {activeTab === "topics" && <AgingTopics />}
