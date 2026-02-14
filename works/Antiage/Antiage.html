@@ -219,11 +219,16 @@
             return data.items;
         }
 
-        async function fetchCosmeEventNewsItems(keywords, maxItems = 80, recentDays = 120, strictRecent = false) {
+        async function fetchCosmeEventNewsItems(keywords, maxItems = 150, recentDays = 120, strictRecent = false, showAll = false) {
             const params = new URLSearchParams();
-            params.set("max", String(Math.max(1, Math.min(100, Number(maxItems) || 40))));
+            if (maxItems === "all") {
+                params.set("max", "all");
+            } else {
+                params.set("max", String(Math.max(1, Math.min(150, Number(maxItems) || 40))));
+            }
             params.set("days", String(Math.max(7, Math.min(365, Number(recentDays) || 60))));
             params.set("strict_recent", strictRecent ? "1" : "0");
+            params.set("all", showAll ? "1" : "0");
             if (Array.isArray(keywords) && keywords.length > 0) {
                 params.set("keywords", keywords.join("、"));
             }
@@ -1047,52 +1052,17 @@
         };
 
         // 3. News Feed & 4. Aging Topics & 5. AI Consultation (Same as before)
-        const NewsFeed = ({ user }) => {
-            const DEFAULT_EVENT_KEYWORDS = [
-                "コスメイベント",
-                "美容イベント",
-                "ポップアップストア コスメ",
-                "百貨店 コスメ催事",
-                "コスメ 新作",
-                "美容セミナー",
-                "ドンキ コスメフェスティバル",
-                "ドン・キホーテ コスメ",
-                "meguro nono event",
-                "目黒 イベント"
-            ];
+        const NewsFeed = () => {
             const [news, setNews] = useState([]);
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState(null);
-            const [isDemo, setIsDemo] = useState(false);
-            const [keywordInput, setKeywordInput] = useState(DEFAULT_EVENT_KEYWORDS.join("、"));
-            const [activeKeywords, setActiveKeywords] = useState(DEFAULT_EVENT_KEYWORDS);
-            const [summary, setSummary] = useState("");
-            const [summaryLoading, setSummaryLoading] = useState(false);
-            const [summaryError, setSummaryError] = useState("");
-            const [summaryTimestamp, setSummaryTimestamp] = useState("");
-
-            useEffect(() => { fetchRealNews(DEFAULT_EVENT_KEYWORDS); }, []);
+            useEffect(() => { fetchRealNews(); }, []);
             useEffect(() => { if(!loading && news.length>0) anime({targets:'.news-card', translateY:[20,0], opacity:[0,1], delay:anime.stagger(100), easing:'easeOutQuad', duration:500}); }, [loading, news]);
-
-            const parseKeywordInput = (raw) => {
-                const values = String(raw || "")
-                    .split(/[\n,、，]/g)
-                    .map((v) => v.trim())
-                    .filter(Boolean);
-                return Array.from(new Set(values)).slice(0, 12);
-            };
             
-            const fetchRealNews = async (requestedKeywords) => {
-                setLoading(true); setError(null); setIsDemo(false);
-                setSummary("");
-                setSummaryError("");
-                setSummaryTimestamp("");
+            const fetchRealNews = async () => {
+                setLoading(true); setError(null);
                 try {
-                    const parsed = Array.isArray(requestedKeywords) ? requestedKeywords : parseKeywordInput(requestedKeywords);
-                    const selectedKeywords = parsed.length > 0 ? parsed : DEFAULT_EVENT_KEYWORDS;
-                    setActiveKeywords(selectedKeywords);
-
-                    const rawItems = await fetchCosmeEventNewsItems(selectedKeywords, 80, 120, false);
+                    const rawItems = await fetchCosmeEventNewsItems([], "all", 365, false, true);
                     const items = rawItems.map((item) => {
                         const description = String(item.description || "").replace(/<[^>]*>?/gm, "").substring(0, 120);
                         return {
@@ -1106,59 +1076,13 @@
                     });
                     setNews(items);
                     if (items.length === 0) {
-                        setError("該当するニュースが見つかりませんでした。キーワードを変えてお試しください。");
+                        setError("表示できるニュースが見つかりませんでした。");
                     }
                 } catch(e) { 
                     setError(e.message); 
                     setNews([]);
-                    setIsDemo(false);
                 }
                 finally { setLoading(false); }
-            };
-
-            const handleSearch = () => {
-                const parsed = parseKeywordInput(keywordInput);
-                if (parsed.length === 0) {
-                    setError("キーワードを1つ以上入力してください。");
-                    setNews([]);
-                    return;
-                }
-                fetchRealNews(parsed);
-            };
-
-            const handleResetKeywords = () => {
-                const defaults = [...DEFAULT_EVENT_KEYWORDS];
-                setKeywordInput(defaults.join("、"));
-                fetchRealNews(defaults);
-            };
-
-            const handleSummarizeNews = async () => {
-                if (news.length === 0) {
-                    setSummaryError("先にニュースを取得してください。");
-                    return;
-                }
-                setSummaryLoading(true);
-                setSummaryError("");
-                try {
-                    const text = await callGroqEventNewsSummary(user, activeKeywords, news);
-                    setSummary(text || "要約を生成できませんでした。");
-                    setSummaryTimestamp(new Date().toLocaleString("ja-JP"));
-                } catch (e) {
-                    setSummaryError(e?.message || "要約生成に失敗しました。");
-                } finally {
-                    setSummaryLoading(false);
-                }
-            };
-
-            const handleGoogleAiSearch = () => {
-                const parsedInputKeywords = parseKeywordInput(keywordInput);
-                const keywords = parsedInputKeywords.length > 0 ? parsedInputKeywords : activeKeywords;
-                if (!Array.isArray(keywords) || keywords.length === 0) {
-                    setError("キーワードを1つ以上入力してください。");
-                    return;
-                }
-                const query = `${keywords.join(" ")} コスメイベント 美容イベント 最新`;
-                googleSearch(query);
             };
 
             return (
@@ -1166,29 +1090,15 @@
                     <div className="flex justify-between items-center mb-2">
                         <div>
                             <h3 className="text-xl font-bold text-gray-700">Event News</h3>
-                            <p className="text-[11px] text-gray-500">現在 {news.length} 件表示（最大80件）</p>
+                            <p className="text-[11px] text-gray-500">現在 {news.length} 件表示（全件）</p>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => fetchRealNews(activeKeywords)} className="text-sm text-purple-500 font-bold"><RefreshCw size={14} className="inline"/>更新</button>
+                            <button onClick={fetchRealNews} className="text-sm text-purple-500 font-bold"><RefreshCw size={14} className="inline"/>更新</button>
                         </div>
                     </div>
-                    <div className="bg-white border rounded-xl p-3 shadow-sm">
-                        <label className="block text-[11px] font-bold text-gray-500 mb-2">コスメイベント検索キーワード（読点・カンマ区切り）</label>
-                        <div className="flex gap-2">
-                            <input value={keywordInput} onChange={(e) => setKeywordInput(e.target.value)} placeholder="例: コスメイベント、ポップアップストア コスメ、美容セミナー" className="flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-400" />
-                            <button onClick={handleSearch} disabled={loading} className="bg-pink-500 text-white px-3 py-2 rounded-lg text-sm font-bold disabled:opacity-60">検索</button>
-                            <button onClick={handleResetKeywords} disabled={loading} className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold border disabled:opacity-60">初期化</button>
-                        </div>
-                        <p className="text-[11px] text-gray-500 mt-2 line-clamp-2">現在の条件: {activeKeywords.join(" / ")}</p>
-                        <button onClick={handleGoogleAiSearch} disabled={loading} className="mt-3 w-full bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold disabled:opacity-60">GoogleでAI検索を開く</button>
-                    </div>
-                    {summaryLoading && <div className="bg-purple-50 border border-purple-200 text-purple-700 px-4 py-3 rounded-xl text-sm">AIがイベント情報を要約中です...</div>}
-                    {summaryError && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{summaryError}</div>}
-                    {summary && <div className="bg-violet-50 border border-violet-200 rounded-xl p-4"><div className="flex justify-between items-center mb-2"><h4 className="font-bold text-violet-800 text-sm">AIイベントまとめ</h4><span className="text-[11px] text-violet-500">{summaryTimestamp}</span></div><p className="text-sm text-violet-900 leading-relaxed whitespace-pre-wrap">{summary}</p></div>}
                     {error && !loading && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-2 rounded-lg text-xs">{error}</div>}
                     {loading ? <div className="flex justify-center py-10"><div className="loader"></div></div> : (
                         <>
-                            {isDemo && <div className="bg-yellow-50 border-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-xs mb-4 text-center">※ 現在はデモデータを表示しています</div>}
                             {news.map((item,i)=><a key={i} href={safeExternalUrl(item.link)} target="_blank" rel="noopener noreferrer" className="news-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded font-bold">NEWS</span><span className="text-xs text-gray-400">{item.date}</span></div><h4 className="font-bold text-gray-800 mb-2 line-clamp-2">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-2">{item.description}</p><div className="text-[11px] text-gray-400 mt-2">{item.source || "Google News"}</div></a>)}
                         </>
                     )}
@@ -1434,7 +1344,7 @@
                     <main className="px-6 flex-grow overflow-y-auto no-scrollbar">
                         {activeTab === "skin" && <SkinDiagnosis />}
                         {activeTab === "tcm" && <TCMDiagnosis />}
-                        {activeTab === "news" && <NewsFeed user={user} />}
+                        {activeTab === "news" && <NewsFeed />}
                         {activeTab === "topics" && <AgingTopics />}
                         {activeTab === "consult" && <AIConsultation user={user} messages={consultMessages} onMessagesChange={setConsultMessages} />}
                     </main>

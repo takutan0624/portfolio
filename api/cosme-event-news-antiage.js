@@ -369,9 +369,11 @@ export default async function handler(req, res) {
     return;
   }
 
-  const max = clampInt(readQuery(req, "max", "80"), 1, 150, 80);
+  const maxRaw = String(readQuery(req, "max", "80") || "").trim().toLowerCase();
+  const max = maxRaw === "all" ? Number.MAX_SAFE_INTEGER : clampInt(maxRaw, 1, 150, 80);
   const recentDays = clampInt(readQuery(req, "days", "90"), 7, 365, 90);
   const strictRecent = normalizeBoolean(readQuery(req, "strict_recent", ""), false);
+  const showAll = normalizeBoolean(readQuery(req, "all", ""), false);
   const hardMaxDays = Math.max(recentDays, Math.min(365, recentDays * 2));
   const keywords = normalizeKeywords(readQuery(req, "keywords", ""));
   const queries = buildQueries(keywords, recentDays);
@@ -428,7 +430,10 @@ export default async function handler(req, res) {
 
     let source = [];
     let mode = "recent_target";
-    if (withinRecentTarget.length > 0) {
+    if (showAll) {
+      source = scored;
+      mode = "all";
+    } else if (withinRecentTarget.length > 0) {
       source = withinRecentTarget;
       mode = "recent_target";
     } else if (!strictRecent && withinHardTarget.length > 0) {
@@ -474,6 +479,7 @@ export default async function handler(req, res) {
       status: "ok",
       count: picked.length,
       mode,
+      showAll,
       recentDays,
       strictRecent,
       donkiCount,
