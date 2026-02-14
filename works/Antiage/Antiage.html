@@ -369,7 +369,7 @@
             const keywordLabel = normalizedKeywords.length > 0 ? normalizedKeywords.join(" / ") : "コスメイベント";
             const compactItems = (Array.isArray(items) ? items : []).slice(0, 30).map((item, index) => {
                 const date = String(item?.date || "日付不明");
-                const source = String(item?.source || "Google News");
+                const source = String(item?.source || "Event Source");
                 const title = String(item?.title || "").trim();
                 const description = String(item?.description || "").replace(/\s+/g, " ").trim();
                 return `${index + 1}. [${date}] ${title} / ${source} / ${description}`;
@@ -1071,7 +1071,7 @@
                             link: item.link,
                             description: description ? `${description}...` : "",
                             pubDate: item.pubDate || "",
-                            source: item.source || item.author || "Google News"
+                            source: item.source || item.author || "Event Source"
                         };
                     });
                     setNews(items);
@@ -1099,7 +1099,7 @@
                     {error && !loading && <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-2 rounded-lg text-xs">{error}</div>}
                     {loading ? <div className="flex justify-center py-10"><div className="loader"></div></div> : (
                         <>
-                            {news.map((item,i)=><a key={i} href={safeExternalUrl(item.link)} target="_blank" rel="noopener noreferrer" className="news-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded font-bold">NEWS</span><span className="text-xs text-gray-400">{item.date}</span></div><h4 className="font-bold text-gray-800 mb-2 line-clamp-2">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-2">{item.description}</p><div className="text-[11px] text-gray-400 mt-2">{item.source || "Google News"}</div></a>)}
+                            {news.map((item,i)=><a key={i} href={safeExternalUrl(item.link)} target="_blank" rel="noopener noreferrer" className="news-card block bg-white p-4 rounded-xl shadow-sm border mb-3 opacity-0"><div className="flex justify-between mb-2"><span className="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded font-bold">NEWS</span><span className="text-xs text-gray-400">{item.date}</span></div><h4 className="font-bold text-gray-800 mb-2 line-clamp-2">{item.title}</h4><p className="text-xs text-gray-500 line-clamp-2">{item.description}</p><div className="text-[11px] text-gray-400 mt-2">{item.source || "Event Source"}</div></a>)}
                         </>
                     )}
                 </div>

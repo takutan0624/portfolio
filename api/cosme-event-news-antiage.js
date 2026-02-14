@@ -1,5 +1,4 @@
 const ALLOWED_HOSTS = new Set([
-  "news.google.com",
   "meguro-nono.com",
   "www.meguro-nono.com",
 ]);
@@ -226,18 +225,6 @@ function dedupeByLink(items) {
   return Array.from(map.values());
 }
 
-function normalizeKeywords(raw) {
-  return Array.from(
-    new Set(
-      String(raw || "")
-        .split(/[\n,、，]/g)
-        .map((v) => v.trim())
-        .filter(Boolean)
-        .slice(0, 10)
-    )
-  );
-}
-
 function normalizeBoolean(raw, fallback = false) {
   const value = String(raw || "").trim().toLowerCase();
   if (!value) return fallback;
@@ -259,40 +246,6 @@ function sanitizeNewsHostUrl(rawUrl) {
   } catch {
     return "";
   }
-}
-
-function buildGoogleNewsRssUrl(query) {
-  const base = "https://news.google.com/rss/search";
-  const params = new URLSearchParams({
-    q: query,
-    hl: "ja",
-    gl: "JP",
-    ceid: "JP:ja",
-  });
-  return `${base}?${params.toString()}`;
-}
-
-function buildQueries(keywords, recentDays) {
-  const region = "(\"東京\" OR \"神奈川\" OR \"千葉\" OR \"首都圏\" OR \"都内\" OR \"横浜\" OR \"川崎\" OR \"幕張\")";
-  const cosme = "(\"コスメ\" OR \"化粧品\" OR \"ビューティー\" OR \"メイク\")";
-  const eventIntitle = "(intitle:ポップアップ OR intitle:イベント OR intitle:催事 OR intitle:フェア OR intitle:フェス)";
-  const eventWords = "(\"ポップアップ\" OR \"イベント\" OR \"催事\" OR \"フェス\" OR \"フェスティバル\" OR \"体験会\" OR \"展示会\")";
-  const donki = "(\"ドン・キホーテ\" OR \"ドンキ\" OR \"MEGAドンキ\" OR \"majica\")";
-  const donkiEvent = "(\"コスメフェスティバル\" OR \"コスメフェス\" OR \"コスメ祭\" OR \"ビューティーフェス\" OR \"ビューティーイベント\" OR \"催事\" OR \"ポップアップ\")";
-  const donkiSite = "(site:donki.com OR site:ppih.co.jp)";
-  const broad = "(intitle:ポップアップ OR intitle:イベント OR intitle:フェス) (コスメ OR 美容 OR メイク) (東京 OR 神奈川 OR 千葉 OR 横浜 OR ドンキ)";
-  const extra = keywords.length > 0 ? `(${keywords.map((v) => `"${String(v).replace(/"/g, "")}"`).join(" OR ")})` : "";
-  const extraClause = extra ? ` ${extra}` : "";
-  const recencyClause = recentDays > 0 ? ` when:${recentDays}d` : "";
-
-  return [
-    `${region} ${cosme} ${eventIntitle}${extraClause}${recencyClause}`.trim(),
-    `${region} ${cosme} ${eventWords}${extraClause}${recencyClause}`.trim(),
-    `${donki} ${donkiEvent}${extraClause}${recencyClause}`.trim(),
-    `${donki} ${cosme} ${eventWords}${extraClause}${recencyClause}`.trim(),
-    `${donkiSite} ${cosme} ${donkiEvent}${extraClause}${recencyClause}`.trim(),
-    `${broad}${extraClause}${recencyClause}`.trim(),
-  ];
 }
 
 function isTargetEvent(item) {
@@ -375,18 +328,10 @@ export default async function handler(req, res) {
   const strictRecent = normalizeBoolean(readQuery(req, "strict_recent", ""), false);
   const showAll = normalizeBoolean(readQuery(req, "all", ""), false);
   const hardMaxDays = Math.max(recentDays, Math.min(365, recentDays * 2));
-  const keywords = normalizeKeywords(readQuery(req, "keywords", ""));
-  const queries = buildQueries(keywords, recentDays);
   const nowTs = Date.now();
 
   try {
-    const googleFeeds = queries.map((q) => ({
-      key: "google_news",
-      source: "Google News",
-      query: q,
-      url: buildGoogleNewsRssUrl(q),
-    }));
-    const allFeeds = [...googleFeeds, ...STATIC_FEEDS];
+    const allFeeds = [...STATIC_FEEDS];
 
     const fetches = await Promise.all(
       allFeeds.map(async (feed) => {
@@ -409,7 +354,7 @@ export default async function handler(req, res) {
           query: feed.query || "",
           feedKey: feed.key,
           feedSource: feed.source,
-          source: item.author || feed.source || "Google News",
+          source: item.author || feed.source || "Event Source",
         }));
       })
     );
@@ -485,7 +430,7 @@ export default async function handler(req, res) {
       donkiCount,
       oldestDays,
       sourceStats,
-      queries,
+      queries: [],
       items: picked,
     });
   } catch (e) {
