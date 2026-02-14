@@ -95,6 +95,12 @@ function toDateValue(v) {
   return Number.isFinite(t) ? t : 0;
 }
 
+function toAgeDays(v, nowTs) {
+  const ts = toDateValue(v);
+  if (!ts) return Number.POSITIVE_INFINITY;
+  return Math.max(0, Math.floor((nowTs - ts) / 86400000));
+}
+
 function dedupeByLink(items) {
   const map = new Map();
   for (const item of items || []) {
@@ -116,6 +122,18 @@ function normalizeKeywords(raw) {
         .slice(0, 10)
     )
   );
+}
+
+function normalizeBoolean(raw, fallback = false) {
+  const value = String(raw || "").trim().toLowerCase();
+  if (!value) return fallback;
+  return ["1", "true", "yes", "on"].includes(value);
+}
+
+function clampInt(raw, min, max, fallback) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(n)));
 }
 
 function sanitizeNewsHostUrl(rawUrl) {
@@ -140,20 +158,24 @@ function buildGoogleNewsRssUrl(query) {
   return `${base}?${params.toString()}`;
 }
 
-function buildQueries(keywords) {
+function buildQueries(keywords, recentDays) {
   const region = "(\"東京\" OR \"神奈川\" OR \"千葉\" OR \"首都圏\" OR \"都内\" OR \"横浜\" OR \"川崎\" OR \"幕張\")";
   const cosme = "(\"コスメ\" OR \"化粧品\" OR \"ビューティー\" OR \"メイク\")";
   const eventIntitle = "(intitle:ポップアップ OR intitle:イベント OR intitle:催事 OR intitle:フェア OR intitle:フェス)";
   const eventWords = "(\"ポップアップ\" OR \"イベント\" OR \"催事\" OR \"フェス\" OR \"フェスティバル\" OR \"体験会\" OR \"展示会\")";
-  const donki = "(\"ドン・キホーテ\" OR \"ドンキ\" OR \"MEGAドンキ\")";
-  const donkiEvent = "(\"コスメフェスティバル\" OR \"コスメフェス\" OR \"ビューティーイベント\" OR \"催事\")";
+  const donki = "(\"ドン・キホーテ\" OR \"ドンキ\" OR \"MEGAドンキ\" OR \"majica\")";
+  const donkiEvent = "(\"コスメフェスティバル\" OR \"コスメフェス\" OR \"コスメ祭\" OR \"ビューティーフェス\" OR \"ビューティーイベント\" OR \"催事\" OR \"ポップアップ\")";
+  const donkiSite = "(site:donki.com OR site:ppih.co.jp)";
   const extra = keywords.length > 0 ? `(${keywords.map((v) => `"${String(v).replace(/"/g, "")}"`).join(" OR ")})` : "";
   const extraClause = extra ? ` ${extra}` : "";
+  const recencyClause = recentDays > 0 ? ` when:${recentDays}d` : "";
 
   return [
-    `${region} ${cosme} ${eventIntitle}${extraClause}`.trim(),
-    `${region} ${cosme} ${eventWords}${extraClause}`.trim(),
-    `${donki} ${donkiEvent}${extraClause}`.trim(),
+    `${region} ${cosme} ${eventIntitle}${extraClause}${recencyClause}`.trim(),
+    `${region} ${cosme} ${eventWords}${extraClause}${recencyClause}`.trim(),
+    `${donki} ${donkiEvent}${extraClause}${recencyClause}`.trim(),
+    `${donki} ${cosme} ${eventWords}${extraClause}${recencyClause}`.trim(),
+    `${donkiSite} ${cosme} ${donkiEvent}${extraClause}${recencyClause}`.trim(),
   ];
 }
 
@@ -164,6 +186,32 @@ function isTargetEvent(item) {
   const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張)/i.test(text);
   const hasDonki = /(ドンキ|ドン・キホーテ|MEGAドンキ)/i.test(text);
   return hasCosme && hasEvent && (hasRegion || hasDonki);
+}
+
+function scoreItem(item, nowTs) {
+  const text = `${item.title || ""} ${item.description || ""} ${item.link || ""}`;
+  const ageDays = toAgeDays(item.pubDate, nowTs);
+  const hasDonki = /(ドンキ|ドン・キホーテ|MEGAドンキ|majica|donki\.com|ppih\.co\.jp)/i.test(text);
+  const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張)/i.test(text);
+  const hasEvent = /(ポップアップ|イベント|催事|フェス|フェスティバル|フェア|体験会|展示会)/i.test(text);
+  const hasCosme = /(コスメ|化粧品|ビューティー|メイク)/i.test(text);
+
+  let score = 0;
+  if (hasDonki) score += 3000;
+  if (hasRegion) score += 500;
+  if (hasEvent) score += 500;
+  if (hasCosme) score += 350;
+
+  if (Number.isFinite(ageDays)) {
+    if (ageDays <= 7) score += 1200;
+    else if (ageDays <= 30) score += 700;
+    else if (ageDays <= 60) score += 350;
+    else if (ageDays <= 90) score += 120;
+    else score -= Math.min(1200, Math.floor((ageDays - 90) * 12));
+  } else {
+    score -= 900;
+  }
+  return score;
 }
 
 export default async function handler(req, res) {
@@ -196,10 +244,13 @@ export default async function handler(req, res) {
     return;
   }
 
-  const maxRaw = Number(readQuery(req, "max", "40"));
-  const max = Number.isFinite(maxRaw) ? Math.max(1, Math.min(100, Math.floor(maxRaw))) : 40;
+  const max = clampInt(readQuery(req, "max", "40"), 1, 100, 40);
+  const recentDays = clampInt(readQuery(req, "days", "90"), 7, 365, 90);
+  const strictRecent = normalizeBoolean(readQuery(req, "strict_recent", ""), false);
+  const hardMaxDays = Math.max(recentDays, Math.min(365, recentDays * 2));
   const keywords = normalizeKeywords(readQuery(req, "keywords", ""));
-  const queries = buildQueries(keywords);
+  const queries = buildQueries(keywords, recentDays);
+  const nowTs = Date.now();
 
   try {
     const fetches = await Promise.all(
@@ -223,13 +274,61 @@ export default async function handler(req, res) {
       })
     );
 
-    const merged = dedupeByLink(fetches.flat()).sort((a, b) => toDateValue(b.pubDate) - toDateValue(a.pubDate));
-    const targetOnly = merged.filter(isTargetEvent);
-    const picked = (targetOnly.length > 0 ? targetOnly : merged).slice(0, max);
+    const merged = dedupeByLink(fetches.flat());
+    const scored = merged
+      .map((item) => ({ ...item, _ageDays: toAgeDays(item.pubDate, nowTs), _score: scoreItem(item, nowTs) }))
+      .sort((a, b) => {
+        if (b._score !== a._score) return b._score - a._score;
+        return toDateValue(b.pubDate) - toDateValue(a.pubDate);
+      });
+
+    const withinRecent = scored.filter((item) => item._ageDays <= recentDays);
+    const withinHard = scored.filter((item) => item._ageDays <= hardMaxDays);
+    const withinHardTarget = withinHard.filter(isTargetEvent);
+    const withinRecentTarget = withinRecent.filter(isTargetEvent);
+    const targetOnly = scored.filter(isTargetEvent);
+
+    let source = [];
+    let mode = "recent_target";
+    if (withinRecentTarget.length > 0) {
+      source = withinRecentTarget;
+      mode = "recent_target";
+    } else if (!strictRecent && withinHardTarget.length > 0) {
+      source = withinHardTarget;
+      mode = "hard_window_target";
+    } else if (!strictRecent && withinRecent.length > 0) {
+      source = withinRecent;
+      mode = "recent_fallback";
+    } else if (!strictRecent && targetOnly.length > 0) {
+      source = targetOnly;
+      mode = "target_fallback";
+    } else if (!strictRecent) {
+      source = withinHard.length > 0 ? withinHard : scored;
+      mode = "hard_window_fallback";
+    }
+
+    const picked = source
+      .slice(0, max)
+      .map(({ _ageDays, _score, ...item }) => item);
+
+    const donkiCount = picked.filter((item) =>
+      /(ドンキ|ドン・キホーテ|MEGAドンキ|majica|donki\.com|ppih\.co\.jp)/i.test(
+        `${item.title || ""} ${item.description || ""} ${item.link || ""}`
+      )
+    ).length;
+    const oldestDays = picked.reduce((acc, item) => {
+      const d = toAgeDays(item.pubDate, nowTs);
+      return Number.isFinite(d) ? Math.max(acc, d) : acc;
+    }, 0);
 
     res.status(200).json({
       status: "ok",
       count: picked.length,
+      mode,
+      recentDays,
+      strictRecent,
+      donkiCount,
+      oldestDays,
       queries,
       items: picked,
     });

@@ -219,9 +219,11 @@
             return data.items;
         }
 
-        async function fetchCosmeEventNewsItems(keywords, maxItems = 40) {
+        async function fetchCosmeEventNewsItems(keywords, maxItems = 40, recentDays = 60, strictRecent = true) {
             const params = new URLSearchParams();
             params.set("max", String(Math.max(1, Math.min(100, Number(maxItems) || 40))));
+            params.set("days", String(Math.max(7, Math.min(365, Number(recentDays) || 60))));
+            params.set("strict_recent", strictRecent ? "1" : "0");
             if (Array.isArray(keywords) && keywords.length > 0) {
                 params.set("keywords", keywords.join("、"));
             }
@@ -1052,7 +1054,9 @@
                 "ポップアップストア コスメ",
                 "百貨店 コスメ催事",
                 "コスメ 新作",
-                "美容セミナー"
+                "美容セミナー",
+                "ドンキ コスメフェスティバル",
+                "ドン・キホーテ コスメ"
             ];
             const [news, setNews] = useState([]);
             const [loading, setLoading] = useState(false);
