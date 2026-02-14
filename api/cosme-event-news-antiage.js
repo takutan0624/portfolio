@@ -1,31 +1,10 @@
 const ALLOWED_HOSTS = new Set([
   "news.google.com",
-  "prtimes.jp",
-  "www.fashionsnap.com",
-  "fashionsnap.com",
   "meguro-nono.com",
   "www.meguro-nono.com",
 ]);
 
 const STATIC_FEEDS = [
-  {
-    key: "prtimes_beauty",
-    source: "PR TIMES",
-    type: "rss",
-    url: "https://prtimes.jp/tv/category/beauty/rss.xml",
-  },
-  {
-    key: "prtimes_beauty_alt",
-    source: "PR TIMES",
-    type: "rss",
-    url: "https://prtimes.jp/rss/beauty.rdf",
-  },
-  {
-    key: "fashionsnap_beauty",
-    source: "FASHIONSNAP",
-    type: "rss",
-    url: "https://www.fashionsnap.com/beauty/feed/",
-  },
   {
     key: "meguro_nono_event_info",
     source: "meguro-nono.com",
@@ -335,7 +314,6 @@ function scoreItem(item, nowTs) {
   const hasRegion = /(東京|神奈川|千葉|首都圏|都内|横浜|川崎|幕張|千葉市|船橋|柏|目黒)/i.test(text);
   const hasEvent = /(ポップアップ|イベント|催事|フェス|フェスティバル|フェア|体験会|展示会)/i.test(text);
   const hasCosme = /(コスメ|化粧品|ビューティー|メイク|美容)/i.test(text);
-  const fromPrimary = /(PR TIMES|FASHIONSNAP)/i.test(sourceText);
   const fromMeguroNono = /(meguro-nono\.com)/i.test(sourceText) || /meguro-nono\.com/i.test(text);
 
   let score = 0;
@@ -343,7 +321,6 @@ function scoreItem(item, nowTs) {
   if (hasRegion) score += 500;
   if (hasEvent) score += 500;
   if (hasCosme) score += 350;
-  if (fromPrimary) score += 260;
   if (fromMeguroNono) score += 900;
 
   if (Number.isFinite(ageDays)) {
@@ -356,6 +333,10 @@ function scoreItem(item, nowTs) {
     score -= 900;
   }
   return score;
+}
+
+function isMeguroSource(item) {
+  return /meguro-nono\.com/i.test(`${item.feedSource || ""} ${item.source || ""} ${item.link || ""}`);
 }
 
 export default async function handler(req, res) {
@@ -388,7 +369,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const max = clampInt(readQuery(req, "max", "40"), 1, 100, 40);
+  const max = clampInt(readQuery(req, "max", "80"), 1, 150, 80);
   const recentDays = clampInt(readQuery(req, "days", "90"), 7, 365, 90);
   const strictRecent = normalizeBoolean(readQuery(req, "strict_recent", ""), false);
   const hardMaxDays = Math.max(recentDays, Math.min(365, recentDays * 2));
@@ -464,7 +445,12 @@ export default async function handler(req, res) {
       mode = "hard_window_fallback";
     }
 
-    const picked = source
+    const meguroFirst = [
+      ...source.filter((item) => isMeguroSource(item)),
+      ...source.filter((item) => !isMeguroSource(item)),
+    ];
+
+    const picked = meguroFirst
       .slice(0, max)
       .map(({ _ageDays, _score, ...item }) => item);
 

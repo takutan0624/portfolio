@@ -219,7 +219,7 @@
             return data.items;
         }
 
-        async function fetchCosmeEventNewsItems(keywords, maxItems = 40, recentDays = 30, strictRecent = true) {
+        async function fetchCosmeEventNewsItems(keywords, maxItems = 80, recentDays = 120, strictRecent = false) {
             const params = new URLSearchParams();
             params.set("max", String(Math.max(1, Math.min(100, Number(maxItems) || 40))));
             params.set("days", String(Math.max(7, Math.min(365, Number(recentDays) || 60))));
@@ -1092,7 +1092,7 @@
                     const selectedKeywords = parsed.length > 0 ? parsed : DEFAULT_EVENT_KEYWORDS;
                     setActiveKeywords(selectedKeywords);
 
-                    const rawItems = await fetchCosmeEventNewsItems(selectedKeywords, 40);
+                    const rawItems = await fetchCosmeEventNewsItems(selectedKeywords, 80, 120, false);
                     const items = rawItems.map((item) => {
                         const description = String(item.description || "").replace(/<[^>]*>?/gm, "").substring(0, 120);
                         return {
@@ -1164,7 +1164,10 @@
             return (
                 <div className="space-y-4 animate-fade-in pb-20">
                     <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-xl font-bold text-gray-700">Event News</h3>
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-700">Event News</h3>
+                            <p className="text-[11px] text-gray-500">現在 {news.length} 件表示（最大80件）</p>
+                        </div>
                         <div className="flex items-center gap-2">
                             <button onClick={() => fetchRealNews(activeKeywords)} className="text-sm text-purple-500 font-bold"><RefreshCw size={14} className="inline"/>更新</button>
                         </div>
