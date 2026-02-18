@@ -1515,7 +1515,9 @@
   function spawnFireball(){
     const w = 12, h = 12;
     const x = p.x + (facing > 0 ? p.w + 2 : -w - 2);
-    const y = p.y + p.h * 0.5 - h / 2;
+    // Keep muzzle height stable from the ground even when player scale changes.
+    const muzzleCenterY = p.y + p.h - p.baseH * 0.5;
+    const y = muzzleCenterY - h / 2;
     const vx = 520 * facing;
     fireballs.push({ kind: "fireball", x, y, w, h, vx, vy: 0, alive: true });
   }
