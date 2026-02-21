@@ -148,6 +148,12 @@ function sanitizeMessages(messages) {
   return { messages: sanitized, totalChars };
 }
 
+function sanitizeResponseFormat(value) {
+  if (!value || typeof value !== "object") return null;
+  if (value.type === "json_object") return { type: "json_object" };
+  return null;
+}
+
 function sanitizeGroqBody(rawBody, isAnalysis) {
   const body = rawBody && typeof rawBody === "object" ? rawBody : {};
   const { messages, totalChars } = sanitizeMessages(body.messages);
@@ -157,10 +163,15 @@ function sanitizeGroqBody(rawBody, isAnalysis) {
   const maxTokensDefault = isAnalysis ? 360 : 2200;
   const maxTokensHard = isAnalysis ? 480 : 4096;
   const max_tokens = Math.floor(clampNumber(body.max_tokens, 64, maxTokensHard, maxTokensDefault));
+  const response_format = sanitizeResponseFormat(body.response_format);
   const points = 1 + Math.ceil(totalChars / 2000) + Math.ceil(max_tokens / 300);
+  const groqBody = { model, messages, temperature, max_tokens };
+  if (response_format) {
+    groqBody.response_format = response_format;
+  }
 
   return {
-    groqBody: { model, messages, temperature, max_tokens },
+    groqBody,
     points,
   };
 }
@@ -223,6 +234,8 @@ function extractContentText(value) {
 function extractUpstreamContent(data) {
   const candidates = [
     data?.choices?.[0]?.message?.content,
+    data?.choices?.[0]?.message?.reasoning,
+    data?.choices?.[0]?.message?.reasoning_content,
     data?.choices?.[0]?.text,
     data?.message?.content,
     data?.message,

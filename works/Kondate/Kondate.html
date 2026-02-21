@@ -126,6 +126,7 @@
     const FIREBASE_APP_NAME = "antiage-auth";
     const GROQ_ENDPOINT = "/api/groq-antiage";
     const GROQ_MODEL = "openai/gpt-oss-120b";
+    const GROQ_FALLBACK_MODEL = "llama-3.3-70b-versatile";
     const sampleIngredients = "豚こま肉、鶏もも肉2枚、鮭3切れ、キャベツ1玉、玉ねぎ3個、にんじん3本、じゃがいも4個、卵10個";
 
     const ingredientsInput = document.getElementById('ingredientsInput');
@@ -405,6 +406,16 @@
         .replaceAll("'", "&#39;");
     }
 
+    function isContentGenerationError(error) {
+      const message = String(error?.message || "");
+      return (
+        message.includes("Empty AI response") ||
+        message.includes("AIから有効な応答が返ってきませんでした。") ||
+        message.includes("AI応答がJSON形式ではありません。") ||
+        message.includes("API応答の解析に失敗しました。")
+      );
+    }
+
     async function generateMenu() {
       const ingredients = ingredientsInput.value.trim();
       if (!ingredients) {
@@ -443,7 +454,7 @@
 }`;
       const userPrompt = `以下の食材で1週間分の夕食献立を作成してください。\n\n食材リスト:\n${ingredients}`;
 
-      const fetchWithRetry = async (retries = 2, delay = 1000, strictJsonMode = false) => {
+      const fetchWithRetry = async (retries = 2, delay = 1000, strictJsonMode = false, model = GROQ_MODEL) => {
         try {
           const effectiveUserPrompt = strictJsonMode
             ? `${userPrompt}\n\n重要: 前回の応答が空でした。必ず1つのJSONオブジェクトのみを返してください。`
@@ -456,9 +467,10 @@
               "Authorization": `Bearer ${token}`,
             },
             body: JSON.stringify({
-              model: GROQ_MODEL,
+              model,
               temperature: 0.4,
               max_tokens: 2600,
+              response_format: { type: "json_object" },
               messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: effectiveUserPrompt },
@@ -485,7 +497,7 @@
           const rawContent = extractAssistantContent(parsedResponse);
           if (!rawContent) {
             if (!strictJsonMode) {
-              return fetchWithRetry(retries, delay, true);
+              return fetchWithRetry(retries, delay, true, model);
             }
             throw new Error("AIから有効な応答が返ってきませんでした。");
           }
@@ -501,14 +513,23 @@
         } catch (err) {
           if (retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, delay));
-            return fetchWithRetry(retries - 1, delay * 2, strictJsonMode);
+            return fetchWithRetry(retries - 1, delay * 2, strictJsonMode, model);
           }
           throw err;
         }
       };
 
       try {
-        const result = await fetchWithRetry();
+        let result;
+        try {
+          result = await fetchWithRetry();
+        } catch (primaryError) {
+          if (!isContentGenerationError(primaryError)) {
+            throw primaryError;
+          }
+          // OSS-120Bで空応答が続く場合のみ、同系統の許可モデルへ1回フォールバック
+          result = await fetchWithRetry(1, 1200, true, GROQ_FALLBACK_MODEL);
+        }
         renderResults(result);
       } catch (err) {
         console.error(err);
