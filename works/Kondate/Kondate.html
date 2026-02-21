@@ -539,7 +539,7 @@
       const proteinWords = ["鶏", "豚", "牛", "鮭", "さば", "鯖", "まぐろ", "魚", "卵", "豆腐", "納豆", "大豆"];
       const carbWords = ["ご飯", "米", "玄米", "オートミール", "パスタ", "うどん", "そば", "パン", "じゃがいも", "さつまいも"];
       const fryWords = ["唐揚げ", "から揚げ", "とんかつ", "フライ", "天ぷら", "揚げ"];
-      const veggieWords = ["野菜", "きのこ", "海藻", "食物繊維", "葉物", "根菜"];
+      const veggieWords = ["野菜", "きのこ", "海藻", "食物繊維", "葉物", "根菜", "サラダ", "温野菜", "ブロッコリー", "キャベツ", "ほうれん草", "もやし", "ひじき", "わかめ"];
       const leanWords = ["脂質", "油", "低脂質", "塩分", "カロリー", "控えめ"];
 
       const dailyTexts = menu.map((item) => `${item.main_dish} ${item.side_dish} ${item.soup} ${item.used_ingredients.join(" ")} ${item.nutrition_point}`);
@@ -560,7 +560,7 @@
           throw new Error("ダイエット向け条件: 揚げ物が多すぎます。");
         }
         const veggieDays = dailyTexts.filter((text) => containsAny(text, veggieWords)).length;
-        if (veggieDays < 4) {
+        if (veggieDays < 3) {
           throw new Error("ダイエット向け条件: 野菜・食物繊維要素が不足しています。");
         }
         const leanDays = dailyTexts.filter((text) => containsAny(text, leanWords)).length;
@@ -760,7 +760,7 @@ ${goalInstruction}
 9. 1週間の料理ジャンルは幅広くし、和食・洋食・アジアン/中華/韓国に加えてイタリアン・フレンチも候補にする。
 10. 週内に中華・イタリアン・フレンチのいずれかを含める。
 11. 筋肉増量モードでは高たんぱく要素を中心にし、炭水化物源も適度に確保する。
-12. ダイエットモードでは揚げ物を控えめにし、野菜・食物繊維を意識する。
+12. ダイエットモードでは揚げ物を控えめにし、野菜・食物繊維を週の半分程度で意識する。
 13. 各日の夕食について、主菜・副菜・汁物を合計した概算カロリー daily_total_kcal（整数）を出す。
 14. 各日ごとに style_tag（例: 和食, 洋食, イタリアン, フレンチ, 中華, 韓国, 東南アジア・エスニック）を付ける。
 15. nutrition_pointは30〜120文字程度で簡潔に書く。
