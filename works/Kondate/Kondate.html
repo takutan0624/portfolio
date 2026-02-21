@@ -462,6 +462,11 @@
         .replaceAll("'", "&#39;");
     }
 
+    function buildRecipeSearchUrl(dishName) {
+      const query = `${String(dishName || "").trim()} 作り方 レシピ`;
+      return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    }
+
     function isContentGenerationError(error) {
       const message = String(error?.message || "");
       return (
@@ -626,6 +631,9 @@
         const usedIngredientsHtml = dayPlan.used_ingredients.map((ing) =>
           `<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">${escapeHtml(ing)}</span>`
         ).join('');
+        const mainSearchUrl = buildRecipeSearchUrl(dayPlan.main_dish);
+        const sideSearchUrl = buildRecipeSearchUrl(dayPlan.side_dish);
+        const soupSearchUrl = buildRecipeSearchUrl(dayPlan.soup);
 
         let recommendedIngredientsHtml = '';
         if (dayPlan.recommended_ingredients_used && dayPlan.recommended_ingredients_used.length > 0) {
@@ -654,16 +662,25 @@
               <div>
                 <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">主菜 (Main)</span>
                 <p class="font-semibold text-gray-800 text-lg leading-tight">${escapeHtml(dayPlan.main_dish)}</p>
+                <a href="${mainSearchUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-1 text-xs text-orange-600 hover:text-orange-700 underline underline-offset-2">
+                  <i data-lucide="search" class="w-3 h-3"></i> 作り方を検索
+                </a>
               </div>
 
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">副菜 (Side)</span>
                   <p class="text-gray-700 text-sm">${escapeHtml(dayPlan.side_dish)}</p>
+                  <a href="${sideSearchUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-1 text-xs text-orange-600 hover:text-orange-700 underline underline-offset-2">
+                    <i data-lucide="search" class="w-3 h-3"></i> 作り方を検索
+                  </a>
                 </div>
                 <div>
                   <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">汁物 (Soup)</span>
                   <p class="text-gray-700 text-sm">${escapeHtml(dayPlan.soup)}</p>
+                  <a href="${soupSearchUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-1 text-xs text-orange-600 hover:text-orange-700 underline underline-offset-2">
+                    <i data-lucide="search" class="w-3 h-3"></i> 作り方を検索
+                  </a>
                 </div>
               </div>
 
