@@ -122,9 +122,9 @@
   <script>
     lucide.createIcons();
 
-    const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-kondate", "/api/firebase-config-mental", "/api/firebase-config-antiage"];
-    const FIREBASE_APP_NAME = "kondate-auth";
-    const GROQ_ENDPOINT = "/api/groq-kondate";
+    const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-antiage", "/api/firebase-config-mental"];
+    const FIREBASE_APP_NAME = "antiage-auth";
+    const GROQ_ENDPOINT = "/api/groq-antiage";
     const GROQ_MODEL = "openai/gpt-oss-120b";
     const sampleIngredients = "豚こま肉、鶏もも肉2枚、鮭3切れ、キャベツ1玉、玉ねぎ3個、にんじん3本、じゃがいも4個、卵10個";
 
@@ -232,7 +232,7 @@
         }
         const firebaseConfig = readFirebaseConfigRuntime() || await fetchFirebaseConfigFromServer();
         if (!isValidFirebaseConfig(firebaseConfig)) {
-          throw new Error("Firebase設定が見つかりません。/api/firebase-config-kondate を確認してください。");
+          throw new Error("Firebase設定が見つかりません。/api/firebase-config-antiage を確認してください。");
         }
         const existing = firebase.apps.find((app) => app.name === FIREBASE_APP_NAME);
         const app = existing || firebase.initializeApp(firebaseConfig, FIREBASE_APP_NAME);
@@ -266,7 +266,7 @@
         console.error(error);
         authStatus.textContent = "ログイン設定の読み込みに失敗しました";
         authBtn.disabled = true;
-        showError("Firebase設定の取得に失敗しました。管理者設定（firebase-config-kondate API / 環境変数）を確認してください。");
+        showError("Firebase設定の取得に失敗しました。管理者設定（firebase-config-antiage API / 環境変数）を確認してください。");
       }
     }
 
