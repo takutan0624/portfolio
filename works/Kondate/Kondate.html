@@ -405,7 +405,72 @@
         .filter(Boolean);
     }
 
-    function normalizeMenuResponse(data) {
+    function parseIngredientList(raw) {
+      return Array.from(new Set(
+        String(raw || "")
+          .split(/[\n,、，]/g)
+          .map((v) => v.trim())
+          .filter((v) => v.length >= 2)
+      ));
+    }
+
+    function normalizeDishName(value) {
+      return String(value || "")
+        .toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/[()（）「」『』・,，、]/g, "");
+    }
+
+    function containsAny(text, keywords) {
+      return keywords.some((word) => text.includes(word));
+    }
+
+    function validateMenuQuality(menu, inputIngredientsRaw) {
+      const mainSet = new Set(menu.map((item) => normalizeDishName(item.main_dish)).filter(Boolean));
+      if (mainSet.size < 6) {
+        throw new Error("主菜のバリエーションが不足しています。");
+      }
+
+      const sideSet = new Set(menu.map((item) => normalizeDishName(item.side_dish)).filter(Boolean));
+      if (sideSet.size < 6) {
+        throw new Error("副菜のバリエーションが不足しています。");
+      }
+
+      const soupSet = new Set(menu.map((item) => normalizeDishName(item.soup)).filter(Boolean));
+      if (soupSet.size < 5) {
+        throw new Error("汁物のバリエーションが不足しています。");
+      }
+
+      const proteinCategories = {
+        fish: ["鮭", "さば", "鯖", "ぶり", "たら", "鱈", "まぐろ", "いわし", "あじ", "しらす", "えび", "海老", "いか", "たこ", "魚"],
+        meat: ["鶏", "豚", "牛", "ひき肉", "ベーコン", "ハム", "ソーセージ", "肉"],
+        egg: ["卵", "たまご", "玉子"],
+        soy: ["豆腐", "納豆", "厚揚げ", "油揚げ", "高野豆腐", "大豆"],
+      };
+      const weeklyText = menu
+        .map((item) => `${item.main_dish} ${item.side_dish} ${item.soup} ${item.used_ingredients.join(" ")}`)
+        .join(" ");
+      const usedProteinKinds = Object.entries(proteinCategories)
+        .filter(([, words]) => containsAny(weeklyText, words))
+        .map(([kind]) => kind);
+      if (usedProteinKinds.length < 3) {
+        throw new Error("たんぱく源のバリエーションが不足しています。");
+      }
+
+      const inputIngredients = parseIngredientList(inputIngredientsRaw);
+      if (inputIngredients.length >= 4) {
+        const textForCoverage = menu
+          .map((item) => `${item.main_dish} ${item.side_dish} ${item.soup} ${item.used_ingredients.join(" ")}`)
+          .join(" ");
+        const covered = inputIngredients.filter((ing) => textForCoverage.includes(ing));
+        const coverageRatio = covered.length / inputIngredients.length;
+        if (coverageRatio < 0.45) {
+          throw new Error("入力食材の反映率が低すぎます。");
+        }
+      }
+    }
+
+    function normalizeMenuResponse(data, inputIngredientsRaw) {
       const recommendedRaw = Array.isArray(data?.recommended_additional_ingredients)
         ? data.recommended_additional_ingredients
         : [];
@@ -435,9 +500,10 @@
       if (menu.some((item) => !item.main_dish || !item.side_dish || !item.soup)) {
         throw new Error("献立データを生成できませんでした。");
       }
-      if (menu.some((item) => item.nutrition_point.length < 70)) {
+      if (menu.some((item) => item.nutrition_point.length < 90)) {
         throw new Error("栄養メモが短すぎます。");
       }
+      validateMenuQuality(menu, inputIngredientsRaw);
 
       return {
         recommended_additional_ingredients: recommended,
@@ -467,7 +533,12 @@
         message.includes("AI応答がJSON形式ではありません。") ||
         message.includes("API応答の解析に失敗しました。") ||
         message.includes("献立が7日分生成されませんでした。") ||
-        message.includes("栄養メモが短すぎます。")
+        message.includes("栄養メモが短すぎます。") ||
+        message.includes("主菜のバリエーションが不足しています。") ||
+        message.includes("副菜のバリエーションが不足しています。") ||
+        message.includes("汁物のバリエーションが不足しています。") ||
+        message.includes("たんぱく源のバリエーションが不足しています。") ||
+        message.includes("入力食材の反映率が低すぎます。")
       );
     }
 
@@ -494,9 +565,11 @@
 4. 基本調味料と主食（白米・パン・パスタ等）は常備前提。
 5. 必ずJSONオブジェクトのみを返す。コードブロックや説明文は禁止。
 6. 各日の主菜・副菜・汁物は、できるだけ重複を避ける。
-7. nutrition_pointは90〜180文字程度で、たんぱく質・野菜・食物繊維・塩分配慮などを含め、なぜその組み合わせが良いか具体的に書く。
-8. 各日のnutrition_pointは言い回しを変え、同じ説明の繰り返しを避ける。
-9. JSONスキーマ:
+7. 1週間でたんぱく源（魚・肉・卵・大豆製品）が偏らないよう分散させる。
+8. 入力食材をできるだけ多く使い、menu全体で最低でも半分以上の食材に触れる。
+9. nutrition_pointは90〜180文字程度で、たんぱく質・野菜・食物繊維・塩分配慮などを含め、なぜその組み合わせが良いか具体的に書く。
+10. 各日のnutrition_pointは言い回しを変え、同じ説明の繰り返しを避ける。
+11. JSONスキーマ:
 {
   "recommended_additional_ingredients": [{"ingredient":"", "reason":""}],
   "menu": [{
@@ -575,7 +648,7 @@
           if (!parsedJson) {
             throw new Error("AI応答がJSON形式ではありません。");
           }
-          return normalizeMenuResponse(parsedJson);
+          return normalizeMenuResponse(parsedJson, ingredients);
         } catch (err) {
           if (retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, delay));
