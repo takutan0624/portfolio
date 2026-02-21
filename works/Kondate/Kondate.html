@@ -465,7 +465,7 @@
       }
 
       const soupSet = new Set(menu.map((item) => normalizeDishName(item.soup)).filter(Boolean));
-      if (soupSet.size < 5) {
+      if (soupSet.size < 3) {
         throw new Error("汁物のバリエーションが不足しています。");
       }
 
