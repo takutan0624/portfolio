@@ -210,6 +210,27 @@
     let authContextPromise = null;
     let currentUser = null;
     let clientCooldownUntil = 0;
+    const COOLDOWN_STORAGE_KEY = "kondate_groq_cooldown_until";
+
+    function readCooldown() {
+      try {
+        const raw = localStorage.getItem(COOLDOWN_STORAGE_KEY);
+        const n = Number(raw || "0");
+        if (Number.isFinite(n) && n > 0) {
+          clientCooldownUntil = Math.max(clientCooldownUntil, n);
+        }
+      } catch {}
+    }
+
+    function setCooldownUntil(ts) {
+      const safeTs = Math.max(clientCooldownUntil, Math.floor(Number(ts) || 0));
+      clientCooldownUntil = safeTs;
+      try {
+        localStorage.setItem(COOLDOWN_STORAGE_KEY, String(safeTs));
+      } catch {}
+    }
+
+    readCooldown();
 
     sampleBtn.addEventListener('click', () => {
       ingredientsInput.value = sampleIngredients;
@@ -772,8 +793,16 @@ ${goalInstruction}
 }`;
       const userPrompt = `以下の食材で1週間分の夕食献立を作成してください。\n\n食材リスト:\n${ingredients}`;
 
-      const fetchWithRetry = async (retries = 1, delay = 1200, strictJsonMode = false, model = GROQ_MODEL) => {
+      const fetchWithRetry = async (retries = 0, delay = 1200, strictJsonMode = false, model = GROQ_MODEL) => {
         try {
+          const nowInside = Date.now();
+          if (clientCooldownUntil > nowInside) {
+            const waitSec = Math.ceil((clientCooldownUntil - nowInside) / 1000);
+            const cooldownError = new Error(`Rate limit cooldown active. Please try again in ${waitSec}s.`);
+            cooldownError.rateLimited = true;
+            cooldownError.retryAfterMs = waitSec * 1000;
+            throw cooldownError;
+          }
           const supportsStrictSchema = model === "openai/gpt-oss-120b" || model === "openai/gpt-oss-20b";
           const responseFormat = {
             type: "json_schema",
@@ -824,6 +853,9 @@ ${goalInstruction}
                 if (retryMatch) {
                   error.retryAfterMs = Math.ceil(Number(retryMatch[1]) * 1000);
                 }
+              }
+              if (error.retryAfterMs) {
+                setCooldownUntil(Date.now() + error.retryAfterMs);
               }
             }
             throw error;
@@ -877,7 +909,7 @@ ${goalInstruction}
         console.error(err);
         if (err?.rateLimited) {
           const retrySecFromMs = Number.isFinite(err?.retryAfterMs) ? Math.ceil(err.retryAfterMs / 1000) : 10;
-          clientCooldownUntil = Date.now() + retrySecFromMs * 1000;
+          setCooldownUntil(Date.now() + retrySecFromMs * 1000);
           showError(`アクセスが集中しています。${retrySecFromMs}秒ほど待ってから、もう一度お試しください。`);
         } else {
           showError("献立の作成中にエラーが発生しました。時間を置いて再度お試しいただくか、食材の記述を変えてみてください。");
