@@ -127,6 +127,8 @@
     const GROQ_ENDPOINT = "/api/groq-antiage";
     const GROQ_MODEL = "openai/gpt-oss-120b";
     const GROQ_FALLBACK_MODEL = "llama-3.3-70b-versatile";
+    const GENERATION_TEMPERATURE = 0.55;
+    const GENERATION_MAX_TOKENS = 4200;
     const MENU_RESPONSE_SCHEMA = {
       type: "object",
       additionalProperties: false,
@@ -138,7 +140,7 @@
             additionalProperties: false,
             properties: {
               ingredient: { type: "string", minLength: 1 },
-              reason: { type: "string", minLength: 1 },
+              reason: { type: "string", minLength: 24 },
             },
             required: ["ingredient", "reason"],
           },
@@ -157,13 +159,14 @@
               soup: { type: "string", minLength: 1 },
               used_ingredients: {
                 type: "array",
+                minItems: 2,
                 items: { type: "string", minLength: 1 },
               },
               recommended_ingredients_used: {
                 type: "array",
                 items: { type: "string", minLength: 1 },
               },
-              nutrition_point: { type: "string", minLength: 1 },
+              nutrition_point: { type: "string", minLength: 45 },
             },
             required: [
               "day",
@@ -176,7 +179,7 @@
             ],
           },
         },
-        advice: { type: "string", minLength: 1 },
+        advice: { type: "string", minLength: 180 },
       },
       required: ["recommended_additional_ingredients", "menu", "advice"],
     };
@@ -500,7 +503,10 @@
 3. 栄養不足が見込まれる場合は「おすすめ追加食材」を提案し、献立に組み込む。
 4. 基本調味料と主食（白米・パン・パスタ等）は常備前提。
 5. 必ずJSONオブジェクトのみを返す。コードブロックや説明文は禁止。
-6. JSONスキーマ:
+6. 各日の主菜・副菜・汁物は、できるだけ重複を避ける。
+7. nutrition_pointは40〜120文字程度で、栄養の狙いと食材の役割を具体的に書く。
+8. adviceは180文字以上で、1週間を通した栄養バランス・作り置き・食材使い切りのコツを実践的に書く。
+9. JSONスキーマ:
 {
   "recommended_additional_ingredients": [{"ingredient":"", "reason":""}],
   "menu": [{
@@ -539,8 +545,8 @@
             },
             body: JSON.stringify({
               model,
-              temperature: 0.4,
-              max_tokens: 2600,
+              temperature: GENERATION_TEMPERATURE,
+              max_tokens: GENERATION_MAX_TOKENS,
               response_format: responseFormat,
               messages: [
                 { role: "system", content: systemPrompt },
