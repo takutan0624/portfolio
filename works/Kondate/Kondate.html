@@ -62,14 +62,28 @@
         >
           サンプルの食材を入力する
         </button>
-        
-        <button
-          id="generateBtn"
-          class="w-full sm:w-auto px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-        >
-          <span id="btnIcon" class="flex items-center"><i data-lucide="utensils" class="w-5 h-5"></i></span>
-          <span id="btnText">献立を作成する</span>
-        </button>
+
+        <div class="w-full sm:w-auto grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            id="generateBtn"
+            class="w-full px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            <span id="btnIcon" class="flex items-center"><i data-lucide="utensils" class="w-5 h-5"></i></span>
+            <span id="btnText">通常献立</span>
+          </button>
+          <button
+            id="muscleBtn"
+            class="w-full px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold shadow-sm transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            筋肉増量
+          </button>
+          <button
+            id="dietBtn"
+            class="w-full px-4 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-bold shadow-sm transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            ダイエット
+          </button>
+        </div>
       </div>
       
       <!-- Error Message -->
@@ -176,6 +190,8 @@
     const ingredientsInput = document.getElementById('ingredientsInput');
     const sampleBtn = document.getElementById('sampleBtn');
     const generateBtn = document.getElementById('generateBtn');
+    const muscleBtn = document.getElementById('muscleBtn');
+    const dietBtn = document.getElementById('dietBtn');
     const btnIcon = document.getElementById('btnIcon');
     const btnText = document.getElementById('btnText');
     const errorBox = document.getElementById('errorBox');
@@ -196,7 +212,9 @@
     });
     ingredientsInput.addEventListener('input', clearError);
     authBtn.addEventListener('click', handleAuthButtonClick);
-    generateBtn.addEventListener('click', generateMenu);
+    generateBtn.addEventListener('click', () => generateMenu("normal"));
+    muscleBtn.addEventListener('click', () => generateMenu("muscle"));
+    dietBtn.addEventListener('click', () => generateMenu("diet"));
 
     function showError(message) {
       errorText.textContent = message;
@@ -208,23 +226,33 @@
       errorText.textContent = "";
     }
 
-    function setLoading(isLoading) {
+    function getGoalLoadingText(goalType) {
+      if (goalType === "muscle") return "AIが筋肉増量向け献立を考案中...";
+      if (goalType === "diet") return "AIがダイエット向け献立を考案中...";
+      return "AIが通常献立を考案中...";
+    }
+
+    function setLoading(isLoading, goalType = "normal") {
       if (isLoading) {
         generateBtn.disabled = true;
+        muscleBtn.disabled = true;
+        dietBtn.disabled = true;
         ingredientsInput.disabled = true;
         sampleBtn.disabled = true;
         authBtn.disabled = true;
         btnIcon.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>`;
-        btnText.textContent = "AIが献立を考案中...";
+        btnText.textContent = getGoalLoadingText(goalType);
         clearError();
         resultsSection.classList.add('hidden');
       } else {
         generateBtn.disabled = false;
+        muscleBtn.disabled = false;
+        dietBtn.disabled = false;
         ingredientsInput.disabled = false;
         sampleBtn.disabled = false;
         authBtn.disabled = false;
         btnIcon.innerHTML = `<i data-lucide="utensils" class="w-5 h-5"></i>`;
-        btnText.textContent = "献立を作成する";
+        btnText.textContent = "通常献立";
       }
       updateAuthUI();
       lucide.createIcons();
@@ -538,7 +566,26 @@
       );
     }
 
-    async function generateMenu() {
+    function getGoalInstruction(goalType) {
+      if (goalType === "muscle") {
+        return `【目的: 筋肉増量】
+- 各日の主菜は高たんぱくを優先し、肉・魚・卵・大豆製品を積極的に使う。
+- 夕食1回でたんぱく質をしっかり確保できる献立構成にする。
+- トレーニング後を想定し、炭水化物も不足しないようにする。
+- 極端な低脂質にはせず、回復に必要な脂質は適量確保する。`;
+      }
+      if (goalType === "diet") {
+        return `【目的: ダイエット】
+- 高たんぱく・適正糖質・低脂質を意識した献立にする。
+- 揚げ物や高脂質な調理を避け、蒸す・茹でる・焼く調理を優先する。
+- 野菜・きのこ・海藻を増やし、満足感と食物繊維を確保する。
+- 味付けは濃くしすぎず、塩分や余分な油を抑える。`;
+      }
+      return `【目的: 通常】
+- 栄養バランスと継続しやすさを重視する。`;
+    }
+
+    async function generateMenu(goalType = "normal") {
       const ingredients = ingredientsInput.value.trim();
       if (!ingredients) {
         showError("食材を入力してください。");
@@ -549,10 +596,13 @@
         return;
       }
 
-      setLoading(true);
+      setLoading(true, goalType);
+      const goalInstruction = getGoalInstruction(goalType);
 
       const systemPrompt = `あなたはプロの栄養士であり、献立作成の専門家です。
 ユーザーが買い込んだ食材を使って、1週間（7日間）の夕食献立を提案してください。
+
+${goalInstruction}
 
 【条件】
 1. 栄養バランス（主食、主菜、副菜、汁物）を考慮する。
