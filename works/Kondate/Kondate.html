@@ -157,6 +157,7 @@
             additionalProperties: false,
             properties: {
               day: { type: "string", minLength: 1 },
+              style_tag: { type: "string", minLength: 1 },
               main_dish: { type: "string", minLength: 1 },
               side_dish: { type: "string", minLength: 1 },
               soup: { type: "string", minLength: 1 },
@@ -174,6 +175,7 @@
             },
             required: [
               "day",
+              "style_tag",
               "main_dish",
               "side_dish",
               "soup",
@@ -546,6 +548,26 @@
       }
     }
 
+    function inferStyleTag(item) {
+      const text = `${item?.main_dish || ""} ${item?.side_dish || ""} ${item?.soup || ""}`;
+      if (/(トムヤム|ガパオ|フォー|ナシゴレン|タイ|ベトナム|インド|カレー)/.test(text)) return "東南アジア・エスニック";
+      if (/(麻婆|回鍋肉|青椒肉絲|中華|担々|餃子|春巻)/.test(text)) return "中華";
+      if (/(ビビンバ|チゲ|プルコギ|韓国)/.test(text)) return "韓国";
+      if (/(シチュー|グラタン|ドリア|ムニエル|ハンバーグ|洋風|パスタ)/.test(text)) return "洋食";
+      return "和食";
+    }
+
+    function validateCuisineDiversity(menu) {
+      const styleSet = new Set(menu.map((item) => String(item.style_tag || "").trim()).filter(Boolean));
+      if (styleSet.size < 3) {
+        throw new Error("料理ジャンルの幅が不足しています。");
+      }
+      const weeklyText = menu.map((item) => `${item.main_dish} ${item.side_dish} ${item.soup}`).join(" ");
+      if (!/(煮|煮物|含め煮|筑前煮|肉じゃが|おでん)/.test(weeklyText)) {
+        throw new Error("煮物系メニューが不足しています。");
+      }
+    }
+
     function normalizeMenuResponse(data, inputIngredientsRaw, goalType) {
       const recommendedRaw = Array.isArray(data?.recommended_additional_ingredients)
         ? data.recommended_additional_ingredients
@@ -561,6 +583,7 @@
       const menu = menuRaw
         .map((item, index) => ({
           day: String(item?.day || `${index + 1}日目`).trim(),
+          style_tag: String(item?.style_tag || inferStyleTag(item)).trim(),
           main_dish: String(item?.main_dish || "").trim(),
           side_dish: String(item?.side_dish || "").trim(),
           soup: String(item?.soup || "").trim(),
@@ -580,6 +603,7 @@
         throw new Error("献立データを生成できませんでした。");
       }
       validateMenuQuality(menu, inputIngredientsRaw);
+      validateCuisineDiversity(menu);
       validateGoalSpecific(menu, goalType);
 
       return {
@@ -615,6 +639,8 @@
         message.includes("汁物のバリエーションが不足しています。") ||
         message.includes("たんぱく源のバリエーションが不足しています。") ||
         message.includes("入力食材の反映率が低すぎます。") ||
+        message.includes("料理ジャンルの幅が不足しています。") ||
+        message.includes("煮物系メニューが不足しています。") ||
         message.includes("筋肉増量向け条件: 高たんぱく要素が不足しています。") ||
         message.includes("筋肉増量向け条件: 炭水化物が不足しています。") ||
         message.includes("ダイエット向け条件: 揚げ物が多すぎます。") ||
@@ -701,16 +727,20 @@ ${goalInstruction}
 6. 各日の主菜・副菜・汁物は、できるだけ重複を避ける。
 7. 1週間でたんぱく源（魚・肉・卵・大豆製品）が偏らないよう分散させる。
 8. 入力食材をできるだけ多く使い、menu全体で最低でも半分以上の食材に触れる。
-9. 筋肉増量モードでは7日すべてで高たんぱく要素を含み、5日以上で炭水化物源も確保する。
-10. ダイエットモードでは揚げ物を最大1日に抑え、野菜・食物繊維をほぼ毎日入れる。
-11. 各日の夕食について、主菜・副菜・汁物を合計した概算カロリー daily_total_kcal（整数）を出す。
-12. nutrition_pointは30〜120文字程度で簡潔に書く。
-13. JSON項目以外の説明は出力しない。
-14. JSONスキーマ:
+9. 1週間の料理ジャンルは幅広くし、和食・洋食・アジアン/中華/韓国などを混ぜ、最低3ジャンル以上にする。
+10. 1週間に少なくとも1日は煮物系メニュー（例: 肉じゃが、筑前煮、おでん等）を入れる。
+11. 筋肉増量モードでは7日すべてで高たんぱく要素を含み、5日以上で炭水化物源も確保する。
+12. ダイエットモードでは揚げ物を最大1日に抑え、野菜・食物繊維をほぼ毎日入れる。
+13. 各日の夕食について、主菜・副菜・汁物を合計した概算カロリー daily_total_kcal（整数）を出す。
+14. 各日ごとに style_tag（例: 和食, 洋食, 中華, 韓国, 東南アジア・エスニック）を必ず付ける。
+15. nutrition_pointは30〜120文字程度で簡潔に書く。
+16. JSON項目以外の説明は出力しない。
+17. JSONスキーマ:
 {
   "recommended_additional_ingredients": [{"ingredient":"", "reason":""}],
   "menu": [{
     "day":"月曜日",
+    "style_tag":"和食",
     "main_dish":"",
     "side_dish":"",
     "soup":"",
@@ -876,7 +906,10 @@ ${goalInstruction}
             <div class="bg-orange-100/50 px-5 py-3 border-b border-orange-100">
               <div class="flex items-center justify-between gap-2">
                 <span class="font-bold text-orange-800 text-lg">${escapeHtml(dayPlan.day)}</span>
-                <span class="text-xs font-bold text-orange-700 bg-white/70 border border-orange-200 rounded-full px-2 py-1">約${escapeHtml(dayPlan.daily_total_kcal)} kcal</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-[11px] font-bold text-slate-700 bg-white/90 border border-slate-200 rounded-full px-2 py-1">${escapeHtml(dayPlan.style_tag)}</span>
+                  <span class="text-xs font-bold text-orange-700 bg-white/70 border border-orange-200 rounded-full px-2 py-1">約${escapeHtml(dayPlan.daily_total_kcal)} kcal</span>
+                </div>
               </div>
             </div>
 
