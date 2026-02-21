@@ -315,6 +315,45 @@
       }
     }
 
+    function extractTextContent(value) {
+      if (typeof value === "string") return value.trim();
+      if (Array.isArray(value)) {
+        return value
+          .map((part) => {
+            if (typeof part === "string") return part;
+            if (part && typeof part === "object") {
+              if (typeof part.text === "string") return part.text;
+              if (typeof part.content === "string") return part.content;
+            }
+            return "";
+          })
+          .join("\n")
+          .trim();
+      }
+      if (value && typeof value === "object") {
+        if (typeof value.text === "string") return value.text.trim();
+        if (typeof value.content === "string") return value.content.trim();
+      }
+      return "";
+    }
+
+    function extractAssistantContent(payload) {
+      if (!payload || typeof payload !== "object") return "";
+      const candidates = [
+        payload.content,
+        payload.output_text,
+        payload.text,
+        payload.message,
+        payload?.choices?.[0]?.message?.content,
+        payload?.choices?.[0]?.text,
+      ];
+      for (const candidate of candidates) {
+        const text = extractTextContent(candidate);
+        if (text) return text;
+      }
+      return "";
+    }
+
     function normalizeStringArray(value) {
       if (!Array.isArray(value)) return [];
       return value
@@ -404,8 +443,11 @@
 }`;
       const userPrompt = `以下の食材で1週間分の夕食献立を作成してください。\n\n食材リスト:\n${ingredients}`;
 
-      const fetchWithRetry = async (retries = 2, delay = 1000) => {
+      const fetchWithRetry = async (retries = 2, delay = 1000, strictJsonMode = false) => {
         try {
+          const effectiveUserPrompt = strictJsonMode
+            ? `${userPrompt}\n\n重要: 前回の応答が空でした。必ず1つのJSONオブジェクトのみを返してください。`
+            : userPrompt;
           const token = await currentUser.getIdToken(true);
           const response = await fetch(GROQ_ENDPOINT, {
             method: "POST",
@@ -419,7 +461,7 @@
               max_tokens: 2600,
               messages: [
                 { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
+                { role: "user", content: effectiveUserPrompt },
               ],
             }),
           });
@@ -440,11 +482,18 @@
           } catch {
             throw new Error("API応答の解析に失敗しました。");
           }
-          const rawContent = String(parsedResponse?.content || "").trim();
+          const rawContent = extractAssistantContent(parsedResponse);
           if (!rawContent) {
+            if (!strictJsonMode) {
+              return fetchWithRetry(retries, delay, true);
+            }
             throw new Error("AIから有効な応答が返ってきませんでした。");
           }
-          const parsedJson = extractJsonObject(rawContent);
+          const parsedJson = extractJsonObject(rawContent) || (
+            parsedResponse && typeof parsedResponse === "object"
+              ? extractJsonObject(JSON.stringify(parsedResponse))
+              : null
+          );
           if (!parsedJson) {
             throw new Error("AI応答がJSON形式ではありません。");
           }
@@ -452,7 +501,7 @@
         } catch (err) {
           if (retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, delay));
-            return fetchWithRetry(retries - 1, delay * 2);
+            return fetchWithRetry(retries - 1, delay * 2, strictJsonMode);
           }
           throw err;
         }

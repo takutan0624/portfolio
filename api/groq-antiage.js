@@ -198,6 +198,44 @@ function parseUpstreamError(text) {
   }
 }
 
+function extractContentText(value) {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) {
+    return value
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (part && typeof part === "object") {
+          if (typeof part.text === "string") return part.text;
+          if (typeof part.content === "string") return part.content;
+        }
+        return "";
+      })
+      .join("\n")
+      .trim();
+  }
+  if (value && typeof value === "object") {
+    if (typeof value.text === "string") return value.text.trim();
+    if (typeof value.content === "string") return value.content.trim();
+  }
+  return "";
+}
+
+function extractUpstreamContent(data) {
+  const candidates = [
+    data?.choices?.[0]?.message?.content,
+    data?.choices?.[0]?.text,
+    data?.message?.content,
+    data?.message,
+    data?.output_text,
+    data?.text,
+  ];
+  for (const candidate of candidates) {
+    const text = extractContentText(candidate);
+    if (text) return text;
+  }
+  return "";
+}
+
 export default async function handler(req, res) {
   const allowedOrigins = getAllowedOrigins();
   const origin = req.headers.origin || "";
@@ -335,9 +373,13 @@ export default async function handler(req, res) {
       return;
     }
 
-    const content = data?.choices?.[0]?.message?.content ?? "";
+    const content = extractUpstreamContent(data);
     if (isAnalysis) {
       res.status(200).json(finalizeAnalysis(content));
+      return;
+    }
+    if (!content) {
+      res.status(502).json({ error: "Empty AI response" });
       return;
     }
     res.status(200).json({ content: String(content).slice(0, 30000) });
