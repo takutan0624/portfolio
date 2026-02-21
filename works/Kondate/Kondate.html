@@ -209,6 +209,7 @@
 
     let authContextPromise = null;
     let currentUser = null;
+    let clientCooldownUntil = 0;
 
     sampleBtn.addEventListener('click', () => {
       ingredientsInput.value = sampleIngredients;
@@ -712,6 +713,12 @@
     }
 
     async function generateMenu(goalType = "normal") {
+      const now = Date.now();
+      if (clientCooldownUntil > now) {
+        const waitSec = Math.ceil((clientCooldownUntil - now) / 1000);
+        showError(`現在リクエストが集中しています。あと${waitSec}秒ほど待ってからお試しください。`);
+        return;
+      }
       const ingredients = ingredientsInput.value.trim();
       if (!ingredients) {
         showError("食材を入力してください。");
@@ -812,6 +819,12 @@ ${goalInstruction}
               if (Number.isFinite(retryAfterHeader) && retryAfterHeader > 0) {
                 error.retryAfterMs = Math.ceil(retryAfterHeader * 1000);
               }
+              if (!error.retryAfterMs) {
+                const retryMatch = String(message).match(/([0-9]+)\s*s/i);
+                if (retryMatch) {
+                  error.retryAfterMs = Math.ceil(Number(retryMatch[1]) * 1000);
+                }
+              }
             }
             throw error;
           }
@@ -864,6 +877,7 @@ ${goalInstruction}
         console.error(err);
         if (err?.rateLimited) {
           const retrySecFromMs = Number.isFinite(err?.retryAfterMs) ? Math.ceil(err.retryAfterMs / 1000) : 10;
+          clientCooldownUntil = Date.now() + retrySecFromMs * 1000;
           showError(`アクセスが集中しています。${retrySecFromMs}秒ほど待ってから、もう一度お試しください。`);
         } else {
           showError("献立の作成中にエラーが発生しました。時間を置いて再度お試しいただくか、食材の記述を変えてみてください。");
