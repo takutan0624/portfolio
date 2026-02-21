@@ -155,7 +155,7 @@
                 type: "array",
                 items: { type: "string", minLength: 1 },
               },
-              nutrition_point: { type: "string", minLength: 90 },
+              nutrition_point: { type: "string", minLength: 20 },
             },
             required: [
               "day",
@@ -425,17 +425,6 @@
       return keywords.some((word) => text.includes(word));
     }
 
-    function enrichNutritionMemo(item) {
-      const base = String(item?.nutrition_point || "").trim();
-      if (base.length >= 90) return base;
-      const main = String(item?.main_dish || "").trim();
-      const side = String(item?.side_dish || "").trim();
-      const soup = String(item?.soup || "").trim();
-      const used = normalizeStringArray(item?.used_ingredients).slice(0, 4).join("、");
-      const fallback = `${main}・${side}・${soup}の組み合わせは、たんぱく質と野菜を同時に確保しやすく、満足感を保ちながら栄養バランスを整えやすい構成です。${used ? `特に${used}を使うことで、食物繊維やビタミン、ミネラルも補いやすくなります。` : "副菜と汁物で野菜量を確保し、塩分はだしや香味野菜で調整すると継続しやすくなります。"}`;
-      return `${base} ${fallback}`.trim();
-    }
-
     function validateMenuQuality(menu, inputIngredientsRaw) {
       const mainSet = new Set(menu.map((item) => normalizeDishName(item.main_dish)).filter(Boolean));
       if (mainSet.size < 6) {
@@ -501,7 +490,7 @@
           soup: String(item?.soup || "").trim(),
           used_ingredients: normalizeStringArray(item?.used_ingredients),
           recommended_ingredients_used: normalizeStringArray(item?.recommended_ingredients_used),
-          nutrition_point: enrichNutritionMemo(item),
+          nutrition_point: String(item?.nutrition_point || "").trim(),
         }))
         .slice(0, 7);
 
@@ -574,8 +563,8 @@
 6. 各日の主菜・副菜・汁物は、できるだけ重複を避ける。
 7. 1週間でたんぱく源（魚・肉・卵・大豆製品）が偏らないよう分散させる。
 8. 入力食材をできるだけ多く使い、menu全体で最低でも半分以上の食材に触れる。
-9. nutrition_pointは90〜180文字程度で、たんぱく質・野菜・食物繊維・塩分配慮などを含め、なぜその組み合わせが良いか具体的に書く。
-10. 各日のnutrition_pointは言い回しを変え、同じ説明の繰り返しを避ける。
+9. nutrition_pointは30〜120文字程度で簡潔に書く。
+10. JSON項目以外の説明は出力しない。
 11. JSONスキーマ:
 {
   "recommended_additional_ingredients": [{"ingredient":"", "reason":""}],
