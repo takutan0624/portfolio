@@ -585,6 +585,37 @@
 - 栄養バランスと継続しやすさを重視する。`;
     }
 
+    function getMemoTheme(goalType) {
+      if (goalType === "muscle") {
+        return {
+          label: "筋肉メモ",
+          icon: "dumbbell",
+          wrapperClass: "bg-rose-50/60 border-t border-rose-100",
+          iconClass: "w-4 h-4 text-rose-500 mt-0.5 flex-shrink-0",
+          titleClass: "text-xs font-bold text-rose-700 mb-1",
+          textClass: "text-sm text-rose-900 leading-relaxed",
+        };
+      }
+      if (goalType === "diet") {
+        return {
+          label: "ダイエットメモ",
+          icon: "salad",
+          wrapperClass: "bg-sky-50/60 border-t border-sky-100",
+          iconClass: "w-4 h-4 text-sky-500 mt-0.5 flex-shrink-0",
+          titleClass: "text-xs font-bold text-sky-700 mb-1",
+          textClass: "text-sm text-sky-900 leading-relaxed",
+        };
+      }
+      return {
+        label: "栄養メモ",
+        icon: "leaf",
+        wrapperClass: "bg-green-50/50 border-t border-green-100",
+        iconClass: "w-4 h-4 text-green-500 mt-0.5 flex-shrink-0",
+        titleClass: "text-xs font-bold text-green-700 mb-1",
+        textClass: "text-sm text-green-900 leading-relaxed",
+      };
+    }
+
     async function generateMenu(goalType = "normal") {
       const ingredients = ingredientsInput.value.trim();
       if (!ingredients) {
@@ -724,7 +755,7 @@ ${goalInstruction}
           // 主モデルで空応答が続く場合のみ、許可モデルへ1回フォールバック
           result = await fetchWithRetry(1, 1200, true, GROQ_FALLBACK_MODEL);
         }
-        renderResults(result);
+        renderResults(result, goalType);
       } catch (err) {
         console.error(err);
         if (err?.rateLimited) {
@@ -738,7 +769,8 @@ ${goalInstruction}
       }
     }
 
-    function renderResults(data) {
+    function renderResults(data, goalType = "normal") {
+      const memoTheme = getMemoTheme(goalType);
       if (data.recommended_additional_ingredients && data.recommended_additional_ingredients.length > 0) {
         recommendedList.innerHTML = data.recommended_additional_ingredients.map((item) => `
           <li class="flex items-start gap-2 text-sm text-blue-900 bg-white/60 p-2 rounded-lg">
@@ -823,12 +855,12 @@ ${goalInstruction}
               </div>
             </div>
 
-            <div class="bg-green-50/50 p-4 border-t border-green-100 mt-auto">
+            <div class="${memoTheme.wrapperClass} p-4 mt-auto">
               <div class="flex items-start gap-2">
-                <i data-lucide="leaf" class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0"></i>
+                <i data-lucide="${memoTheme.icon}" class="${memoTheme.iconClass}"></i>
                 <div>
-                  <p class="text-xs font-bold text-green-700 mb-1">栄養メモ</p>
-                  <p class="text-sm text-green-900 leading-relaxed">${escapeHtml(dayPlan.nutrition_point)}</p>
+                  <p class="${memoTheme.titleClass}">${memoTheme.label}</p>
+                  <p class="${memoTheme.textClass}">${escapeHtml(dayPlan.nutrition_point)}</p>
                 </div>
               </div>
             </div>
