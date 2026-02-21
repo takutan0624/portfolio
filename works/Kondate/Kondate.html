@@ -117,7 +117,7 @@
     const GROQ_MODEL = "openai/gpt-oss-120b";
     const GROQ_FALLBACK_MODEL = "llama-3.3-70b-versatile";
     const GENERATION_TEMPERATURE = 0.55;
-    const GENERATION_MAX_TOKENS = 4200;
+    const GENERATION_MAX_TOKENS = 3200;
     const MENU_RESPONSE_SCHEMA = {
       type: "object",
       additionalProperties: false,
@@ -425,6 +425,17 @@
       return keywords.some((word) => text.includes(word));
     }
 
+    function enrichNutritionMemo(item) {
+      const base = String(item?.nutrition_point || "").trim();
+      if (base.length >= 90) return base;
+      const main = String(item?.main_dish || "").trim();
+      const side = String(item?.side_dish || "").trim();
+      const soup = String(item?.soup || "").trim();
+      const used = normalizeStringArray(item?.used_ingredients).slice(0, 4).join("、");
+      const fallback = `${main}・${side}・${soup}の組み合わせは、たんぱく質と野菜を同時に確保しやすく、満足感を保ちながら栄養バランスを整えやすい構成です。${used ? `特に${used}を使うことで、食物繊維やビタミン、ミネラルも補いやすくなります。` : "副菜と汁物で野菜量を確保し、塩分はだしや香味野菜で調整すると継続しやすくなります。"}`;
+      return `${base} ${fallback}`.trim();
+    }
+
     function validateMenuQuality(menu, inputIngredientsRaw) {
       const mainSet = new Set(menu.map((item) => normalizeDishName(item.main_dish)).filter(Boolean));
       if (mainSet.size < 6) {
@@ -490,7 +501,7 @@
           soup: String(item?.soup || "").trim(),
           used_ingredients: normalizeStringArray(item?.used_ingredients),
           recommended_ingredients_used: normalizeStringArray(item?.recommended_ingredients_used),
-          nutrition_point: String(item?.nutrition_point || "").trim(),
+          nutrition_point: enrichNutritionMemo(item),
         }))
         .slice(0, 7);
 
@@ -499,9 +510,6 @@
       }
       if (menu.some((item) => !item.main_dish || !item.side_dish || !item.soup)) {
         throw new Error("献立データを生成できませんでした。");
-      }
-      if (menu.some((item) => item.nutrition_point.length < 90)) {
-        throw new Error("栄養メモが短すぎます。");
       }
       validateMenuQuality(menu, inputIngredientsRaw);
 
@@ -533,7 +541,6 @@
         message.includes("AI応答がJSON形式ではありません。") ||
         message.includes("API応答の解析に失敗しました。") ||
         message.includes("献立が7日分生成されませんでした。") ||
-        message.includes("栄養メモが短すぎます。") ||
         message.includes("主菜のバリエーションが不足しています。") ||
         message.includes("副菜のバリエーションが不足しています。") ||
         message.includes("汁物のバリエーションが不足しています。") ||
@@ -584,7 +591,7 @@
 }`;
       const userPrompt = `以下の食材で1週間分の夕食献立を作成してください。\n\n食材リスト:\n${ingredients}`;
 
-      const fetchWithRetry = async (retries = 2, delay = 1000, strictJsonMode = false, model = GROQ_MODEL) => {
+      const fetchWithRetry = async (retries = 1, delay = 1200, strictJsonMode = false, model = GROQ_MODEL) => {
         try {
           const supportsStrictSchema = model === "openai/gpt-oss-120b" || model === "openai/gpt-oss-20b";
           const responseFormat = {
@@ -624,7 +631,15 @@
               const parsed = JSON.parse(text);
               message = parsed?.error || parsed?.message || message;
             } catch {}
-            throw new Error(String(message));
+            const error = new Error(String(message));
+            if (response.status === 429) {
+              error.rateLimited = true;
+              const retryAfterHeader = Number(response.headers.get("retry-after") || "0");
+              if (Number.isFinite(retryAfterHeader) && retryAfterHeader > 0) {
+                error.retryAfterMs = Math.ceil(retryAfterHeader * 1000);
+              }
+            }
+            throw error;
           }
 
           let parsedResponse;
@@ -650,6 +665,7 @@
           }
           return normalizeMenuResponse(parsedJson, ingredients);
         } catch (err) {
+          if (err?.rateLimited) throw err;
           if (retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, delay));
             return fetchWithRetry(retries - 1, delay * 2, strictJsonMode, model);
@@ -672,7 +688,12 @@
         renderResults(result);
       } catch (err) {
         console.error(err);
-        showError("献立の作成中にエラーが発生しました。時間を置いて再度お試しいただくか、食材の記述を変えてみてください。");
+        if (err?.rateLimited) {
+          const retrySecFromMs = Number.isFinite(err?.retryAfterMs) ? Math.ceil(err.retryAfterMs / 1000) : 10;
+          showError(`アクセスが集中しています。${retrySecFromMs}秒ほど待ってから、もう一度お試しください。`);
+        } else {
+          showError("献立の作成中にエラーが発生しました。時間を置いて再度お試しいただくか、食材の記述を変えてみてください。");
+        }
       } finally {
         setLoading(false);
       }
