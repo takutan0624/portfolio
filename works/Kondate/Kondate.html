@@ -498,7 +498,42 @@
       }
     }
 
-    function normalizeMenuResponse(data, inputIngredientsRaw) {
+    function validateGoalSpecific(menu, goalType) {
+      const proteinWords = ["鶏", "豚", "牛", "鮭", "さば", "鯖", "まぐろ", "魚", "卵", "豆腐", "納豆", "大豆"];
+      const carbWords = ["ご飯", "米", "玄米", "オートミール", "パスタ", "うどん", "そば", "パン", "じゃがいも", "さつまいも"];
+      const fryWords = ["唐揚げ", "から揚げ", "とんかつ", "フライ", "天ぷら", "揚げ"];
+      const veggieWords = ["野菜", "きのこ", "海藻", "食物繊維", "葉物", "根菜"];
+      const leanWords = ["脂質", "油", "低脂質", "塩分", "カロリー", "控えめ"];
+
+      const dailyTexts = menu.map((item) => `${item.main_dish} ${item.side_dish} ${item.soup} ${item.used_ingredients.join(" ")} ${item.nutrition_point}`);
+      if (goalType === "muscle") {
+        const proteinDays = dailyTexts.filter((text) => containsAny(text, proteinWords)).length;
+        if (proteinDays < 7) {
+          throw new Error("筋肉増量向け条件: 高たんぱく要素が不足しています。");
+        }
+        const carbDays = dailyTexts.filter((text) => containsAny(text, carbWords)).length;
+        if (carbDays < 5) {
+          throw new Error("筋肉増量向け条件: 炭水化物が不足しています。");
+        }
+      }
+
+      if (goalType === "diet") {
+        const friedCount = dailyTexts.filter((text) => containsAny(text, fryWords)).length;
+        if (friedCount > 1) {
+          throw new Error("ダイエット向け条件: 揚げ物が多すぎます。");
+        }
+        const veggieDays = dailyTexts.filter((text) => containsAny(text, veggieWords)).length;
+        if (veggieDays < 6) {
+          throw new Error("ダイエット向け条件: 野菜・食物繊維要素が不足しています。");
+        }
+        const leanDays = dailyTexts.filter((text) => containsAny(text, leanWords)).length;
+        if (leanDays < 4) {
+          throw new Error("ダイエット向け条件: 低脂質・塩分配慮の説明が不足しています。");
+        }
+      }
+    }
+
+    function normalizeMenuResponse(data, inputIngredientsRaw, goalType) {
       const recommendedRaw = Array.isArray(data?.recommended_additional_ingredients)
         ? data.recommended_additional_ingredients
         : [];
@@ -529,6 +564,7 @@
         throw new Error("献立データを生成できませんでした。");
       }
       validateMenuQuality(menu, inputIngredientsRaw);
+      validateGoalSpecific(menu, goalType);
 
       return {
         recommended_additional_ingredients: recommended,
@@ -562,7 +598,12 @@
         message.includes("副菜のバリエーションが不足しています。") ||
         message.includes("汁物のバリエーションが不足しています。") ||
         message.includes("たんぱく源のバリエーションが不足しています。") ||
-        message.includes("入力食材の反映率が低すぎます。")
+        message.includes("入力食材の反映率が低すぎます。") ||
+        message.includes("筋肉増量向け条件: 高たんぱく要素が不足しています。") ||
+        message.includes("筋肉増量向け条件: 炭水化物が不足しています。") ||
+        message.includes("ダイエット向け条件: 揚げ物が多すぎます。") ||
+        message.includes("ダイエット向け条件: 野菜・食物繊維要素が不足しています。") ||
+        message.includes("ダイエット向け条件: 低脂質・塩分配慮の説明が不足しています。")
       );
     }
 
@@ -644,9 +685,11 @@ ${goalInstruction}
 6. 各日の主菜・副菜・汁物は、できるだけ重複を避ける。
 7. 1週間でたんぱく源（魚・肉・卵・大豆製品）が偏らないよう分散させる。
 8. 入力食材をできるだけ多く使い、menu全体で最低でも半分以上の食材に触れる。
-9. nutrition_pointは30〜120文字程度で簡潔に書く。
-10. JSON項目以外の説明は出力しない。
-11. JSONスキーマ:
+9. 筋肉増量モードでは7日すべてで高たんぱく要素を含み、5日以上で炭水化物源も確保する。
+10. ダイエットモードでは揚げ物を最大1日に抑え、野菜・食物繊維をほぼ毎日入れる。
+11. nutrition_pointは30〜120文字程度で簡潔に書く。
+12. JSON項目以外の説明は出力しない。
+13. JSONスキーマ:
 {
   "recommended_additional_ingredients": [{"ingredient":"", "reason":""}],
   "menu": [{
@@ -733,7 +776,7 @@ ${goalInstruction}
           if (!parsedJson) {
             throw new Error("AI応答がJSON形式ではありません。");
           }
-          return normalizeMenuResponse(parsedJson, ingredients);
+          return normalizeMenuResponse(parsedJson, ingredients, goalType);
         } catch (err) {
           if (err?.rateLimited) throw err;
           if (retries > 0) {
