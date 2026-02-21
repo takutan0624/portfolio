@@ -529,7 +529,7 @@
           .join(" ");
         const covered = inputIngredients.filter((ing) => textForCoverage.includes(ing));
         const coverageRatio = covered.length / inputIngredients.length;
-        if (coverageRatio < 0.35) {
+        if (coverageRatio < 0.30) {
           throw new Error("入力食材の反映率が低すぎます。");
         }
       }
@@ -545,11 +545,11 @@
       const dailyTexts = menu.map((item) => `${item.main_dish} ${item.side_dish} ${item.soup} ${item.used_ingredients.join(" ")} ${item.nutrition_point}`);
       if (goalType === "muscle") {
         const proteinDays = dailyTexts.filter((text) => containsAny(text, proteinWords)).length;
-        if (proteinDays < 5) {
+        if (proteinDays < 4) {
           throw new Error("筋肉増量向け条件: 高たんぱく要素が不足しています。");
         }
         const carbDays = dailyTexts.filter((text) => containsAny(text, carbWords)).length;
-        if (carbDays < 3) {
+        if (carbDays < 2) {
           throw new Error("筋肉増量向け条件: 炭水化物が不足しています。");
         }
       }
@@ -560,11 +560,11 @@
           throw new Error("ダイエット向け条件: 揚げ物が多すぎます。");
         }
         const veggieDays = dailyTexts.filter((text) => containsAny(text, veggieWords)).length;
-        if (veggieDays < 3) {
+        if (veggieDays < 2) {
           throw new Error("ダイエット向け条件: 野菜・食物繊維要素が不足しています。");
         }
         const leanDays = dailyTexts.filter((text) => containsAny(text, leanWords)).length;
-        if (leanDays < 2) {
+        if (leanDays < 1) {
           throw new Error("ダイエット向け条件: 低脂質・塩分配慮の説明が不足しています。");
         }
       }
@@ -586,10 +586,7 @@
       if (styleSet.size < 2) {
         throw new Error("料理ジャンルの幅が不足しています。");
       }
-      const styleText = Array.from(styleSet).join(" ");
-      if (!/中華|イタリアン|フレンチ/.test(styleText)) {
-        throw new Error("中華・イタリアン・フレンチの要素が不足しています。");
-      }
+      // Keep cuisine diversity broad without forcing a specific cuisine family.
     }
 
     function normalizeMenuResponse(data, inputIngredientsRaw, goalType) {
@@ -664,7 +661,6 @@
         message.includes("たんぱく源のバリエーションが不足しています。") ||
         message.includes("入力食材の反映率が低すぎます。") ||
         message.includes("料理ジャンルの幅が不足しています。") ||
-        message.includes("中華・イタリアン・フレンチの要素が不足しています。") ||
         message.includes("筋肉増量向け条件: 高たんぱく要素が不足しています。") ||
         message.includes("筋肉増量向け条件: 炭水化物が不足しています。") ||
         message.includes("ダイエット向け条件: 揚げ物が多すぎます。") ||
@@ -758,9 +754,9 @@ ${goalInstruction}
 7. 1週間でたんぱく源（魚・肉・卵・大豆製品）が偏らないよう分散させる。
 8. 入力食材をできるだけ多く使い、menu全体で最低でも半分以上の食材に触れる。
 9. 1週間の料理ジャンルは幅広くし、和食・洋食・アジアン/中華/韓国に加えてイタリアン・フレンチも候補にする。
-10. 週内に中華・イタリアン・フレンチのいずれかを含める。
+10. 週内に中華・イタリアン・フレンチをできるだけ含める。
 11. 筋肉増量モードでは高たんぱく要素を中心にし、炭水化物源も適度に確保する。
-12. ダイエットモードでは揚げ物を控えめにし、野菜・食物繊維を週の半分程度で意識する。
+12. ダイエットモードでは揚げ物を控えめにし、野菜・食物繊維を意識する。
 13. 各日の夕食について、主菜・副菜・汁物を合計した概算カロリー daily_total_kcal（整数）を出す。
 14. 各日ごとに style_tag（例: 和食, 洋食, イタリアン, フレンチ, 中華, 韓国, 東南アジア・エスニック）を付ける。
 15. nutrition_pointは30〜120文字程度で簡潔に書く。
