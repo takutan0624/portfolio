@@ -169,6 +169,7 @@
                 type: "array",
                 items: { type: "string", minLength: 1 },
               },
+              daily_total_kcal: { type: "integer", minimum: 250, maximum: 1800 },
               nutrition_point: { type: "string", minLength: 20 },
             },
             required: [
@@ -178,6 +179,7 @@
               "soup",
               "used_ingredients",
               "recommended_ingredients_used",
+              "daily_total_kcal",
               "nutrition_point",
             ],
           },
@@ -453,6 +455,17 @@
       return keywords.some((word) => text.includes(word));
     }
 
+    function estimateDailyCalories(item) {
+      const text = `${item?.main_dish || ""} ${item?.side_dish || ""} ${item?.soup || ""}`.toLowerCase();
+      let kcal = 640;
+      if (/(から揚げ|唐揚げ|とんかつ|フライ|天ぷら|揚げ)/.test(text)) kcal += 180;
+      if (/(丼|カレー|パスタ|ラーメン|チャーハン|炒飯)/.test(text)) kcal += 140;
+      if (/(サラダ|蒸し|茹で|豆腐|きのこ|海藻)/.test(text)) kcal -= 80;
+      if (/(鶏むね|ささみ|白身魚)/.test(text)) kcal -= 60;
+      if (/(牛|豚バラ|ベーコン|チーズ)/.test(text)) kcal += 90;
+      return Math.max(250, Math.min(1800, Math.round(kcal)));
+    }
+
     function validateMenuQuality(menu, inputIngredientsRaw) {
       const mainSet = new Set(menu.map((item) => normalizeDishName(item.main_dish)).filter(Boolean));
       if (mainSet.size < 6) {
@@ -553,6 +566,9 @@
           soup: String(item?.soup || "").trim(),
           used_ingredients: normalizeStringArray(item?.used_ingredients),
           recommended_ingredients_used: normalizeStringArray(item?.recommended_ingredients_used),
+          daily_total_kcal: Number.isFinite(Number(item?.daily_total_kcal))
+            ? Math.max(250, Math.min(1800, Math.round(Number(item?.daily_total_kcal))))
+            : estimateDailyCalories(item),
           nutrition_point: String(item?.nutrition_point || "").trim(),
         }))
         .slice(0, 7);
@@ -687,9 +703,10 @@ ${goalInstruction}
 8. 入力食材をできるだけ多く使い、menu全体で最低でも半分以上の食材に触れる。
 9. 筋肉増量モードでは7日すべてで高たんぱく要素を含み、5日以上で炭水化物源も確保する。
 10. ダイエットモードでは揚げ物を最大1日に抑え、野菜・食物繊維をほぼ毎日入れる。
-11. nutrition_pointは30〜120文字程度で簡潔に書く。
-12. JSON項目以外の説明は出力しない。
-13. JSONスキーマ:
+11. 各日の夕食について、主菜・副菜・汁物を合計した概算カロリー `daily_total_kcal`（整数）を出す。
+12. nutrition_pointは30〜120文字程度で簡潔に書く。
+13. JSON項目以外の説明は出力しない。
+14. JSONスキーマ:
 {
   "recommended_additional_ingredients": [{"ingredient":"", "reason":""}],
   "menu": [{
@@ -699,6 +716,7 @@ ${goalInstruction}
     "soup":"",
     "used_ingredients":[""],
     "recommended_ingredients_used":[""],
+    "daily_total_kcal": 650,
     "nutrition_point":""
   }]
 }`;
@@ -856,7 +874,10 @@ ${goalInstruction}
         return `
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
             <div class="bg-orange-100/50 px-5 py-3 border-b border-orange-100">
-              <span class="font-bold text-orange-800 text-lg">${escapeHtml(dayPlan.day)}</span>
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-bold text-orange-800 text-lg">${escapeHtml(dayPlan.day)}</span>
+                <span class="text-xs font-bold text-orange-700 bg-white/70 border border-orange-200 rounded-full px-2 py-1">約${escapeHtml(dayPlan.daily_total_kcal)} kcal</span>
+              </div>
             </div>
 
             <div class="p-5 flex-grow space-y-4">
