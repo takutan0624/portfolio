@@ -56,12 +56,21 @@
       </div>
       
       <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <button
-          id="sampleBtn"
-          class="text-sm text-orange-600 hover:text-orange-800 underline underline-offset-2"
-        >
-          サンプルの食材を入力する
-        </button>
+        <div class="flex flex-col items-start gap-1">
+          <button
+            id="sampleBtn"
+            class="text-sm text-orange-600 hover:text-orange-800 underline underline-offset-2"
+          >
+            サンプルの食材を入力する
+          </button>
+          <button
+            id="lastPlanBtn"
+            class="text-sm text-slate-600 hover:text-slate-800 underline underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled
+          >
+            前回の献立を表示
+          </button>
+        </div>
 
         <div class="w-full sm:w-auto grid grid-cols-1 sm:grid-cols-3 gap-2">
           <button
@@ -211,6 +220,7 @@
     let currentUser = null;
     let clientCooldownUntil = 0;
     const COOLDOWN_STORAGE_KEY = "kondate_groq_cooldown_until";
+    const LAST_PLAN_STORAGE_KEY = "kondate_last_plan_v1";
 
     function readCooldown() {
       try {
@@ -231,6 +241,7 @@
     }
 
     readCooldown();
+    const lastPlanBtn = document.getElementById('lastPlanBtn');
 
     sampleBtn.addEventListener('click', () => {
       ingredientsInput.value = sampleIngredients;
@@ -241,6 +252,62 @@
     generateBtn.addEventListener('click', () => generateMenu("normal"));
     muscleBtn.addEventListener('click', () => generateMenu("muscle"));
     dietBtn.addEventListener('click', () => generateMenu("diet"));
+    lastPlanBtn.addEventListener('click', loadLastPlan);
+    refreshLastPlanButton();
+
+    function saveLastPlan(data, goalType) {
+      try {
+        const payload = {
+          data,
+          goalType,
+          savedAt: Date.now(),
+        };
+        localStorage.setItem(LAST_PLAN_STORAGE_KEY, JSON.stringify(payload));
+      } catch {}
+      refreshLastPlanButton();
+    }
+
+    function readLastPlan() {
+      try {
+        const raw = localStorage.getItem(LAST_PLAN_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        if (!parsed.data || !Array.isArray(parsed.data.menu)) return null;
+        return parsed;
+      } catch {
+        return null;
+      }
+    }
+
+    function refreshLastPlanButton() {
+      const lastPlan = readLastPlan();
+      lastPlanBtn.disabled = !lastPlan;
+      if (!lastPlan) {
+        lastPlanBtn.textContent = "前回の献立を表示";
+        return;
+      }
+      const savedAt = Number(lastPlan.savedAt || 0);
+      if (Number.isFinite(savedAt) && savedAt > 0) {
+        const dt = new Date(savedAt);
+        const hh = String(dt.getHours()).padStart(2, "0");
+        const mm = String(dt.getMinutes()).padStart(2, "0");
+        lastPlanBtn.textContent = `前回の献立を表示 (${hh}:${mm}保存)`;
+      } else {
+        lastPlanBtn.textContent = "前回の献立を表示";
+      }
+    }
+
+    function loadLastPlan() {
+      const lastPlan = readLastPlan();
+      if (!lastPlan) {
+        showError("保存された献立が見つかりませんでした。");
+        refreshLastPlanButton();
+        return;
+      }
+      clearError();
+      renderResults(lastPlan.data, lastPlan.goalType || "normal");
+    }
 
     function showError(message) {
       errorText.textContent = message;
@@ -263,6 +330,7 @@
         generateBtn.disabled = true;
         muscleBtn.disabled = true;
         dietBtn.disabled = true;
+        lastPlanBtn.disabled = true;
         ingredientsInput.disabled = true;
         sampleBtn.disabled = true;
         authBtn.disabled = true;
@@ -277,6 +345,7 @@
         ingredientsInput.disabled = false;
         sampleBtn.disabled = false;
         authBtn.disabled = false;
+        refreshLastPlanButton();
         btnIcon.innerHTML = `<i data-lucide="utensils" class="w-5 h-5"></i>`;
         btnText.textContent = "通常献立";
       }
@@ -889,6 +958,7 @@ ${goalInstruction}
           // 主モデルで空応答が続く場合のみ、許可モデルへ1回フォールバック
           result = await fetchWithRetry(1, 1200, true, GROQ_FALLBACK_MODEL);
         }
+        saveLastPlan(result, goalType);
         renderResults(result, goalType);
       } catch (err) {
         console.error(err);
