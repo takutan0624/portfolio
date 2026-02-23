@@ -603,18 +603,67 @@
     }
 
     function normalizeRecipeSteps(value) {
+      const toStepText = (step) => {
+        if (!step) return "";
+        if (typeof step === "string") return step;
+        if (typeof step === "object") {
+          const directCandidates = [
+            step.text,
+            step.instruction,
+            step.instructions,
+            step.content,
+            step.description,
+            step.detail,
+            step.method,
+            step.step,
+          ];
+          for (const candidate of directCandidates) {
+            const extracted = extractTextContent(candidate);
+            if (extracted) return extracted;
+          }
+          const flattened = Object.values(step)
+            .map((part) => extractTextContent(part))
+            .filter(Boolean)
+            .join(" ");
+          if (flattened) return flattened;
+        }
+        return String(step || "");
+      };
+
+      const normalizeOne = (step) => {
+        const raw = toStepText(step);
+        return raw
+          .replace(/^\s*(?:step\s*)?[0-9]+[.)、:：\-\s]+/i, "")
+          .replace(/^\s*[-*・]\s+/, "")
+          .trim();
+      };
+
+      const isValid = (step) => (
+        step.length >= 10 &&
+        !/^\[object\s+object\]$/i.test(step)
+      );
+
       if (Array.isArray(value)) {
         return value
-          .map((step) => String(step || "").replace(/^\s*[0-9]+[.)、\s]+/, "").trim())
-          .filter((step) => step.length >= 10)
+          .map((step) => normalizeOne(step))
+          .filter((step) => isValid(step))
           .slice(0, 10);
       }
       if (typeof value === "string") {
         return value
           .split(/\r?\n+/g)
-          .map((step) => step.replace(/^\s*[0-9]+[.)、\s]+/, "").trim())
-          .filter((step) => step.length >= 10)
+          .map((step) => normalizeOne(step))
+          .filter((step) => isValid(step))
           .slice(0, 10);
+      }
+      if (value && typeof value === "object") {
+        return normalizeRecipeSteps(
+          value.steps ||
+          value.instructions ||
+          value.method ||
+          value.recipe_steps ||
+          []
+        );
       }
       return [];
     }
@@ -645,8 +694,8 @@
         servings: String(payload?.servings || "2人分").trim(),
         prep_time_min: normalizeBoundedInt(payload?.prep_time_min, 1, 120, 10),
         cook_time_min: normalizeBoundedInt(payload?.cook_time_min, 5, 180, 20),
-        ingredients: normalizeRecipeIngredients(payload?.ingredients),
-        steps: normalizeRecipeSteps(payload?.steps),
+        ingredients: normalizeRecipeIngredients(payload?.ingredients || payload?.materials || payload?.ingredient_list),
+        steps: normalizeRecipeSteps(payload?.steps || payload?.instructions || payload?.method || payload?.recipe_steps),
         tips: String(payload?.tips || "").trim(),
       };
     }
