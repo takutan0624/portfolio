@@ -222,7 +222,7 @@
         },
         steps: {
           type: "array",
-          minItems: 6,
+          minItems: 4,
           maxItems: 10,
           items: { type: "string", minLength: 10 },
         },
@@ -619,11 +619,27 @@
       return [];
     }
 
-    function buildRecipeCacheKey(dayPlan, dayIndex) {
-      return `${Number(dayIndex)}::${normalizeDishName(dayPlan?.main_dish)}::${normalizeDishName(dayPlan?.day)}`;
+    function getDishMeta(dayPlan, dishType) {
+      if (dishType === "side") {
+        return { type: "side", label: "副菜", name: String(dayPlan?.side_dish || "").trim() };
+      }
+      if (dishType === "soup") {
+        return { type: "soup", label: "汁物", name: String(dayPlan?.soup || "").trim() };
+      }
+      return { type: "main", label: "主菜", name: String(dayPlan?.main_dish || "").trim() };
     }
 
-    function normalizeGeneratedMainRecipe(payload) {
+    function getRecipeMinStepCount(dishType) {
+      if (dishType === "main") return 6;
+      if (dishType === "side") return 5;
+      return 4;
+    }
+
+    function buildRecipeCacheKey(dayPlan, dayIndex, dishType, dishName) {
+      return `${Number(dayIndex)}::${String(dishType || "main")}::${normalizeDishName(dishName)}::${normalizeDishName(dayPlan?.day)}`;
+    }
+
+    function normalizeGeneratedRecipe(payload) {
       return {
         dish_name: String(payload?.dish_name || "").trim(),
         servings: String(payload?.servings || "2人分").trim(),
@@ -635,18 +651,18 @@
       };
     }
 
-    function validateGeneratedRecipeConsistency(recipe, dayPlan) {
-      const expected = normalizeDishName(dayPlan?.main_dish);
+    function validateGeneratedRecipeConsistency(recipe, expectedDishName, dishLabel) {
+      const expected = normalizeDishName(expectedDishName);
       const actual = normalizeDishName(recipe?.dish_name);
       if (expected && !actual) {
-        throw new Error("作り方の主菜名が不足しています。");
+        throw new Error(`作り方の${dishLabel}名が不足しています。`);
       }
       if (expected && actual && expected !== actual && !actual.includes(expected) && !expected.includes(actual)) {
-        throw new Error("作り方と献立の主菜名が一致していません。");
+        throw new Error(`作り方と献立の${dishLabel}名が一致していません。`);
       }
     }
 
-    function renderMainRecipeDetailHtml(recipe) {
+    function renderRecipeDetailHtml(recipe, dishLabel) {
       const ingredients = normalizeRecipeIngredients(recipe?.ingredients);
       const steps = normalizeRecipeSteps(recipe?.steps);
       const tips = String(recipe?.tips || "").trim();
@@ -654,7 +670,7 @@
       return `
         <div class="mt-2 p-3 bg-orange-50 border border-orange-100 rounded-lg">
           <div class="flex flex-wrap items-center gap-2 mb-2">
-            <p class="text-xs font-bold text-orange-700">主菜の作り方</p>
+            <p class="text-xs font-bold text-orange-700">${escapeHtml(dishLabel)}の作り方</p>
             ${recipe?.dish_name ? `<span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">${escapeHtml(recipe.dish_name)}</span>` : ``}
             <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">${escapeHtml(recipe?.servings || "2人分")}</span>
             <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">下準備 約${escapeHtml(recipe?.prep_time_min || 10)}分</span>
@@ -893,9 +909,9 @@
         message.includes("AIから有効な応答が返ってきませんでした。") ||
         message.includes("AI応答がJSON形式ではありません。") ||
         message.includes("API応答の解析に失敗しました。") ||
-        message.includes("作り方の主菜名が不足しています。") ||
-        message.includes("作り方と献立の主菜名が一致していません。") ||
-        message.includes("主菜レシピの詳細が不足しています。") ||
+        (message.includes("作り方の") && message.includes("名が不足しています。")) ||
+        (message.includes("作り方と献立の") && message.includes("名が一致していません。")) ||
+        message.includes("レシピの詳細が不足しています。") ||
         message.includes("献立が7日分生成されませんでした。") ||
         message.includes("主菜のバリエーションが不足しています。") ||
         message.includes("副菜のバリエーションが不足しています。") ||
@@ -971,22 +987,25 @@
       return "家庭で作りやすく、再現しやすい手順にしてください。";
     }
 
-    async function requestMainDishRecipe(dayPlan, goalType) {
+    async function requestDishRecipe(dayPlan, goalType, dishType) {
+      const dishMeta = getDishMeta(dayPlan, dishType);
+      const minSteps = getRecipeMinStepCount(dishMeta.type);
       const systemPrompt = `あなたは家庭料理のレシピ開発者です。
-与えられた主菜名と利用可能食材に合わせて、実際に作れる詳細レシピを作成してください。
+与えられた料理名と利用可能食材に合わせて、実際に作れる詳細レシピを作成してください。
 返答は必ずJSONオブジェクトのみで、説明文やコードブロックは出さないでください。`;
-      const userPrompt = `主菜名: ${String(dayPlan?.main_dish || "").trim()}
+      const userPrompt = `料理区分: ${dishMeta.label}
+料理名: ${dishMeta.name}
 目的: ${goalType}
 目的補足: ${getRecipeGoalInstruction(goalType)}
 使える食材(優先): ${normalizeStringArray(dayPlan?.used_ingredients).join("、")}
 追加候補食材: ${normalizeStringArray(dayPlan?.recommended_ingredients_used).join("、")}
 
 条件:
-- dish_name は主菜名をそのまま返す（表記変更しない）
+- dish_name は料理名をそのまま返す（表記変更しない）
 - servings は「2人分」など文字列で返す
 - prep_time_min, cook_time_min は整数
 - ingredients は材料名と分量を具体的に（3〜14件）
-- steps は6〜10手順で、各手順に火加減・時間・状態変化の目安を入れる
+- steps は${minSteps}〜10手順で、各手順に火加減・時間・状態変化の目安を入れる
 - tips は失敗しにくいコツを1〜2文`;
 
       const requestWithModel = async (model) => {
@@ -994,7 +1013,7 @@
         const responseFormat = {
           type: "json_schema",
           json_schema: {
-            name: "main_dish_recipe_detail",
+            name: "dish_recipe_detail",
             strict: supportsStrictSchema,
             schema: MAIN_RECIPE_RESPONSE_SCHEMA,
           },
@@ -1063,10 +1082,10 @@
         if (!parsedJson) {
           throw new Error("AI応答がJSON形式ではありません。");
         }
-        const normalized = normalizeGeneratedMainRecipe(parsedJson);
-        validateGeneratedRecipeConsistency(normalized, dayPlan);
-        if (normalized.ingredients.length < 3 || normalized.steps.length < 6) {
-          throw new Error("主菜レシピの詳細が不足しています。");
+        const normalized = normalizeGeneratedRecipe(parsedJson);
+        validateGeneratedRecipeConsistency(normalized, dishMeta.name, dishMeta.label);
+        if (normalized.ingredients.length < 3 || normalized.steps.length < minSteps) {
+          throw new Error(`${dishMeta.label}レシピの詳細が不足しています。`);
         }
         return normalized;
       };
@@ -1086,12 +1105,19 @@
       if (!Number.isInteger(dayIndex) || dayIndex < 0) return;
       const dayPlan = renderedMenuForRecipe[dayIndex];
       if (!dayPlan) return;
+      const dishTypeRaw = String(buttonEl?.dataset?.dishType || "main");
+      const dishType = dishTypeRaw === "side" || dishTypeRaw === "soup" ? dishTypeRaw : "main";
+      const dishMeta = getDishMeta(dayPlan, dishType);
+      if (!dishMeta.name) {
+        showError("料理名が取得できないため、作り方を生成できません。");
+        return;
+      }
       if (!currentUser) {
         showError("先にGoogleでログインしてください。");
         return;
       }
 
-      const recipeKey = buildRecipeCacheKey(dayPlan, dayIndex);
+      const recipeKey = buildRecipeCacheKey(dayPlan, dayIndex, dishType, dishMeta.name);
       const labelEl = buttonEl.querySelector(".recipe-btn-text");
       const iconEl = buttonEl.querySelector(".recipe-btn-icon");
       const now = Date.now();
@@ -1106,11 +1132,11 @@
       lucide.createIcons();
 
       try {
-        const recipe = await requestMainDishRecipe(dayPlan, renderedGoalTypeForRecipe);
+        const recipe = await requestDishRecipe(dayPlan, renderedGoalTypeForRecipe, dishType);
         generatedRecipeMap.set(recipeKey, recipe);
-        const detailEl = document.getElementById(`recipe-detail-${dayIndex}`);
+        const detailEl = document.getElementById(`recipe-detail-${dishType}-${dayIndex}`);
         if (detailEl) {
-          detailEl.innerHTML = renderMainRecipeDetailHtml(recipe);
+          detailEl.innerHTML = renderRecipeDetailHtml(recipe, dishMeta.label);
           detailEl.classList.remove("hidden");
         }
         if (labelEl) labelEl.textContent = "作り方を再生成";
@@ -1119,8 +1145,11 @@
         if (error?.rateLimited) {
           const retrySec = Number.isFinite(error?.retryAfterMs) ? Math.ceil(error.retryAfterMs / 1000) : 10;
           showError(`アクセスが集中しています。${retrySec}秒ほど待ってから、もう一度お試しください。`);
-        } else if (String(error?.message || "").includes("主菜名")) {
-          showError("主菜と一致しない作り方が返ったため、再生成してください。");
+        } else if (
+          String(error?.message || "").includes("名が不足しています") ||
+          String(error?.message || "").includes("名が一致していません")
+        ) {
+          showError(`${dishMeta.label}と一致しない作り方が返ったため、再生成してください。`);
         } else {
           showError("作り方の生成中にエラーが発生しました。もう一度お試しください。");
         }
@@ -1385,12 +1414,12 @@ ${goalInstruction}
                   </a>
                 </div>
                 <div class="mt-2">
-                  <button type="button" data-day-index="${dayIndex}" class="generate-recipe-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                  <button type="button" data-day-index="${dayIndex}" data-dish-type="main" class="generate-recipe-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
                     <span class="recipe-btn-icon flex items-center"><i data-lucide="wand-sparkles" class="w-3 h-3"></i></span>
                     <span class="recipe-btn-text">作り方を生成</span>
                   </button>
                 </div>
-                <div id="recipe-detail-${dayIndex}" class="hidden"></div>
+                <div id="recipe-detail-main-${dayIndex}" class="hidden"></div>
               </div>
 
               <div class="grid grid-cols-2 gap-3">
@@ -1400,6 +1429,13 @@ ${goalInstruction}
                   <a href="${sideSearchUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-1 text-xs text-orange-600 hover:text-orange-700 underline underline-offset-2">
                     <i data-lucide="search" class="w-3 h-3"></i> 作り方を検索
                   </a>
+                  <div class="mt-2">
+                    <button type="button" data-day-index="${dayIndex}" data-dish-type="side" class="generate-recipe-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                      <span class="recipe-btn-icon flex items-center"><i data-lucide="wand-sparkles" class="w-3 h-3"></i></span>
+                      <span class="recipe-btn-text">作り方を生成</span>
+                    </button>
+                  </div>
+                  <div id="recipe-detail-side-${dayIndex}" class="hidden"></div>
                 </div>
                 <div>
                   <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">汁物 (Soup)</span>
@@ -1407,6 +1443,13 @@ ${goalInstruction}
                   <a href="${soupSearchUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-1 text-xs text-orange-600 hover:text-orange-700 underline underline-offset-2">
                     <i data-lucide="search" class="w-3 h-3"></i> 作り方を検索
                   </a>
+                  <div class="mt-2">
+                    <button type="button" data-day-index="${dayIndex}" data-dish-type="soup" class="generate-recipe-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                      <span class="recipe-btn-icon flex items-center"><i data-lucide="wand-sparkles" class="w-3 h-3"></i></span>
+                      <span class="recipe-btn-text">作り方を生成</span>
+                    </button>
+                  </div>
+                  <div id="recipe-detail-soup-${dayIndex}" class="hidden"></div>
                 </div>
               </div>
 
