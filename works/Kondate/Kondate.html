@@ -168,6 +168,12 @@
               day: { type: "string", minLength: 1 },
               style_tag: { type: "string", minLength: 1 },
               main_dish: { type: "string", minLength: 1 },
+              main_dish_recipe_steps: {
+                type: "array",
+                minItems: 2,
+                maxItems: 8,
+                items: { type: "string", minLength: 3 },
+              },
               side_dish: { type: "string", minLength: 1 },
               soup: { type: "string", minLength: 1 },
               used_ingredients: {
@@ -186,6 +192,7 @@
               "day",
               "style_tag",
               "main_dish",
+              "main_dish_recipe_steps",
               "side_dish",
               "soup",
               "used_ingredients",
@@ -528,6 +535,23 @@
         .filter(Boolean);
     }
 
+    function normalizeRecipeSteps(value) {
+      if (Array.isArray(value)) {
+        return value
+          .map((step) => String(step || "").replace(/^\s*[0-9]+[.)、\s]+/, "").trim())
+          .filter((step) => step.length >= 3)
+          .slice(0, 8);
+      }
+      if (typeof value === "string") {
+        return value
+          .split(/\r?\n+/g)
+          .map((step) => step.replace(/^\s*[0-9]+[.)、\s]+/, "").trim())
+          .filter((step) => step.length >= 3)
+          .slice(0, 8);
+      }
+      return [];
+    }
+
     function parseIngredientList(raw) {
       return Array.from(new Set(
         String(raw || "")
@@ -671,15 +695,18 @@
 
       const menuRaw = Array.isArray(data?.menu) ? data.menu : [];
       const menu = menuRaw
-        .map((item, index) => ({
-          day: String(item?.day || `${index + 1}日目`).trim(),
-          style_tag: String(item?.style_tag || inferStyleTag(item)).trim(),
-          main_dish: String(item?.main_dish || "").trim(),
-          side_dish: String(item?.side_dish || "").trim(),
-          soup: String(item?.soup || "").trim(),
-          used_ingredients: normalizeStringArray(item?.used_ingredients),
-          recommended_ingredients_used: normalizeStringArray(item?.recommended_ingredients_used),
-          daily_total_kcal: Number.isFinite(Number(item?.daily_total_kcal))
+          .map((item, index) => ({
+            day: String(item?.day || `${index + 1}日目`).trim(),
+            style_tag: String(item?.style_tag || inferStyleTag(item)).trim(),
+            main_dish: String(item?.main_dish || "").trim(),
+            main_dish_recipe_steps: normalizeRecipeSteps(
+              item?.main_dish_recipe_steps || item?.main_dish_recipe || item?.main_recipe_steps
+            ),
+            side_dish: String(item?.side_dish || "").trim(),
+            soup: String(item?.soup || "").trim(),
+            used_ingredients: normalizeStringArray(item?.used_ingredients),
+            recommended_ingredients_used: normalizeStringArray(item?.recommended_ingredients_used),
+            daily_total_kcal: Number.isFinite(Number(item?.daily_total_kcal))
             ? Math.max(250, Math.min(1800, Math.round(Number(item?.daily_total_kcal))))
             : estimateDailyCalories(item),
           nutrition_point: String(item?.nutrition_point || "").trim(),
@@ -691,6 +718,9 @@
       }
       if (menu.some((item) => !item.main_dish || !item.side_dish || !item.soup)) {
         throw new Error("献立データを生成できませんでした。");
+      }
+      if (menu.some((item) => item.main_dish_recipe_steps.length < 2)) {
+        throw new Error("主菜の作り方が不足しています。");
       }
       validateMenuQuality(menu, inputIngredientsRaw);
       validateCuisineDiversity(menu);
@@ -734,7 +764,8 @@
         message.includes("筋肉増量向け条件: 炭水化物が不足しています。") ||
         message.includes("ダイエット向け条件: 揚げ物が多すぎます。") ||
         message.includes("ダイエット向け条件: 野菜・食物繊維要素が不足しています。") ||
-        message.includes("ダイエット向け条件: 低脂質・塩分配慮の説明が不足しています。")
+        message.includes("ダイエット向け条件: 低脂質・塩分配慮の説明が不足しています。") ||
+        message.includes("主菜の作り方が不足しています。")
       );
     }
 
@@ -828,15 +859,17 @@ ${goalInstruction}
 12. ダイエットモードでは揚げ物を控えめにし、野菜・食物繊維を意識する。
 13. 各日の夕食について、主菜・副菜・汁物を合計した概算カロリー daily_total_kcal（整数）を出す。
 14. 各日ごとに style_tag（例: 和食, 洋食, イタリアン, フレンチ, 中華, 韓国, 東南アジア・エスニック）を付ける。
-15. nutrition_pointは30〜120文字程度で簡潔に書く。
-16. JSON項目以外の説明は出力しない。
-17. JSONスキーマ:
+15. 各日の主菜について main_dish_recipe_steps を2〜6手順で出す（1手順は簡潔に20〜60文字目安）。
+16. nutrition_pointは30〜120文字程度で簡潔に書く。
+17. JSON項目以外の説明は出力しない。
+18. JSONスキーマ:
 {
   "recommended_additional_ingredients": [{"ingredient":"", "reason":""}],
   "menu": [{
     "day":"月曜日",
     "style_tag":"和食",
     "main_dish":"",
+    "main_dish_recipe_steps":["下ごしらえをする", "フライパンで焼く", "味を整えて仕上げる"],
     "side_dish":"",
     "soup":"",
     "used_ingredients":[""],
@@ -994,6 +1027,7 @@ ${goalInstruction}
         const usedIngredientsHtml = dayPlan.used_ingredients.map((ing) =>
           `<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">${escapeHtml(ing)}</span>`
         ).join('');
+        const mainRecipeSteps = normalizeRecipeSteps(dayPlan.main_dish_recipe_steps);
         const mainSearchUrl = buildRecipeSearchUrl(dayPlan.main_dish);
         const sideSearchUrl = buildRecipeSearchUrl(dayPlan.side_dish);
         const soupSearchUrl = buildRecipeSearchUrl(dayPlan.soup);
@@ -1034,6 +1068,18 @@ ${goalInstruction}
                 <a href="${mainSearchUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-1 text-xs text-orange-600 hover:text-orange-700 underline underline-offset-2">
                   <i data-lucide="search" class="w-3 h-3"></i> 作り方を検索
                 </a>
+                <div class="mt-2 p-3 bg-orange-50 border border-orange-100 rounded-lg">
+                  <p class="text-xs font-bold text-orange-700 mb-1.5">主菜の作り方</p>
+                  ${mainRecipeSteps.length > 0 ? `
+                    <ol class="list-decimal list-inside space-y-1">
+                      ${mainRecipeSteps.map((step) => `
+                        <li class="text-xs text-orange-900 leading-relaxed">${escapeHtml(step)}</li>
+                      `).join('')}
+                    </ol>
+                  ` : `
+                    <p class="text-xs text-orange-900 leading-relaxed">作り方の詳細は検索リンクから確認してください。</p>
+                  `}
+                </div>
               </div>
 
               <div class="grid grid-cols-2 gap-3">
