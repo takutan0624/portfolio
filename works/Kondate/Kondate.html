@@ -202,6 +202,7 @@
       type: "object",
       additionalProperties: false,
       properties: {
+        dish_name: { type: "string", minLength: 1 },
         servings: { type: "string", minLength: 1 },
         prep_time_min: { type: "integer", minimum: 1, maximum: 120 },
         cook_time_min: { type: "integer", minimum: 5, maximum: 180 },
@@ -221,13 +222,13 @@
         },
         steps: {
           type: "array",
-          minItems: 4,
+          minItems: 6,
           maxItems: 10,
-          items: { type: "string", minLength: 8 },
+          items: { type: "string", minLength: 10 },
         },
         tips: { type: "string", minLength: 8 },
       },
-      required: ["servings", "prep_time_min", "cook_time_min", "ingredients", "steps", "tips"],
+      required: ["dish_name", "servings", "prep_time_min", "cook_time_min", "ingredients", "steps", "tips"],
     };
     const sampleIngredients = "豚こま肉、鶏もも肉、鮭、キャベツ、玉ねぎ、にんじん、じゃがいも、卵";
 
@@ -605,14 +606,14 @@
       if (Array.isArray(value)) {
         return value
           .map((step) => String(step || "").replace(/^\s*[0-9]+[.)、\s]+/, "").trim())
-          .filter((step) => step.length >= 8)
+          .filter((step) => step.length >= 10)
           .slice(0, 10);
       }
       if (typeof value === "string") {
         return value
           .split(/\r?\n+/g)
           .map((step) => step.replace(/^\s*[0-9]+[.)、\s]+/, "").trim())
-          .filter((step) => step.length >= 8)
+          .filter((step) => step.length >= 10)
           .slice(0, 10);
       }
       return [];
@@ -624,6 +625,7 @@
 
     function normalizeGeneratedMainRecipe(payload) {
       return {
+        dish_name: String(payload?.dish_name || "").trim(),
         servings: String(payload?.servings || "2人分").trim(),
         prep_time_min: normalizeBoundedInt(payload?.prep_time_min, 1, 120, 10),
         cook_time_min: normalizeBoundedInt(payload?.cook_time_min, 5, 180, 20),
@@ -631,6 +633,17 @@
         steps: normalizeRecipeSteps(payload?.steps),
         tips: String(payload?.tips || "").trim(),
       };
+    }
+
+    function validateGeneratedRecipeConsistency(recipe, dayPlan) {
+      const expected = normalizeDishName(dayPlan?.main_dish);
+      const actual = normalizeDishName(recipe?.dish_name);
+      if (expected && !actual) {
+        throw new Error("作り方の主菜名が不足しています。");
+      }
+      if (expected && actual && expected !== actual && !actual.includes(expected) && !expected.includes(actual)) {
+        throw new Error("作り方と献立の主菜名が一致していません。");
+      }
     }
 
     function renderMainRecipeDetailHtml(recipe) {
@@ -642,6 +655,7 @@
         <div class="mt-2 p-3 bg-orange-50 border border-orange-100 rounded-lg">
           <div class="flex flex-wrap items-center gap-2 mb-2">
             <p class="text-xs font-bold text-orange-700">主菜の作り方</p>
+            ${recipe?.dish_name ? `<span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">${escapeHtml(recipe.dish_name)}</span>` : ``}
             <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">${escapeHtml(recipe?.servings || "2人分")}</span>
             <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">下準備 約${escapeHtml(recipe?.prep_time_min || 10)}分</span>
             <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">調理 約${escapeHtml(recipe?.cook_time_min || 20)}分</span>
@@ -879,6 +893,9 @@
         message.includes("AIから有効な応答が返ってきませんでした。") ||
         message.includes("AI応答がJSON形式ではありません。") ||
         message.includes("API応答の解析に失敗しました。") ||
+        message.includes("作り方の主菜名が不足しています。") ||
+        message.includes("作り方と献立の主菜名が一致していません。") ||
+        message.includes("主菜レシピの詳細が不足しています。") ||
         message.includes("献立が7日分生成されませんでした。") ||
         message.includes("主菜のバリエーションが不足しています。") ||
         message.includes("副菜のバリエーションが不足しています。") ||
@@ -890,9 +907,7 @@
         message.includes("筋肉増量向け条件: 炭水化物が不足しています。") ||
         message.includes("ダイエット向け条件: 揚げ物が多すぎます。") ||
         message.includes("ダイエット向け条件: 野菜・食物繊維要素が不足しています。") ||
-        message.includes("ダイエット向け条件: 低脂質・塩分配慮の説明が不足しています。") ||
-        message.includes("主菜の材料情報が不足しています。") ||
-        message.includes("主菜の作り方が不足しています。")
+        message.includes("ダイエット向け条件: 低脂質・塩分配慮の説明が不足しています。")
       );
     }
 
@@ -967,10 +982,11 @@
 追加候補食材: ${normalizeStringArray(dayPlan?.recommended_ingredients_used).join("、")}
 
 条件:
+- dish_name は主菜名をそのまま返す（表記変更しない）
 - servings は「2人分」など文字列で返す
 - prep_time_min, cook_time_min は整数
-- ingredients は材料名と分量を具体的に
-- steps は4〜10手順で具体的に
+- ingredients は材料名と分量を具体的に（3〜14件）
+- steps は6〜10手順で、各手順に火加減・時間・状態変化の目安を入れる
 - tips は失敗しにくいコツを1〜2文`;
 
       const requestWithModel = async (model) => {
@@ -1048,7 +1064,8 @@
           throw new Error("AI応答がJSON形式ではありません。");
         }
         const normalized = normalizeGeneratedMainRecipe(parsedJson);
-        if (normalized.ingredients.length < 3 || normalized.steps.length < 4) {
+        validateGeneratedRecipeConsistency(normalized, dayPlan);
+        if (normalized.ingredients.length < 3 || normalized.steps.length < 6) {
           throw new Error("主菜レシピの詳細が不足しています。");
         }
         return normalized;
@@ -1077,6 +1094,12 @@
       const recipeKey = buildRecipeCacheKey(dayPlan, dayIndex);
       const labelEl = buttonEl.querySelector(".recipe-btn-text");
       const iconEl = buttonEl.querySelector(".recipe-btn-icon");
+      const now = Date.now();
+      if (clientCooldownUntil > now) {
+        const waitSec = Math.ceil((clientCooldownUntil - now) / 1000);
+        showError(`現在リクエストが集中しています。あと${waitSec}秒ほど待ってからお試しください。`);
+        return;
+      }
       buttonEl.disabled = true;
       if (labelEl) labelEl.textContent = "生成中...";
       if (iconEl) iconEl.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i>`;
@@ -1096,11 +1119,14 @@
         if (error?.rateLimited) {
           const retrySec = Number.isFinite(error?.retryAfterMs) ? Math.ceil(error.retryAfterMs / 1000) : 10;
           showError(`アクセスが集中しています。${retrySec}秒ほど待ってから、もう一度お試しください。`);
+        } else if (String(error?.message || "").includes("主菜名")) {
+          showError("主菜と一致しない作り方が返ったため、再生成してください。");
         } else {
           showError("作り方の生成中にエラーが発生しました。もう一度お試しください。");
         }
       } finally {
         buttonEl.disabled = false;
+        if (labelEl) labelEl.textContent = generatedRecipeMap.has(recipeKey) ? "作り方を再生成" : "作り方を生成";
         if (iconEl) iconEl.innerHTML = `<i data-lucide="wand-sparkles" class="w-3 h-3"></i>`;
         lucide.createIcons();
       }
@@ -1295,6 +1321,9 @@ ${goalInstruction}
 
     function renderResults(data, goalType = "normal") {
       const memoTheme = getMemoTheme(goalType);
+      renderedMenuForRecipe = Array.isArray(data?.menu) ? data.menu : [];
+      renderedGoalTypeForRecipe = goalType;
+      generatedRecipeMap.clear();
       if (data.recommended_additional_ingredients && data.recommended_additional_ingredients.length > 0) {
         recommendedList.innerHTML = data.recommended_additional_ingredients.map((item) => `
           <li class="flex items-start gap-2 text-sm text-blue-900 bg-white/60 p-2 rounded-lg">
@@ -1309,12 +1338,10 @@ ${goalInstruction}
         recommendedSection.classList.add('hidden');
       }
 
-      menuGrid.innerHTML = data.menu.map((dayPlan) => {
+      menuGrid.innerHTML = renderedMenuForRecipe.map((dayPlan, dayIndex) => {
         const usedIngredientsHtml = dayPlan.used_ingredients.map((ing) =>
           `<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">${escapeHtml(ing)}</span>`
         ).join('');
-        const mainRecipeIngredients = normalizeRecipeIngredients(dayPlan.main_dish_ingredients);
-        const mainRecipeSteps = normalizeRecipeSteps(dayPlan.main_dish_recipe_steps);
         const mainSearchUrl = buildRecipeSearchUrl(dayPlan.main_dish);
         const sideSearchUrl = buildRecipeSearchUrl(dayPlan.side_dish);
         const soupSearchUrl = buildRecipeSearchUrl(dayPlan.soup);
@@ -1352,40 +1379,18 @@ ${goalInstruction}
               <div>
                 <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">主菜 (Main)</span>
                 <p class="font-semibold text-gray-800 text-lg leading-tight">${escapeHtml(dayPlan.main_dish)}</p>
-                <a href="${mainSearchUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 mt-1 text-xs text-orange-600 hover:text-orange-700 underline underline-offset-2">
-                  <i data-lucide="search" class="w-3 h-3"></i> 作り方を検索
-                </a>
-                <div class="mt-2 p-3 bg-orange-50 border border-orange-100 rounded-lg">
-                  <div class="flex flex-wrap items-center gap-2 mb-2">
-                    <p class="text-xs font-bold text-orange-700">主菜の作り方</p>
-                    <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">${escapeHtml(dayPlan.main_dish_servings || "2人分")}</span>
-                    <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">下準備 約${escapeHtml(dayPlan.main_dish_prep_time_min || 10)}分</span>
-                    <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">調理 約${escapeHtml(dayPlan.main_dish_cook_time_min || 20)}分</span>
-                  </div>
-                  ${mainRecipeIngredients.length > 0 ? `
-                    <div class="mb-2">
-                      <p class="text-[11px] font-bold text-orange-700 mb-1">材料</p>
-                      <ul class="space-y-1">
-                        ${mainRecipeIngredients.map((ingredient) => `
-                          <li class="flex items-start justify-between gap-2 text-xs text-orange-900">
-                            <span>${escapeHtml(ingredient.name)}</span>
-                            <span class="font-medium text-orange-800">${escapeHtml(ingredient.amount)}</span>
-                          </li>
-                        `).join('')}
-                      </ul>
-                    </div>
-                  ` : ``}
-                  ${mainRecipeSteps.length > 0 ? `
-                    <p class="text-[11px] font-bold text-orange-700 mb-1">手順</p>
-                    <ol class="list-decimal list-inside space-y-1">
-                      ${mainRecipeSteps.map((step) => `
-                        <li class="text-xs text-orange-900 leading-relaxed">${escapeHtml(step)}</li>
-                      `).join('')}
-                    </ol>
-                  ` : `
-                    <p class="text-xs text-orange-900 leading-relaxed">作り方の詳細は検索リンクから確認してください。</p>
-                  `}
+                <div class="mt-1">
+                  <a href="${mainSearchUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 underline underline-offset-2">
+                    <i data-lucide="search" class="w-3 h-3"></i> 作り方を検索
+                  </a>
                 </div>
+                <div class="mt-2">
+                  <button type="button" data-day-index="${dayIndex}" class="generate-recipe-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                    <span class="recipe-btn-icon flex items-center"><i data-lucide="wand-sparkles" class="w-3 h-3"></i></span>
+                    <span class="recipe-btn-text">作り方を生成</span>
+                  </button>
+                </div>
+                <div id="recipe-detail-${dayIndex}" class="hidden"></div>
               </div>
 
               <div class="grid grid-cols-2 gap-3">
