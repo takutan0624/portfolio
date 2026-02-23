@@ -699,19 +699,20 @@
     }
 
     function validateMenuQuality(menu, inputIngredientsRaw) {
+      const warnings = [];
       const mainSet = new Set(menu.map((item) => normalizeDishName(item.main_dish)).filter(Boolean));
       if (mainSet.size < 5) {
-        throw new Error("主菜のバリエーションが不足しています。");
+        warnings.push("主菜のバリエーションが不足しています。");
       }
 
       const sideSet = new Set(menu.map((item) => normalizeDishName(item.side_dish)).filter(Boolean));
       if (sideSet.size < 5) {
-        throw new Error("副菜のバリエーションが不足しています。");
+        warnings.push("副菜のバリエーションが不足しています。");
       }
 
       const soupSet = new Set(menu.map((item) => normalizeDishName(item.soup)).filter(Boolean));
       if (soupSet.size < 2) {
-        throw new Error("汁物のバリエーションが不足しています。");
+        warnings.push("汁物のバリエーションが不足しています。");
       }
 
       const proteinCategories = {
@@ -727,7 +728,7 @@
         .filter(([, words]) => containsAny(weeklyText, words))
         .map(([kind]) => kind);
       if (usedProteinKinds.length < 2) {
-        throw new Error("たんぱく源のバリエーションが不足しています。");
+        warnings.push("たんぱく源のバリエーションが不足しています。");
       }
 
       const inputIngredients = parseIngredientList(inputIngredientsRaw);
@@ -738,9 +739,10 @@
         const covered = inputIngredients.filter((ing) => textForCoverage.includes(ing));
         const coverageRatio = covered.length / inputIngredients.length;
         if (coverageRatio < 0.30) {
-          throw new Error("入力食材の反映率が低すぎます。");
+          warnings.push("入力食材の反映率が低すぎます。");
         }
       }
+      return warnings;
     }
 
     function validateGoalSpecific(menu, goalType) {
@@ -841,7 +843,10 @@
       if (menu.some((item) => item.main_dish_recipe_steps.length < 4)) {
         throw new Error("主菜の作り方が不足しています。");
       }
-      validateMenuQuality(menu, inputIngredientsRaw);
+      const qualityWarnings = validateMenuQuality(menu, inputIngredientsRaw);
+      if (qualityWarnings.length > 0) {
+        console.warn("[Kondate] Menu quality warnings:", qualityWarnings);
+      }
       validateCuisineDiversity(menu);
       validateGoalSpecific(menu, goalType);
 
