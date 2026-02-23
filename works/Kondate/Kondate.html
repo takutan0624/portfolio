@@ -168,11 +168,28 @@
               day: { type: "string", minLength: 1 },
               style_tag: { type: "string", minLength: 1 },
               main_dish: { type: "string", minLength: 1 },
+              main_dish_servings: { type: "string", minLength: 1 },
+              main_dish_prep_time_min: { type: "integer", minimum: 1, maximum: 120 },
+              main_dish_cook_time_min: { type: "integer", minimum: 5, maximum: 180 },
+              main_dish_ingredients: {
+                type: "array",
+                minItems: 3,
+                maxItems: 14,
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    name: { type: "string", minLength: 1 },
+                    amount: { type: "string", minLength: 1 },
+                  },
+                  required: ["name", "amount"],
+                },
+              },
               main_dish_recipe_steps: {
                 type: "array",
-                minItems: 2,
-                maxItems: 8,
-                items: { type: "string", minLength: 3 },
+                minItems: 4,
+                maxItems: 10,
+                items: { type: "string", minLength: 8 },
               },
               side_dish: { type: "string", minLength: 1 },
               soup: { type: "string", minLength: 1 },
@@ -192,6 +209,10 @@
               "day",
               "style_tag",
               "main_dish",
+              "main_dish_servings",
+              "main_dish_prep_time_min",
+              "main_dish_cook_time_min",
+              "main_dish_ingredients",
               "main_dish_recipe_steps",
               "side_dish",
               "soup",
@@ -535,19 +556,51 @@
         .filter(Boolean);
     }
 
+    function normalizeBoundedInt(value, min, max, fallback) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.min(max, Math.max(min, Math.round(n)));
+    }
+
+    function normalizeRecipeIngredients(value) {
+      if (!Array.isArray(value)) return [];
+      return value
+        .map((item) => {
+          if (!item) return null;
+          if (typeof item === "string") {
+            const text = item.trim();
+            if (!text) return null;
+            const split = text.match(/^(.+?)[\s:：]+(.+)$/);
+            if (split) {
+              return { name: split[1].trim(), amount: split[2].trim() };
+            }
+            return { name: text, amount: "適量" };
+          }
+          if (typeof item === "object") {
+            const name = String(item.name || item.ingredient || "").trim();
+            const amount = String(item.amount || item.quantity || "").trim();
+            if (!name) return null;
+            return { name, amount: amount || "適量" };
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .slice(0, 14);
+    }
+
     function normalizeRecipeSteps(value) {
       if (Array.isArray(value)) {
         return value
           .map((step) => String(step || "").replace(/^\s*[0-9]+[.)、\s]+/, "").trim())
-          .filter((step) => step.length >= 3)
-          .slice(0, 8);
+          .filter((step) => step.length >= 8)
+          .slice(0, 10);
       }
       if (typeof value === "string") {
         return value
           .split(/\r?\n+/g)
           .map((step) => step.replace(/^\s*[0-9]+[.)、\s]+/, "").trim())
-          .filter((step) => step.length >= 3)
-          .slice(0, 8);
+          .filter((step) => step.length >= 8)
+          .slice(0, 10);
       }
       return [];
     }
@@ -695,18 +748,22 @@
 
       const menuRaw = Array.isArray(data?.menu) ? data.menu : [];
       const menu = menuRaw
-          .map((item, index) => ({
-            day: String(item?.day || `${index + 1}日目`).trim(),
-            style_tag: String(item?.style_tag || inferStyleTag(item)).trim(),
-            main_dish: String(item?.main_dish || "").trim(),
-            main_dish_recipe_steps: normalizeRecipeSteps(
-              item?.main_dish_recipe_steps || item?.main_dish_recipe || item?.main_recipe_steps
-            ),
-            side_dish: String(item?.side_dish || "").trim(),
-            soup: String(item?.soup || "").trim(),
-            used_ingredients: normalizeStringArray(item?.used_ingredients),
-            recommended_ingredients_used: normalizeStringArray(item?.recommended_ingredients_used),
-            daily_total_kcal: Number.isFinite(Number(item?.daily_total_kcal))
+        .map((item, index) => ({
+          day: String(item?.day || `${index + 1}日目`).trim(),
+          style_tag: String(item?.style_tag || inferStyleTag(item)).trim(),
+          main_dish: String(item?.main_dish || "").trim(),
+          main_dish_servings: String(item?.main_dish_servings || item?.servings || "2人分").trim(),
+          main_dish_prep_time_min: normalizeBoundedInt(item?.main_dish_prep_time_min, 1, 120, 10),
+          main_dish_cook_time_min: normalizeBoundedInt(item?.main_dish_cook_time_min, 5, 180, 20),
+          main_dish_ingredients: normalizeRecipeIngredients(item?.main_dish_ingredients),
+          main_dish_recipe_steps: normalizeRecipeSteps(
+            item?.main_dish_recipe_steps || item?.main_dish_recipe || item?.main_recipe_steps
+          ),
+          side_dish: String(item?.side_dish || "").trim(),
+          soup: String(item?.soup || "").trim(),
+          used_ingredients: normalizeStringArray(item?.used_ingredients),
+          recommended_ingredients_used: normalizeStringArray(item?.recommended_ingredients_used),
+          daily_total_kcal: Number.isFinite(Number(item?.daily_total_kcal))
             ? Math.max(250, Math.min(1800, Math.round(Number(item?.daily_total_kcal))))
             : estimateDailyCalories(item),
           nutrition_point: String(item?.nutrition_point || "").trim(),
@@ -719,7 +776,10 @@
       if (menu.some((item) => !item.main_dish || !item.side_dish || !item.soup)) {
         throw new Error("献立データを生成できませんでした。");
       }
-      if (menu.some((item) => item.main_dish_recipe_steps.length < 2)) {
+      if (menu.some((item) => item.main_dish_ingredients.length < 3)) {
+        throw new Error("主菜の材料情報が不足しています。");
+      }
+      if (menu.some((item) => item.main_dish_recipe_steps.length < 4)) {
         throw new Error("主菜の作り方が不足しています。");
       }
       validateMenuQuality(menu, inputIngredientsRaw);
@@ -765,6 +825,7 @@
         message.includes("ダイエット向け条件: 揚げ物が多すぎます。") ||
         message.includes("ダイエット向け条件: 野菜・食物繊維要素が不足しています。") ||
         message.includes("ダイエット向け条件: 低脂質・塩分配慮の説明が不足しています。") ||
+        message.includes("主菜の材料情報が不足しています。") ||
         message.includes("主菜の作り方が不足しています。")
       );
     }
@@ -859,17 +920,23 @@ ${goalInstruction}
 12. ダイエットモードでは揚げ物を控えめにし、野菜・食物繊維を意識する。
 13. 各日の夕食について、主菜・副菜・汁物を合計した概算カロリー daily_total_kcal（整数）を出す。
 14. 各日ごとに style_tag（例: 和食, 洋食, イタリアン, フレンチ, 中華, 韓国, 東南アジア・エスニック）を付ける。
-15. 各日の主菜について main_dish_recipe_steps を2〜6手順で出す（1手順は簡潔に20〜60文字目安）。
-16. nutrition_pointは30〜120文字程度で簡潔に書く。
-17. JSON項目以外の説明は出力しない。
-18. JSONスキーマ:
+15. 各日の主菜について、main_dish_ingredients に材料名と分量（例: 鶏もも肉 250g、醤油 大さじ1）を入れる。
+16. 各日の主菜について main_dish_recipe_steps を4〜8手順で出す（下ごしらえ・加熱・仕上げを含める）。
+17. 各日の主菜について main_dish_servings, main_dish_prep_time_min, main_dish_cook_time_min を入れる。
+18. nutrition_pointは30〜120文字程度で簡潔に書く。
+19. JSON項目以外の説明は出力しない。
+20. JSONスキーマ:
 {
   "recommended_additional_ingredients": [{"ingredient":"", "reason":""}],
   "menu": [{
     "day":"月曜日",
     "style_tag":"和食",
     "main_dish":"",
-    "main_dish_recipe_steps":["下ごしらえをする", "フライパンで焼く", "味を整えて仕上げる"],
+    "main_dish_servings":"2人分",
+    "main_dish_prep_time_min": 10,
+    "main_dish_cook_time_min": 18,
+    "main_dish_ingredients":[{"name":"鶏もも肉","amount":"250g"},{"name":"醤油","amount":"大さじ1"}],
+    "main_dish_recipe_steps":["鶏肉を一口大に切り下味をつける","フライパンで中火で両面を焼く","調味料を加えて照りが出るまで煮絡める","火を止めて盛り付ける"],
     "side_dish":"",
     "soup":"",
     "used_ingredients":[""],
@@ -1027,6 +1094,7 @@ ${goalInstruction}
         const usedIngredientsHtml = dayPlan.used_ingredients.map((ing) =>
           `<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">${escapeHtml(ing)}</span>`
         ).join('');
+        const mainRecipeIngredients = normalizeRecipeIngredients(dayPlan.main_dish_ingredients);
         const mainRecipeSteps = normalizeRecipeSteps(dayPlan.main_dish_recipe_steps);
         const mainSearchUrl = buildRecipeSearchUrl(dayPlan.main_dish);
         const sideSearchUrl = buildRecipeSearchUrl(dayPlan.side_dish);
@@ -1069,8 +1137,27 @@ ${goalInstruction}
                   <i data-lucide="search" class="w-3 h-3"></i> 作り方を検索
                 </a>
                 <div class="mt-2 p-3 bg-orange-50 border border-orange-100 rounded-lg">
-                  <p class="text-xs font-bold text-orange-700 mb-1.5">主菜の作り方</p>
+                  <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <p class="text-xs font-bold text-orange-700">主菜の作り方</p>
+                    <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">${escapeHtml(dayPlan.main_dish_servings || "2人分")}</span>
+                    <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">下準備 約${escapeHtml(dayPlan.main_dish_prep_time_min || 10)}分</span>
+                    <span class="text-[11px] font-semibold text-orange-800 bg-white border border-orange-200 rounded-full px-2 py-0.5">調理 約${escapeHtml(dayPlan.main_dish_cook_time_min || 20)}分</span>
+                  </div>
+                  ${mainRecipeIngredients.length > 0 ? `
+                    <div class="mb-2">
+                      <p class="text-[11px] font-bold text-orange-700 mb-1">材料</p>
+                      <ul class="space-y-1">
+                        ${mainRecipeIngredients.map((ingredient) => `
+                          <li class="flex items-start justify-between gap-2 text-xs text-orange-900">
+                            <span>${escapeHtml(ingredient.name)}</span>
+                            <span class="font-medium text-orange-800">${escapeHtml(ingredient.amount)}</span>
+                          </li>
+                        `).join('')}
+                      </ul>
+                    </div>
+                  ` : ``}
                   ${mainRecipeSteps.length > 0 ? `
+                    <p class="text-[11px] font-bold text-orange-700 mb-1">手順</p>
                     <ol class="list-decimal list-inside space-y-1">
                       ${mainRecipeSteps.map((step) => `
                         <li class="text-xs text-orange-900 leading-relaxed">${escapeHtml(step)}</li>
