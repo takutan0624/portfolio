@@ -588,6 +588,68 @@
         .slice(0, 14);
     }
 
+    function buildFallbackRecipeIngredients(item) {
+      const seeds = [
+        ...normalizeStringArray(item?.used_ingredients),
+        ...normalizeStringArray(item?.recommended_ingredients_used),
+      ];
+      const deduped = [];
+      const seen = new Set();
+      for (const name of seeds) {
+        const n = String(name || "").trim();
+        if (!n || seen.has(n)) continue;
+        deduped.push({ name: n, amount: "適量" });
+        seen.add(n);
+        if (deduped.length >= 8) break;
+      }
+      const basics = [
+        { name: "塩", amount: "少々" },
+        { name: "こしょう", amount: "少々" },
+        { name: "油", amount: "小さじ1" },
+      ];
+      for (const basic of basics) {
+        if (deduped.length >= 3) break;
+        if (seen.has(basic.name)) continue;
+        deduped.push(basic);
+        seen.add(basic.name);
+      }
+      return deduped.slice(0, 14);
+    }
+
+    function buildFallbackRecipeSteps(mainDish, primaryIngredient) {
+      const dish = String(mainDish || "主菜").trim();
+      const primary = String(primaryIngredient || "主材料").trim();
+      return [
+        `${dish}に使う材料を食べやすい大きさに切り、下味をつけて5分ほど置きます。`,
+        `フライパンに油を熱し、中火で${primary}を焼いて表面に焼き色をつけます。`,
+        `残りの材料と調味料を加え、全体を混ぜながら火が通るまで加熱します。`,
+        `味を整えて器に盛り付け、好みで薬味をのせて仕上げます。`,
+      ];
+    }
+
+    function ensureDetailedMainDishRecipe(item) {
+      const normalizedIngredients = normalizeRecipeIngredients(item?.main_dish_ingredients);
+      const mainDishIngredients = normalizedIngredients.length >= 3
+        ? normalizedIngredients
+        : buildFallbackRecipeIngredients(item);
+      const normalizedSteps = normalizeRecipeSteps(item?.main_dish_recipe_steps);
+      const fallbackSteps = buildFallbackRecipeSteps(item?.main_dish, mainDishIngredients[0]?.name);
+      const mergedSteps = [...normalizedSteps];
+      for (const step of fallbackSteps) {
+        if (mergedSteps.length >= 4) break;
+        if (mergedSteps.includes(step)) continue;
+        mergedSteps.push(step);
+      }
+
+      return {
+        main_dish_servings: String(item?.main_dish_servings || item?.servings || "2人分").trim(),
+        main_dish_prep_time_min: normalizeBoundedInt(item?.main_dish_prep_time_min, 1, 120, 10),
+        main_dish_cook_time_min: normalizeBoundedInt(item?.main_dish_cook_time_min, 5, 180, 20),
+        main_dish_ingredients: mainDishIngredients,
+        main_dish_recipe_steps: mergedSteps.slice(0, 10),
+      };
+    }
+
     function normalizeRecipeSteps(value) {
       if (Array.isArray(value)) {
         return value
@@ -752,13 +814,10 @@
           day: String(item?.day || `${index + 1}日目`).trim(),
           style_tag: String(item?.style_tag || inferStyleTag(item)).trim(),
           main_dish: String(item?.main_dish || "").trim(),
-          main_dish_servings: String(item?.main_dish_servings || item?.servings || "2人分").trim(),
-          main_dish_prep_time_min: normalizeBoundedInt(item?.main_dish_prep_time_min, 1, 120, 10),
-          main_dish_cook_time_min: normalizeBoundedInt(item?.main_dish_cook_time_min, 5, 180, 20),
-          main_dish_ingredients: normalizeRecipeIngredients(item?.main_dish_ingredients),
-          main_dish_recipe_steps: normalizeRecipeSteps(
-            item?.main_dish_recipe_steps || item?.main_dish_recipe || item?.main_recipe_steps
-          ),
+          ...ensureDetailedMainDishRecipe({
+            ...item,
+            main_dish_recipe_steps: item?.main_dish_recipe_steps || item?.main_dish_recipe || item?.main_recipe_steps,
+          }),
           side_dish: String(item?.side_dish || "").trim(),
           soup: String(item?.soup || "").trim(),
           used_ingredients: normalizeStringArray(item?.used_ingredients),
