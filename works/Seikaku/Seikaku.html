@@ -1437,6 +1437,64 @@ RIASEC: ${JSON.stringify(riasecScores)}
       renderScoreBars('res-riasec', items, scores, 'emerald');
     }
 
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function normalizeExtraTopicEntry(raw) {
+      if (typeof raw === 'string') {
+        const text = raw.trim();
+        return {
+          analysisText: text,
+          improvementAdvice: []
+        };
+      }
+      if (!raw || typeof raw !== 'object') {
+        return {
+          analysisText: "",
+          improvementAdvice: []
+        };
+      }
+      const analysisText = normalizeText(raw.analysisText || raw.analysis || raw.text, "");
+      const improvementAdvice = normalizeStringArray(raw.improvementAdvice || raw.advice || raw.tips).slice(0, 4);
+      return { analysisText, improvementAdvice };
+    }
+
+    function renderExtraTopicContent(entry) {
+      const normalized = normalizeExtraTopicEntry(entry);
+      const analysisHtml = escapeHtml(normalized.analysisText).replace(/\n/g, '<br>');
+      const adviceHtml = normalized.improvementAdvice.length
+        ? `
+          <div class="mt-4 pt-4 border-t border-indigo-100">
+            <p class="text-xs font-black tracking-wide text-violet-700 uppercase">改善アドバイス</p>
+            <ul class="mt-2 space-y-2">
+              ${normalized.improvementAdvice.map((tip) => `<li class="text-sm text-slate-700 leading-relaxed">・${escapeHtml(tip)}</li>`).join('')}
+            </ul>
+          </div>
+        `
+        : '';
+      return `
+        <div class="mt-4 fade-in">
+          <p class="text-sm text-indigo-700 leading-relaxed font-medium">${analysisHtml}</p>
+          ${adviceHtml}
+        </div>
+      `;
+    }
+
+    function buildFallbackImprovementAdvice(topicTitle) {
+      const title = normalizeText(topicTitle, "このテーマ");
+      return [
+        `${title}について、1日5分で振り返りメモを取り、行動パターンを可視化する。`,
+        `次の1週間は「やらないこと」を1つ決め、余力を優先課題に集中させる。`,
+        `週末に実行結果を点検し、続ける行動1つ・修正する行動1つを必ず決める。`
+      ];
+    }
+
     function renderExtraTopics() {
       const container = document.getElementById('extra-topics-container');
       container.innerHTML = '';
@@ -1444,7 +1502,8 @@ RIASEC: ${JSON.stringify(riasecScores)}
       const extraData = finalProfile.extraData || {};
 
       EXTRA_TOPICS.forEach(topic => {
-        const hasData = !!extraData[topic.id];
+        const entry = normalizeExtraTopicEntry(extraData[topic.id]);
+        const hasData = !!entry.analysisText;
         
         const div = document.createElement('div');
         div.className = "bg-gradient-to-br from-white to-indigo-50 p-6 rounded-[2rem] shadow-lg border border-indigo-100 flex flex-col justify-between";
@@ -1452,7 +1511,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
         
         let contentHtml = '';
         if (hasData) {
-          contentHtml = `<p class="text-sm text-indigo-700 leading-relaxed mt-4 fade-in">${extraData[topic.id]}</p>`;
+          contentHtml = renderExtraTopicContent(entry);
         } else {
           contentHtml = `
             <div class="mt-4">
@@ -1506,33 +1565,45 @@ RIASEC: ${JSON.stringify(riasecScores)}
 
       指示:
       ・${topic.prompt}
-      ・最低でも700文字以上、最大1200文字程度で出力してください。
+      ・analysisTextは最低700文字以上、最大1200文字程度で出力してください。
       ・ユーザーが読んで深く納得し、時にハッとするような鋭い洞察を含めてください。
       ・分析は「傾向の説明」だけでなく、「起こりやすい具体場面」「回避策/活用策」まで書いてください。
-      ・回答は指定テーマの分析テキストのみをプレーンテキストで出力してください。`;
+      ・improvementAdviceとして、明日から実行できる改善アドバイスを3つ、短く具体的に作ってください（1項目あたり30〜70文字）。
+      ・responseSchemaに厳密準拠したJSONのみを返してください。`;
 
       const schema = {
         type: "OBJECT",
         properties: {
-          analysisText: { type: "STRING" }
-        }
+          analysisText: { type: "STRING" },
+          improvementAdvice: {
+            type: "ARRAY",
+            items: { type: "STRING" }
+          }
+        },
+        required: ["analysisText", "improvementAdvice"]
       };
 
       try {
         const { data } = await fetchGemini(prompt, schema, { temperature: 0.66, maxAttempts: 1 });
-        const resultText = data.analysisText;
+        const entry = normalizeExtraTopicEntry(data);
+        if (!entry.analysisText) {
+          throw new Error("追加診断の本文が空です。");
+        }
+        if (!entry.improvementAdvice.length) {
+          entry.improvementAdvice = buildFallbackImprovementAdvice(topic.title);
+        }
         
         // Update local state
         finalProfile.extraData = finalProfile.extraData || {};
-        finalProfile.extraData[topicId] = resultText;
+        finalProfile.extraData[topicId] = entry;
         
         // Update UI
-        contentDiv.innerHTML = `<p class="text-sm text-slate-700 leading-relaxed mt-4 fade-in font-medium">${resultText}</p>`;
+        contentDiv.innerHTML = renderExtraTopicContent(entry);
         
         // Update Cloud automatically
         if (user && currentDocId) {
           const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'history', currentDocId);
-          await updateDoc(docRef, { [`extraData.${topicId}`]: resultText });
+          await updateDoc(docRef, { [`extraData.${topicId}`]: entry });
         }
       } catch (err) {
         console.error("Generate Extra Topic Error:", err);
