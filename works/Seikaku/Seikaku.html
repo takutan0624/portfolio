@@ -72,17 +72,6 @@
 </head>
 <body class="min-h-screen bg-[#f8fafc] text-slate-900 selection:bg-indigo-100 overflow-x-hidden relative">
   
-  <!-- Auto Save Toast -->
-  <div id="auto-save-toast" class="fixed top-6 right-6 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 transform transition-all duration-500 translate-x-[120%] z-50">
-    <div class="bg-emerald-500/20 p-2 rounded-full">
-      <i data-lucide="cloud-check" class="text-emerald-400 w-5 h-5"></i>
-    </div>
-    <div>
-      <p class="font-bold text-sm">クラウドに自動保存しました</p>
-      <p class="text-xs text-slate-400 mt-0.5">履歴からいつでも確認できます</p>
-    </div>
-  </div>
-
   <!-- Background Decorations -->
   <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
     <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-100 rounded-full blur-[120px] opacity-50"></div>
@@ -594,7 +583,6 @@
         });
         currentDocId = docRef.id;
         await pruneHistoryToLastThree();
-        showToast();
       } catch (err) {
         console.error("Auto Save Error:", err);
       }
@@ -613,14 +601,6 @@
       } catch (err) {
         console.error("History prune error:", err);
       }
-    }
-
-    function showToast() {
-      const toast = document.getElementById('auto-save-toast');
-      toast.classList.remove('translate-x-[120%]');
-      setTimeout(() => {
-        toast.classList.add('translate-x-[120%]');
-      }, 4000);
     }
 
     // --- Navigation ---
