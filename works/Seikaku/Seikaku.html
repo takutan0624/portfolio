@@ -183,10 +183,28 @@
 
       <!-- Screen: Dynamic Question (Generating & Answering) -->
       <div id="screen-generating-q" class="hidden flex flex-col items-center justify-center py-24 space-y-8 text-center bg-white rounded-[2.5rem] shadow-xl">
-        <div class="loader-ring"></div>
-        <div class="space-y-2">
-          <h3 class="text-2xl font-black text-slate-800">あなたの思考をトレース中</h3>
-          <p class="text-slate-500">回答パターンから、あなたの深層を突く質問を生成しています...</p>
+        <div id="dynamic-q-loading" class="flex flex-col items-center justify-center space-y-8 text-center">
+          <div class="loader-ring"></div>
+          <div class="space-y-2">
+            <h3 class="text-2xl font-black text-slate-800">あなたの思考をトレース中</h3>
+            <p class="text-slate-500">回答パターンから、あなた向けの3問を生成しています...</p>
+          </div>
+        </div>
+        <div id="dynamic-q-error" class="hidden w-full max-w-xl px-6">
+          <div class="bg-rose-50 border border-rose-100 rounded-2xl p-6 space-y-5">
+            <div class="space-y-2">
+              <h3 class="text-xl font-black text-rose-700">質問の生成に失敗しました</h3>
+              <p id="dynamic-q-error-text" class="text-sm text-rose-700"></p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <button onclick="retryDynamicQuestions()" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl transition-colors">
+                再問い合わせする
+              </button>
+              <button onclick="showScreen('questions')" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold py-3 px-4 rounded-xl transition-colors">
+                戻る
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -700,47 +718,6 @@
         .join(' / ');
     }
 
-    function fallbackDynamicQuestions() {
-      return [
-        {
-          theme: "高スコア検証",
-          role: "high_validation",
-          objective: "強み確認",
-          text: "最近、強みが生きた出来事は何でしたか？",
-          requiredPoints: ["具体例", "理由"],
-          rubric: {
-            targetTraits: ["BIG5上位", "RIASEC上位"],
-            confirmSignals: ["具体的な行動", "結果の説明"],
-            contradictSignals: ["抽象的すぎる回答", "実例不足"]
-          }
-        },
-        {
-          theme: "低スコア検証",
-          role: "low_validation",
-          objective: "苦手確認",
-          text: "最近、苦手で困った場面は何でしたか？",
-          requiredPoints: ["困った点", "対処"],
-          rubric: {
-            targetTraits: ["BIG5下位", "RIASEC下位"],
-            confirmSignals: ["課題の自己認識", "対処の説明"],
-            contradictSignals: ["責任転嫁のみ", "対処が不明"]
-          }
-        },
-        {
-          theme: "矛盾検証",
-          role: "contradiction_check",
-          objective: "矛盾確認",
-          text: "いつもと違う行動をしたのはどんな時でしたか？",
-          requiredPoints: ["きっかけ", "学び"],
-          rubric: {
-            targetTraits: ["交差領域", "状況依存性"],
-            confirmSignals: ["状況変化の説明", "自己理解の一貫性"],
-            contradictSignals: ["場面と行動の不一致", "説明不足"]
-          }
-        }
-      ];
-    }
-
     function normalizeText(value, fallback = "") {
       return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
     }
@@ -762,27 +739,45 @@
       return `${short}？`;
     }
 
-    function normalizeDynamicQuestion(raw, index) {
-      const fallbackSet = fallbackDynamicQuestions();
-      const fallback = fallbackSet[index] || fallbackSet[0];
+    function normalizeDynamicQuestion(raw) {
       const requiredPoints = normalizeStringArray(raw?.required_points || raw?.requiredPoints);
       const targetTraits = normalizeStringArray(raw?.rubric?.target_traits || raw?.rubric?.targetTraits);
       const confirmSignals = normalizeStringArray(raw?.rubric?.confirm_signals || raw?.rubric?.confirmSignals);
       const contradictSignals = normalizeStringArray(raw?.rubric?.contradict_signals || raw?.rubric?.contradictSignals);
+      const text = shortenQuestionText(raw?.text, "");
+      if (!text) return null;
 
       return {
-        theme: normalizeText(raw?.theme, fallback.theme),
-        role: normalizeText(raw?.role, fallback.role),
-        objective: normalizeText(raw?.objective, fallback.objective),
-        text: shortenQuestionText(raw?.text, fallback.text),
-        requiredPoints: requiredPoints.length ? requiredPoints : fallback.requiredPoints,
+        theme: normalizeText(raw?.theme, "Deep Dive"),
+        role: normalizeText(raw?.role, "probe"),
+        objective: normalizeText(raw?.objective, ""),
+        text,
+        requiredPoints,
         rubric: {
-          targetTraits: targetTraits.length ? targetTraits : fallback.rubric.targetTraits,
-          confirmSignals: confirmSignals.length ? confirmSignals : fallback.rubric.confirmSignals,
-          contradictSignals: contradictSignals.length ? contradictSignals : fallback.rubric.contradictSignals
+          targetTraits,
+          confirmSignals,
+          contradictSignals
         }
       };
     }
+
+    function setDynamicQuestionGenerationUi({ loading, errorMessage = "" }) {
+      const loadingEl = document.getElementById('dynamic-q-loading');
+      const errorEl = document.getElementById('dynamic-q-error');
+      const errorTextEl = document.getElementById('dynamic-q-error-text');
+      if (loadingEl) loadingEl.classList.toggle('hidden', !loading);
+      if (errorEl) errorEl.classList.toggle('hidden', loading);
+      if (errorTextEl) {
+        errorTextEl.textContent = loading
+          ? ""
+          : (errorMessage || "質問の生成に失敗しました。再問い合わせしてください。");
+      }
+    }
+
+    window.retryDynamicQuestions = async () => {
+      if (isGeneratingDynamicQuestions) return;
+      await generateDynamicQuestions();
+    };
 
     function pickScoreSubset(source, traits) {
       const result = {};
@@ -872,6 +867,7 @@
     async function generateDynamicQuestions() {
       if (isGeneratingDynamicQuestions) return;
       isGeneratingDynamicQuestions = true;
+      setDynamicQuestionGenerationUi({ loading: true, errorMessage: "" });
       showScreen('generating-q');
       
       // Calculate basic scores
@@ -951,19 +947,22 @@
 
       try {
         const data = await fetchGemini(prompt, schema);
-        dynamicQuestions = Array.isArray(data?.questions)
-          ? data.questions.slice(0, 3).map((q, idx) => normalizeDynamicQuestion(q, idx)).filter((q) => q.text.length > 0)
+        const generated = Array.isArray(data?.questions)
+          ? data.questions.slice(0, 3).map((q) => normalizeDynamicQuestion(q)).filter(Boolean)
           : [];
-        if (dynamicQuestions.length < 3) {
-          dynamicQuestions = fallbackDynamicQuestions();
+        if (generated.length !== 3) {
+          throw new Error("有効な3つの質問を生成できませんでした。");
         }
+        dynamicQuestions = generated;
         renderDynamicQuestions();
         showScreen('dynamic-question');
       } catch (err) {
         console.error(err);
-        dynamicQuestions = fallbackDynamicQuestions();
-        renderDynamicQuestions();
-        showScreen('dynamic-question');
+        const message = typeof err?.message === "string" && err.message.trim().length
+          ? err.message.trim()
+          : "質問の生成に失敗しました。";
+        setDynamicQuestionGenerationUi({ loading: false, errorMessage: `${message} 「再問い合わせする」を押してください。` });
+        showScreen('generating-q');
       } finally {
         isGeneratingDynamicQuestions = false;
       }
