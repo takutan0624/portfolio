@@ -1,6 +1,7 @@
 import admin from "firebase-admin";
 
 const DEFAULT_MODEL = process.env.SEIKAKU_GEMINI_MODEL || "gemini-2.5-pro";
+const FALLBACK_MODEL = process.env.SEIKAKU_GEMINI_FALLBACK_MODEL || "gemini-2.5-flash";
 const MAX_BODY_BYTES = 260000;
 const MAX_PROMPT_CHARS = 24000;
 const MAX_POINTS_PER_MIN = 80;
@@ -117,6 +118,35 @@ function parseUpstreamError(text) {
   }
 }
 
+async function callGeminiGenerateContent({ model, prompt, schema, temperature, geminiApiKey }) {
+  const safeModel = encodeURIComponent(String(model || "").trim());
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
+  const upstream = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        temperature,
+      },
+    }),
+  });
+  const text = await upstream.text();
+  return { upstream, text };
+}
+
+function shouldTryFallbackModel({ upstreamStatus, upstreamText, requestedModel, fallbackModel }) {
+  const primary = String(requestedModel || "").trim();
+  const fallback = String(fallbackModel || "").trim();
+  if (!primary || !fallback || primary === fallback) return false;
+  if (upstreamStatus === 429) return true;
+  const parsed = parseUpstreamError(upstreamText);
+  const hint = `${parsed.message} ${parsed.code}`.toLowerCase();
+  return hint.includes("resource_exhausted") || hint.includes("rate limit") || hint.includes("quota");
+}
+
 export default async function handler(req, res) {
   const allowedOrigins = getAllowedOrigins();
   const origin = req.headers.origin || "";
@@ -211,22 +241,36 @@ export default async function handler(req, res) {
       return;
     }
 
-    const model = encodeURIComponent(input.model);
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
-    const upstream = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: input.prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: input.schema,
-          temperature: input.temperature,
-        },
-      }),
+    const primaryModel = String(input.model || "").trim() || DEFAULT_MODEL;
+    const fallbackModel = String(FALLBACK_MODEL || "").trim();
+
+    let usedModel = primaryModel;
+    let fallbackUsed = false;
+    let { upstream, text: upstreamText } = await callGeminiGenerateContent({
+      model: primaryModel,
+      prompt: input.prompt,
+      schema: input.schema,
+      temperature: input.temperature,
+      geminiApiKey,
     });
 
-    const upstreamText = await upstream.text();
+    if (!upstream.ok && shouldTryFallbackModel({
+      upstreamStatus: upstream.status,
+      upstreamText,
+      requestedModel: primaryModel,
+      fallbackModel,
+    })) {
+      fallbackUsed = true;
+      usedModel = fallbackModel;
+      ({ upstream, text: upstreamText } = await callGeminiGenerateContent({
+        model: fallbackModel,
+        prompt: input.prompt,
+        schema: input.schema,
+        temperature: input.temperature,
+        geminiApiKey,
+      }));
+    }
+
     if (!upstream.ok) {
       const parsed = parseUpstreamError(upstreamText);
       const msg = parsed.message || "Gemini request failed";
@@ -236,7 +280,8 @@ export default async function handler(req, res) {
           ? Math.ceil(retryAfterHeader)
           : 15;
         res.setHeader("Retry-After", String(retrySec));
-        res.status(429).json({ error: `Rate limit reached. Please try again in ${retrySec}s.` });
+        const suffix = fallbackUsed ? " (fallback model also rate-limited)" : "";
+        res.status(429).json({ error: `Rate limit reached. Please try again in ${retrySec}s.${suffix}` });
         return;
       }
       res.status(upstream.status).json({ error: msg.slice(0, 400) });
@@ -265,7 +310,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    res.status(200).json({ ok: true, data });
+    res.status(200).json({ ok: true, data, model: usedModel, fallbackUsed });
   } catch (err) {
     const status = Number(err?.status || 500);
     const message = String(err?.message || "Internal server error");
