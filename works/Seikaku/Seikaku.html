@@ -302,8 +302,7 @@
     import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- Config & Globals ---
-    const apiKey = "";
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const GEMINI_PROXY_ENDPOINT = "/api/gemini-seikaku";
     
     const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-antiage", "/api/firebase-config-mental"];
     const FIREBASE_APP_NAME = "antiage-auth";
@@ -594,25 +593,34 @@
     }
 
     async function fetchGemini(prompt, schema) {
-      const payload = {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: schema
-        }
-      };
+      if (!user) {
+        throw new Error("Not signed in");
+      }
       
       let delay = 1000;
       for (let i = 0; i < 5; i++) {
         try {
-          const res = await fetch(API_URL, {
+          const token = await user.getIdToken(true);
+          const res = await fetch(GEMINI_PROXY_ENDPOINT, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ prompt, schema })
           });
-          if (!res.ok) throw new Error("API Error");
-          const data = await res.json();
-          return JSON.parse(data.candidates[0].content.parts[0].text);
+          const raw = await res.text();
+          if (!res.ok) {
+            let msg = "API Error";
+            try {
+              const parsed = JSON.parse(raw);
+              msg = parsed?.error || msg;
+            } catch {}
+            throw new Error(msg);
+          }
+          const parsed = JSON.parse(raw);
+          if (!parsed?.ok || !parsed?.data) throw new Error("Invalid API response");
+          return parsed.data;
         } catch (e) {
           if (i === 4) throw e;
           await new Promise(r => setTimeout(r, delay));
