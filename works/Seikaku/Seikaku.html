@@ -249,6 +249,32 @@
           </div>
         </div>
 
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-gradient-to-br from-sky-50 to-indigo-50 rounded-[2rem] p-8 border border-sky-100 space-y-5">
+            <h4 class="text-sky-700 font-black flex items-center gap-2">
+              <i data-lucide="activity" class="w-5 h-5"></i>
+              BIG5 Scores
+            </h4>
+            <div id="res-big5" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+          </div>
+
+          <div class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-[2rem] p-8 border border-emerald-100 space-y-5">
+            <h4 class="text-emerald-700 font-black flex items-center gap-2">
+              <i data-lucide="compass" class="w-5 h-5"></i>
+              RIASEC Aptitude
+            </h4>
+            <div id="res-riasec" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-indigo-50 to-cyan-50 rounded-[2rem] p-8 border border-indigo-100 space-y-4">
+          <h4 class="text-indigo-700 font-black flex items-center gap-2">
+            <i data-lucide="git-merge" class="w-5 h-5"></i>
+            Hybrid Synthesis (BIG5 × RIASEC × Deep Answers)
+          </h4>
+          <p id="res-hybrid" class="text-indigo-800 text-sm md:text-base leading-relaxed"></p>
+        </div>
+
         <div class="bg-gradient-to-r from-amber-50 to-rose-50 rounded-[2rem] p-8 border border-amber-100 space-y-4">
           <h4 class="text-rose-700 font-black flex items-center gap-2">
             <i data-lucide="eye" class="w-5 h-5"></i>
@@ -345,6 +371,25 @@
       { label: '非常にある', value: 5, color: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200' }
     ];
 
+    const BIG5_TRAITS = ['Openness', 'Conscientiousness', 'Extraversion', 'Agreeableness', 'Neuroticism'];
+    const BIG5_LABELS = {
+      Openness: '開放性',
+      Conscientiousness: '誠実性',
+      Extraversion: '外向性',
+      Agreeableness: '協調性',
+      Neuroticism: '神経傾向'
+    };
+
+    const RIASEC_TRAITS = ['Realistic', 'Investigative', 'Artistic', 'Social', 'Enterprising', 'Conventional'];
+    const RIASEC_LABELS = {
+      Realistic: 'Realistic',
+      Investigative: 'Investigative',
+      Artistic: 'Artistic',
+      Social: 'Social',
+      Enterprising: 'Enterprising',
+      Conventional: 'Conventional'
+    };
+
     const EXTRA_TOPICS = [
       { id: 'romance', title: '恋愛・パートナーシップ', icon: 'heart', prompt: 'この人物の恋愛傾向、惹かれる相手のタイプ、パートナーとしてうまくいくための条件を詳細に分析してください。（700〜1000字程度）' },
       { id: 'career', title: '天職とキャリア', icon: 'briefcase', prompt: 'この人物の才能が最も活きる職業環境、絶対に避けるべき職場、リーダーシップのスタイルについて詳細に分析してください。（700〜1000字程度）' },
@@ -359,6 +404,7 @@
     let currentQIndex = 0;
     let answers = {};
     let baseScores = {};
+    let riasecScores = {};
     let dynamicQuestions = [];
     let finalProfile = null;
 
@@ -608,6 +654,44 @@
       }
     }
 
+    function calculateNormalizedScores(traits) {
+      const scores = {};
+      traits.forEach((trait) => {
+        const subset = QUESTIONS.filter((q) => q.type === trait);
+        const sum = subset.reduce((acc, q) => acc + (answers[q.id] || 3), 0);
+        scores[trait] = Math.round((sum / (subset.length * 5)) * 100);
+      });
+      return scores;
+    }
+
+    function getTopTraits(scores, labels, topN = 2) {
+      return Object.entries(scores)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, topN)
+        .map(([key, value]) => `${labels[key] || key}(${value})`)
+        .join(' / ');
+    }
+
+    function fallbackDynamicQuestions() {
+      return [
+        { theme: "意思決定", text: "直近1年で最も悩んだ意思決定を1つ挙げ、何を重視して結論を出したかを具体的に教えてください。" },
+        { theme: "対人境界", text: "人間関係で『ここを超えるとしんどい』と感じる境界線は何ですか。実際の場面と一緒に教えてください。" },
+        { theme: "逆境反応", text: "想定外のトラブル時、最初の30分で頭の中に起きることと、実際に取る行動を順番に書いてください。" }
+      ];
+    }
+
+    function pickScoreSubset(source, traits) {
+      const result = {};
+      if (!source || typeof source !== 'object') return result;
+      traits.forEach((trait) => {
+        const raw = Number(source[trait]);
+        if (Number.isFinite(raw)) {
+          result[trait] = Math.max(0, Math.min(100, Math.round(raw)));
+        }
+      });
+      return result;
+    }
+
     async function fetchGemini(prompt, schema) {
       if (!user) {
         throw new Error("Not signed in");
@@ -649,16 +733,21 @@
       showScreen('generating-q');
       
       // Calculate basic scores
-      const traits = ['Openness', 'Conscientiousness', 'Extraversion', 'Agreeableness', 'Neuroticism'];
-      traits.forEach(t => {
-        const qSubset = QUESTIONS.filter(q => q.type === t);
-        const sum = qSubset.reduce((acc, q) => acc + (answers[q.id] || 3), 0);
-        baseScores[t] = Math.round(((sum / (qSubset.length * 5))) * 100);
-      });
+      baseScores = calculateNormalizedScores(BIG5_TRAITS);
+      riasecScores = calculateNormalizedScores(RIASEC_TRAITS);
+      const topBig5 = getTopTraits(baseScores, BIG5_LABELS, 2);
+      const topRiasec = getTopTraits(riasecScores, RIASEC_LABELS, 2);
 
       const prompt = `あなたは深層心理プロファイラーです。
-      BIG5スコア(${JSON.stringify(baseScores)})を基に、ユーザーの本質をさらに掘り下げるための「具体的で鋭い3つの自由記述質問」を作成してください。
-      1.金銭・リスク管理 2.他者との境界線 3.逆境での思考スタイル のテーマに沿ってください。`;
+      BIG5スコア(${JSON.stringify(baseScores)})とRIASECスコア(${JSON.stringify(riasecScores)})を別軸で解釈し、ユーザーの本質をさらに掘り下げるための「具体的で鋭い3つの自由記述質問」を作成してください。
+      重点:
+      - BIG5上位傾向: ${topBig5}
+      - RIASEC上位傾向: ${topRiasec}
+      テーマ:
+      1. 金銭・リスク管理
+      2. 他者との境界線
+      3. 逆境での思考スタイル
+      各質問は1つの行動場面を明確に想起できる粒度で作成してください。`;
 
       const schema = {
         type: "OBJECT",
@@ -678,12 +767,22 @@
 
       try {
         const data = await fetchGemini(prompt, schema);
-        dynamicQuestions = data.questions;
+        dynamicQuestions = Array.isArray(data?.questions)
+          ? data.questions.slice(0, 3).map((q) => ({
+              theme: q?.theme || 'Deep Dive',
+              text: q?.text || ''
+            })).filter((q) => q.text.length > 0)
+          : [];
+        if (dynamicQuestions.length < 3) {
+          dynamicQuestions = fallbackDynamicQuestions();
+        }
         renderDynamicQuestions();
         showScreen('dynamic-question');
       } catch (err) {
         console.error(err);
-        showScreen('questions');
+        dynamicQuestions = fallbackDynamicQuestions();
+        renderDynamicQuestions();
+        showScreen('dynamic-question');
       }
     }
 
@@ -714,17 +813,28 @@
     window.submitFreeText = async () => {
       if (!ensureSignedIn()) return;
       showScreen('analyzing');
-      const freeAnswers = dynamicQuestions.map((q, i) => `【${q.theme}】${q.text}\n回答: ${document.getElementById(`ans-${i}`).value}`).join('\n\n');
+      const dynamicAnswerPayload = dynamicQuestions.map((q, i) => ({
+        theme: q.theme,
+        question: q.text,
+        answer: document.getElementById(`ans-${i}`).value.trim()
+      }));
+      const freeAnswers = dynamicAnswerPayload
+        .map((entry) => `【${entry.theme}】${entry.question}\n回答: ${entry.answer}`)
+        .join('\n\n');
       
-      // 初回生成は基本情報のみに絞り、軽量化
-      const prompt = `以下のプロファイリングデータから、MBTIを超えた独自の性格診断結果を生成してください。
-      基本スコア: ${JSON.stringify(baseScores)}
+      const prompt = `以下のプロファイリングデータから、ハイブリッド型の性格診断結果を生成してください。
+      BIG5スコア: ${JSON.stringify(baseScores)}
+      RIASECスコア: ${JSON.stringify(riasecScores)}
       深層回答: ${freeAnswers}
       
       出力要件:
       - catchphrase: 18〜36文字程度で、抽象的すぎず人格の核を示す。
       - deepAnalysis: 900〜1400文字。思考パターン、意思決定の癖、対人傾向、ストレス下の反応、強みと弱みの因果関係を具体的に説明する。
+      - hybridSynthesis: 450〜800文字。BIG5とRIASECの交点を軸に、自由回答の内容がどこで裏付け/矛盾するかを整理する。
       - hiddenDesire: 500〜900文字。本人が無意識に求める状態、避けたい恐れ、行動に現れる補償行動まで掘り下げる。
+      - big5Interpretation: 250〜450文字。BIG5を単独で解釈する。
+      - riasecInterpretation: 250〜450文字。RIASECを単独で解釈する。
+      - スコア値は観測データとして扱い、数値そのものを書き換えない。
       - 文体は断定と根拠のバランスを取り、一般論ではなくこの回答内容に紐づける。
       - JSONのみを返し、余計な前置きは書かない。`;
 
@@ -732,21 +842,26 @@
         type: "OBJECT",
         properties: {
           catchphrase: { type: "STRING" },
-          adjustedScores: {
-            type: "OBJECT",
-            properties: {
-              Openness: { type: "NUMBER" }, Conscientiousness: { type: "NUMBER" },
-              Extraversion: { type: "NUMBER" }, Agreeableness: { type: "NUMBER" }, Neuroticism: { type: "NUMBER" }
-            }
-          },
           deepAnalysis: { type: "STRING" },
-          hiddenDesire: { type: "STRING" }
+          hybridSynthesis: { type: "STRING" },
+          hiddenDesire: { type: "STRING" },
+          big5Interpretation: { type: "STRING" },
+          riasecInterpretation: { type: "STRING" }
         }
       };
 
       try {
-        finalProfile = await fetchGemini(prompt, schema);
-        finalProfile.extraData = {}; // 初期化
+        const aiProfile = await fetchGemini(prompt, schema);
+        finalProfile = {
+          ...aiProfile,
+          scoring: {
+            big5: { ...baseScores },
+            riasec: { ...riasecScores }
+          },
+          dynamicQuestions: dynamicQuestions.map((q) => ({ ...q })),
+          dynamicAnswers: dynamicAnswerPayload,
+          extraData: {}
+        };
         
         // 解析完了後に自動保存
         await autoSaveToCloud(finalProfile);
@@ -760,17 +875,85 @@
     };
 
     function renderResult(data) {
-      document.getElementById('res-catchphrase').textContent = data.catchphrase;
-      document.getElementById('res-analysis').textContent = data.deepAnalysis;
-      document.getElementById('res-hidden').textContent = data.hiddenDesire;
+      const storedBig5 = pickScoreSubset(data?.scoring?.big5, BIG5_TRAITS);
+      const storedRiasec = pickScoreSubset(data?.scoring?.riasec, RIASEC_TRAITS);
+      const legacyBig5 = pickScoreSubset(data?.adjustedScores, BIG5_TRAITS);
+      const legacyRiasec = pickScoreSubset(data?.adjustedScores, RIASEC_TRAITS);
+      const liveBig5 = pickScoreSubset(baseScores, BIG5_TRAITS);
+      const liveRiasec = pickScoreSubset(riasecScores, RIASEC_TRAITS);
+      const big5ForDisplay = Object.keys(storedBig5).length
+        ? storedBig5
+        : (Object.keys(legacyBig5).length ? legacyBig5 : liveBig5);
+      const riasecForDisplay = Object.keys(storedRiasec).length
+        ? storedRiasec
+        : (Object.keys(legacyRiasec).length ? legacyRiasec : liveRiasec);
+
+      baseScores = { ...big5ForDisplay };
+      riasecScores = { ...riasecForDisplay };
+
+      document.getElementById('res-catchphrase').textContent = data.catchphrase || '';
+      document.getElementById('res-analysis').textContent = data.deepAnalysis || '';
+      document.getElementById('res-hybrid').textContent = data.hybridSynthesis || data.deepAnalysis || '';
+      document.getElementById('res-hidden').textContent = data.hiddenDesire || '';
 
       const chartCont = document.getElementById('radar-chart-container');
-      chartCont.innerHTML = generateRadar(data.adjustedScores);
+      chartCont.innerHTML = generateRadar(big5ForDisplay);
+
+      renderBig5Scores(big5ForDisplay);
+      renderRiasecScores(riasecForDisplay);
       
       // 追加項目の描画
       renderExtraTopics();
 
       lucide.createIcons();
+    }
+
+    function renderScoreBars(containerId, items, scores, theme) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = items.map((item) => {
+        const raw = Number(scores[item.key]);
+        const value = Number.isFinite(raw) ? Math.max(0, Math.min(100, Math.round(raw))) : 0;
+        const valueClass = theme === 'sky' ? 'text-sky-700' : 'text-emerald-700';
+        const railClass = theme === 'sky' ? 'bg-sky-100' : 'bg-emerald-100';
+        const fillClass = theme === 'sky'
+          ? 'bg-gradient-to-r from-sky-400 to-indigo-500'
+          : 'bg-gradient-to-r from-emerald-400 to-teal-500';
+        return `
+          <div class="bg-white/80 rounded-xl border border-slate-100 p-3">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-600">
+              <span>${item.label}</span>
+              <span class="${valueClass}">${value}</span>
+            </div>
+            <div class="mt-2 h-2 ${railClass} rounded-full overflow-hidden">
+              <div class="h-full ${fillClass}" style="width:${value}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderBig5Scores(scores) {
+      const items = [
+        { key: 'Openness', label: '開放性' },
+        { key: 'Conscientiousness', label: '誠実性' },
+        { key: 'Extraversion', label: '外向性' },
+        { key: 'Agreeableness', label: '協調性' },
+        { key: 'Neuroticism', label: '神経傾向' }
+      ];
+      renderScoreBars('res-big5', items, scores, 'sky');
+    }
+
+    function renderRiasecScores(scores) {
+      const items = [
+        { key: 'Realistic', label: 'Realistic' },
+        { key: 'Investigative', label: 'Investigative' },
+        { key: 'Artistic', label: 'Artistic' },
+        { key: 'Social', label: 'Social' },
+        { key: 'Enterprising', label: 'Enterprising' },
+        { key: 'Conventional', label: 'Conventional' }
+      ];
+      renderScoreBars('res-riasec', items, scores, 'emerald');
     }
 
     function renderExtraTopics() {
@@ -835,7 +1018,10 @@
 
       [キャッチコピー]: ${finalProfile.catchphrase}
       [ベース分析]: ${finalProfile.deepAnalysis}
+      [ハイブリッド統合]: ${finalProfile.hybridSynthesis || finalProfile.deepAnalysis}
       [隠された欲求]: ${finalProfile.hiddenDesire}
+      [BIG5スコア]: ${JSON.stringify(finalProfile.scoring?.big5 || baseScores)}
+      [RIASECスコア]: ${JSON.stringify(finalProfile.scoring?.riasec || riasecScores)}
 
       指示:
       ・${topic.prompt}
@@ -885,7 +1071,8 @@
 
       const getXY = (val, i) => {
         const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
-        const r = (val / 100) * radius;
+        const safeVal = Number.isFinite(Number(val)) ? Number(val) : 0;
+        const r = (Math.max(0, Math.min(100, safeVal)) / 100) * radius;
         return { x: center + r * Math.cos(angle), y: center + r * Math.sin(angle) };
       };
 
@@ -941,6 +1128,14 @@
       const item = historyData.find(h => h.id === id);
       if (item) {
         currentDocId = item.id; // Set ID so extra topics save to correct doc
+        const historyBig5 = pickScoreSubset(item?.scoring?.big5, BIG5_TRAITS);
+        const historyRiasec = pickScoreSubset(item?.scoring?.riasec, RIASEC_TRAITS);
+        const legacyBig5 = pickScoreSubset(item?.adjustedScores, BIG5_TRAITS);
+        const legacyRiasec = pickScoreSubset(item?.adjustedScores, RIASEC_TRAITS);
+        if (Object.keys(historyBig5).length) baseScores = historyBig5;
+        else if (Object.keys(legacyBig5).length) baseScores = legacyBig5;
+        if (Object.keys(historyRiasec).length) riasecScores = historyRiasec;
+        else if (Object.keys(legacyRiasec).length) riasecScores = legacyRiasec;
         finalProfile = item;
         renderResult(item);
         showScreen('result');
