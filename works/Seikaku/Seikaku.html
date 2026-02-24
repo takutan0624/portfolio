@@ -408,6 +408,10 @@
     let riasecScores = {};
     let dynamicQuestions = [];
     let finalProfile = null;
+    let isAnswering = false;
+    let isGeneratingDynamicQuestions = false;
+    let isSubmittingProfile = false;
+    let geminiCooldownUntilMs = 0;
 
     // --- Firebase Auth ---
     function parseFirebaseConfigCandidate(candidate) {
@@ -607,6 +611,9 @@
       answers = {};
       finalProfile = null;
       currentDocId = null;
+      isAnswering = false;
+      isGeneratingDynamicQuestions = false;
+      isSubmittingProfile = false;
       lucide.createIcons();
       showScreen('intro');
     };
@@ -616,6 +623,9 @@
       if (!ensureSignedIn()) return;
       currentQIndex = 0;
       answers = {};
+      isAnswering = false;
+      isGeneratingDynamicQuestions = false;
+      isSubmittingProfile = false;
       renderQuestion();
       showScreen('questions');
     };
@@ -646,12 +656,21 @@
     }
 
     async function handleAnswer(val) {
+      if (isAnswering || isGeneratingDynamicQuestions) return;
+      isAnswering = true;
+      const optionButtons = document.querySelectorAll('#options-container button');
+      optionButtons.forEach((btn) => { btn.disabled = true; });
       answers[QUESTIONS[currentQIndex].id] = val;
       if (currentQIndex < QUESTIONS.length - 1) {
         currentQIndex++;
         renderQuestion();
+        isAnswering = false;
       } else {
-        await generateDynamicQuestions();
+        try {
+          await generateDynamicQuestions();
+        } finally {
+          isAnswering = false;
+        }
       }
     }
 
@@ -768,15 +787,32 @@
       return result;
     }
 
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function extractRetryAfterSec(text) {
+      if (typeof text !== 'string') return 0;
+      const match = text.match(/(\d+)\s*s\b/i);
+      if (!match) return 0;
+      const sec = Number(match[1]);
+      return Number.isFinite(sec) && sec > 0 ? sec : 0;
+    }
+
     async function fetchGemini(prompt, schema) {
       if (!user) {
         throw new Error("Not signed in");
       }
       
-      let delay = 1000;
-      for (let i = 0; i < 5; i++) {
+      let delay = 1200;
+      const maxAttempts = 2;
+      for (let i = 0; i < maxAttempts; i++) {
+        const now = Date.now();
+        if (geminiCooldownUntilMs > now) {
+          await sleep(geminiCooldownUntilMs - now);
+        }
         try {
-          const token = await user.getIdToken(true);
+          const token = await user.getIdToken();
           const res = await fetch(GEMINI_PROXY_ENDPOINT, {
             method: 'POST',
             headers: {
@@ -792,20 +828,41 @@
               const parsed = JSON.parse(raw);
               msg = parsed?.error || msg;
             } catch {}
-            throw new Error(msg);
+            const retryHeader = Number(res.headers.get("retry-after") || 0);
+            const retryAfterSec = Math.max(
+              Number.isFinite(retryHeader) && retryHeader > 0 ? Math.ceil(retryHeader) : 0,
+              extractRetryAfterSec(msg)
+            );
+            const err = new Error(msg);
+            err.status = res.status;
+            err.retryAfterSec = retryAfterSec;
+            throw err;
           }
           const parsed = JSON.parse(raw);
           if (!parsed?.ok || !parsed?.data) throw new Error("Invalid API response");
           return parsed.data;
         } catch (e) {
-          if (i === 4) throw e;
-          await new Promise(r => setTimeout(r, delay));
-          delay *= 2;
+          const status = Number(e?.status || 0);
+          if (status === 429) {
+            const retrySec = Math.max(1, Number(e?.retryAfterSec || 0), Math.ceil(delay / 1000));
+            geminiCooldownUntilMs = Date.now() + retrySec * 1000;
+            if (i === maxAttempts - 1) {
+              throw new Error(`Rate limit reached. Please try again in ${retrySec}s.`);
+            }
+            await sleep(retrySec * 1000);
+            continue;
+          }
+          if (i === maxAttempts - 1) throw e;
+          await sleep(delay);
+          delay = Math.min(delay * 2, 12000);
         }
       }
+      throw new Error("Gemini request failed");
     }
 
     async function generateDynamicQuestions() {
+      if (isGeneratingDynamicQuestions) return;
+      isGeneratingDynamicQuestions = true;
       showScreen('generating-q');
       
       // Calculate basic scores
@@ -897,6 +954,8 @@
         dynamicQuestions = fallbackDynamicQuestions();
         renderDynamicQuestions();
         showScreen('dynamic-question');
+      } finally {
+        isGeneratingDynamicQuestions = false;
       }
     }
 
@@ -929,6 +988,10 @@
 
     window.submitFreeText = async () => {
       if (!ensureSignedIn()) return;
+      if (isSubmittingProfile) return;
+      isSubmittingProfile = true;
+      const analyzeBtn = document.getElementById('analyze-btn');
+      if (analyzeBtn) analyzeBtn.disabled = true;
       showScreen('analyzing');
       const dynamicAnswerPayload = dynamicQuestions.map((q, i) => ({
         theme: q.theme,
@@ -995,6 +1058,14 @@
       } catch (err) {
         console.error(err);
         showScreen('dynamic-question');
+      } finally {
+        isSubmittingProfile = false;
+        const btn = document.getElementById('analyze-btn');
+        if (btn) {
+          const inputs = document.querySelectorAll('#dynamic-questions-container textarea');
+          const allFilled = inputs.length > 0 && Array.from(inputs).every((ta) => ta.value.trim().length >= 40);
+          btn.disabled = !allFilled;
+        }
       }
     };
 
