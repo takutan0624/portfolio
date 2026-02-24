@@ -231,18 +231,22 @@ export default async function handler(req, res) {
     }
 
     const input = sanitizeInput(req.body);
+    const primaryModel = String(input.model || "").trim() || DEFAULT_MODEL;
+    const fallbackModel = String(FALLBACK_MODEL || "").trim();
+
     const ip = (req.headers["x-forwarded-for"] || "").toString().split(",")[0].trim();
     const rateKey = decoded.uid || ip || "unknown";
     const rate = consumeRateLimit(rateKey, input.points);
     if (!rate.allowed) {
       const retryAfterSec = Math.ceil(rate.retryAfterMs / 1000);
       res.setHeader("Retry-After", String(retryAfterSec));
-      res.status(429).json({ error: `Rate limit exceeded. Please try again in ${retryAfterSec}s.` });
+      res.status(429).json({
+        error: `Rate limit exceeded. Please try again in ${retryAfterSec}s.`,
+        fallbackAttempted: false,
+        attemptedModels: [primaryModel],
+      });
       return;
     }
-
-    const primaryModel = String(input.model || "").trim() || DEFAULT_MODEL;
-    const fallbackModel = String(FALLBACK_MODEL || "").trim();
 
     let usedModel = primaryModel;
     let fallbackUsed = false;
@@ -281,7 +285,11 @@ export default async function handler(req, res) {
           : 15;
         res.setHeader("Retry-After", String(retrySec));
         const suffix = fallbackUsed ? " (fallback model also rate-limited)" : "";
-        res.status(429).json({ error: `Rate limit reached. Please try again in ${retrySec}s.${suffix}` });
+        res.status(429).json({
+          error: `Rate limit reached. Please try again in ${retrySec}s.${suffix}`,
+          fallbackAttempted: fallbackUsed,
+          attemptedModels: fallbackUsed ? [primaryModel, fallbackModel] : [primaryModel],
+        });
         return;
       }
       res.status(upstream.status).json({ error: msg.slice(0, 400) });

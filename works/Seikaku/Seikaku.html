@@ -909,7 +909,10 @@
       }
       
       let delay = 1200;
-      const maxAttempts = 2;
+      const maxAttemptsRaw = Number(options?.maxAttempts);
+      const maxAttempts = Number.isFinite(maxAttemptsRaw)
+        ? Math.max(1, Math.min(4, Math.floor(maxAttemptsRaw)))
+        : 2;
       for (let i = 0; i < maxAttempts; i++) {
         const now = Date.now();
         if (geminiCooldownUntilMs > now) {
@@ -967,7 +970,8 @@
             geminiCooldownUntilMs = Date.now() + retrySec * 1000;
             startGeminiCooldownTicker();
             if (i === maxAttempts - 1) {
-              throw new Error(`Rate limit reached. Please try again in ${retrySec}s.`);
+              const serverMessage = typeof e?.message === "string" ? e.message.trim() : "";
+              throw new Error(serverMessage || `Rate limit reached. Please try again in ${retrySec}s.`);
             }
             await sleep(retrySec * 1000);
             continue;
@@ -1515,7 +1519,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
       };
 
       try {
-        const { data } = await fetchGemini(prompt, schema, { temperature: 0.66 });
+        const { data } = await fetchGemini(prompt, schema, { temperature: 0.66, maxAttempts: 1 });
         const resultText = data.analysisText;
         
         // Update local state
