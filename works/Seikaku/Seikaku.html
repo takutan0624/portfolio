@@ -299,7 +299,7 @@
   <script type="module">
     import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, serverTimestamp, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- Config & Globals ---
     const GEMINI_PROXY_ENDPOINT = "/api/gemini-seikaku";
@@ -498,9 +498,25 @@
           createdAt: serverTimestamp()
         });
         currentDocId = docRef.id;
+        await pruneHistoryToLastThree();
         showToast();
       } catch (err) {
         console.error("Auto Save Error:", err);
+      }
+    }
+
+    async function pruneHistoryToLastThree() {
+      if (!user) return;
+      try {
+        const historyCol = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
+        const q = query(historyCol, orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        const docs = snap.docs;
+        if (docs.length <= 3) return;
+        const staleDocs = docs.slice(3);
+        await Promise.all(staleDocs.map((d) => deleteDoc(d.ref)));
+      } catch (err) {
+        console.error("History prune error:", err);
       }
     }
 
@@ -899,7 +915,10 @@
         return;
       }
 
-      container.innerHTML = historyData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map(item => `
+      container.innerHTML = historyData
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        .slice(0, 3)
+        .map(item => `
         <div onclick='openHistoryItem("${item.id}")' class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex items-center justify-between">
           <div class="space-y-1">
             <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">${new Date(item.createdAt?.seconds * 1000).toLocaleDateString()}</span>
