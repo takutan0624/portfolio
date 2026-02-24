@@ -706,7 +706,7 @@
           theme: "高スコア検証",
           role: "high_validation",
           objective: "高く出た特性が実生活でも安定して現れるかを確認する",
-          text: "過去6か月で、あなたの強みが最も発揮された場面を1つ挙げてください。状況、選択肢、あなたが実際に取った行動、結果、振り返りを順に書いてください。",
+          text: "あなたの強みが最も発揮された場面を1つ挙げてください。状況、選択肢、あなたが実際に取った行動、結果、振り返りを順に書いてください。",
           requiredPoints: ["時期", "状況", "行動", "結果", "振り返り"],
           rubric: {
             targetTraits: ["BIG5上位", "RIASEC上位"],
@@ -718,7 +718,7 @@
           theme: "低スコア検証",
           role: "low_validation",
           objective: "低く出た特性が制約として現れているかを確認する",
-          text: "過去6か月で、苦手さが原因でうまくいかなかった場面を1つ挙げてください。状況、迷った選択肢、取った行動、結果、次回の改善策を書いてください。",
+          text: "苦手さが原因でうまくいかなかった場面を1つ挙げてください。状況、迷った選択肢、取った行動、結果、次回の改善策を書いてください。",
           requiredPoints: ["時期", "状況", "迷った選択肢", "結果", "改善策"],
           rubric: {
             targetTraits: ["BIG5下位", "RIASEC下位"],
@@ -730,7 +730,7 @@
           theme: "矛盾検証",
           role: "contradiction_check",
           objective: "スコア間の矛盾や状況依存の振れ幅を確認する",
-          text: "過去6か月で、普段の自分らしさと逆の行動を取った場面を1つ挙げてください。なぜその行動になったか、周囲への影響、最終的な学びまで書いてください。",
+          text: "普段の自分らしさと逆の行動を取った場面を1つ挙げてください。なぜその行動になったか、周囲への影響、最終的な学びまで書いてください。",
           requiredPoints: ["時期", "逆の行動", "背景要因", "周囲への影響", "学び"],
           rubric: {
             targetTraits: ["交差領域", "状況依存性"],
@@ -889,7 +889,7 @@
       3) contradiction_check: スコア矛盾・状況依存の確認
 
       制約:
-      - 各質問は「過去6か月の実例」を必須にする。
+      - 各質問は具体的な実例を必須にする。
       - 回答者に「時期 / 状況 / 行動 / 結果 / 振り返り」を書かせる。
       - 価値判断や断定で誘導しない。中立表現を使う。
       - 質問文は具体的で、1つの場面を想起できる粒度にする。
@@ -973,7 +973,7 @@
           <p class="text-xs text-slate-500 font-semibold">${q.objective || ''}</p>
           <h4 class="font-bold text-slate-800 text-lg">${q.text}</h4>
           <p class="text-[11px] text-slate-500 leading-relaxed">回答に含める要素: ${requiredPointsText}</p>
-          <textarea id="ans-${i}" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 text-sm focus:border-indigo-500 focus:outline-none focus:bg-white transition-all min-h-[120px]" placeholder="過去6か月の具体例を、時期・状況・行動・結果・振り返りの順で書いてください。"></textarea>
+          <textarea id="ans-${i}" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 text-sm focus:border-indigo-500 focus:outline-none focus:bg-white transition-all min-h-[120px]" placeholder="具体例を、時期・状況・行動・結果・振り返りの順で書いてください。"></textarea>
         `;
         container.appendChild(div);
       });
@@ -1021,7 +1021,7 @@
       - riasecInterpretation: 250〜450文字。RIASECを単独で解釈する。
       - evidenceSummary: 200〜400文字。回答が十分に具体的だった点と、推定の不確実性が残る点を整理する。
       - スコア値は観測データとして扱い、数値そのものを書き換えない。
-      - 文体は断定と根拠のバランスを取り、一般論ではなくこの回答内容に紐づける。特に「過去6か月の実例」に言及して根拠を示す。
+      - 文体は断定と根拠のバランスを取り、一般論ではなくこの回答内容に紐づける。具体例への言及で根拠を示す。
       - JSONのみを返し、余計な前置きは書かない。`;
 
       const schema = {
