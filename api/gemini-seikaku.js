@@ -1,6 +1,6 @@
 import admin from "firebase-admin";
 
-const DEFAULT_MODEL = process.env.SEIKAKU_GEMINI_MODEL || "gemini-2.5-flash";
+const DEFAULT_MODEL = process.env.SEIKAKU_GEMINI_MODEL || "gemini-2.5-pro";
 const MAX_BODY_BYTES = 260000;
 const MAX_PROMPT_CHARS = 24000;
 const MAX_POINTS_PER_MIN = 80;
