@@ -42,6 +42,32 @@
     .radar-polygon {
       transition: all 0.5s ease;
     }
+
+    .panel-strong {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow:
+        0 20px 44px -30px rgba(15, 23, 42, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    }
+
+    .feature-card {
+      position: relative;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: 0 14px 28px -24px rgba(15, 23, 42, 0.55);
+    }
+
+    .feature-card::before {
+      content: "";
+      position: absolute;
+      top: 0.7rem;
+      left: 1rem;
+      right: 1rem;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--feature-accent, #6366f1);
+      opacity: 0.9;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-[#f8fafc] text-slate-900 selection:bg-indigo-100 overflow-x-hidden relative">
@@ -95,7 +121,7 @@
       
       <!-- Screen: Intro -->
       <div id="screen-intro" class="fade-in space-y-8">
-        <div class="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-xl shadow-indigo-100/50 border border-slate-100 relative overflow-hidden">
+        <div class="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-xl shadow-indigo-100/50 border border-slate-100 relative overflow-hidden panel-strong">
           <div class="absolute top-0 right-0 p-8 opacity-10">
             <i data-lucide="sparkles" class="w-32 h-32 text-indigo-600"></i>
           </div>
@@ -122,17 +148,17 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="bg-indigo-50/50 p-6 rounded-[2rem] border border-indigo-100 flex flex-col gap-3">
+          <div class="feature-card p-6 rounded-[2rem] flex flex-col gap-3" style="--feature-accent: linear-gradient(90deg, #6366f1, #3b82f6);">
             <i data-lucide="fingerprint" class="text-indigo-600 w-8 h-8"></i>
             <h3 class="font-bold text-slate-800">唯一無二の分析</h3>
             <p class="text-sm text-slate-500 leading-relaxed">ありきたりな16タイプに当てはめるのではなく、あなたの言葉をAIが直接読み解きます。</p>
           </div>
-          <div class="bg-purple-50/50 p-6 rounded-[2rem] border border-purple-100 flex flex-col gap-3">
+          <div class="feature-card p-6 rounded-[2rem] flex flex-col gap-3" style="--feature-accent: linear-gradient(90deg, #8b5cf6, #ec4899);">
             <i data-lucide="database" class="text-purple-600 w-8 h-8"></i>
             <h3 class="font-bold text-slate-800">深層質問エンジン</h3>
             <p class="text-sm text-slate-500 leading-relaxed">回答傾向をもとに、次に答えるべき問いをAIが再構成し、診断の解像度を高めます。</p>
           </div>
-          <div class="bg-amber-50/50 p-6 rounded-[2rem] border border-amber-100 flex flex-col gap-3">
+          <div class="feature-card p-6 rounded-[2rem] flex flex-col gap-3" style="--feature-accent: linear-gradient(90deg, #f59e0b, #fb7185);">
             <i data-lucide="shield-check" class="text-amber-600 w-8 h-8"></i>
             <h3 class="font-bold text-slate-800">心理学的な裏付け</h3>
             <p class="text-sm text-slate-500 leading-relaxed">世界で最も信頼される性格特性論「BIG5」をベースにアルゴリズムを構築。</p>
