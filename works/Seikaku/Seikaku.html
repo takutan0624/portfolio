@@ -273,6 +273,7 @@
             Hybrid Synthesis (BIG5 × RIASEC × Deep Answers)
           </h4>
           <p id="res-hybrid" class="text-indigo-800 text-sm md:text-base leading-relaxed"></p>
+          <p id="res-evidence" class="text-xs md:text-sm text-indigo-600/90 leading-relaxed"></p>
         </div>
 
         <div class="bg-gradient-to-r from-amber-50 to-rose-50 rounded-[2rem] p-8 border border-amber-100 space-y-4">
@@ -672,12 +673,87 @@
         .join(' / ');
     }
 
+    function getBottomTraits(scores, labels, bottomN = 2) {
+      return Object.entries(scores)
+        .sort((a, b) => a[1] - b[1])
+        .slice(0, bottomN)
+        .map(([key, value]) => `${labels[key] || key}(${value})`)
+        .join(' / ');
+    }
+
     function fallbackDynamicQuestions() {
       return [
-        { theme: "意思決定", text: "直近1年で最も悩んだ意思決定を1つ挙げ、何を重視して結論を出したかを具体的に教えてください。" },
-        { theme: "対人境界", text: "人間関係で『ここを超えるとしんどい』と感じる境界線は何ですか。実際の場面と一緒に教えてください。" },
-        { theme: "逆境反応", text: "想定外のトラブル時、最初の30分で頭の中に起きることと、実際に取る行動を順番に書いてください。" }
+        {
+          theme: "高スコア検証",
+          role: "high_validation",
+          objective: "高く出た特性が実生活でも安定して現れるかを確認する",
+          text: "過去6か月で、あなたの強みが最も発揮された場面を1つ挙げてください。状況、選択肢、あなたが実際に取った行動、結果、振り返りを順に書いてください。",
+          requiredPoints: ["時期", "状況", "行動", "結果", "振り返り"],
+          rubric: {
+            targetTraits: ["BIG5上位", "RIASEC上位"],
+            confirmSignals: ["再現性のある行動パターン", "結果に対する因果説明"],
+            contradictSignals: ["抽象論のみ", "実例の欠如"]
+          }
+        },
+        {
+          theme: "低スコア検証",
+          role: "low_validation",
+          objective: "低く出た特性が制約として現れているかを確認する",
+          text: "過去6か月で、苦手さが原因でうまくいかなかった場面を1つ挙げてください。状況、迷った選択肢、取った行動、結果、次回の改善策を書いてください。",
+          requiredPoints: ["時期", "状況", "迷った選択肢", "結果", "改善策"],
+          rubric: {
+            targetTraits: ["BIG5下位", "RIASEC下位"],
+            confirmSignals: ["制約の自己認識", "改善の具体性"],
+            contradictSignals: ["責任の外部化のみ", "改善策の欠如"]
+          }
+        },
+        {
+          theme: "矛盾検証",
+          role: "contradiction_check",
+          objective: "スコア間の矛盾や状況依存の振れ幅を確認する",
+          text: "過去6か月で、普段の自分らしさと逆の行動を取った場面を1つ挙げてください。なぜその行動になったか、周囲への影響、最終的な学びまで書いてください。",
+          requiredPoints: ["時期", "逆の行動", "背景要因", "周囲への影響", "学び"],
+          rubric: {
+            targetTraits: ["交差領域", "状況依存性"],
+            confirmSignals: ["状況による特性変動の説明", "自己認識の一貫性"],
+            contradictSignals: ["説明不能な自己像", "場面と行動の不整合"]
+          }
+        }
       ];
+    }
+
+    function normalizeText(value, fallback = "") {
+      return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+    }
+
+    function normalizeStringArray(value) {
+      if (!Array.isArray(value)) return [];
+      return value
+        .map((v) => (typeof v === "string" ? v.trim() : ""))
+        .filter((v) => v.length > 0)
+        .slice(0, 8);
+    }
+
+    function normalizeDynamicQuestion(raw, index) {
+      const fallbackSet = fallbackDynamicQuestions();
+      const fallback = fallbackSet[index] || fallbackSet[0];
+      const requiredPoints = normalizeStringArray(raw?.required_points || raw?.requiredPoints);
+      const targetTraits = normalizeStringArray(raw?.rubric?.target_traits || raw?.rubric?.targetTraits);
+      const confirmSignals = normalizeStringArray(raw?.rubric?.confirm_signals || raw?.rubric?.confirmSignals);
+      const contradictSignals = normalizeStringArray(raw?.rubric?.contradict_signals || raw?.rubric?.contradictSignals);
+
+      return {
+        theme: normalizeText(raw?.theme, fallback.theme),
+        role: normalizeText(raw?.role, fallback.role),
+        objective: normalizeText(raw?.objective, fallback.objective),
+        text: normalizeText(raw?.text, fallback.text),
+        requiredPoints: requiredPoints.length ? requiredPoints : fallback.requiredPoints,
+        rubric: {
+          targetTraits: targetTraits.length ? targetTraits : fallback.rubric.targetTraits,
+          confirmSignals: confirmSignals.length ? confirmSignals : fallback.rubric.confirmSignals,
+          contradictSignals: contradictSignals.length ? contradictSignals : fallback.rubric.contradictSignals
+        }
+      };
     }
 
     function pickScoreSubset(source, traits) {
@@ -737,17 +813,35 @@
       riasecScores = calculateNormalizedScores(RIASEC_TRAITS);
       const topBig5 = getTopTraits(baseScores, BIG5_LABELS, 2);
       const topRiasec = getTopTraits(riasecScores, RIASEC_LABELS, 2);
+      const bottomBig5 = getBottomTraits(baseScores, BIG5_LABELS, 2);
+      const bottomRiasec = getBottomTraits(riasecScores, RIASEC_LABELS, 2);
 
-      const prompt = `あなたは深層心理プロファイラーです。
-      BIG5スコア(${JSON.stringify(baseScores)})とRIASECスコア(${JSON.stringify(riasecScores)})を別軸で解釈し、ユーザーの本質をさらに掘り下げるための「具体的で鋭い3つの自由記述質問」を作成してください。
-      重点:
-      - BIG5上位傾向: ${topBig5}
-      - RIASEC上位傾向: ${topRiasec}
-      テーマ:
-      1. 金銭・リスク管理
-      2. 他者との境界線
-      3. 逆境での思考スタイル
-      各質問は1つの行動場面を明確に想起できる粒度で作成してください。`;
+      const prompt = `あなたは心理測定を設計する専門家です。
+      目的は「性格診断の精度向上」であり、誘導尋問ではありません。BIG5とRIASECを混同せず、独立軸として扱ってください。
+      入力:
+      - BIG5スコア: ${JSON.stringify(baseScores)}
+      - RIASECスコア: ${JSON.stringify(riasecScores)}
+      - BIG5上位: ${topBig5}
+      - BIG5下位: ${bottomBig5}
+      - RIASEC上位: ${topRiasec}
+      - RIASEC下位: ${bottomRiasec}
+
+      3問を必ず次の役割で1問ずつ作成してください:
+      1) high_validation: 高スコア特性の妥当性確認
+      2) low_validation: 低スコア特性の制約確認
+      3) contradiction_check: スコア矛盾・状況依存の確認
+
+      制約:
+      - 各質問は「過去6か月の実例」を必須にする。
+      - 回答者に「時期 / 状況 / 行動 / 結果 / 振り返り」を書かせる。
+      - 価値判断や断定で誘導しない。中立表現を使う。
+      - 質問文は具体的で、1つの場面を想起できる粒度にする。
+
+      出力:
+      - questions 配列に3件だけ返す。
+      - 各要素に theme, role, objective, text, required_points, rubric を含める。
+      - rubricには target_traits, confirm_signals, contradict_signals を含める。
+      - JSONのみ返す。`;
 
       const schema = {
         type: "OBJECT",
@@ -758,7 +852,30 @@
               type: "OBJECT",
               properties: {
                 theme: { type: "STRING" },
-                text: { type: "STRING" }
+                role: { type: "STRING" },
+                objective: { type: "STRING" },
+                text: { type: "STRING" },
+                required_points: {
+                  type: "ARRAY",
+                  items: { type: "STRING" }
+                },
+                rubric: {
+                  type: "OBJECT",
+                  properties: {
+                    target_traits: {
+                      type: "ARRAY",
+                      items: { type: "STRING" }
+                    },
+                    confirm_signals: {
+                      type: "ARRAY",
+                      items: { type: "STRING" }
+                    },
+                    contradict_signals: {
+                      type: "ARRAY",
+                      items: { type: "STRING" }
+                    }
+                  }
+                }
               }
             }
           }
@@ -768,10 +885,7 @@
       try {
         const data = await fetchGemini(prompt, schema);
         dynamicQuestions = Array.isArray(data?.questions)
-          ? data.questions.slice(0, 3).map((q) => ({
-              theme: q?.theme || 'Deep Dive',
-              text: q?.text || ''
-            })).filter((q) => q.text.length > 0)
+          ? data.questions.slice(0, 3).map((q, idx) => normalizeDynamicQuestion(q, idx)).filter((q) => q.text.length > 0)
           : [];
         if (dynamicQuestions.length < 3) {
           dynamicQuestions = fallbackDynamicQuestions();
@@ -790,21 +904,24 @@
       const container = document.getElementById('dynamic-questions-container');
       container.innerHTML = '';
       dynamicQuestions.forEach((q, i) => {
+        const requiredPointsText = Array.isArray(q.requiredPoints) ? q.requiredPoints.join(' / ') : '';
         const div = document.createElement('div');
         div.className = "bg-white p-7 rounded-[2rem] shadow-lg border border-slate-100 space-y-4";
         div.innerHTML = `
           <div class="flex items-center gap-2">
             <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">${q.theme}</span>
           </div>
+          <p class="text-xs text-slate-500 font-semibold">${q.objective || ''}</p>
           <h4 class="font-bold text-slate-800 text-lg">${q.text}</h4>
-          <textarea id="ans-${i}" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 text-sm focus:border-indigo-500 focus:outline-none focus:bg-white transition-all min-h-[100px]" placeholder="あなたの考えを自由に書いてください..."></textarea>
+          <p class="text-[11px] text-slate-500 leading-relaxed">回答に含める要素: ${requiredPointsText}</p>
+          <textarea id="ans-${i}" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 text-sm focus:border-indigo-500 focus:outline-none focus:bg-white transition-all min-h-[120px]" placeholder="過去6か月の具体例を、時期・状況・行動・結果・振り返りの順で書いてください。"></textarea>
         `;
         container.appendChild(div);
       });
       
       const inputs = container.querySelectorAll('textarea');
       const validate = () => {
-        const allFilled = Array.from(inputs).every(ta => ta.value.trim().length > 5);
+        const allFilled = Array.from(inputs).every(ta => ta.value.trim().length >= 40);
         document.getElementById('analyze-btn').disabled = !allFilled;
       };
       inputs.forEach(ta => ta.addEventListener('input', validate));
@@ -815,16 +932,21 @@
       showScreen('analyzing');
       const dynamicAnswerPayload = dynamicQuestions.map((q, i) => ({
         theme: q.theme,
+        role: q.role || "",
+        objective: q.objective || "",
         question: q.text,
+        requiredPoints: Array.isArray(q.requiredPoints) ? q.requiredPoints : [],
+        rubric: q.rubric || {},
         answer: document.getElementById(`ans-${i}`).value.trim()
       }));
       const freeAnswers = dynamicAnswerPayload
-        .map((entry) => `【${entry.theme}】${entry.question}\n回答: ${entry.answer}`)
+        .map((entry) => `【${entry.theme}/${entry.role}】${entry.question}\n目的: ${entry.objective}\n要件: ${(entry.requiredPoints || []).join(' / ')}\n回答: ${entry.answer}`)
         .join('\n\n');
       
       const prompt = `以下のプロファイリングデータから、ハイブリッド型の性格診断結果を生成してください。
       BIG5スコア: ${JSON.stringify(baseScores)}
       RIASECスコア: ${JSON.stringify(riasecScores)}
+      質問設計ルーブリック: ${JSON.stringify(dynamicQuestions)}
       深層回答: ${freeAnswers}
       
       出力要件:
@@ -834,8 +956,9 @@
       - hiddenDesire: 500〜900文字。本人が無意識に求める状態、避けたい恐れ、行動に現れる補償行動まで掘り下げる。
       - big5Interpretation: 250〜450文字。BIG5を単独で解釈する。
       - riasecInterpretation: 250〜450文字。RIASECを単独で解釈する。
+      - evidenceSummary: 200〜400文字。回答が十分に具体的だった点と、推定の不確実性が残る点を整理する。
       - スコア値は観測データとして扱い、数値そのものを書き換えない。
-      - 文体は断定と根拠のバランスを取り、一般論ではなくこの回答内容に紐づける。
+      - 文体は断定と根拠のバランスを取り、一般論ではなくこの回答内容に紐づける。特に「過去6か月の実例」に言及して根拠を示す。
       - JSONのみを返し、余計な前置きは書かない。`;
 
       const schema = {
@@ -846,7 +969,8 @@
           hybridSynthesis: { type: "STRING" },
           hiddenDesire: { type: "STRING" },
           big5Interpretation: { type: "STRING" },
-          riasecInterpretation: { type: "STRING" }
+          riasecInterpretation: { type: "STRING" },
+          evidenceSummary: { type: "STRING" }
         }
       };
 
@@ -895,6 +1019,11 @@
       document.getElementById('res-analysis').textContent = data.deepAnalysis || '';
       document.getElementById('res-hybrid').textContent = data.hybridSynthesis || data.deepAnalysis || '';
       document.getElementById('res-hidden').textContent = data.hiddenDesire || '';
+      const evidenceEl = document.getElementById('res-evidence');
+      if (evidenceEl) {
+        evidenceEl.textContent = data.evidenceSummary ? `Evidence Note: ${data.evidenceSummary}` : '';
+        evidenceEl.classList.toggle('hidden', !data.evidenceSummary);
+      }
 
       const chartCont = document.getElementById('radar-chart-container');
       chartCont.innerHTML = generateRadar(big5ForDisplay);
