@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeepProfile AI | 超精密性格プロファイリング</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+    
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { 
+      from { opacity: 0; transform: translateY(20px); } 
+      to { opacity: 1; transform: translateY(0); } 
+    }
+
+    .loader-ring {
+      border: 3px solid rgba(99, 102, 241, 0.1);
+      border-top: 3px solid #6366f1;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      animation: spin 1s cubic-bezier(0.55, 0.1, 0.15, 0.9) infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .radar-polygon {
+      transition: all 0.5s ease;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#f8fafc] text-slate-900 selection:bg-indigo-100 overflow-x-hidden relative">
+  
+  <!-- Auto Save Toast -->
+  <div id="auto-save-toast" class="fixed top-6 right-6 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 transform transition-all duration-500 translate-x-[120%] z-50">
+    <div class="bg-emerald-500/20 p-2 rounded-full">
+      <i data-lucide="cloud-check" class="text-emerald-400 w-5 h-5"></i>
+    </div>
+    <div>
+      <p class="font-bold text-sm">クラウドに自動保存しました</p>
+      <p class="text-xs text-slate-400 mt-0.5">履歴からいつでも確認できます</p>
+    </div>
+  </div>
+
+  <!-- Background Decorations -->
+  <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+    <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-100 rounded-full blur-[120px] opacity-50"></div>
+    <div class="absolute top-[40%] -right-[10%] w-[35%] h-[35%] bg-purple-100 rounded-full blur-[120px] opacity-40"></div>
+  </div>
+
+  <div class="max-w-4xl mx-auto px-4 py-8 md:py-12">
+    
+    <!-- Header -->
+    <header class="flex items-center justify-between mb-10 slide-up">
+      <div class="flex items-center gap-3">
+        <div class="bg-indigo-600 p-2.5 rounded-2xl text-white shadow-lg shadow-indigo-200 cursor-pointer" onclick="resetApp()">
+          <i data-lucide="brain-circuit" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-black tracking-tight text-slate-800">DeepProfile <span class="text-indigo-600">AI</span></h1>
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Version 3.0 Auto-Sync</p>
+        </div>
+      </div>
+      
+      <div id="user-status" class="flex items-center gap-3">
+        <button id="auth-btn" class="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+          Googleでログイン
+        </button>
+        <div class="hidden sm:flex flex-col items-end">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Your ID</span>
+          <span id="display-uid" class="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Connecting...</span>
+        </div>
+        <div id="phase-badge" class="hidden text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-1.5 rounded-full">
+          Phase 1
+        </div>
+      </div>
+    </header>
+
+    <main id="app-container" class="transition-all duration-500">
+      
+      <!-- Screen: Intro -->
+      <div id="screen-intro" class="fade-in space-y-8">
+        <div class="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-xl shadow-indigo-100/50 border border-slate-100 relative overflow-hidden">
+          <div class="absolute top-0 right-0 p-8 opacity-10">
+            <i data-lucide="sparkles" class="w-32 h-32 text-indigo-600"></i>
+          </div>
+
+          <div class="relative z-10 space-y-6 max-w-2xl">
+            <h2 class="text-4xl md:text-5xl font-black tracking-tight text-slate-900 leading-[1.1]">
+              MBTIを超える、<br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">あなたの「真実」を暴く。</span>
+            </h2>
+            <p class="text-slate-500 leading-relaxed text-lg">
+              最新のBIG5理論とAI解析を統合。16問の設問と、AIがあなた専用に生成する「深層質問」への回答から、100億通り以上のパターンであなたをプロファイリングします。
+            </p>
+            
+            <div class="flex flex-col sm:flex-row gap-4 pt-4">
+              <button onclick="startAssessment()" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-5 px-8 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-xl shadow-slate-200">
+                プロファイリングを開始
+                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+              </button>
+              <button onclick="toggleHistory()" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 border-2 border-slate-100 font-bold py-5 px-8 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
+                <i data-lucide="history" class="w-5 h-5"></i>
+                診断履歴を見る
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-indigo-50/50 p-6 rounded-[2rem] border border-indigo-100 flex flex-col gap-3">
+            <i data-lucide="fingerprint" class="text-indigo-600 w-8 h-8"></i>
+            <h3 class="font-bold text-slate-800">唯一無二の分析</h3>
+            <p class="text-sm text-slate-500 leading-relaxed">ありきたりな16タイプに当てはめるのではなく、あなたの言葉をAIが直接読み解きます。</p>
+          </div>
+          <div class="bg-purple-50/50 p-6 rounded-[2rem] border border-purple-100 flex flex-col gap-3">
+            <i data-lucide="database" class="text-purple-600 w-8 h-8"></i>
+            <h3 class="font-bold text-slate-800">全自動クラウド保存</h3>
+            <p class="text-sm text-slate-500 leading-relaxed">診断結果や追加生成された深層分析は、自動であなたのIDに紐付き保存されます。</p>
+          </div>
+          <div class="bg-amber-50/50 p-6 rounded-[2rem] border border-amber-100 flex flex-col gap-3">
+            <i data-lucide="shield-check" class="text-amber-600 w-8 h-8"></i>
+            <h3 class="font-bold text-slate-800">心理学的な裏付け</h3>
+            <p class="text-sm text-slate-500 leading-relaxed">世界で最も信頼される性格特性論「BIG5」をベースにアルゴリズムを構築。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen: History -->
+      <div id="screen-history" class="hidden fade-in space-y-6">
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-black text-slate-800 flex items-center gap-3">
+            <i data-lucide="history" class="text-indigo-600"></i>
+            診断履歴
+          </h2>
+          <button onclick="showScreen('intro')" class="text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors">
+            トップに戻る
+          </button>
+        </div>
+        
+        <div id="history-list" class="grid grid-cols-1 gap-4">
+          <!-- History items will be injected here -->
+          <div class="p-12 text-center text-slate-400 italic bg-white rounded-3xl border border-dashed border-slate-200">
+            履歴がありません。まずは診断を受けてみましょう。
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen: Questions -->
+      <div id="screen-questions" class="hidden glass rounded-[2.5rem] p-8 md:p-12 shadow-2xl space-y-10">
+        <div class="space-y-4">
+          <div class="flex justify-between items-end">
+            <span class="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Phase 1: Base Analysis</span>
+            <span id="q-progress-text" class="text-sm font-mono font-bold text-slate-400">01 / 16</span>
+          </div>
+          <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <div id="q-progress-bar" class="bg-indigo-600 h-full transition-all duration-500 ease-out" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="min-h-[140px] flex items-center">
+          <h3 id="question-text" class="text-2xl md:text-3xl font-black text-slate-800 leading-tight"></h3>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3" id="options-container">
+          <!-- Options injected here -->
+        </div>
+      </div>
+
+      <!-- Screen: Dynamic Question (Generating & Answering) -->
+      <div id="screen-generating-q" class="hidden flex flex-col items-center justify-center py-24 space-y-8 text-center bg-white rounded-[2.5rem] shadow-xl">
+        <div class="loader-ring"></div>
+        <div class="space-y-2">
+          <h3 class="text-2xl font-black text-slate-800">あなたの思考をトレース中</h3>
+          <p class="text-slate-500">回答パターンから、あなたの深層を突く質問を生成しています...</p>
+        </div>
+      </div>
+
+      <div id="screen-dynamic-question" class="hidden space-y-8">
+        <div class="bg-indigo-600 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden">
+          <i data-lucide="sparkles" class="absolute -bottom-4 -right-4 w-32 h-32 opacity-20"></i>
+          <div class="relative z-10">
+            <span class="inline-block px-3 py-1 bg-white/20 rounded-lg text-[10px] font-bold uppercase tracking-widest mb-4">Phase 2: Deep Dive</span>
+            <h2 class="text-2xl md:text-3xl font-black">AIが生成した「3つの鍵」</h2>
+            <p class="text-indigo-100 mt-2 text-sm md:text-base">これらの問いにどう答えるかで、あなたの輪郭が決定します。</p>
+          </div>
+        </div>
+
+        <div id="dynamic-questions-container" class="space-y-6">
+          <!-- Dynamic questions injected here -->
+        </div>
+
+        <button id="analyze-btn" onclick="submitFreeText()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-5 rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+          最終解析を実行する
+          <i data-lucide="zap" class="w-5 h-5 text-amber-400 fill-amber-400"></i>
+        </button>
+      </div>
+
+      <!-- Screen: Analyzing -->
+      <div id="screen-analyzing" class="hidden flex flex-col items-center justify-center py-24 space-y-8 text-center bg-slate-900 rounded-[2.5rem] shadow-2xl text-white">
+        <div class="loader-ring !border-white/10 !border-top-white"></div>
+        <div class="space-y-3">
+          <h3 class="text-2xl font-black">ディーププロファイリング中</h3>
+          <p class="text-slate-400 max-w-sm mx-auto">100億通りの性格マトリックスと照合し、<br/>あなただけの定義を構築しています...</p>
+        </div>
+      </div>
+
+      <!-- Screen: Result -->
+      <div id="screen-result" class="hidden space-y-10">
+        <!-- Hero Catchphrase -->
+        <div class="bg-white rounded-[2.5rem] p-10 md:p-16 text-center space-y-6 shadow-xl border border-slate-100 relative overflow-hidden">
+          <div class="absolute inset-0 bg-gradient-to-b from-indigo-50/30 to-transparent"></div>
+          <div class="relative z-10 space-y-4">
+            <span class="inline-block px-4 py-1 rounded-full bg-slate-100 text-slate-500 font-bold text-[10px] tracking-[0.3em] uppercase">Result Identity</span>
+            <h2 id="res-catchphrase" class="text-3xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 animate-gradient pb-2"></h2>
+          </div>
+        </div>
+
+        <!-- Metrics & Main Analysis -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          <div class="bg-white rounded-[2.5rem] p-8 shadow-xl border border-slate-100 flex flex-col items-center">
+            <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-8">Personality Spectrum</h3>
+            <div id="radar-chart-container" class="w-full aspect-square max-w-[320px]"></div>
+          </div>
+
+          <div class="space-y-6">
+            <div class="bg-indigo-600 text-white rounded-[2rem] p-8 shadow-lg relative overflow-hidden h-full">
+              <i data-lucide="quote" class="absolute top-4 right-6 w-12 h-12 opacity-20"></i>
+              <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <i data-lucide="scan-face" class="w-5 h-5"></i>
+                Base Insight
+              </h3>
+              <p id="res-analysis" class="text-indigo-50 leading-relaxed font-medium"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-amber-50 rounded-[2rem] p-8 border border-amber-100 space-y-4">
+          <h4 class="text-amber-900 font-black flex items-center gap-2">
+            <i data-lucide="eye" class="w-5 h-5"></i>
+            Hidden Self (隠された欲求)
+          </h4>
+          <p id="res-hidden" class="text-amber-800 text-sm md:text-base leading-relaxed"></p>
+        </div>
+
+        <!-- Extra Topics Generation -->
+        <div class="space-y-6 pt-8">
+          <div class="flex items-center gap-3 px-2">
+            <div class="bg-indigo-100 p-2 rounded-xl">
+              <i data-lucide="layers" class="w-5 h-5 text-indigo-600"></i>
+            </div>
+            <div>
+              <h3 class="text-xl md:text-2xl font-black text-slate-800">Deep Exploration</h3>
+              <p class="text-xs font-bold text-slate-400 mt-0.5">知りたい項目を選んでAIに深く掘り下げさせましょう</p>
+            </div>
+          </div>
+          
+          <div id="extra-topics-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Topics injected here -->
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-center pt-10 border-t border-slate-200">
+          <button onclick="toggleHistory()" class="bg-white hover:bg-slate-50 text-slate-700 border-2 border-slate-100 font-bold py-4 px-8 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
+            <i data-lucide="list" class="w-5 h-5"></i>
+            履歴一覧を見る
+          </button>
+          <button onclick="resetApp()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-8 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
+            <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+            新しく診断する
+          </button>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-16 text-center text-slate-400 text-xs pb-10 space-y-2">
+      <p>&copy; 2024 DeepProfile AI. All rights reserved.</p>
+      <p class="font-mono opacity-50">Experimental Cognitive Analysis Model v3.0</p>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, collection, onSnapshot, addDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- Config & Globals ---
+    const apiKey = "";
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    
+    const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-antiage", "/api/firebase-config-mental"];
+    const FIREBASE_APP_NAME = "antiage-auth";
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+    let app = null;
+    let auth = null;
+    let db = null;
+    let authProvider = null;
+    let user = null;
+    let historyUnsub = null;
+    let historyData = [];
+    let currentDocId = null; // To track currently viewed/saved document
+
+    // --- State & Constants ---
+    const QUESTIONS = [
+      { id: 'O1', type: 'Openness', text: '新しいアイデアや抽象的な概念について考えるのが好きだ。' },
+      { id: 'O2', type: 'Openness', text: '型破りな方法や、まだ誰もやっていないことに強く惹かれる。' },
+      { id: 'C1', type: 'Conscientiousness', text: '計画を立て、細かいリスクまで確認してから行動する。' },
+      { id: 'C2', type: 'Conscientiousness', text: '一度決めたルールや目標は、どんなに面倒でも最後までやり抜く。' },
+      { id: 'E1', type: 'Extraversion', text: '大勢の人がいる賑やかな場所に行くと、エネルギーが湧いてくる。' },
+      { id: 'E2', type: 'Extraversion', text: '沈黙が続くのが苦手で、自分から積極的に話題を振ることが多い。' },
+      { id: 'A1', type: 'Agreeableness', text: '他人が困っていると、自分の都合を後回しにしてでも助けたくなる。' },
+      { id: 'A2', type: 'Agreeableness', text: '議論で相手を論破するより、お互いが納得する妥協点を見つけたい。' },
+      { id: 'N1', type: 'Neuroticism', text: '些細な失敗や他人の何気ない一言をいつまでも引きずってしまう。' },
+      { id: 'N2', type: 'Neuroticism', text: 'プレッシャーがかかる状況や予期せぬトラブルで、冷静さを失いやすい。' },
+      { id: 'R1', type: 'Realistic', text: '抽象的な理論より、実際に手や体を動かして目に見える結果を出すのが好きだ。' },
+      { id: 'I1', type: 'Investigative', text: '複雑な問題に対して、データや論理を用いて分析的に答えを導き出すのが好きだ。' },
+      { id: 'A3', type: 'Artistic', text: '感情や直感を大切にし、自分なりの美意識や表現方法で何かを創り出したい。' },
+      { id: 'S1', type: 'Social', text: '人と深く関わり、相手の成長や問題解決をサポートすることに大きな喜びを感じる。' },
+      { id: 'E3', type: 'Enterprising', text: 'リーダーとして集団を引っ張り、目標を達成したり社会に影響を与えたりしたい。' },
+      { id: 'C3', type: 'Conventional', text: '決められた手順やルールに従い、正確かつ効率的に物事を処理することに安心感がある。' }
+    ];
+
+    const OPTIONS = [
+      { label: '全くない', value: 1, color: 'bg-rose-50 text-rose-700 hover:bg-rose-100 border-rose-200' },
+      { label: 'あまりない', value: 2, color: 'bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200' },
+      { label: 'どちらでもない', value: 3, color: 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200' },
+      { label: 'ややある', value: 4, color: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200' },
+      { label: '非常にある', value: 5, color: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200' }
+    ];
+
+    const EXTRA_TOPICS = [
+      { id: 'romance', title: '恋愛・パートナーシップ', icon: 'heart', prompt: 'この人物の恋愛傾向、惹かれる相手のタイプ、パートナーとしてうまくいくための条件を詳細に分析してください。（300〜400字程度）' },
+      { id: 'career', title: '天職とキャリア', icon: 'briefcase', prompt: 'この人物の才能が最も活きる職業環境、絶対に避けるべき職場、リーダーシップのスタイルについて詳細に分析してください。（300〜400字程度）' },
+      { id: 'stress', title: 'ストレスと地雷ポイント', icon: 'bomb', prompt: 'この人物が密かにストレスを抱える要因、激怒する・あるいは心を閉ざす「地雷」ポイントとその対処法を詳細に分析してください。（300〜400字程度）' },
+      { id: 'talent', title: '隠された才能', icon: 'sparkles', prompt: '本人がまだ自覚していない可能性が高い、他の人にはない特異な才能やポテンシャルについて詳細に分析してください。（300〜400字程度）' },
+      { id: 'money', title: '金銭感覚とリスク', icon: 'coins', prompt: 'この人物のお金に対する価値観、浪費しやすいポイント、リスクを取る際の思考回路について詳細に分析してください。（300〜400字程度）' },
+      { id: 'darkside', title: '人間関係のダークサイド', icon: 'moon', prompt: '極限のストレス下や絶望した時に現れる「闇落ち」した姿（シャドウ）と、他者を無意識にコントロールしようとする際の癖について詳細に分析してください。（300〜400字程度）' },
+      { id: 'growth', title: '人生最大の壁と突破口', icon: 'mountain', prompt: 'この人物が人生で何度もぶつかるであろう本質的な「壁」と、それを乗り越えるための具体的な突破口について詳細に分析してください。（300〜400字程度）' },
+      { id: 'lifestyle', title: '究極の理想のライフスタイル', icon: 'coffee', prompt: 'この人物が心からの安らぎと充実を感じる、究極的に理想とする生活環境や日常のルーティンについて詳細に分析してください。（300〜400字程度）' }
+    ];
+
+    let currentQIndex = 0;
+    let answers = {};
+    let baseScores = {};
+    let dynamicQuestions = [];
+    let finalProfile = null;
+
+    // --- Firebase Auth ---
+    function parseFirebaseConfigCandidate(candidate) {
+      if (!candidate) return null;
+      if (typeof candidate === "string") {
+        try {
+          return JSON.parse(candidate);
+        } catch {
+          return null;
+        }
+      }
+      if (typeof candidate === "object") return candidate;
+      return null;
+    }
+
+    function isValidFirebaseConfig(config) {
+      return !!(config && config.apiKey && config.projectId && config.authDomain);
+    }
+
+    function readFirebaseConfigRuntime() {
+      const direct = parseFirebaseConfigCandidate(typeof __firebase_config !== "undefined" ? __firebase_config : null);
+      if (isValidFirebaseConfig(direct)) return direct;
+
+      const fromWindow = parseFirebaseConfigCandidate(window.__FIREBASE_CONFIG__);
+      if (isValidFirebaseConfig(fromWindow)) return fromWindow;
+
+      const meta = document.querySelector('meta[name="firebase-config"]');
+      const fromMeta = parseFirebaseConfigCandidate(meta?.content);
+      if (isValidFirebaseConfig(fromMeta)) return fromMeta;
+      return null;
+    }
+
+    async function fetchFirebaseConfigFromServer() {
+      for (const endpoint of FIREBASE_CONFIG_ENDPOINTS) {
+        try {
+          const res = await fetch(endpoint, { method: "GET", cache: "no-store" });
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (isValidFirebaseConfig(data)) return data;
+        } catch {}
+      }
+      return null;
+    }
+
+    function updateAuthUi() {
+      const authBtn = document.getElementById("auth-btn");
+      const uidEl = document.getElementById("display-uid");
+      if (!authBtn || !uidEl) return;
+      if (user) {
+        authBtn.textContent = "ログアウト";
+        uidEl.textContent = `${user.uid.substring(0, 8)}...`;
+      } else {
+        authBtn.textContent = "Googleでログイン";
+        uidEl.textContent = "ログインが必要です";
+      }
+    }
+
+    async function initFirebaseAuth() {
+      const firebaseConfig = readFirebaseConfigRuntime() || await fetchFirebaseConfigFromServer();
+      if (!isValidFirebaseConfig(firebaseConfig)) {
+        throw new Error("Firebase設定が見つかりません。/api/firebase-config-antiage を確認してください。");
+      }
+
+      app = getApps().some((a) => a.name === FIREBASE_APP_NAME)
+        ? getApp(FIREBASE_APP_NAME)
+        : initializeApp(firebaseConfig, FIREBASE_APP_NAME);
+      auth = getAuth(app);
+      db = getFirestore(app);
+      authProvider = new GoogleAuthProvider();
+      authProvider.setCustomParameters({ prompt: "select_account" });
+
+      onAuthStateChanged(auth, (u) => {
+        user = u || null;
+        currentDocId = null;
+        if (historyUnsub) {
+          historyUnsub();
+          historyUnsub = null;
+        }
+        if (user) {
+          loadHistory();
+        } else {
+          historyData = [];
+          renderHistoryList();
+        }
+        updateAuthUi();
+      });
+
+      const authBtn = document.getElementById("auth-btn");
+      authBtn?.addEventListener("click", async () => {
+        if (!auth) return;
+        authBtn.disabled = true;
+        try {
+          if (user) {
+            await signOut(auth);
+          } else {
+            await signInWithPopup(auth, authProvider);
+          }
+        } catch (err) {
+          console.error("Auth Error:", err);
+          alert("ログイン処理でエラーが発生しました。時間をおいて再試行してください。");
+        } finally {
+          authBtn.disabled = false;
+        }
+      });
+
+      updateAuthUi();
+    }
+
+    initFirebaseAuth().catch((err) => {
+      console.error("Firebase Init Error:", err);
+      const uidEl = document.getElementById("display-uid");
+      if (uidEl) uidEl.textContent = "設定エラー";
+      const authBtn = document.getElementById("auth-btn");
+      if (authBtn) authBtn.disabled = true;
+      alert("Firebase設定の取得に失敗しました。管理者設定を確認してください。");
+    });
+
+    // --- Firestore Functions ---
+    function loadHistory() {
+      if (!user) return;
+      const historyCol = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
+      historyUnsub = onSnapshot(historyCol, (snapshot) => {
+        historyData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderHistoryList();
+      }, (err) => console.error("Firestore Error:", err));
+    }
+
+    async function autoSaveToCloud(profileData) {
+      if (!user) return;
+      try {
+        const historyCol = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
+        const docRef = await addDoc(historyCol, {
+          ...profileData,
+          extraData: {}, // 追加項目の格納用
+          createdAt: serverTimestamp()
+        });
+        currentDocId = docRef.id;
+        showToast();
+      } catch (err) {
+        console.error("Auto Save Error:", err);
+      }
+    }
+
+    function showToast() {
+      const toast = document.getElementById('auto-save-toast');
+      toast.classList.remove('translate-x-[120%]');
+      setTimeout(() => {
+        toast.classList.add('translate-x-[120%]');
+      }, 4000);
+    }
+
+    // --- Navigation ---
+    window.showScreen = (screenId) => {
+      const screens = ['intro', 'history', 'questions', 'generating-q', 'dynamic-question', 'analyzing', 'result'];
+      screens.forEach(s => document.getElementById(`screen-${s}`).classList.add('hidden'));
+      document.getElementById(`screen-${screenId}`).classList.remove('hidden');
+      
+      const badge = document.getElementById('phase-badge');
+      if (screenId === 'questions') {
+        badge.classList.remove('hidden');
+        badge.textContent = 'Phase 1';
+      } else if (screenId === 'dynamic-question') {
+        badge.classList.remove('hidden');
+        badge.textContent = 'Phase 2';
+      } else {
+        badge.classList.add('hidden');
+      }
+      window.scrollTo(0, 0);
+    };
+
+    window.toggleHistory = () => showScreen('history');
+
+    function ensureSignedIn() {
+      if (user) return true;
+      alert("先にGoogleでログインしてください。");
+      return false;
+    }
+    
+    window.resetApp = () => {
+      currentQIndex = 0;
+      answers = {};
+      finalProfile = null;
+      currentDocId = null;
+      lucide.createIcons();
+      showScreen('intro');
+    };
+
+    // --- Core Logic ---
+    window.startAssessment = () => {
+      if (!ensureSignedIn()) return;
+      currentQIndex = 0;
+      answers = {};
+      renderQuestion();
+      showScreen('questions');
+    };
+
+    function renderQuestion() {
+      const q = QUESTIONS[currentQIndex];
+      const progress = ((currentQIndex + 1) / QUESTIONS.length) * 100;
+      
+      document.getElementById('q-progress-text').textContent = `${(currentQIndex + 1).toString().padStart(2, '0')} / ${QUESTIONS.length}`;
+      document.getElementById('q-progress-bar').style.width = `${progress}%`;
+      
+      const qText = document.getElementById('question-text');
+      qText.classList.remove('fade-in');
+      void qText.offsetWidth;
+      qText.textContent = q.text;
+      qText.classList.add('fade-in');
+
+      const container = document.getElementById('options-container');
+      container.innerHTML = '';
+      OPTIONS.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = `p-5 border-2 rounded-2xl text-left font-bold transition-all active:scale-[0.97] flex justify-between items-center ${opt.color}`;
+        btn.innerHTML = `<span>${opt.label}</span> <i data-lucide="circle" class="w-4 h-4 opacity-30"></i>`;
+        btn.onclick = () => handleAnswer(opt.value);
+        container.appendChild(btn);
+      });
+      lucide.createIcons();
+    }
+
+    async function handleAnswer(val) {
+      answers[QUESTIONS[currentQIndex].id] = val;
+      if (currentQIndex < QUESTIONS.length - 1) {
+        currentQIndex++;
+        renderQuestion();
+      } else {
+        await generateDynamicQuestions();
+      }
+    }
+
+    async function fetchGemini(prompt, schema) {
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: schema
+        }
+      };
+      
+      let delay = 1000;
+      for (let i = 0; i < 5; i++) {
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) throw new Error("API Error");
+          const data = await res.json();
+          return JSON.parse(data.candidates[0].content.parts[0].text);
+        } catch (e) {
+          if (i === 4) throw e;
+          await new Promise(r => setTimeout(r, delay));
+          delay *= 2;
+        }
+      }
+    }
+
+    async function generateDynamicQuestions() {
+      showScreen('generating-q');
+      
+      // Calculate basic scores
+      const traits = ['Openness', 'Conscientiousness', 'Extraversion', 'Agreeableness', 'Neuroticism'];
+      traits.forEach(t => {
+        const qSubset = QUESTIONS.filter(q => q.type === t);
+        const sum = qSubset.reduce((acc, q) => acc + (answers[q.id] || 3), 0);
+        baseScores[t] = Math.round(((sum / (qSubset.length * 5))) * 100);
+      });
+
+      const prompt = `あなたは深層心理プロファイラーです。
+      BIG5スコア(${JSON.stringify(baseScores)})を基に、ユーザーの本質をさらに掘り下げるための「具体的で鋭い3つの自由記述質問」を作成してください。
+      1.金銭・リスク管理 2.他者との境界線 3.逆境での思考スタイル のテーマに沿ってください。`;
+
+      const schema = {
+        type: "OBJECT",
+        properties: {
+          questions: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                theme: { type: "STRING" },
+                text: { type: "STRING" }
+              }
+            }
+          }
+        }
+      };
+
+      try {
+        const data = await fetchGemini(prompt, schema);
+        dynamicQuestions = data.questions;
+        renderDynamicQuestions();
+        showScreen('dynamic-question');
+      } catch (err) {
+        console.error(err);
+        showScreen('questions');
+      }
+    }
+
+    function renderDynamicQuestions() {
+      const container = document.getElementById('dynamic-questions-container');
+      container.innerHTML = '';
+      dynamicQuestions.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.className = "bg-white p-7 rounded-[2rem] shadow-lg border border-slate-100 space-y-4";
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">${q.theme}</span>
+          </div>
+          <h4 class="font-bold text-slate-800 text-lg">${q.text}</h4>
+          <textarea id="ans-${i}" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 text-sm focus:border-indigo-500 focus:outline-none focus:bg-white transition-all min-h-[100px]" placeholder="あなたの考えを自由に書いてください..."></textarea>
+        `;
+        container.appendChild(div);
+      });
+      
+      const inputs = container.querySelectorAll('textarea');
+      const validate = () => {
+        const allFilled = Array.from(inputs).every(ta => ta.value.trim().length > 5);
+        document.getElementById('analyze-btn').disabled = !allFilled;
+      };
+      inputs.forEach(ta => ta.addEventListener('input', validate));
+    }
+
+    window.submitFreeText = async () => {
+      if (!ensureSignedIn()) return;
+      showScreen('analyzing');
+      const freeAnswers = dynamicQuestions.map((q, i) => `【${q.theme}】${q.text}\n回答: ${document.getElementById(`ans-${i}`).value}`).join('\n\n');
+      
+      // 初回生成は基本情報のみに絞り、軽量化
+      const prompt = `以下のプロファイリングデータから、MBTIを超えた独自の性格診断結果を生成してください。
+      基本スコア: ${JSON.stringify(baseScores)}
+      深層回答: ${freeAnswers}
+      
+      キャッチフレーズ、微調整後のスコア、詳細な基本分析、隠された本性への洞察を含めてください。`;
+
+      const schema = {
+        type: "OBJECT",
+        properties: {
+          catchphrase: { type: "STRING" },
+          adjustedScores: {
+            type: "OBJECT",
+            properties: {
+              Openness: { type: "NUMBER" }, Conscientiousness: { type: "NUMBER" },
+              Extraversion: { type: "NUMBER" }, Agreeableness: { type: "NUMBER" }, Neuroticism: { type: "NUMBER" }
+            }
+          },
+          deepAnalysis: { type: "STRING" },
+          hiddenDesire: { type: "STRING" }
+        }
+      };
+
+      try {
+        finalProfile = await fetchGemini(prompt, schema);
+        finalProfile.extraData = {}; // 初期化
+        
+        // 解析完了後に自動保存
+        await autoSaveToCloud(finalProfile);
+        
+        renderResult(finalProfile);
+        showScreen('result');
+      } catch (err) {
+        console.error(err);
+        showScreen('dynamic-question');
+      }
+    };
+
+    function renderResult(data) {
+      document.getElementById('res-catchphrase').textContent = data.catchphrase;
+      document.getElementById('res-analysis').textContent = data.deepAnalysis;
+      document.getElementById('res-hidden').textContent = data.hiddenDesire;
+
+      const chartCont = document.getElementById('radar-chart-container');
+      chartCont.innerHTML = generateRadar(data.adjustedScores);
+      
+      // 追加項目の描画
+      renderExtraTopics();
+
+      lucide.createIcons();
+    }
+
+    function renderExtraTopics() {
+      const container = document.getElementById('extra-topics-container');
+      container.innerHTML = '';
+      
+      const extraData = finalProfile.extraData || {};
+
+      EXTRA_TOPICS.forEach(topic => {
+        const hasData = !!extraData[topic.id];
+        
+        const div = document.createElement('div');
+        div.className = "bg-white p-6 rounded-[2rem] shadow-lg border border-slate-100 flex flex-col justify-between";
+        div.id = `topic-card-${topic.id}`;
+        
+        let contentHtml = '';
+        if (hasData) {
+          contentHtml = `<p class="text-sm text-slate-600 leading-relaxed mt-4 fade-in">${extraData[topic.id]}</p>`;
+        } else {
+          contentHtml = `
+            <div class="mt-4">
+              <button id="btn-gen-${topic.id}" onclick="generateExtraTopic('${topic.id}')" class="w-full bg-slate-50 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors border border-slate-200 hover:border-indigo-200">
+                <i data-lucide="zap" class="w-4 h-4"></i>
+                AIで詳細を解析する
+              </button>
+              <div id="loading-${topic.id}" class="hidden w-full py-3 flex items-center justify-center gap-2 text-indigo-600 font-bold text-sm">
+                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 思考を巡らせています...
+              </div>
+            </div>
+          `;
+        }
+
+        div.innerHTML = `
+          <div>
+            <div class="flex items-center gap-3 mb-2">
+              <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center">
+                <i data-lucide="${topic.icon}" class="w-5 h-5"></i>
+              </div>
+              <h4 class="font-bold text-slate-800">${topic.title}</h4>
+            </div>
+          </div>
+          <div id="content-${topic.id}" class="flex-grow flex flex-col justify-end">
+            ${contentHtml}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+      lucide.createIcons();
+    }
+
+    window.generateExtraTopic = async (topicId) => {
+      const topic = EXTRA_TOPICS.find(t => t.id === topicId);
+      const btn = document.getElementById(`btn-gen-${topicId}`);
+      const loader = document.getElementById(`loading-${topicId}`);
+      const contentDiv = document.getElementById(`content-${topicId}`);
+
+      btn.classList.add('hidden');
+      loader.classList.remove('hidden');
+
+      const prompt = `あなたは世界トップクラスの深層心理アナリストです。
+      以下のプロファイルデータを基に、ユーザーの【${topic.title}】について詳細な分析を生成してください。
+
+      [キャッチコピー]: ${finalProfile.catchphrase}
+      [ベース分析]: ${finalProfile.deepAnalysis}
+      [隠された欲求]: ${finalProfile.hiddenDesire}
+
+      指示:
+      ・${topic.prompt}
+      ・ユーザーが読んで深く納得し、時にハッとするような鋭い洞察を含めてください。
+      ・回答は指定テーマの分析テキストのみをプレーンテキストで出力してください。`;
+
+      const schema = {
+        type: "OBJECT",
+        properties: {
+          analysisText: { type: "STRING" }
+        }
+      };
+
+      try {
+        const data = await fetchGemini(prompt, schema);
+        const resultText = data.analysisText;
+        
+        // Update local state
+        finalProfile.extraData = finalProfile.extraData || {};
+        finalProfile.extraData[topicId] = resultText;
+        
+        // Update UI
+        contentDiv.innerHTML = `<p class="text-sm text-slate-700 leading-relaxed mt-4 fade-in font-medium">${resultText}</p>`;
+        
+        // Update Cloud automatically
+        if (user && currentDocId) {
+          const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'history', currentDocId);
+          await updateDoc(docRef, { [`extraData.${topicId}`]: resultText });
+        }
+      } catch (err) {
+        console.error("Generate Extra Topic Error:", err);
+        btn.classList.remove('hidden');
+        loader.classList.add('hidden');
+        btn.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4"></i> エラーが発生しました。再試行`;
+        lucide.createIcons();
+      }
+    };
+
+    function generateRadar(scores) {
+      const size = 320;
+      const center = size / 2;
+      const radius = 110;
+      const labels = ['開放', '誠実', '外向', '協調', '神経'];
+      const keys = ['Openness', 'Conscientiousness', 'Extraversion', 'Agreeableness', 'Neuroticism'];
+
+      const getXY = (val, i) => {
+        const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+        const r = (val / 100) * radius;
+        return { x: center + r * Math.cos(angle), y: center + r * Math.sin(angle) };
+      };
+
+      const points = keys.map((k, i) => getXY(scores[k], i));
+      const polyStr = points.map(p => `${p.x},${p.y}`).join(' ');
+
+      let grids = "";
+      [0.2, 0.4, 0.6, 0.8, 1].forEach(l => {
+        const gp = keys.map((_, i) => getXY(100 * l, i));
+        grids += `<polygon points="${gp.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="#f1f5f9" stroke-width="1"/>`;
+      });
+
+      let axis = "";
+      keys.forEach((_, i) => {
+        const p = getXY(100, i);
+        const lp = getXY(125, i);
+        axis += `<line x1="${center}" y1="${center}" x2="${p.x}" y2="${p.y}" stroke="#f1f5f9"/>`;
+        axis += `<text x="${lp.x}" y="${lp.y}" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="900" fill="#94a3b8">${labels[i]}</text>`;
+      });
+
+      return `
+        <svg viewBox="0 0 ${size} ${size}" class="w-full h-full overflow-visible">
+          ${grids} ${axis}
+          <polygon points="${polyStr}" class="radar-polygon" fill="rgba(99, 102, 241, 0.15)" stroke="#6366f1" stroke-width="3"/>
+          ${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#6366f1"/>`).join('')}
+        </svg>
+      `;
+    }
+
+    function renderHistoryList() {
+      const container = document.getElementById('history-list');
+      if (historyData.length === 0) {
+        container.innerHTML = `<div class="p-12 text-center text-slate-400 italic bg-white rounded-3xl border border-dashed border-slate-200">履歴がありません。</div>`;
+        return;
+      }
+
+      container.innerHTML = historyData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map(item => `
+        <div onclick='openHistoryItem("${item.id}")' class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex items-center justify-between">
+          <div class="space-y-1">
+            <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">${new Date(item.createdAt?.seconds * 1000).toLocaleDateString()}</span>
+            <h4 class="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">${item.catchphrase}</h4>
+          </div>
+          <i data-lucide="arrow-right" class="w-5 h-5 text-slate-300 group-hover:text-indigo-600 transition-all group-hover:translate-x-1"></i>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    window.openHistoryItem = (id) => {
+      const item = historyData.find(h => h.id === id);
+      if (item) {
+        currentDocId = item.id; // Set ID so extra topics save to correct doc
+        finalProfile = item;
+        renderResult(item);
+        showScreen('result');
+        window.scrollTo(0, 0);
+      }
+    };
+
+    // 初期起動
+    lucide.createIcons();
+    showScreen('intro');
+
+  </script>
+</body>
+</html>
