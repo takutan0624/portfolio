@@ -210,9 +210,10 @@
             <div class="space-y-2">
               <h3 class="text-xl font-black text-rose-700">質問の生成に失敗しました</h3>
               <p id="dynamic-q-error-text" class="text-sm text-rose-700"></p>
+              <p id="dynamic-q-retry-countdown" class="hidden text-xs font-bold text-rose-600"></p>
             </div>
             <div class="flex flex-col sm:flex-row gap-3">
-              <button onclick="retryDynamicQuestions()" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl transition-colors">
+              <button id="dynamic-q-retry-btn" onclick="retryDynamicQuestions()" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
                 再問い合わせする
               </button>
               <button onclick="showScreen('questions')" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold py-3 px-4 rounded-xl transition-colors">
@@ -235,6 +236,10 @@
 
         <div id="dynamic-questions-container" class="space-y-6">
           <!-- Dynamic questions injected here -->
+        </div>
+
+        <div id="gemini-status-bar" class="hidden bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+          <p id="gemini-status-text" class="text-sm font-bold text-amber-700"></p>
         </div>
 
         <button id="analyze-btn" onclick="submitFreeText()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-5 rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
@@ -297,6 +302,25 @@
               RIASEC Aptitude
             </h4>
             <div id="res-riasec" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-gradient-to-r from-emerald-50 to-cyan-50 rounded-[2rem] p-8 border border-emerald-100 space-y-3">
+            <h4 class="text-emerald-700 font-black flex items-center gap-2">
+              <i data-lucide="badge-check" class="w-5 h-5"></i>
+              診断の信頼度
+            </h4>
+            <p id="res-confidence-level" class="text-2xl font-black text-emerald-700"></p>
+            <p id="res-confidence-note" class="text-sm text-emerald-700 leading-relaxed"></p>
+            <p id="res-model-used" class="text-xs text-emerald-700/90 font-semibold"></p>
+          </div>
+          <div class="bg-gradient-to-r from-slate-50 to-indigo-50 rounded-[2rem] p-8 border border-slate-200 space-y-3">
+            <h4 class="text-slate-700 font-black flex items-center gap-2">
+              <i data-lucide="git-compare-arrows" class="w-5 h-5"></i>
+              前回からの変化
+            </h4>
+            <p id="res-history-compare" class="text-sm text-slate-700 leading-relaxed"></p>
           </div>
         </div>
 
@@ -445,6 +469,8 @@
     let isGeneratingDynamicQuestions = false;
     let isSubmittingProfile = false;
     let geminiCooldownUntilMs = 0;
+    let geminiCooldownTimer = null;
+    let lastGeminiMeta = { model: "", fallbackUsed: false, at: 0 };
 
     // --- Firebase Auth ---
     function parseFirebaseConfigCandidate(candidate) {
@@ -619,6 +645,7 @@
       } else {
         badge.classList.add('hidden');
       }
+      refreshGeminiRateLimitUi();
       window.scrollTo(0, 0);
     };
 
@@ -778,10 +805,76 @@
           ? ""
           : (errorMessage || "質問の生成に失敗しました。再問い合わせしてください。");
       }
+      refreshGeminiRateLimitUi();
+    }
+
+    function getGeminiCooldownRemainingSec() {
+      return Math.max(0, Math.ceil((geminiCooldownUntilMs - Date.now()) / 1000));
+    }
+
+    function clearGeminiCooldownTicker() {
+      if (!geminiCooldownTimer) return;
+      clearInterval(geminiCooldownTimer);
+      geminiCooldownTimer = null;
+    }
+
+    function refreshGeminiRateLimitUi() {
+      const remainingSec = getGeminiCooldownRemainingSec();
+      const statusBar = document.getElementById('gemini-status-bar');
+      const statusText = document.getElementById('gemini-status-text');
+      const retryCountdown = document.getElementById('dynamic-q-retry-countdown');
+      const retryBtn = document.getElementById('dynamic-q-retry-btn');
+      const analyzeBtn = document.getElementById('analyze-btn');
+
+      if (statusBar && statusText) {
+        if (remainingSec > 0) {
+          statusBar.classList.remove('hidden');
+          statusText.textContent = `API制限中です。再試行まで ${remainingSec}s`;
+        } else {
+          statusBar.classList.add('hidden');
+          statusText.textContent = "";
+        }
+      }
+
+      if (retryCountdown) {
+        if (remainingSec > 0) {
+          retryCountdown.classList.remove('hidden');
+          retryCountdown.textContent = `再問い合わせは ${remainingSec}s 後に可能です。`;
+        } else {
+          retryCountdown.classList.add('hidden');
+          retryCountdown.textContent = "";
+        }
+      }
+
+      if (retryBtn) {
+        retryBtn.disabled = remainingSec > 0 || isGeneratingDynamicQuestions;
+      }
+
+      if (analyzeBtn) {
+        const canSubmit = isDynamicAnswersReady(1) && !isSubmittingProfile;
+        analyzeBtn.disabled = remainingSec > 0 || !canSubmit;
+      }
+
+      if (remainingSec <= 0) {
+        clearGeminiCooldownTicker();
+      }
+    }
+
+    function startGeminiCooldownTicker() {
+      refreshGeminiRateLimitUi();
+      if (getGeminiCooldownRemainingSec() <= 0) return;
+      if (geminiCooldownTimer) return;
+      geminiCooldownTimer = setInterval(() => {
+        refreshGeminiRateLimitUi();
+      }, 1000);
     }
 
     window.retryDynamicQuestions = async () => {
       if (isGeneratingDynamicQuestions) return;
+      if (getGeminiCooldownRemainingSec() > 0) {
+        refreshGeminiRateLimitUi();
+        return;
+      }
       await generateDynamicQuestions();
     };
 
@@ -819,6 +912,7 @@
       for (let i = 0; i < maxAttempts; i++) {
         const now = Date.now();
         if (geminiCooldownUntilMs > now) {
+          startGeminiCooldownTicker();
           await sleep(geminiCooldownUntilMs - now);
         }
         try {
@@ -850,12 +944,20 @@
           }
           const parsed = JSON.parse(raw);
           if (!parsed?.ok || !parsed?.data) throw new Error("Invalid API response");
-          return parsed.data;
+          lastGeminiMeta = {
+            model: typeof parsed?.model === "string" ? parsed.model : "",
+            fallbackUsed: !!parsed?.fallbackUsed,
+            at: Date.now()
+          };
+          geminiCooldownUntilMs = 0;
+          refreshGeminiRateLimitUi();
+          return { data: parsed.data, meta: { ...lastGeminiMeta } };
         } catch (e) {
           const status = Number(e?.status || 0);
           if (status === 429) {
             const retrySec = Math.max(1, Number(e?.retryAfterSec || 0), Math.ceil(delay / 1000));
             geminiCooldownUntilMs = Date.now() + retrySec * 1000;
+            startGeminiCooldownTicker();
             if (i === maxAttempts - 1) {
               throw new Error(`Rate limit reached. Please try again in ${retrySec}s.`);
             }
@@ -952,7 +1054,7 @@
       };
 
       try {
-        const data = await fetchGemini(prompt, schema);
+        const { data } = await fetchGemini(prompt, schema);
         const generated = Array.isArray(data?.questions)
           ? data.questions.slice(0, 3).map((q) => normalizeDynamicQuestion(q)).filter(Boolean)
           : [];
@@ -971,6 +1073,7 @@
         showScreen('generating-q');
       } finally {
         isGeneratingDynamicQuestions = false;
+        refreshGeminiRateLimitUi();
       }
     }
 
@@ -1000,7 +1103,7 @@
       const inputs = container.querySelectorAll('textarea');
       if (analyzeBtn) analyzeBtn.disabled = true;
       const validate = () => {
-        if (analyzeBtn) analyzeBtn.disabled = !isDynamicAnswersReady(1);
+        refreshGeminiRateLimitUi();
       };
       inputs.forEach((ta) => {
         ta.addEventListener('input', validate);
@@ -1014,6 +1117,12 @@
     window.submitFreeText = async () => {
       if (!ensureSignedIn()) return;
       if (isSubmittingProfile) return;
+      const waitSec = getGeminiCooldownRemainingSec();
+      if (waitSec > 0) {
+        alert(`API制限中です。${waitSec}s 後に再実行してください。`);
+        refreshGeminiRateLimitUi();
+        return;
+      }
       if (!isDynamicAnswersReady(1)) {
         alert("3つの質問すべてに回答してから進んでください。");
         const btn = document.getElementById('analyze-btn');
@@ -1066,12 +1175,17 @@
       };
 
       try {
-        const aiProfile = await fetchGemini(prompt, schema);
+        const { data: aiProfile, meta } = await fetchGemini(prompt, schema);
         finalProfile = {
           ...aiProfile,
           scoring: {
             big5: { ...baseScores },
             riasec: { ...riasecScores }
+          },
+          generationMeta: {
+            model: meta?.model || "",
+            fallbackUsed: !!meta?.fallbackUsed,
+            generatedAt: Date.now()
           },
           dynamicQuestions: dynamicQuestions.map((q) => ({ ...q })),
           dynamicAnswers: dynamicAnswerPayload,
@@ -1088,12 +1202,124 @@
         showScreen('dynamic-question');
       } finally {
         isSubmittingProfile = false;
-        const btn = document.getElementById('analyze-btn');
-        if (btn) {
-          btn.disabled = !isDynamicAnswersReady(1);
-        }
+        refreshGeminiRateLimitUi();
       }
     };
+
+    function resolveBig5ScoresFromItem(item) {
+      const fromScoring = pickScoreSubset(item?.scoring?.big5, BIG5_TRAITS);
+      if (Object.keys(fromScoring).length) return fromScoring;
+      return pickScoreSubset(item?.adjustedScores, BIG5_TRAITS);
+    }
+
+    function computeDiagnosisConfidence(profile) {
+      const answers = Array.isArray(profile?.dynamicAnswers) ? profile.dynamicAnswers : [];
+      const lengths = answers
+        .map((entry) => String(entry?.answer || "").trim().length)
+        .filter((len) => len > 0);
+      const avgLen = lengths.length
+        ? lengths.reduce((sum, len) => sum + len, 0) / lengths.length
+        : 0;
+
+      let score = 48;
+      if (lengths.length >= 3) score += 15;
+      if (avgLen >= 90) score += 20;
+      else if (avgLen >= 50) score += 12;
+      else if (avgLen >= 25) score += 6;
+      else score -= 8;
+
+      const evidenceLen = String(profile?.evidenceSummary || "").trim().length;
+      if (evidenceLen >= 180) score += 10;
+      else if (evidenceLen >= 80) score += 5;
+
+      if (profile?.generationMeta?.fallbackUsed) score -= 8;
+      score = Math.max(0, Math.min(100, Math.round(score)));
+
+      if (score >= 78) {
+        return {
+          score,
+          level: "高",
+          note: "回答の具体性と一貫性が高く、診断の解像度は高めです。"
+        };
+      }
+      if (score >= 60) {
+        return {
+          score,
+          level: "中",
+          note: "傾向把握には十分ですが、具体例を増やすとさらに精度が上がります。"
+        };
+      }
+      return {
+        score,
+        level: "低",
+        note: "回答が短いか情報が不足しています。具体的な場面を補うと精度が改善します。"
+      };
+    }
+
+    function renderHistoryComparison(currentScores, currentId) {
+      const compareEl = document.getElementById('res-history-compare');
+      if (!compareEl) return;
+
+      const sorted = historyData
+        .slice()
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      const previous = sorted.find((item) => item.id !== currentId && Object.keys(resolveBig5ScoresFromItem(item)).length);
+
+      if (!previous) {
+        compareEl.textContent = "比較できる過去データがまだありません。";
+        return;
+      }
+
+      const prevScores = resolveBig5ScoresFromItem(previous);
+      if (!Object.keys(prevScores).length || !Object.keys(currentScores).length) {
+        compareEl.textContent = "比較に必要なスコアが不足しています。";
+        return;
+      }
+
+      const changes = BIG5_TRAITS.map((trait) => {
+        const current = Number(currentScores[trait] || 0);
+        const prev = Number(prevScores[trait] || 0);
+        return {
+          trait,
+          label: BIG5_LABELS[trait] || trait,
+          delta: Math.round(current - prev)
+        };
+      })
+        .filter((item) => Math.abs(item.delta) >= 1)
+        .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+      const dateLabel = previous.createdAt?.seconds
+        ? new Date(previous.createdAt.seconds * 1000).toLocaleDateString()
+        : "前回";
+
+      if (!changes.length) {
+        compareEl.textContent = `${dateLabel}比で大きな変化はありません。`;
+        return;
+      }
+
+      const summary = changes
+        .slice(0, 3)
+        .map((item) => `${item.label} ${item.delta >= 0 ? "+" : ""}${item.delta}`)
+        .join(" / ");
+      compareEl.textContent = `${dateLabel}比: ${summary}`;
+    }
+
+    function renderConfidenceAndModel(profile) {
+      const confidence = computeDiagnosisConfidence(profile);
+      const levelEl = document.getElementById('res-confidence-level');
+      const noteEl = document.getElementById('res-confidence-note');
+      const modelEl = document.getElementById('res-model-used');
+      if (levelEl) levelEl.textContent = `${confidence.level} (${confidence.score}/100)`;
+      if (noteEl) noteEl.textContent = confidence.note;
+
+      const model = String(profile?.generationMeta?.model || "").trim();
+      const fallbackUsed = !!profile?.generationMeta?.fallbackUsed;
+      if (modelEl) {
+        modelEl.textContent = model
+          ? `使用モデル: ${model}${fallbackUsed ? "（フォールバック利用）" : ""}`
+          : "使用モデル: 不明";
+      }
+    }
 
     function renderResult(data) {
       const storedBig5 = pickScoreSubset(data?.scoring?.big5, BIG5_TRAITS);
@@ -1125,6 +1351,8 @@
       const chartCont = document.getElementById('radar-chart-container');
       chartCont.innerHTML = generateRadar(big5ForDisplay);
 
+      renderConfidenceAndModel(data);
+      renderHistoryComparison(big5ForDisplay, data?.id || currentDocId);
       renderBig5Scores(big5ForDisplay);
       renderRiasecScores(riasecForDisplay);
       
@@ -1264,7 +1492,7 @@
       };
 
       try {
-        const data = await fetchGemini(prompt, schema);
+        const { data } = await fetchGemini(prompt, schema);
         const resultText = data.analysisText;
         
         // Update local state
