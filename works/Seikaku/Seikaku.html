@@ -705,37 +705,37 @@
         {
           theme: "高スコア検証",
           role: "high_validation",
-          objective: "高く出た特性が実生活でも安定して現れるかを確認する",
-          text: "あなたの強みが最も発揮された場面を1つ挙げてください。状況、選択肢、あなたが実際に取った行動、結果、振り返りを順に書いてください。",
-          requiredPoints: ["時期", "状況", "行動", "結果", "振り返り"],
+          objective: "強み確認",
+          text: "最近、強みが生きた出来事は何でしたか？",
+          requiredPoints: ["具体例", "理由"],
           rubric: {
             targetTraits: ["BIG5上位", "RIASEC上位"],
-            confirmSignals: ["再現性のある行動パターン", "結果に対する因果説明"],
-            contradictSignals: ["抽象論のみ", "実例の欠如"]
+            confirmSignals: ["具体的な行動", "結果の説明"],
+            contradictSignals: ["抽象的すぎる回答", "実例不足"]
           }
         },
         {
           theme: "低スコア検証",
           role: "low_validation",
-          objective: "低く出た特性が制約として現れているかを確認する",
-          text: "苦手さが原因でうまくいかなかった場面を1つ挙げてください。状況、迷った選択肢、取った行動、結果、次回の改善策を書いてください。",
-          requiredPoints: ["時期", "状況", "迷った選択肢", "結果", "改善策"],
+          objective: "苦手確認",
+          text: "最近、苦手で困った場面は何でしたか？",
+          requiredPoints: ["困った点", "対処"],
           rubric: {
             targetTraits: ["BIG5下位", "RIASEC下位"],
-            confirmSignals: ["制約の自己認識", "改善の具体性"],
-            contradictSignals: ["責任の外部化のみ", "改善策の欠如"]
+            confirmSignals: ["課題の自己認識", "対処の説明"],
+            contradictSignals: ["責任転嫁のみ", "対処が不明"]
           }
         },
         {
           theme: "矛盾検証",
           role: "contradiction_check",
-          objective: "スコア間の矛盾や状況依存の振れ幅を確認する",
-          text: "普段の自分らしさと逆の行動を取った場面を1つ挙げてください。なぜその行動になったか、周囲への影響、最終的な学びまで書いてください。",
-          requiredPoints: ["時期", "逆の行動", "背景要因", "周囲への影響", "学び"],
+          objective: "矛盾確認",
+          text: "いつもと違う行動をしたのはどんな時でしたか？",
+          requiredPoints: ["きっかけ", "学び"],
           rubric: {
             targetTraits: ["交差領域", "状況依存性"],
-            confirmSignals: ["状況による特性変動の説明", "自己認識の一貫性"],
-            contradictSignals: ["説明不能な自己像", "場面と行動の不整合"]
+            confirmSignals: ["状況変化の説明", "自己理解の一貫性"],
+            contradictSignals: ["場面と行動の不一致", "説明不足"]
           }
         }
       ];
@@ -753,6 +753,15 @@
         .slice(0, 8);
     }
 
+    function shortenQuestionText(value, fallback = "") {
+      const source = normalizeText(value, fallback).replace(/\s+/g, " ").trim();
+      if (!source) return fallback;
+      const firstSentence = source.split(/[。！？\n]/).map((s) => s.trim()).find(Boolean) || source;
+      const short = firstSentence.length > 42 ? `${firstSentence.slice(0, 42)}…` : firstSentence;
+      if (/[？?]$/.test(short)) return short;
+      return `${short}？`;
+    }
+
     function normalizeDynamicQuestion(raw, index) {
       const fallbackSet = fallbackDynamicQuestions();
       const fallback = fallbackSet[index] || fallbackSet[0];
@@ -765,7 +774,7 @@
         theme: normalizeText(raw?.theme, fallback.theme),
         role: normalizeText(raw?.role, fallback.role),
         objective: normalizeText(raw?.objective, fallback.objective),
-        text: normalizeText(raw?.text, fallback.text),
+        text: shortenQuestionText(raw?.text, fallback.text),
         requiredPoints: requiredPoints.length ? requiredPoints : fallback.requiredPoints,
         rubric: {
           targetTraits: targetTraits.length ? targetTraits : fallback.rubric.targetTraits,
@@ -889,10 +898,11 @@
       3) contradiction_check: スコア矛盾・状況依存の確認
 
       制約:
-      - 各質問は具体的な実例を必須にする。
-      - 回答者に「時期 / 状況 / 行動 / 結果 / 振り返り」を書かせる。
+      - 各質問は短く簡潔にする（20〜42文字目安）。
+      - 質問文は1文のみ。選択肢や条件を列挙しない。
+      - 回答者が30秒で理解できる平易な日本語にする。
+      - 各質問は具体的な実例を答えやすい形にする。
       - 価値判断や断定で誘導しない。中立表現を使う。
-      - 質問文は具体的で、1つの場面を想起できる粒度にする。
 
       出力:
       - questions 配列に3件だけ返す。
@@ -970,17 +980,14 @@
       const analyzeBtn = document.getElementById('analyze-btn');
       container.innerHTML = '';
       dynamicQuestions.forEach((q, i) => {
-        const requiredPointsText = Array.isArray(q.requiredPoints) ? q.requiredPoints.join(' / ') : '';
         const div = document.createElement('div');
         div.className = "bg-white p-7 rounded-[2rem] shadow-lg border border-slate-100 space-y-4";
         div.innerHTML = `
           <div class="flex items-center gap-2">
             <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">${q.theme}</span>
           </div>
-          <p class="text-xs text-slate-500 font-semibold">${q.objective || ''}</p>
           <h4 class="font-bold text-slate-800 text-lg">${q.text}</h4>
-          <p class="text-[11px] text-slate-500 leading-relaxed">回答に含める要素: ${requiredPointsText}</p>
-          <textarea id="ans-${i}" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 text-sm focus:border-indigo-500 focus:outline-none focus:bg-white transition-all min-h-[120px]" placeholder="具体例を、時期・状況・行動・結果・振り返りの順で書いてください。"></textarea>
+          <textarea id="ans-${i}" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 text-sm focus:border-indigo-500 focus:outline-none focus:bg-white transition-all min-h-[120px]" placeholder="短くてもOKです。自由に書いてください。"></textarea>
         `;
         container.appendChild(div);
       });
@@ -1015,14 +1022,11 @@
       const dynamicAnswerPayload = dynamicQuestions.map((q, i) => ({
         theme: q.theme,
         role: q.role || "",
-        objective: q.objective || "",
         question: q.text,
-        requiredPoints: Array.isArray(q.requiredPoints) ? q.requiredPoints : [],
-        rubric: q.rubric || {},
         answer: document.getElementById(`ans-${i}`).value.trim()
       }));
       const freeAnswers = dynamicAnswerPayload
-        .map((entry) => `【${entry.theme}/${entry.role}】${entry.question}\n目的: ${entry.objective}\n要件: ${(entry.requiredPoints || []).join(' / ')}\n回答: ${entry.answer}`)
+        .map((entry) => `【${entry.theme}/${entry.role}】${entry.question}\n回答: ${entry.answer}`)
         .join('\n\n');
       
       const prompt = `以下のプロファイリングデータから、ハイブリッド型の性格診断結果を生成してください。
