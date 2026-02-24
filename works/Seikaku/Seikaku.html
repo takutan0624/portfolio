@@ -265,6 +265,7 @@
           <div class="relative z-10 space-y-4">
             <span class="inline-block px-4 py-1 rounded-full bg-white/80 border border-violet-200 text-violet-500 font-bold text-[10px] tracking-[0.3em] uppercase">Result Identity</span>
             <h2 id="res-catchphrase" class="text-3xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 via-indigo-500 to-sky-500 animate-gradient pb-2"></h2>
+            <p id="res-wit" class="hidden text-sm md:text-base font-semibold text-indigo-700"></p>
           </div>
         </div>
 
@@ -902,7 +903,7 @@
       return Number.isFinite(sec) && sec > 0 ? sec : 0;
     }
 
-    async function fetchGemini(prompt, schema) {
+    async function fetchGemini(prompt, schema, options = {}) {
       if (!user) {
         throw new Error("Not signed in");
       }
@@ -923,7 +924,14 @@
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ prompt, schema })
+            body: JSON.stringify({
+              prompt,
+              schema,
+              temperature: Number.isFinite(Number(options?.temperature))
+                ? Number(options.temperature)
+                : undefined,
+              model: typeof options?.model === "string" ? options.model : undefined
+            })
           });
           const raw = await res.text();
           if (!res.ok) {
@@ -986,33 +994,32 @@
       const bottomBig5 = getBottomTraits(baseScores, BIG5_LABELS, 2);
       const bottomRiasec = getBottomTraits(riasecScores, RIASEC_LABELS, 2);
 
-      const prompt = `あなたは心理測定を設計する専門家です。
-      目的は「性格診断の精度向上」であり、誘導尋問ではありません。BIG5とRIASECを混同せず、独立軸として扱ってください。
-      入力:
-      - BIG5スコア: ${JSON.stringify(baseScores)}
-      - RIASECスコア: ${JSON.stringify(riasecScores)}
-      - BIG5上位: ${topBig5}
-      - BIG5下位: ${bottomBig5}
-      - RIASEC上位: ${topRiasec}
-      - RIASEC下位: ${bottomRiasec}
+      const prompt = `あなたはGemini向けの心理測定質問デザイナーです。
+目的は、回答しやすく情報量の高い3問を作ることです。
 
-      3問を必ず次の役割で1問ずつ作成してください:
-      1) high_validation: 高スコア特性の妥当性確認
-      2) low_validation: 低スコア特性の制約確認
-      3) contradiction_check: スコア矛盾・状況依存の確認
+[入力データ]
+BIG5: ${JSON.stringify(baseScores)}
+RIASEC: ${JSON.stringify(riasecScores)}
+BIG5上位: ${topBig5}
+BIG5下位: ${bottomBig5}
+RIASEC上位: ${topRiasec}
+RIASEC下位: ${bottomRiasec}
 
-      制約:
-      - 各質問は短く簡潔にする（20〜42文字目安）。
-      - 質問文は1文のみ。選択肢や条件を列挙しない。
-      - 回答者が30秒で理解できる平易な日本語にする。
-      - 各質問は具体的な実例を答えやすい形にする。
-      - 価値判断や断定で誘導しない。中立表現を使う。
+[必須役割]
+1. high_validation（強み確認）
+2. low_validation（弱み確認）
+3. contradiction_check（状況による揺れ確認）
 
-      出力:
-      - questions 配列に3件だけ返す。
-      - 各要素に theme, role, objective, text, required_points, rubric を含める。
-      - rubricには target_traits, confirm_signals, contradict_signals を含める。
-      - JSONのみ返す。`;
+[生成ルール]
+- 各質問は20〜40文字程度、1文、平易な日本語。
+- 誘導・断定・説教は禁止。
+- 回答者が具体例を自然に書ける問いにする。
+- 役割ごとに観点を重複させない。
+
+[出力]
+- responseSchemaに厳密準拠。
+- questionsは3件固定。
+- JSON以外を出力しない。`;
 
       const schema = {
         type: "OBJECT",
@@ -1054,7 +1061,7 @@
       };
 
       try {
-        const { data } = await fetchGemini(prompt, schema);
+        const { data } = await fetchGemini(prompt, schema, { temperature: 0.42 });
         const generated = Array.isArray(data?.questions)
           ? data.questions.slice(0, 3).map((q) => normalizeDynamicQuestion(q)).filter(Boolean)
           : [];
@@ -1143,28 +1150,39 @@
         .map((entry) => `【${entry.theme}/${entry.role}】${entry.question}\n回答: ${entry.answer}`)
         .join('\n\n');
       
-      const prompt = `以下のプロファイリングデータから、ハイブリッド型の性格診断結果を生成してください。
-      BIG5スコア: ${JSON.stringify(baseScores)}
-      RIASECスコア: ${JSON.stringify(riasecScores)}
-      質問設計ルーブリック: ${JSON.stringify(dynamicQuestions)}
-      深層回答: ${freeAnswers}
-      
-      出力要件:
-      - catchphrase: 18〜36文字程度で、抽象的すぎず人格の核を示す。
-      - deepAnalysis: 900〜1400文字。思考パターン、意思決定の癖、対人傾向、ストレス下の反応、強みと弱みの因果関係を具体的に説明する。
-      - hybridSynthesis: 450〜800文字。BIG5とRIASECの交点を軸に、自由回答の内容がどこで裏付け/矛盾するかを整理する。
-      - hiddenDesire: 500〜900文字。本人が無意識に求める状態、避けたい恐れ、行動に現れる補償行動まで掘り下げる。
-      - big5Interpretation: 250〜450文字。BIG5を単独で解釈する。
-      - riasecInterpretation: 250〜450文字。RIASECを単独で解釈する。
-      - evidenceSummary: 200〜400文字。回答が十分に具体的だった点と、推定の不確実性が残る点を整理する。
-      - スコア値は観測データとして扱い、数値そのものを書き換えない。
-      - 文体は断定と根拠のバランスを取り、一般論ではなくこの回答内容に紐づける。具体例への言及で根拠を示す。
-      - JSONのみを返し、余計な前置きは書かない。`;
+      const prompt = `あなたは知性的でユーモア感覚のある心理分析AIです。
+以下のデータを統合し、実用性の高いハイブリッド診断を作成してください。
+
+[入力]
+BIG5: ${JSON.stringify(baseScores)}
+RIASEC: ${JSON.stringify(riasecScores)}
+質問設計: ${JSON.stringify(dynamicQuestions)}
+回答: ${freeAnswers}
+
+[分析方針]
+- 数値は観測値として扱い、改変しない。
+- 一般論より、回答本文の具体的記述を優先して解釈する。
+- 強みだけでなく、弱みとトレードオフも示す。
+- 文章は知的で読みやすく、比喩やウィットは「軽く1〜2箇所」だけ入れる。
+- ユーモアは相手を下げず、気づきを深める方向に使う。
+
+[出力仕様]
+- responseSchemaに厳密準拠。
+- JSONのみ返す。
+- catchphrase: 18〜34文字、覚えやすく鮮明。
+- witLine: 35〜90文字、知的で軽いユーモアの一言。
+- deepAnalysis: 900〜1400文字。
+- hybridSynthesis: 500〜850文字。
+- hiddenDesire: 500〜900文字。
+- big5Interpretation: 280〜480文字。
+- riasecInterpretation: 280〜480文字。
+- evidenceSummary: 220〜420文字。根拠と不確実性を分けて示す。`;
 
       const schema = {
         type: "OBJECT",
         properties: {
           catchphrase: { type: "STRING" },
+          witLine: { type: "STRING" },
           deepAnalysis: { type: "STRING" },
           hybridSynthesis: { type: "STRING" },
           hiddenDesire: { type: "STRING" },
@@ -1175,7 +1193,7 @@
       };
 
       try {
-        const { data: aiProfile, meta } = await fetchGemini(prompt, schema);
+        const { data: aiProfile, meta } = await fetchGemini(prompt, schema, { temperature: 0.72 });
         finalProfile = {
           ...aiProfile,
           scoring: {
@@ -1339,6 +1357,11 @@
       riasecScores = { ...riasecForDisplay };
 
       document.getElementById('res-catchphrase').textContent = data.catchphrase || '';
+      const witEl = document.getElementById('res-wit');
+      if (witEl) {
+        witEl.textContent = data.witLine || '';
+        witEl.classList.toggle('hidden', !data.witLine);
+      }
       document.getElementById('res-analysis').textContent = data.deepAnalysis || '';
       document.getElementById('res-hybrid').textContent = data.hybridSynthesis || data.deepAnalysis || '';
       document.getElementById('res-hidden').textContent = data.hiddenDesire || '';
@@ -1492,7 +1515,7 @@
       };
 
       try {
-        const { data } = await fetchGemini(prompt, schema);
+        const { data } = await fetchGemini(prompt, schema, { temperature: 0.66 });
         const resultText = data.analysisText;
         
         // Update local state
