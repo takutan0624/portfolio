@@ -959,8 +959,15 @@
       }
     }
 
+    function isDynamicAnswersReady(minChars = 1) {
+      const inputs = document.querySelectorAll('#dynamic-questions-container textarea');
+      if (inputs.length !== dynamicQuestions.length || inputs.length === 0) return false;
+      return Array.from(inputs).every((ta) => ta.value.trim().length >= minChars);
+    }
+
     function renderDynamicQuestions() {
       const container = document.getElementById('dynamic-questions-container');
+      const analyzeBtn = document.getElementById('analyze-btn');
       container.innerHTML = '';
       dynamicQuestions.forEach((q, i) => {
         const requiredPointsText = Array.isArray(q.requiredPoints) ? q.requiredPoints.join(' / ') : '';
@@ -979,16 +986,28 @@
       });
       
       const inputs = container.querySelectorAll('textarea');
+      if (analyzeBtn) analyzeBtn.disabled = true;
       const validate = () => {
-        const allFilled = Array.from(inputs).every(ta => ta.value.trim().length >= 40);
-        document.getElementById('analyze-btn').disabled = !allFilled;
+        if (analyzeBtn) analyzeBtn.disabled = !isDynamicAnswersReady(1);
       };
-      inputs.forEach(ta => ta.addEventListener('input', validate));
+      inputs.forEach((ta) => {
+        ta.addEventListener('input', validate);
+        ta.addEventListener('change', validate);
+        ta.addEventListener('blur', validate);
+        ta.addEventListener('keyup', validate);
+      });
+      validate();
     }
 
     window.submitFreeText = async () => {
       if (!ensureSignedIn()) return;
       if (isSubmittingProfile) return;
+      if (!isDynamicAnswersReady(1)) {
+        alert("3つの質問すべてに回答してから進んでください。");
+        const btn = document.getElementById('analyze-btn');
+        if (btn) btn.disabled = !isDynamicAnswersReady(1);
+        return;
+      }
       isSubmittingProfile = true;
       const analyzeBtn = document.getElementById('analyze-btn');
       if (analyzeBtn) analyzeBtn.disabled = true;
@@ -1062,9 +1081,7 @@
         isSubmittingProfile = false;
         const btn = document.getElementById('analyze-btn');
         if (btn) {
-          const inputs = document.querySelectorAll('#dynamic-questions-container textarea');
-          const allFilled = inputs.length > 0 && Array.from(inputs).every((ta) => ta.value.trim().length >= 40);
-          btn.disabled = !allFilled;
+          btn.disabled = !isDynamicAnswersReady(1);
         }
       }
     };
