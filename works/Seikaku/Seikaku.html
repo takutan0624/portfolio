@@ -132,7 +132,7 @@
               MBTIをヒントに、<br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">あなたらしさをやさしく読み解く。</span>
             </h2>
             <p class="text-slate-500 leading-relaxed text-lg">
-              最新のBIG5理論とAI解析を統合。22問の設問と、AIがあなた専用に生成する「深層質問」への回答から、あなたに最適なかたちで診断結果をお届けします。
+              最新のBIG5理論とAI解析を統合。<span id="intro-question-count">22</span>問の設問と、AIがあなた専用に生成する「深層質問」への回答から、あなたに最適なかたちで診断結果をお届けします。
             </p>
             
             <div class="flex flex-col sm:flex-row gap-4 pt-4">
@@ -450,6 +450,11 @@
       { id: 'CV1', type: 'Conventional', text: '手順やルールに沿って正確に進めるのが得意だ。' },
       { id: 'CV2', type: 'Conventional', text: '記録や整理をきちんと行うと安心する。' }
     ];
+
+    const introQuestionCountEl = document.getElementById('intro-question-count');
+    if (introQuestionCountEl) {
+      introQuestionCountEl.textContent = String(QUESTIONS.length);
+    }
 
     const OPTIONS = [
       { label: '全くない', value: 1, color: 'bg-rose-50 text-rose-700 hover:bg-rose-100 border-rose-200' },
