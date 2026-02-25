@@ -1,7 +1,8 @@
 import admin from "firebase-admin";
 
-const DEFAULT_MODEL = process.env.SEIKAKU_GEMINI_MODEL || "gemini-2.5-pro";
-const FALLBACK_MODEL = process.env.SEIKAKU_GEMINI_FALLBACK_MODEL || "gemini-2.5-flash";
+const FLASH_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = FLASH_MODEL;
+const FALLBACK_MODEL = process.env.SEIKAKU_GEMINI_FALLBACK_MODEL || FLASH_MODEL;
 const MAX_BODY_BYTES = 260000;
 const MAX_PROMPT_CHARS = 24000;
 const MAX_POINTS_PER_MIN = 80;
@@ -60,6 +61,15 @@ function getGeminiApiKey() {
   ).trim();
 }
 
+function normalizeGeminiModel(rawModel) {
+  const raw = String(rawModel || "").trim();
+  if (!raw) return FLASH_MODEL;
+  const lower = raw.toLowerCase();
+  if (lower.includes("pro")) return FLASH_MODEL;
+  if (lower.includes("flash")) return raw;
+  return FLASH_MODEL;
+}
+
 function sanitizeInput(rawBody) {
   const body = rawBody && typeof rawBody === "object" ? rawBody : {};
   const prompt = String(body.prompt || "").trim().slice(0, MAX_PROMPT_CHARS);
@@ -76,7 +86,7 @@ function sanitizeInput(rawBody) {
     throw err;
   }
 
-  const model = String(body.model || DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+  const model = normalizeGeminiModel(body.model || DEFAULT_MODEL);
   const temperatureRaw = Number(body.temperature);
   const temperature = Number.isFinite(temperatureRaw)
     ? Math.max(0, Math.min(1, temperatureRaw))
@@ -231,8 +241,8 @@ export default async function handler(req, res) {
     }
 
     const input = sanitizeInput(req.body);
-    const primaryModel = String(input.model || "").trim() || DEFAULT_MODEL;
-    const fallbackModel = String(FALLBACK_MODEL || "").trim();
+    const primaryModel = normalizeGeminiModel(input.model || DEFAULT_MODEL);
+    const fallbackModel = normalizeGeminiModel(FALLBACK_MODEL);
 
     const ip = (req.headers["x-forwarded-for"] || "").toString().split(",")[0].trim();
     const rateKey = decoded.uid || ip || "unknown";
