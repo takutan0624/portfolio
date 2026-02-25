@@ -1028,7 +1028,7 @@
       const bottomRiasec = getBottomTraits(riasecScores, RIASEC_LABELS, 2);
 
       const prompt = `あなたはGemini向けの心理測定質問デザイナーです。
-目的は、回答しやすく情報量の高い3問を作ることです。
+目的は、回答しやすさを保ちつつ「診断の弁別力」が高い3問を作ることです。
 
 [入力データ]
 BIG5: ${JSON.stringify(baseScores)}
@@ -1048,6 +1048,9 @@ RIASEC下位: ${bottomRiasec}
 - 誘導・断定・説教は禁止。
 - 回答者が具体例を自然に書ける問いにする。
 - 役割ごとに観点を重複させない。
+- 各質問は「1つの特性差」と「1つの状況差」を見分けられるようにする。
+- 曖昧で誰にでも当てはまる表現を避け、回答で個人差が出る問いにする。
+- yes/noだけで終わらない、行動や判断の具体が出る問いにする。
 
 [出力]
 - responseSchemaに厳密準拠。
@@ -1183,8 +1186,8 @@ RIASEC下位: ${bottomRiasec}
         .map((entry) => `【${entry.theme}/${entry.role}】${entry.question}\n回答: ${entry.answer}`)
         .join('\n\n');
       
-      const prompt = `あなたは知性的でユーモア感覚のある心理分析AIです。
-以下のデータを統合し、実用性の高いハイブリッド診断を作成してください。
+      const prompt = `あなたは心理測定（BIG5/RIASEC）と行動科学に精通し、知的ユーモアも扱える分析AIです。
+以下のデータを統合し、専門性と実用性の高いハイブリッド診断を作成してください。
 
 [入力]
 BIG5: ${JSON.stringify(baseScores)}
@@ -1194,22 +1197,24 @@ RIASEC: ${JSON.stringify(riasecScores)}
 
 [分析方針]
 - 数値は観測値として扱い、改変しない。
-- 一般論より、回答本文の具体的記述を優先して解釈する。
-- 強みだけでなく、弱みとトレードオフも示す。
-- 文章は知的で読みやすく、比喩やウィットは「軽く1〜2箇所」だけ入れる。
-- ユーモアは相手を下げず、気づきを深める方向に使う。
+- 記述は「観測事実 -> 解釈 -> 実行示唆」の順で構成する。
+- 一般論より、回答本文の具体記述を優先して解釈する。
+- 強みだけでなく、弱み・トレードオフ・状況依存性を示す。
+- BIG5とRIASECの交差作用を最低2点示す。
+- 反証可能性（当てはまりにくい条件）を短く示す。
+- 文章は知的で読みやすく、ユーモアは気づきを深める軽い一言に限定する。
 
 [出力仕様]
 - responseSchemaに厳密準拠。
 - JSONのみ返す。
 - catchphrase: 18〜34文字、覚えやすく鮮明。
 - witLine: 35〜90文字、知的で軽いユーモアの一言。
-- deepAnalysis: 900〜1400文字。
-- hybridSynthesis: 500〜850文字。
-- hiddenDesire: 500〜900文字。
+- deepAnalysis: 900〜1400文字。中核パターン、トリガー、起こりやすい行動、実行策を含める。
+- hybridSynthesis: 500〜850文字。BIG5×RIASECの交差作用と矛盾の統合を明示する。
+- hiddenDesire: 500〜900文字。未充足欲求と防衛的パターンを示し、健全な満たし方を提案する。
 - big5Interpretation: 280〜480文字。
 - riasecInterpretation: 280〜480文字。
-- evidenceSummary: 220〜420文字。根拠と不確実性を分けて示す。`;
+- evidenceSummary: 220〜420文字。根拠と不確実性を分け、最後に信頼度（高/中/低）を明記する。`;
 
       const schema = {
         type: "OBJECT",
@@ -1226,7 +1231,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
       };
 
       try {
-        const { data: aiProfile, meta } = await fetchGemini(prompt, schema, { temperature: 0.72 });
+        const { data: aiProfile, meta } = await fetchGemini(prompt, schema, { temperature: 0.64 });
         finalProfile = {
           ...aiProfile,
           scoring: {
