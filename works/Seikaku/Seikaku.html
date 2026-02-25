@@ -392,6 +392,7 @@
     const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-antiage", "/api/firebase-config-mental"];
     const FIREBASE_APP_NAME = "antiage-auth";
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const HISTORY_LIMIT = 10;
 
     let app = null;
     let auth = null;
@@ -609,21 +610,21 @@
           createdAt: serverTimestamp()
         });
         currentDocId = docRef.id;
-        await pruneHistoryToLastThree();
+        await pruneHistoryToLastTen();
       } catch (err) {
         console.error("Auto Save Error:", err);
       }
     }
 
-    async function pruneHistoryToLastThree() {
+    async function pruneHistoryToLastTen() {
       if (!user) return;
       try {
         const historyCol = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
         const q = query(historyCol, orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         const docs = snap.docs;
-        if (docs.length <= 3) return;
-        const staleDocs = docs.slice(3);
+        if (docs.length <= HISTORY_LIMIT) return;
+        const staleDocs = docs.slice(HISTORY_LIMIT);
         await Promise.all(staleDocs.map((d) => deleteDoc(d.ref)));
       } catch (err) {
         console.error("History prune error:", err);
@@ -1663,7 +1664,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
 
       container.innerHTML = historyData
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-        .slice(0, 3)
+        .slice(0, HISTORY_LIMIT)
         .map(item => `
         <div onclick='openHistoryItem("${item.id}")' class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex items-center justify-between">
           <div class="space-y-1">
