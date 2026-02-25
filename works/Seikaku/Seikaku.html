@@ -132,7 +132,7 @@
               MBTIをヒントに、<br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">あなたらしさをやさしく読み解く。</span>
             </h2>
             <p class="text-slate-500 leading-relaxed text-lg">
-              最新のBIG5理論とAI解析を統合。16問の設問と、AIがあなた専用に生成する「深層質問」への回答から、あなたに最適なかたちで診断結果をお届けします。
+              最新のBIG5理論とAI解析を統合。22問の設問と、AIがあなた専用に生成する「深層質問」への回答から、あなたに最適なかたちで診断結果をお届けします。
             </p>
             
             <div class="flex flex-col sm:flex-row gap-4 pt-4">
@@ -417,22 +417,38 @@
 
     // --- State & Constants ---
     const QUESTIONS = [
-      { id: 'O1', type: 'Openness', text: '新しいアイデアや抽象的な概念について考えるのが好きだ。' },
-      { id: 'O2', type: 'Openness', text: '型破りな方法や、まだ誰もやっていないことに強く惹かれる。' },
-      { id: 'C1', type: 'Conscientiousness', text: '計画を立て、細かいリスクまで確認してから行動する。' },
-      { id: 'C2', type: 'Conscientiousness', text: '一度決めたルールや目標は、どんなに面倒でも最後までやり抜く。' },
-      { id: 'E1', type: 'Extraversion', text: '大勢の人がいる賑やかな場所に行くと、エネルギーが湧いてくる。' },
-      { id: 'E2', type: 'Extraversion', text: '沈黙が続くのが苦手で、自分から積極的に話題を振ることが多い。' },
-      { id: 'A1', type: 'Agreeableness', text: '他人が困っていると、自分の都合を後回しにしてでも助けたくなる。' },
-      { id: 'A2', type: 'Agreeableness', text: '議論で相手を論破するより、お互いが納得する妥協点を見つけたい。' },
-      { id: 'N1', type: 'Neuroticism', text: '些細な失敗や他人の何気ない一言をいつまでも引きずってしまう。' },
-      { id: 'N2', type: 'Neuroticism', text: 'プレッシャーがかかる状況や予期せぬトラブルで、冷静さを失いやすい。' },
-      { id: 'R1', type: 'Realistic', text: '抽象的な理論より、実際に手や体を動かして目に見える結果を出すのが好きだ。' },
-      { id: 'I1', type: 'Investigative', text: '複雑な問題に対して、データや論理を用いて分析的に答えを導き出すのが好きだ。' },
-      { id: 'A3', type: 'Artistic', text: '感情や直感を大切にし、自分なりの美意識や表現方法で何かを創り出したい。' },
-      { id: 'S1', type: 'Social', text: '人と深く関わり、相手の成長や問題解決をサポートすることに大きな喜びを感じる。' },
-      { id: 'E3', type: 'Enterprising', text: 'リーダーとして集団を引っ張り、目標を達成したり社会に影響を与えたりしたい。' },
-      { id: 'C3', type: 'Conventional', text: '決められた手順やルールに従い、正確かつ効率的に物事を処理することに安心感がある。' }
+      { id: 'O1', type: 'Openness', text: '新しいやり方を試すのが好きだ。' },
+      { id: 'O2', type: 'Openness', text: '慣れた方法より、未知の方法にわくわくする。' },
+
+      { id: 'C1', type: 'Conscientiousness', text: '締切から逆算して行動するほうだ。' },
+      { id: 'C2', type: 'Conscientiousness', text: '面倒な作業でも最後までやり切る。' },
+
+      { id: 'E1', type: 'Extraversion', text: '初対面でも自分から話しかけやすい。' },
+      { id: 'E2', type: 'Extraversion', text: '大人数の場に行くとエネルギーが上がる。' },
+
+      { id: 'AG1', type: 'Agreeableness', text: '意見が違っても相手の立場を考えて話す。' },
+      { id: 'AG2', type: 'Agreeableness', text: '対立よりも合意点を探すほうだ。' },
+
+      { id: 'N1', type: 'Neuroticism', text: '小さな失敗を長く気にしやすい。' },
+      { id: 'N2', type: 'Neuroticism', text: '予想外の出来事で気持ちが乱れやすい。' },
+
+      { id: 'R1', type: 'Realistic', text: '手を動かして形にする作業が好きだ。' },
+      { id: 'R2', type: 'Realistic', text: '体を使う実務のほうが集中しやすい。' },
+
+      { id: 'I1', type: 'Investigative', text: '原因を分析して筋道で考えるのが好きだ。' },
+      { id: 'I2', type: 'Investigative', text: 'データや根拠を調べて判断したい。' },
+
+      { id: 'AR1', type: 'Artistic', text: '文章やデザインで自分らしさを表現したい。' },
+      { id: 'AR2', type: 'Artistic', text: '正解のない課題を工夫するのが好きだ。' },
+
+      { id: 'S1', type: 'Social', text: '人の相談に乗るとやりがいを感じる。' },
+      { id: 'S2', type: 'Social', text: '誰かの成長を支える役割が向いている。' },
+
+      { id: 'EN1', type: 'Enterprising', text: '目標達成のために周囲を動かすのが得意だ。' },
+      { id: 'EN2', type: 'Enterprising', text: '提案や交渉の場で前に出るほうだ。' },
+
+      { id: 'CV1', type: 'Conventional', text: '手順やルールに沿って正確に進めるのが得意だ。' },
+      { id: 'CV2', type: 'Conventional', text: '記録や整理をきちんと行うと安心する。' }
     ];
 
     const OPTIONS = [
