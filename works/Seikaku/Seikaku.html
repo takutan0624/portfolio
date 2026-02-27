@@ -315,7 +315,7 @@
               </select>
             </label>
             <label class="space-y-2">
-              <span class="text-xs font-black text-slate-500 uppercase tracking-widest">知りたいテーマ</span>
+              <span class="text-xs font-black text-slate-500 uppercase tracking-widest">注目観点（総合運補正）</span>
               <select id="fortune-focus" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors">
                 <option value="overall">総合運</option>
                 <option value="work">仕事運</option>
@@ -386,6 +386,16 @@
             <p id="fortune-action" class="text-sm text-slate-700 leading-relaxed"></p>
             <p class="text-xs font-black uppercase tracking-widest text-rose-500 pt-2 border-t border-slate-100">Caution</p>
             <p id="fortune-caution" class="text-sm text-slate-600 leading-relaxed"></p>
+          </div>
+
+          <div class="pt-2 space-y-4">
+            <div class="flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-5 h-5 text-violet-500"></i>
+              <h4 class="text-sm font-black uppercase tracking-widest text-violet-600">AI Deep Fortune</h4>
+            </div>
+            <div id="fortune-topics-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Deep topic cards injected here -->
+            </div>
           </div>
         </div>
 
@@ -654,6 +664,7 @@
     let historyData = [];
     let fortuneHistoryUnsub = null;
     let fortuneHistoryData = [];
+    let currentFortuneRecord = null;
     let currentFortuneDocId = null;
     let currentDocId = null; // To track currently viewed/saved document
 
@@ -888,6 +899,15 @@
       relationship: [0.1, 0.15, 0.36, 0.18, 0.08, 0.13]
     };
 
+    const FORTUNE_DEEP_TOPICS = [
+      { id: "love", title: "恋愛運", icon: "heart", prompt: "今年の恋愛運。出会い・関係維持・避けるべきパターン・具体行動を詳述。" },
+      { id: "money", title: "金運", icon: "coins", prompt: "今年の金運。収支改善・投資/消費判断・損失回避の具体策を詳述。" },
+      { id: "work", title: "仕事運", icon: "briefcase", prompt: "今年の仕事運。成果を出しやすい局面、昇進/転職判断、注意点を詳述。" },
+      { id: "health", title: "健康運", icon: "activity", prompt: "今年の健康運。コンディション管理、崩れやすい時期、実行しやすい習慣を詳述。" },
+      { id: "relationship", title: "対人運", icon: "users", prompt: "今年の対人運。人間関係の伸ばし方、衝突回避、信頼構築の実践策を詳述。" },
+      { id: "growth", title: "開運戦略", icon: "mountain", prompt: "今年を伸ばす戦略。上半期/下半期の勝ち筋、優先順位、行動計画を詳述。" }
+    ];
+
     let currentQIndex = 0;
     let answers = {};
     let baseScores = {};
@@ -973,6 +993,7 @@
 
       onAuthStateChanged(auth, (u) => {
         user = u || null;
+        currentFortuneRecord = null;
         currentDocId = null;
         currentFortuneDocId = null;
         if (historyUnsub) {
@@ -1168,6 +1189,7 @@
       currentQIndex = 0;
       answers = {};
       finalProfile = null;
+      currentFortuneRecord = null;
       currentDocId = null;
       currentFortuneDocId = null;
       isAnswering = false;
@@ -1734,7 +1756,96 @@
       return new Date();
     }
 
+    function normalizeFortuneDeepEntry(raw) {
+      if (!raw || typeof raw !== "object") {
+        return { analysisText: "", actionList: [] };
+      }
+      const analysisText = normalizeText(raw.analysisText || raw.analysis || raw.text, "");
+      const actionList = normalizeStringArray(raw.actionList || raw.actions || raw.tips).slice(0, 4);
+      return { analysisText, actionList };
+    }
+
+    function renderFortuneDeepTopicContent(entry) {
+      const normalized = normalizeFortuneDeepEntry(entry);
+      const analysisHtml = escapeHtml(normalized.analysisText).replace(/\n/g, "<br>");
+      const actionsHtml = normalized.actionList.length
+        ? `
+          <div class="mt-3 pt-3 border-t border-violet-100">
+            <p class="text-[10px] font-black uppercase tracking-widest text-violet-500">Action Plan</p>
+            <ul class="mt-2 space-y-1">
+              ${normalized.actionList.map((tip) => `<li class="text-xs text-slate-700 leading-relaxed">・${escapeHtml(tip)}</li>`).join("")}
+            </ul>
+          </div>
+        `
+        : "";
+      return `
+        <div class="mt-3">
+          <p class="text-sm text-slate-700 leading-relaxed">${analysisHtml}</p>
+          ${actionsHtml}
+        </div>
+      `;
+    }
+
+    function renderFortuneTopics(record) {
+      const container = document.getElementById("fortune-topics-container");
+      if (!container) return;
+
+      const deepTopics = (record && typeof record === "object" && record.deepTopics && typeof record.deepTopics === "object")
+        ? record.deepTopics
+        : {};
+
+      container.innerHTML = FORTUNE_DEEP_TOPICS.map((topic) => {
+        const entry = normalizeFortuneDeepEntry(deepTopics[topic.id]);
+        const hasData = !!entry.analysisText;
+        const contentHtml = hasData
+          ? renderFortuneDeepTopicContent(entry)
+          : `
+            <div class="mt-3">
+              <button id="fortune-topic-btn-${topic.id}" onclick="generateFortuneTopic('${topic.id}')" class="w-full bg-violet-50 hover:bg-violet-100 text-violet-700 font-bold py-2.5 px-4 rounded-xl text-sm flex items-center justify-center gap-2 border border-violet-200 transition-colors">
+                <i data-lucide="wand-sparkles" class="w-4 h-4"></i>
+                AIで詳細分析
+              </button>
+              <div id="fortune-topic-loading-${topic.id}" class="hidden w-full py-2.5 flex items-center justify-center gap-2 text-violet-600 text-sm font-bold">
+                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                解析中...
+              </div>
+            </div>
+          `;
+        return `
+          <div class="bg-white rounded-xl border border-slate-100 p-4 flex flex-col">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 border border-violet-100 flex items-center justify-center">
+                <i data-lucide="${topic.icon}" class="w-4 h-4"></i>
+              </div>
+              <h5 class="text-sm font-black text-slate-800">${topic.title}</h5>
+            </div>
+            <div id="fortune-topic-content-${topic.id}" class="flex-1">
+              ${contentHtml}
+            </div>
+          </div>
+        `;
+      }).join("");
+      lucide.createIcons();
+    }
+
+    function buildFortuneTopicFallback(topicTitle) {
+      return {
+        analysisText: `${topicTitle}は「毎週の振り返り」と「先回り準備」で底上げしやすい流れです。勢い任せより、短い検証を挟むほど安定して成果が伸びます。`,
+        actionList: [
+          `${topicTitle}に関する目標を1つだけ決める。`,
+          "週1回、結果と原因を3行で記録する。",
+          "予定を詰め込みすぎず、余白を確保する。"
+        ]
+      };
+    }
+
     function renderFortuneResult(record) {
+      if (!record || typeof record !== "object") return;
+      currentFortuneRecord = {
+        ...record,
+        deepTopics: { ...(record.deepTopics || {}) }
+      };
+
       const badgeEl = document.getElementById('fortune-badge');
       const dateEl = document.getElementById('fortune-date');
       const scoreEl = document.getElementById('fortune-score');
@@ -1758,18 +1869,17 @@
       const rawScore = Number(record?.score);
       const score = Number.isFinite(rawScore) ? Math.max(1, Math.min(100, Math.round(rawScore))) : 50;
       const grade = getFortuneGrade(score);
-      const focus = normalizeText(record?.focus, 'overall');
       const sign = normalizeText(record?.sign, 'aries');
-      const focusLabel = normalizeText(record?.focusLabel, FORTUNE_FOCUS_LABELS[focus] || '総合運');
       const signLabel = normalizeText(record?.signLabel, FORTUNE_SIGN_LABELS[sign] || 'あなたの星座');
       const gradeLabel = normalizeText(record?.grade, grade.label);
       const displayName = normalizeText(record?.name, 'あなた');
       const displayDate = formatFortuneDate(getFortuneRecordDate(record));
+      const targetYear = Number(record?.targetYear || new Date().getFullYear());
 
       badgeEl.className = `inline-flex items-center gap-2 px-4 py-1 rounded-full border text-sm font-black ${grade.badgeClass}`;
-      badgeEl.textContent = `${focusLabel} ${gradeLabel}`;
+      badgeEl.textContent = `${targetYear}年 総合運 ${gradeLabel}`;
       dateEl.textContent = `${displayDate} / ${signLabel}`;
-      scoreEl.textContent = `${displayName}の運勢スコア ${score}/100`;
+      scoreEl.textContent = `${displayName}の年運スコア ${score}/100`;
       scoreBarEl.style.width = `${score}%`;
       seijinEl.textContent = normalizeText(record?.seijinType, "解析中星人");
       seijinSubEl.textContent = normalizeText(record?.seijinDesc, "生年月日から行動傾向を推定しました。");
@@ -1778,17 +1888,20 @@
         ? `年柱 ${p.year} / 月柱 ${p.month} / 日柱 ${p.day} / 時柱 ${p.hour}${p.timeKnown ? "" : "（時刻未入力補正）"}`
         : "四柱: 生年月日を入力すると表示されます。";
       statEl.textContent = normalizeText(record?.statSummary, "統計推定は占い実行後に表示されます。");
-      mainEl.textContent = normalizeText(record?.message, '今日は丁寧な一歩が運の鍵です。');
+      mainEl.textContent = normalizeText(record?.message, '今年は丁寧な一歩が運の鍵です。');
       colorEl.textContent = normalizeText(record?.luckyColor, 'インディゴ');
       itemEl.textContent = normalizeText(record?.luckyItem, '白いノート');
       timeEl.textContent = normalizeText(record?.luckyTime, '10:10〜10:40');
       actionEl.textContent = normalizeText(record?.action, '小さなタスクを1つだけ先に終える。');
       cautionEl.textContent = normalizeText(record?.caution, '焦ると判断が粗くなります。深呼吸してから進めましょう。');
       resultEl.classList.remove('hidden');
+      renderFortuneTopics(currentFortuneRecord);
       lucide.createIcons();
     }
 
     window.generateFortune = async () => {
+      if (!ensureSignedIn()) return;
+
       const name = normalizeText(document.getElementById('fortune-name')?.value, 'あなた');
       const birthDateText = normalizeText(document.getElementById('fortune-birthdate')?.value, '');
       const birthTimeText = normalizeText(document.getElementById('fortune-birthtime')?.value, '');
@@ -1806,6 +1919,7 @@
       const focus = normalizeText(document.getElementById('fortune-focus')?.value, 'overall');
       const keyword = normalizeText(document.getElementById('fortune-keyword')?.value, '');
       const now = new Date();
+      const targetYear = now.getFullYear();
       const todayKey = formatFortuneDate(now);
       const fourPillars = deriveFourPillars(birthDate, birthTime);
       const baseVector = getFourPillarVector(fourPillars);
@@ -1814,25 +1928,78 @@
       const classified = classifySeijin(combinedVector);
       const topType = classified[0] || SEIJIN_ARCHETYPES[0];
       const focusPotential = computeFocusPotential(combinedVector, focus);
-
-      const baseSeed = hashString(`${todayKey}|${birthDateText}|${birthTimeText}|${sign}|${focus}|${name}|${keyword}|${topType.id}`);
-      const baseLuck = 45 + (baseSeed % 56);
-      const score = clamp(Math.round((baseLuck * 0.45) + (focusPotential * 0.55) + ((topType.probability || 0) * 8)), 1, 100);
-      const grade = getFortuneGrade(score);
-
-      const focusLabel = FORTUNE_FOCUS_LABELS[focus] || '総合運';
-      const signLabel = FORTUNE_SIGN_LABELS[sign] || 'あなたの星座';
-      const messages = FORTUNE_MESSAGES[focus] || FORTUNE_MESSAGES.overall;
-      const baseMessage = pickBySeed(messages, hashString(`${baseSeed}|main`));
-      const dominantTraits = formatTopTraits(traitScores, 2);
-      const message = `${topType.name}傾向（${dominantTraits}）が強め。${baseMessage}`;
-      const action = pickBySeed(FORTUNE_ACTION_TIPS, hashString(`${baseSeed}|action`));
-      const caution = pickBySeed(FORTUNE_CAUTIONS, hashString(`${baseSeed}|caution`));
-      const luckyColor = pickBySeed(FORTUNE_LUCKY_COLORS, hashString(`${baseSeed}|color`));
-      const luckyItem = pickBySeed(FORTUNE_LUCKY_ITEMS, hashString(`${baseSeed}|item`));
-      const luckyTime = pickBySeed(FORTUNE_LUCKY_TIMES, hashString(`${baseSeed}|time`));
       const statSummary = buildStatSummary(classified, fourPillars, traitScores);
+      const topCandidates = classified.slice(0, 3).map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        probability: Math.round((entry.probability || 0) * 1000) / 1000
+      }));
+      const signLabel = FORTUNE_SIGN_LABELS[sign] || "あなたの星座";
+      const focusLabel = FORTUNE_FOCUS_LABELS[focus] || "総合運";
 
+      const prompt = `あなたは占術データを統計解釈するAIアナリストです。
+次の入力から、${targetYear}年の【総合運】を作成してください。
+
+[入力データ]
+名前: ${name}
+生年月日: ${birthDateText}
+出生時刻: ${birthTimeText || "不明"}
+星座: ${signLabel}
+注目観点: ${focusLabel}
+キーワード: ${keyword || "なし"}
+四柱: ${JSON.stringify({
+  year: fourPillars?.year || "",
+  month: fourPillars?.month || "",
+  day: fourPillars?.day || "",
+  hour: fourPillars?.hour || "",
+  timeKnown: !!fourPillars?.timeKnown
+})}
+星人分類候補: ${JSON.stringify(topCandidates)}
+主要星人: ${topType.name}
+主要特性スコア: ${JSON.stringify(traitScores)}
+統計要約: ${statSummary}
+統計ポテンシャル: ${focusPotential}
+
+[出力ルール]
+- 断定的すぎない。
+- 行動提案は具体的に。
+- 日本語で自然に。
+- JSONのみを返す。`;
+
+      const schema = {
+        type: "OBJECT",
+        properties: {
+          annualScore: { type: "NUMBER" },
+          annualGrade: { type: "STRING" },
+          annualSummary: { type: "STRING" },
+          actionTip: { type: "STRING" },
+          caution: { type: "STRING" },
+          luckyColor: { type: "STRING" },
+          luckyItem: { type: "STRING" },
+          luckyTime: { type: "STRING" },
+          seijinCatch: { type: "STRING" },
+          statConclusion: { type: "STRING" }
+        }
+      };
+
+      updateFortuneSaveStatus("Geminiで今年の総合運を解析中...");
+      const fallbackSeed = hashString(`${todayKey}|${birthDateText}|${birthTimeText}|${sign}|${focus}|${name}|${keyword}|${topType.id}`);
+      const fallbackScore = clamp(Math.round((45 + (fallbackSeed % 56)) * 0.45 + focusPotential * 0.55), 1, 100);
+      const fallbackGrade = getFortuneGrade(fallbackScore).label;
+      const fallbackMessage = `統計推定では${topType.name}傾向（${formatTopTraits(traitScores, 2)}）が強め。${targetYear}年は、先回りで計画しつつ小さな検証を重ねるほど運気が安定します。`;
+
+      let aiData = null;
+      let overallMeta = null;
+      try {
+        const res = await fetchGemini(prompt, schema, { temperature: 0.62, maxAttempts: 2 });
+        aiData = res?.data || null;
+        overallMeta = res?.meta || null;
+      } catch (err) {
+        console.error("Fortune overall generation error:", err);
+        updateFortuneSaveStatus("Gemini解析に失敗したため、推定値で表示します。", "error");
+      }
+
+      const score = clamp(Math.round(Number(aiData?.annualScore || fallbackScore)), 1, 100);
       const fortuneRecord = {
         name,
         birthDate: birthDateText,
@@ -1843,21 +2010,18 @@
         focus,
         focusLabel,
         keyword,
+        targetYear,
         score,
-        grade: grade.label,
-        message,
-        action,
-        caution,
+        grade: normalizeText(aiData?.annualGrade, fallbackGrade),
+        message: normalizeText(aiData?.annualSummary, fallbackMessage),
+        action: normalizeText(aiData?.actionTip, pickBySeed(FORTUNE_ACTION_TIPS, hashString(`${fallbackSeed}|action`))),
+        caution: normalizeText(aiData?.caution, pickBySeed(FORTUNE_CAUTIONS, hashString(`${fallbackSeed}|caution`))),
         seijinType: topType.name,
         seijinTypeId: topType.id,
-        seijinDesc: normalizeText(topType?.desc, "四柱の傾向を数値化したタイプです。"),
-        statSummary,
+        seijinDesc: normalizeText(aiData?.seijinCatch, normalizeText(topType?.desc, "四柱の傾向を数値化したタイプです。")),
+        statSummary: normalizeText(aiData?.statConclusion, statSummary),
         traitScores,
-        topCandidates: classified.slice(0, 3).map((entry) => ({
-          id: entry.id,
-          name: entry.name,
-          probability: Math.round((entry.probability || 0) * 1000) / 1000
-        })),
+        topCandidates,
         pillars: {
           year: fourPillars?.year || "",
           month: fourPillars?.month || "",
@@ -1865,28 +2029,107 @@
           hour: fourPillars?.hour || "",
           timeKnown: !!fourPillars?.timeKnown
         },
-        luckyColor,
-        luckyItem,
-        luckyTime,
+        deepTopics: {},
+        luckyColor: normalizeText(aiData?.luckyColor, pickBySeed(FORTUNE_LUCKY_COLORS, hashString(`${fallbackSeed}|color`))),
+        luckyItem: normalizeText(aiData?.luckyItem, pickBySeed(FORTUNE_LUCKY_ITEMS, hashString(`${fallbackSeed}|item`))),
+        luckyTime: normalizeText(aiData?.luckyTime, pickBySeed(FORTUNE_LUCKY_TIMES, hashString(`${fallbackSeed}|time`))),
+        generationMeta: {
+          model: normalizeText(overallMeta?.model, ""),
+          fallbackUsed: !!overallMeta?.fallbackUsed,
+          generatedAt: Date.now()
+        },
         dateKey: todayKey,
         generatedAtMs: Date.now()
       };
 
+      currentFortuneDocId = null;
       renderFortuneResult(fortuneRecord);
-
-      if (!user) {
-        updateFortuneSaveStatus("ログインすると占い履歴をクラウド保存できます。");
-        renderFortuneHistoryList();
-        return;
-      }
 
       updateFortuneSaveStatus("占い結果をクラウド保存中...");
       const savedId = await autoSaveFortuneToCloud(fortuneRecord);
       if (savedId) {
         currentFortuneDocId = savedId;
+        currentFortuneRecord = { ...fortuneRecord, id: savedId, deepTopics: {} };
         updateFortuneSaveStatus("クラウドに保存しました。", "success");
       } else {
+        currentFortuneRecord = { ...fortuneRecord, deepTopics: {} };
         updateFortuneSaveStatus("保存に失敗しました。時間をおいて再試行してください。", "error");
+      }
+    };
+
+    window.generateFortuneTopic = async (topicId) => {
+      if (!ensureSignedIn()) return;
+      if (!currentFortuneRecord) {
+        alert("先に今年の総合運を生成してください。");
+        return;
+      }
+
+      const topic = FORTUNE_DEEP_TOPICS.find((item) => item.id === topicId);
+      if (!topic) return;
+      const btn = document.getElementById(`fortune-topic-btn-${topicId}`);
+      const loading = document.getElementById(`fortune-topic-loading-${topicId}`);
+      if (btn) btn.classList.add("hidden");
+      if (loading) loading.classList.remove("hidden");
+
+      const prompt = `あなたは占術データと行動科学を統合して分析するAIです。
+対象者の${currentFortuneRecord.targetYear || new Date().getFullYear()}年運を詳細化してください。
+
+[対象者データ]
+名前: ${currentFortuneRecord.name}
+生年月日: ${currentFortuneRecord.birthDate}
+出生時刻: ${currentFortuneRecord.birthTime || "不明"}
+星座: ${currentFortuneRecord.signLabel}
+四柱: ${JSON.stringify(currentFortuneRecord.pillars || {})}
+星人タイプ: ${currentFortuneRecord.seijinType}
+統計要約: ${currentFortuneRecord.statSummary}
+総合運要約: ${currentFortuneRecord.message}
+主要特性: ${JSON.stringify(currentFortuneRecord.traitScores || {})}
+
+[依頼]
+${topic.prompt}
+
+[出力ルール]
+- 実行可能性を重視する。
+- 300〜700文字程度。
+- JSONのみ返す。`;
+
+      const schema = {
+        type: "OBJECT",
+        properties: {
+          analysisText: { type: "STRING" },
+          actionList: {
+            type: "ARRAY",
+            items: { type: "STRING" }
+          }
+        }
+      };
+
+      let entry = null;
+      try {
+        const { data } = await fetchGemini(prompt, schema, { temperature: 0.68, maxAttempts: 2 });
+        entry = normalizeFortuneDeepEntry(data);
+        if (!entry.analysisText) {
+          throw new Error("deep topic text is empty");
+        }
+      } catch (err) {
+        console.error("Fortune topic generation error:", err);
+        entry = buildFortuneTopicFallback(topic.title);
+        updateFortuneSaveStatus(`${topic.title}は推定値で表示しています。`, "error");
+      }
+
+      currentFortuneRecord.deepTopics = currentFortuneRecord.deepTopics || {};
+      currentFortuneRecord.deepTopics[topicId] = entry;
+      renderFortuneTopics(currentFortuneRecord);
+
+      if (user && currentFortuneDocId) {
+        try {
+          const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'fortune-history', currentFortuneDocId);
+          await updateDoc(docRef, { [`deepTopics.${topicId}`]: entry });
+          updateFortuneSaveStatus(`${topic.title}の詳細を保存しました。`, "success");
+        } catch (err) {
+          console.error("Fortune topic save error:", err);
+          updateFortuneSaveStatus(`${topic.title}の保存に失敗しました。`, "error");
+        }
       }
     };
 
