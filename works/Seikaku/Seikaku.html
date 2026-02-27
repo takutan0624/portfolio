@@ -355,6 +355,33 @@
 
           <p id="fortune-main" class="text-slate-700 leading-relaxed"></p>
 
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="bg-white rounded-xl border border-slate-100 p-4 space-y-2">
+              <p class="text-[10px] font-black uppercase tracking-widest text-indigo-500">Quarterly Forecast</p>
+              <p id="fortune-quarterly" class="text-sm text-slate-700 leading-relaxed"></p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 p-4 space-y-2">
+              <p class="text-[10px] font-black uppercase tracking-widest text-emerald-500">Opportunity Signals</p>
+              <p id="fortune-opportunity" class="text-sm text-slate-700 leading-relaxed"></p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 p-4 space-y-2">
+              <p class="text-[10px] font-black uppercase tracking-widest text-rose-500">Risk Scenarios</p>
+              <p id="fortune-risk" class="text-sm text-slate-700 leading-relaxed"></p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 p-4 space-y-2">
+              <p class="text-[10px] font-black uppercase tracking-widest text-violet-500">Unlock Routine</p>
+              <p id="fortune-routine" class="text-sm text-slate-700 leading-relaxed"></p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 p-4 space-y-2">
+              <p class="text-[10px] font-black uppercase tracking-widest text-cyan-500">Turning Points</p>
+              <p id="fortune-turning" class="text-sm text-slate-700 leading-relaxed"></p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 p-4 space-y-2">
+              <p class="text-[10px] font-black uppercase tracking-widest text-amber-500">Probability Window</p>
+              <p id="fortune-probability" class="text-sm text-slate-700 leading-relaxed"></p>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div class="bg-white rounded-xl border border-slate-100 p-4 space-y-1">
               <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Lucky Color</p>
@@ -1747,16 +1774,32 @@
 
     function normalizeFortuneDeepEntry(raw) {
       if (!raw || typeof raw !== "object") {
-        return { analysisText: "", actionList: [] };
+        return { analysisText: "", signalList: [], actionList: [], cautionList: [], timingNote: "" };
       }
       const analysisText = normalizeText(raw.analysisText || raw.analysis || raw.text, "");
-      const actionList = normalizeStringArray(raw.actionList || raw.actions || raw.tips).slice(0, 4);
-      return { analysisText, actionList };
+      const signalList = normalizeStringArray(raw.signalList || raw.signals || raw.indicatorList).slice(0, 6);
+      const actionList = normalizeStringArray(raw.actionList || raw.actions || raw.tips).slice(0, 7);
+      const cautionList = normalizeStringArray(raw.cautionList || raw.riskList || raw.warnings).slice(0, 7);
+      const timingNote = normalizeText(raw.timingNote || raw.bestTiming || raw.timing, "");
+      return { analysisText, signalList, actionList, cautionList, timingNote };
     }
 
     function renderFortuneDeepTopicContent(entry) {
       const normalized = normalizeFortuneDeepEntry(entry);
       const analysisHtml = escapeHtml(normalized.analysisText).replace(/\n/g, "<br>");
+      const timingHtml = normalized.timingNote
+        ? `<p class="text-xs font-bold text-violet-600 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">ベストタイミング: ${escapeHtml(normalized.timingNote)}</p>`
+        : "";
+      const signalHtml = normalized.signalList.length
+        ? `
+          <div class="mt-3 pt-3 border-t border-sky-100">
+            <p class="text-[10px] font-black uppercase tracking-widest text-sky-500">Key Signals</p>
+            <ul class="mt-2 space-y-1">
+              ${normalized.signalList.map((tip) => `<li class="text-xs text-slate-700 leading-relaxed">・${escapeHtml(tip)}</li>`).join("")}
+            </ul>
+          </div>
+        `
+        : "";
       const actionsHtml = normalized.actionList.length
         ? `
           <div class="mt-3 pt-3 border-t border-violet-100">
@@ -1767,10 +1810,23 @@
           </div>
         `
         : "";
+      const cautionHtml = normalized.cautionList.length
+        ? `
+          <div class="mt-3 pt-3 border-t border-rose-100">
+            <p class="text-[10px] font-black uppercase tracking-widest text-rose-500">Risk Alerts</p>
+            <ul class="mt-2 space-y-1">
+              ${normalized.cautionList.map((tip) => `<li class="text-xs text-slate-700 leading-relaxed">・${escapeHtml(tip)}</li>`).join("")}
+            </ul>
+          </div>
+        `
+        : "";
       return `
         <div class="mt-3">
           <p class="text-sm text-slate-700 leading-relaxed">${analysisHtml}</p>
+          ${timingHtml}
+          ${signalHtml}
           ${actionsHtml}
+          ${cautionHtml}
         </div>
       `;
     }
@@ -1819,12 +1875,26 @@
 
     function buildFortuneTopicFallback(topicTitle) {
       return {
-        analysisText: `${topicTitle}は「毎週の振り返り」と「先回り準備」で底上げしやすい流れです。勢い任せより、短い検証を挟むほど安定して成果が伸びます。`,
+        analysisText: `${topicTitle}は「先回り準備」と「検証サイクル」で底上げしやすい局面です。短期的な勢いに頼るより、毎週の点検で再現性を作るほど成果が安定します。特に上半期は土台作り、下半期は成果化に焦点を移すと効率が上がります。`,
+        signalList: [
+          "勢いが出る直前は、予定より先に準備が完了している。",
+          "他者からの相談や依頼が増える時期は追い風サイン。",
+          "判断に迷いが増えた時は優先順位の再設定が必要。"
+        ],
         actionList: [
           `${topicTitle}に関する目標を1つだけ決める。`,
           "週1回、結果と原因を3行で記録する。",
-          "予定を詰め込みすぎず、余白を確保する。"
-        ]
+          "予定を詰め込みすぎず、余白を確保する。",
+          "月1回、戦略の前提を見直す。",
+          "進捗が鈍い時ほど、作業を30分単位に分解して再始動する。"
+        ],
+        cautionList: [
+          "成果を急ぎすぎて基礎の確認を飛ばさない。",
+          "情報過多で判断が遅れる状態を避ける。",
+          "短期成果だけで方向転換しすぎない。",
+          "他人の期待値を背負いすぎて自分の優先順位を失わない。"
+        ],
+        timingNote: "毎週前半に計画、後半に検証を置く。"
       };
     }
 
@@ -1844,6 +1914,12 @@
       const seijinSubEl = document.getElementById('fortune-seijin-sub');
       const pillarsEl = document.getElementById('fortune-pillars');
       const statEl = document.getElementById('fortune-stat');
+      const quarterlyEl = document.getElementById('fortune-quarterly');
+      const opportunityEl = document.getElementById('fortune-opportunity');
+      const riskEl = document.getElementById('fortune-risk');
+      const routineEl = document.getElementById('fortune-routine');
+      const turningEl = document.getElementById('fortune-turning');
+      const probabilityEl = document.getElementById('fortune-probability');
       const colorEl = document.getElementById('fortune-color');
       const itemEl = document.getElementById('fortune-item');
       const timeEl = document.getElementById('fortune-time');
@@ -1851,7 +1927,7 @@
       const cautionEl = document.getElementById('fortune-caution');
       const resultEl = document.getElementById('fortune-result');
 
-      if (!badgeEl || !dateEl || !scoreEl || !scoreBarEl || !mainEl || !seijinEl || !seijinSubEl || !pillarsEl || !statEl || !colorEl || !itemEl || !timeEl || !actionEl || !cautionEl || !resultEl) {
+      if (!badgeEl || !dateEl || !scoreEl || !scoreBarEl || !mainEl || !seijinEl || !seijinSubEl || !pillarsEl || !statEl || !quarterlyEl || !opportunityEl || !riskEl || !routineEl || !turningEl || !probabilityEl || !colorEl || !itemEl || !timeEl || !actionEl || !cautionEl || !resultEl) {
         return;
       }
 
@@ -1878,6 +1954,12 @@
         : "四柱: 生年月日を入力すると表示されます。";
       statEl.textContent = normalizeText(record?.statSummary, "統計推定は占い実行後に表示されます。");
       mainEl.textContent = normalizeText(record?.message, '今年は丁寧な一歩が運の鍵です。');
+      quarterlyEl.textContent = normalizeText(record?.quarterlyForecast, "四半期ごとの詳細は診断後に表示されます。");
+      opportunityEl.textContent = normalizeText(record?.opportunitySignals, "追い風シグナルは診断後に表示されます。");
+      riskEl.textContent = normalizeText(record?.riskScenarios, "注意局面は診断後に表示されます。");
+      routineEl.textContent = normalizeText(record?.unlockRoutine, "開運ルーチンは診断後に表示されます。");
+      turningEl.textContent = normalizeText(record?.turningPoints, "転機ポイントは診断後に表示されます。");
+      probabilityEl.textContent = normalizeText(record?.probabilityWindow, "確率レンジは診断後に表示されます。");
       colorEl.textContent = normalizeText(record?.luckyColor, 'インディゴ');
       itemEl.textContent = normalizeText(record?.luckyItem, '白いノート');
       timeEl.textContent = normalizeText(record?.luckyTime, '10:10〜10:40');
@@ -1926,8 +2008,7 @@
       const signLabel = FORTUNE_SIGN_LABELS[sign] || "あなたの星座";
       const focusLabel = FORTUNE_FOCUS_LABELS.overall;
 
-      const prompt = `あなたは占術データを統計解釈するAIアナリストです。
-次の入力から、${targetYear}年の【総合運】を作成してください。
+      const prompt = `あなたは「占術統計融合モデル」です。四柱推命の構造情報、星人分類確率、特性スコアを統合し、${targetYear}年の総合運を高解像度で作成してください。
 
 [入力データ]
 名前: ${name}
@@ -1949,11 +2030,32 @@
 統計要約: ${statSummary}
 統計ポテンシャル: ${focusPotential}
 
-[出力ルール]
-- 断定的すぎない。
-- 行動提案は具体的に。
-- 日本語で自然に。
-- JSONのみを返す。`;
+[分析ポリシー]
+1. 断定を避け、確率的・条件付きで述べる。
+2. 「根拠 -> 解釈 -> 行動」の順に整理する。
+3. 一般論を減らし、入力データの固有性を優先する。
+4. ユニークな比喩や言い回しを使うが、実務上の意味が伝わる表現にする。
+5. 年間運勢は時系列（四半期）で具体化する。
+6. 四柱・特性スコア・星人候補の数値を本文へ具体引用する。
+7. セクションごとに観点と語彙を変え、重複表現を減らす。
+8. 不確実性が高い部分は「条件付きシナリオ」として分岐提示する。
+
+[出力仕様]
+- annualScore: 1-100の整数。
+- annualGrade: 大吉/中吉/小吉/末吉/凶 のいずれか。
+- annualSummary: 1800〜3200文字。
+- statConclusion: 800〜1400文字。
+- quarterlyForecast: 1200〜2200文字。Q1〜Q4を必ず含める。
+- opportunitySignals: 800〜1400文字。
+- riskScenarios: 800〜1400文字。
+- unlockRoutine: 800〜1400文字。
+- turningPoints: 700〜1200文字。上半期1件・下半期1件以上の転機を示す。
+- probabilityWindow: 500〜900文字。主要シナリオごとに達成確率レンジを示す。
+- actionTip: 260〜480文字。
+- caution: 260〜480文字。
+- seijinCatch: 260〜520文字。ユニークで印象に残る表現。
+- luckyColor/luckyItem/luckyTime は具体的に。
+- JSON以外を出力しない。`;
 
       const schema = {
         type: "OBJECT",
@@ -1961,6 +2063,12 @@
           annualScore: { type: "NUMBER" },
           annualGrade: { type: "STRING" },
           annualSummary: { type: "STRING" },
+          quarterlyForecast: { type: "STRING" },
+          opportunitySignals: { type: "STRING" },
+          riskScenarios: { type: "STRING" },
+          unlockRoutine: { type: "STRING" },
+          turningPoints: { type: "STRING" },
+          probabilityWindow: { type: "STRING" },
           actionTip: { type: "STRING" },
           caution: { type: "STRING" },
           luckyColor: { type: "STRING" },
@@ -1968,7 +2076,25 @@
           luckyTime: { type: "STRING" },
           seijinCatch: { type: "STRING" },
           statConclusion: { type: "STRING" }
-        }
+        },
+        required: [
+          "annualScore",
+          "annualGrade",
+          "annualSummary",
+          "quarterlyForecast",
+          "opportunitySignals",
+          "riskScenarios",
+          "unlockRoutine",
+          "turningPoints",
+          "probabilityWindow",
+          "actionTip",
+          "caution",
+          "luckyColor",
+          "luckyItem",
+          "luckyTime",
+          "seijinCatch",
+          "statConclusion"
+        ]
       };
 
       updateFortuneSaveStatus("Geminiで今年の総合運を解析中...");
@@ -1976,11 +2102,17 @@
       const fallbackScore = clamp(Math.round((45 + (fallbackSeed % 56)) * 0.45 + focusPotential * 0.55), 1, 100);
       const fallbackGrade = getFortuneGrade(fallbackScore).label;
       const fallbackMessage = `統計推定では${topType.name}傾向（${formatTopTraits(traitScores, 2)}）が強め。${targetYear}年は、先回りで計画しつつ小さな検証を重ねるほど運気が安定します。`;
+      const fallbackQuarterly = `Q1: 土台形成期。情報整理と習慣化を優先。Q2: 伸長期。対外発信と協働で加速。Q3: 調整期。負荷分散と優先順位の再設計が鍵。Q4: 収穫期。成果の定着と来年への資産化を進める。`;
+      const fallbackOpportunity = `追い風は「初動の速さ」「記録の継続」「対話の質」に現れます。小さな成功を可視化して再利用すると、運気の再現性が高まります。`;
+      const fallbackRisk = `失速要因は「抱え込み」「判断の先送り」「目的の拡散」です。迷った時は選択肢を減らし、期限と評価軸を明示するとリスクを抑えられます。`;
+      const fallbackRoutine = `週次で「振り返り15分 -> 翌週の重点1つ設定 -> 不要タスクを1つ削除」のルーチンを回してください。これが年間の運勢を底上げします。`;
+      const fallbackTurning = `上半期は「優先順位を再設計する決断」が転機になります。下半期は「成果を外部へ見せる場」に乗るほど評価が伸びやすい局面です。`;
+      const fallbackProbability = `現状維持シナリオは55〜65%、挑戦拡大型シナリオは35〜50%で成果が見込めます。準備量と検証頻度を増やすほど上振れ確率が高まります。`;
 
       let aiData = null;
       let overallMeta = null;
       try {
-        const res = await fetchGemini(prompt, schema, { temperature: 0.62, maxAttempts: 2 });
+        const res = await fetchGemini(prompt, schema, { temperature: 0.72, maxAttempts: 2 });
         aiData = res?.data || null;
         overallMeta = res?.meta || null;
       } catch (err) {
@@ -2003,6 +2135,12 @@
         score,
         grade: normalizeText(aiData?.annualGrade, fallbackGrade),
         message: normalizeText(aiData?.annualSummary, fallbackMessage),
+        quarterlyForecast: normalizeText(aiData?.quarterlyForecast, fallbackQuarterly),
+        opportunitySignals: normalizeText(aiData?.opportunitySignals, fallbackOpportunity),
+        riskScenarios: normalizeText(aiData?.riskScenarios, fallbackRisk),
+        unlockRoutine: normalizeText(aiData?.unlockRoutine, fallbackRoutine),
+        turningPoints: normalizeText(aiData?.turningPoints, fallbackTurning),
+        probabilityWindow: normalizeText(aiData?.probabilityWindow, fallbackProbability),
         action: normalizeText(aiData?.actionTip, pickBySeed(FORTUNE_ACTION_TIPS, hashString(`${fallbackSeed}|action`))),
         caution: normalizeText(aiData?.caution, pickBySeed(FORTUNE_CAUTIONS, hashString(`${fallbackSeed}|caution`))),
         seijinType: topType.name,
@@ -2061,7 +2199,7 @@
       if (loading) loading.classList.remove("hidden");
 
       const prompt = `あなたは占術データと行動科学を統合して分析するAIです。
-対象者の${currentFortuneRecord.targetYear || new Date().getFullYear()}年運を詳細化してください。
+対象者の${currentFortuneRecord.targetYear || new Date().getFullYear()}年運を、テーマ別に高解像度で深掘りしてください。
 
 [対象者データ]
 名前: ${currentFortuneRecord.name}
@@ -2072,30 +2210,54 @@
 星人タイプ: ${currentFortuneRecord.seijinType}
 統計要約: ${currentFortuneRecord.statSummary}
 総合運要約: ${currentFortuneRecord.message}
+四半期見通し: ${currentFortuneRecord.quarterlyForecast || ""}
 主要特性: ${JSON.stringify(currentFortuneRecord.traitScores || {})}
 
 [依頼]
 ${topic.prompt}
 
 [出力ルール]
-- 実行可能性を重視する。
-- 300〜700文字程度。
+- 根拠と具体行動を必ず紐づける。
+- 一般論を減らし、対象者固有の傾向を反映する。
+- 表現はユニークにしつつ、実務に使える具体性を保つ。
+- analysisText: 1400〜2400文字。
+- signalList: 4〜6項目（各25〜70文字）。追い風/失速の予兆を混在させる。
+- actionList: 5〜7項目（各35〜90文字）。
+- cautionList: 4〜7項目（各35〜90文字）。
+- timingNote: 80〜180文字。
+- 最低1回は「条件Aなら〜、条件Bなら〜」の分岐を書く。
 - JSONのみ返す。`;
 
       const schema = {
         type: "OBJECT",
         properties: {
           analysisText: { type: "STRING" },
+          signalList: {
+            type: "ARRAY",
+            items: { type: "STRING" }
+          },
           actionList: {
             type: "ARRAY",
             items: { type: "STRING" }
-          }
-        }
+          },
+          cautionList: {
+            type: "ARRAY",
+            items: { type: "STRING" }
+          },
+          timingNote: { type: "STRING" }
+        },
+        required: [
+          "analysisText",
+          "signalList",
+          "actionList",
+          "cautionList",
+          "timingNote"
+        ]
       };
 
       let entry = null;
       try {
-        const { data } = await fetchGemini(prompt, schema, { temperature: 0.68, maxAttempts: 2 });
+        const { data } = await fetchGemini(prompt, schema, { temperature: 0.78, maxAttempts: 2 });
         entry = normalizeFortuneDeepEntry(data);
         if (!entry.analysisText) {
           throw new Error("deep topic text is empty");
