@@ -1905,7 +1905,7 @@
       const signSelect = document.getElementById('fortune-sign');
       if (signSelect && detectedSign) signSelect.value = detectedSign;
       const sign = normalizeText(detectedSign || document.getElementById('fortune-sign')?.value, 'aries');
-      const focus = normalizeText(document.getElementById('fortune-focus')?.value, 'overall');
+      const focus = "overall";
       const keyword = normalizeText(document.getElementById('fortune-keyword')?.value, '');
       const now = new Date();
       const targetYear = now.getFullYear();
@@ -1924,7 +1924,7 @@
         probability: Math.round((entry.probability || 0) * 1000) / 1000
       }));
       const signLabel = FORTUNE_SIGN_LABELS[sign] || "あなたの星座";
-      const focusLabel = FORTUNE_FOCUS_LABELS[focus] || "総合運";
+      const focusLabel = FORTUNE_FOCUS_LABELS.overall;
 
       const prompt = `あなたは占術データを統計解釈するAIアナリストです。
 次の入力から、${targetYear}年の【総合運】を作成してください。
@@ -1934,7 +1934,7 @@
 生年月日: ${birthDateText}
 出生時刻: ${birthTimeText || "不明"}
 星座: ${signLabel}
-注目観点: ${focusLabel}
+注目観点: 総合運（固定）
 キーワード: ${keyword || "なし"}
 四柱: ${JSON.stringify({
   year: fourPillars?.year || "",
@@ -2983,13 +2983,11 @@ RIASEC: ${JSON.stringify(riasecScores)}
       const birthDateInput = document.getElementById('fortune-birthdate');
       const birthTimeInput = document.getElementById('fortune-birthtime');
       const signSelect = document.getElementById('fortune-sign');
-      const focusSelect = document.getElementById('fortune-focus');
       const keywordInput = document.getElementById('fortune-keyword');
       if (nameInput) nameInput.value = normalizeText(item?.name, '');
       if (birthDateInput) birthDateInput.value = normalizeText(item?.birthDate, '');
       if (birthTimeInput) birthTimeInput.value = normalizeText(item?.birthTime, '');
       if (signSelect) signSelect.value = normalizeText(item?.sign, 'aries');
-      if (focusSelect) focusSelect.value = normalizeText(item?.focus, 'overall');
       if (keywordInput) keywordInput.value = normalizeText(item?.keyword, '');
 
       renderFortuneResult(item);
