@@ -286,6 +286,14 @@
         <div class="bg-white/90 rounded-[2rem] p-6 md:p-8 border border-amber-100 shadow-lg space-y-5">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label class="space-y-2">
+              <span class="text-xs font-black text-slate-500 uppercase tracking-widest">生年月日</span>
+              <input id="fortune-birthdate" type="date" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors">
+            </label>
+            <label class="space-y-2">
+              <span class="text-xs font-black text-slate-500 uppercase tracking-widest">出生時刻（任意）</span>
+              <input id="fortune-birthtime" type="time" step="3600" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors">
+            </label>
+            <label class="space-y-2">
               <span class="text-xs font-black text-slate-500 uppercase tracking-widest">ニックネーム（任意）</span>
               <input id="fortune-name" type="text" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors" placeholder="例: Takuya">
             </label>
@@ -343,6 +351,17 @@
             <div class="h-2 bg-indigo-100 rounded-full overflow-hidden">
               <div id="fortune-score-bar" class="h-full bg-gradient-to-r from-amber-400 via-rose-400 to-indigo-500 transition-all duration-500" style="width: 0%"></div>
             </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-100 p-5 space-y-2">
+            <p id="fortune-seijin" class="text-xl md:text-2xl font-black text-indigo-700"></p>
+            <p id="fortune-seijin-sub" class="text-sm text-slate-600 leading-relaxed"></p>
+            <p id="fortune-pillars" class="text-xs font-mono text-slate-500"></p>
+          </div>
+
+          <div class="bg-indigo-50 rounded-xl border border-indigo-100 p-4 space-y-2">
+            <p class="text-[11px] font-black uppercase tracking-widest text-indigo-500">Statistical Estimate</p>
+            <p id="fortune-stat" class="text-sm text-indigo-800 leading-relaxed"></p>
           </div>
 
           <p id="fortune-main" class="text-slate-700 leading-relaxed"></p>
@@ -801,6 +820,73 @@
     const FORTUNE_LUCKY_TIMES = [
       '07:40〜08:20', '10:10〜10:40', '12:30〜13:00', '15:10〜15:50', '18:20〜19:00', '21:10〜21:40'
     ];
+
+    const HEAVENLY_STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+    const EARTHLY_BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+    const TRAIT_LABELS = ['推進力', '論理性', '共感性', '安定性', '創造性', '適応力'];
+
+    const STEM_TRAIT_MAP = {
+      甲: [0.82, 0.34, -0.08, 0.21, 0.44, 0.52],
+      乙: [0.28, 0.49, 0.42, 0.36, 0.62, 0.46],
+      丙: [0.9, 0.22, 0.27, -0.12, 0.72, 0.37],
+      丁: [0.36, 0.43, 0.58, 0.18, 0.82, 0.24],
+      戊: [0.45, 0.56, 0.02, 0.86, 0.11, -0.18],
+      己: [0.16, 0.63, 0.29, 0.9, 0.06, -0.08],
+      庚: [0.74, 0.86, -0.19, 0.52, 0.21, 0.14],
+      辛: [0.34, 0.74, 0.14, 0.66, 0.49, 0.06],
+      壬: [0.67, 0.62, 0.18, -0.02, 0.58, 0.9],
+      癸: [0.18, 0.7, 0.48, 0.08, 0.42, 0.84]
+    };
+
+    const BRANCH_TRAIT_MAP = {
+      子: [0.58, 0.63, 0.21, 0.1, 0.4, 0.88],
+      丑: [0.11, 0.57, 0.26, 0.9, 0.05, -0.08],
+      寅: [0.86, 0.42, 0.04, 0.2, 0.49, 0.55],
+      卯: [0.24, 0.38, 0.64, 0.3, 0.71, 0.43],
+      辰: [0.42, 0.72, 0.2, 0.59, 0.32, 0.39],
+      巳: [0.69, 0.67, 0.12, 0.11, 0.61, 0.51],
+      午: [0.92, 0.24, 0.29, -0.09, 0.73, 0.33],
+      未: [0.15, 0.44, 0.62, 0.73, 0.41, 0.22],
+      申: [0.63, 0.86, 0.03, 0.38, 0.34, 0.57],
+      酉: [0.27, 0.77, 0.15, 0.68, 0.54, 0.07],
+      戌: [0.46, 0.59, 0.11, 0.84, 0.23, 0.16],
+      亥: [0.35, 0.54, 0.53, 0.12, 0.57, 0.82]
+    };
+
+    const SIGN_TRAIT_BONUS = {
+      aries: [0.12, -0.03, -0.04, -0.01, 0.03, 0.06],
+      taurus: [-0.04, 0.02, 0.04, 0.08, -0.01, -0.02],
+      gemini: [0.04, 0.08, 0.03, -0.05, 0.07, 0.09],
+      cancer: [-0.02, -0.03, 0.1, 0.05, 0.03, 0.04],
+      leo: [0.1, -0.02, 0.02, -0.03, 0.09, 0.03],
+      virgo: [-0.03, 0.1, 0.02, 0.09, -0.02, -0.01],
+      libra: [0.02, 0.03, 0.11, 0.01, 0.05, 0.04],
+      scorpio: [0.05, 0.05, 0.01, 0.03, 0.04, 0.06],
+      sagittarius: [0.09, 0.02, 0.01, -0.04, 0.08, 0.11],
+      capricorn: [0.03, 0.08, -0.02, 0.11, -0.03, -0.04],
+      aquarius: [0.04, 0.06, 0.05, -0.03, 0.1, 0.12],
+      pisces: [-0.01, 0.01, 0.12, 0.02, 0.06, 0.08]
+    };
+
+    const SEIJIN_ARCHETYPES = [
+      { id: 'kaitaku', name: '開拓星人', vector: [0.88, 0.52, 0.14, 0.28, 0.44, 0.51], desc: '新規開拓と先行着手で道を切り開くタイプ。' },
+      { id: 'senryaku', name: '戦略星人', vector: [0.42, 0.9, 0.12, 0.62, 0.32, 0.28], desc: '状況分析と設計力で勝ち筋を作るタイプ。' },
+      { id: 'chowa', name: '調和星人', vector: [0.16, 0.38, 0.92, 0.56, 0.42, 0.33], desc: '対話と共感でチームの空気を整えるタイプ。' },
+      { id: 'shokunin', name: '職人星人', vector: [0.24, 0.72, 0.22, 0.92, 0.2, 0.14], desc: '再現性と品質を高めて積み上げるタイプ。' },
+      { id: 'hensei', name: '変成星人', vector: [0.52, 0.58, 0.24, 0.1, 0.84, 0.93], desc: '変化適応と発想転換で突破口を作るタイプ。' },
+      { id: 'performer', name: '表現星人', vector: [0.69, 0.3, 0.46, 0.09, 0.95, 0.4], desc: '魅せ方と言語化で影響範囲を広げるタイプ。' },
+      { id: 'guardian', name: '守護星人', vector: [0.2, 0.49, 0.77, 0.84, 0.18, 0.19], desc: '安全性と継続性を重視して全体を守るタイプ。' },
+      { id: 'explorer', name: '探究星人', vector: [0.37, 0.87, 0.29, 0.29, 0.57, 0.71], desc: '仮説検証を回しながら深く掘るタイプ。' }
+    ];
+
+    const FOCUS_WEIGHTS = {
+      overall: [0.2, 0.2, 0.2, 0.15, 0.1, 0.15],
+      work: [0.24, 0.24, 0.08, 0.24, 0.08, 0.12],
+      love: [0.08, 0.08, 0.35, 0.12, 0.12, 0.25],
+      money: [0.15, 0.3, 0.05, 0.35, 0.05, 0.1],
+      health: [0.12, 0.12, 0.17, 0.34, 0.05, 0.2],
+      relationship: [0.1, 0.15, 0.36, 0.18, 0.08, 0.13]
+    };
 
     let currentQIndex = 0;
     let answers = {};
@@ -1341,6 +1427,273 @@
       return list[index];
     }
 
+    function mod(value, divisor) {
+      return ((value % divisor) + divisor) % divisor;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function dotProduct(a, b) {
+      const len = Math.min(a.length, b.length);
+      let sum = 0;
+      for (let i = 0; i < len; i += 1) {
+        sum += Number(a[i] || 0) * Number(b[i] || 0);
+      }
+      return sum;
+    }
+
+    function vectorMagnitude(vec) {
+      return Math.sqrt(dotProduct(vec, vec));
+    }
+
+    function cosineSimilarity(a, b) {
+      const mag = vectorMagnitude(a) * vectorMagnitude(b);
+      if (mag <= 1e-9) return 0;
+      return dotProduct(a, b) / mag;
+    }
+
+    function toSoftmax(values, temperature = 1) {
+      if (!Array.isArray(values) || values.length === 0) return [];
+      const safeTemp = Math.max(0.0001, Number(temperature) || 1);
+      const maxVal = Math.max(...values);
+      const expValues = values.map((v) => Math.exp((v - maxVal) / safeTemp));
+      const sum = expValues.reduce((acc, v) => acc + v, 0);
+      if (sum <= 1e-9) return values.map(() => 1 / values.length);
+      return expValues.map((v) => v / sum);
+    }
+
+    function parseBirthDate(value) {
+      const text = normalizeText(value, "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+      const [y, m, d] = text.split("-").map((v) => Number(v));
+      const date = new Date(y, m - 1, d, 12, 0, 0, 0);
+      if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) {
+        return null;
+      }
+      return date;
+    }
+
+    function parseBirthTime(value) {
+      const text = normalizeText(value, "");
+      if (!/^\d{2}:\d{2}$/.test(text)) return null;
+      const [hour, minute] = text.split(":").map((v) => Number(v));
+      if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+      return { hour, minute };
+    }
+
+    function detectSignFromBirthDate(date) {
+      if (!(date instanceof Date)) return null;
+      const m = date.getMonth() + 1;
+      const d = date.getDate();
+      const code = m * 100 + d;
+      if (code >= 321 && code <= 419) return "aries";
+      if (code >= 420 && code <= 520) return "taurus";
+      if (code >= 521 && code <= 621) return "gemini";
+      if (code >= 622 && code <= 722) return "cancer";
+      if (code >= 723 && code <= 822) return "leo";
+      if (code >= 823 && code <= 922) return "virgo";
+      if (code >= 923 && code <= 1023) return "libra";
+      if (code >= 1024 && code <= 1122) return "scorpio";
+      if (code >= 1123 && code <= 1221) return "sagittarius";
+      if (code >= 1222 || code <= 119) return "capricorn";
+      if (code >= 120 && code <= 218) return "aquarius";
+      return "pisces";
+    }
+
+    function getMonthBranchIndex(date) {
+      const code = (date.getMonth() + 1) * 100 + date.getDate();
+      if (code >= 204 && code < 306) return 2; // 寅
+      if (code >= 306 && code < 405) return 3; // 卯
+      if (code >= 405 && code < 506) return 4; // 辰
+      if (code >= 506 && code < 606) return 5; // 巳
+      if (code >= 606 && code < 707) return 6; // 午
+      if (code >= 707 && code < 808) return 7; // 未
+      if (code >= 808 && code < 908) return 8; // 申
+      if (code >= 908 && code < 1008) return 9; // 酉
+      if (code >= 1008 && code < 1107) return 10; // 戌
+      if (code >= 1107 && code < 1207) return 11; // 亥
+      if (code >= 1207 || code < 106) return 0; // 子
+      return 1; // 丑
+    }
+
+    function getAdjustedFortuneYear(date) {
+      const code = (date.getMonth() + 1) * 100 + date.getDate();
+      return code >= 204 ? date.getFullYear() : date.getFullYear() - 1;
+    }
+
+    function getYearPillar(date) {
+      const adjustedYear = getAdjustedFortuneYear(date);
+      const stemIndex = mod(adjustedYear - 4, 10);
+      const branchIndex = mod(adjustedYear - 4, 12);
+      return {
+        stemIndex,
+        branchIndex,
+        stem: HEAVENLY_STEMS[stemIndex],
+        branch: EARTHLY_BRANCHES[branchIndex]
+      };
+    }
+
+    function getMonthPillar(date, yearStemIndex) {
+      const monthBranchIndex = getMonthBranchIndex(date);
+      const monthOrder = mod(monthBranchIndex - 2, 12); // 寅月を起点
+      const firstStemIndex = mod((mod(yearStemIndex, 5) * 2) + 2, 10);
+      const stemIndex = mod(firstStemIndex + monthOrder, 10);
+      return {
+        stemIndex,
+        branchIndex: monthBranchIndex,
+        stem: HEAVENLY_STEMS[stemIndex],
+        branch: EARTHLY_BRANCHES[monthBranchIndex]
+      };
+    }
+
+    function getDayPillar(date) {
+      const baseDate = new Date(1984, 1, 2, 12, 0, 0, 0); // 近似的な甲子日基準
+      const target = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
+      const diffDays = Math.floor((target.getTime() - baseDate.getTime()) / 86400000);
+      const stemIndex = mod(diffDays, 10);
+      const branchIndex = mod(diffDays, 12);
+      return {
+        stemIndex,
+        branchIndex,
+        stem: HEAVENLY_STEMS[stemIndex],
+        branch: EARTHLY_BRANCHES[branchIndex]
+      };
+    }
+
+    function getHourBranchIndex(hour) {
+      if (hour === 23 || hour === 0) return 0;
+      return mod(Math.floor((hour + 1) / 2), 12);
+    }
+
+    function getHourPillar(dayStemIndex, timeInfo) {
+      const hour = Number.isFinite(timeInfo?.hour) ? Number(timeInfo.hour) : 12;
+      const branchIndex = getHourBranchIndex(hour);
+      const firstStemIndex = mod(mod(dayStemIndex, 5) * 2, 10);
+      const stemIndex = mod(firstStemIndex + branchIndex, 10);
+      return {
+        stemIndex,
+        branchIndex,
+        stem: HEAVENLY_STEMS[stemIndex],
+        branch: EARTHLY_BRANCHES[branchIndex]
+      };
+    }
+
+    function deriveFourPillars(birthDate, birthTime) {
+      if (!(birthDate instanceof Date)) return null;
+      const yearPillar = getYearPillar(birthDate);
+      const monthPillar = getMonthPillar(birthDate, yearPillar.stemIndex);
+      const dayPillar = getDayPillar(birthDate);
+      const hourPillar = getHourPillar(dayPillar.stemIndex, birthTime);
+      const timeKnown = !!birthTime;
+
+      return {
+        timeKnown,
+        year: `${yearPillar.stem}${yearPillar.branch}`,
+        month: `${monthPillar.stem}${monthPillar.branch}`,
+        day: `${dayPillar.stem}${dayPillar.branch}`,
+        hour: `${hourPillar.stem}${hourPillar.branch}`,
+        indices: {
+          year: yearPillar,
+          month: monthPillar,
+          day: dayPillar,
+          hour: hourPillar
+        }
+      };
+    }
+
+    function getPillarVector(pillar) {
+      const stemVec = STEM_TRAIT_MAP[pillar?.stem] || [0, 0, 0, 0, 0, 0];
+      const branchVec = BRANCH_TRAIT_MAP[pillar?.branch] || [0, 0, 0, 0, 0, 0];
+      return stemVec.map((v, i) => (v + Number(branchVec[i] || 0)) / 2);
+    }
+
+    function getFourPillarVector(fourPillars) {
+      const dims = TRAIT_LABELS.length;
+      const vector = Array.from({ length: dims }, () => 0);
+      if (!fourPillars?.indices) return vector;
+
+      const pillars = [
+        fourPillars.indices.year,
+        fourPillars.indices.month,
+        fourPillars.indices.day,
+        fourPillars.indices.hour
+      ];
+      const baseWeights = fourPillars.timeKnown
+        ? [0.18, 0.29, 0.37, 0.16]
+        : [0.24, 0.35, 0.41, 0];
+
+      pillars.forEach((pillar, idx) => {
+        const weight = Number(baseWeights[idx] || 0);
+        if (weight <= 0) return;
+        const pVec = getPillarVector(pillar);
+        for (let i = 0; i < dims; i += 1) {
+          vector[i] += pVec[i] * weight;
+        }
+      });
+      return vector;
+    }
+
+    function applySignAdjustment(vector, sign) {
+      const bonus = SIGN_TRAIT_BONUS[sign] || [0, 0, 0, 0, 0, 0];
+      return vector.map((v, i) => v + Number(bonus[i] || 0) * 0.35);
+    }
+
+    function classifySeijin(vector) {
+      const scored = SEIJIN_ARCHETYPES.map((archetype) => ({
+        ...archetype,
+        similarity: cosineSimilarity(vector, archetype.vector)
+      }));
+      const probabilities = toSoftmax(scored.map((s) => s.similarity), 0.28);
+      const merged = scored.map((item, idx) => ({
+        ...item,
+        probability: probabilities[idx]
+      })).sort((a, b) => b.probability - a.probability);
+      return merged;
+    }
+
+    function computeFocusPotential(vector, focus) {
+      const weights = FOCUS_WEIGHTS[focus] || FOCUS_WEIGHTS.overall;
+      const sumWeight = weights.reduce((acc, v) => acc + v, 0) || 1;
+      const value = vector.reduce((acc, v, idx) => {
+        const normalized = (Number(v || 0) + 1) / 2;
+        return acc + clamp(normalized, 0, 1) * Number(weights[idx] || 0);
+      }, 0);
+      return Math.round((value / sumWeight) * 100);
+    }
+
+    function getTraitScores(vector) {
+      const scores = {};
+      TRAIT_LABELS.forEach((label, idx) => {
+        scores[label] = clamp(Math.round(((Number(vector[idx] || 0) + 1) / 2) * 100), 0, 100);
+      });
+      return scores;
+    }
+
+    function formatTopTraits(scores, topN = 2) {
+      return Object.entries(scores)
+        .sort((a, b) => Number(b[1]) - Number(a[1]))
+        .slice(0, topN)
+        .map(([label, val]) => `${label}${val}`)
+        .join(" / ");
+    }
+
+    function buildStatSummary(classified, fourPillars, traitScores) {
+      const top = classified[0];
+      const second = classified[1] || top;
+      const third = classified[2] || second;
+      const topRate = Math.round((top?.probability || 0) * 1000) / 10;
+      const secondRate = Math.round((second?.probability || 0) * 1000) / 10;
+      const thirdRate = Math.round((third?.probability || 0) * 1000) / 10;
+      const separation = (top?.probability || 0) - (second?.probability || 0);
+      const confidence = clamp(Math.round(56 + separation * 240 + (fourPillars?.timeKnown ? 8 : -4)), 42, 96);
+      const margin = fourPillars?.timeKnown ? 6 : 11;
+      const topTraits = formatTopTraits(traitScores, 2);
+      return `推定適合率: ${topRate}%（次点 ${secondRate}% / 3位 ${thirdRate}%）。信頼係数 ${confidence}/100、想定誤差 ±${margin}pt。高スコア特性: ${topTraits}。※古典理論を数値化した推定値です。`;
+    }
+
     function getFortuneGrade(score) {
       if (score >= 90) return { label: '大吉', badgeClass: 'bg-amber-100 text-amber-700 border-amber-200' };
       if (score >= 78) return { label: '中吉', badgeClass: 'bg-rose-100 text-rose-700 border-rose-200' };
@@ -1387,6 +1740,10 @@
       const scoreEl = document.getElementById('fortune-score');
       const scoreBarEl = document.getElementById('fortune-score-bar');
       const mainEl = document.getElementById('fortune-main');
+      const seijinEl = document.getElementById('fortune-seijin');
+      const seijinSubEl = document.getElementById('fortune-seijin-sub');
+      const pillarsEl = document.getElementById('fortune-pillars');
+      const statEl = document.getElementById('fortune-stat');
       const colorEl = document.getElementById('fortune-color');
       const itemEl = document.getElementById('fortune-item');
       const timeEl = document.getElementById('fortune-time');
@@ -1394,7 +1751,7 @@
       const cautionEl = document.getElementById('fortune-caution');
       const resultEl = document.getElementById('fortune-result');
 
-      if (!badgeEl || !dateEl || !scoreEl || !scoreBarEl || !mainEl || !colorEl || !itemEl || !timeEl || !actionEl || !cautionEl || !resultEl) {
+      if (!badgeEl || !dateEl || !scoreEl || !scoreBarEl || !mainEl || !seijinEl || !seijinSubEl || !pillarsEl || !statEl || !colorEl || !itemEl || !timeEl || !actionEl || !cautionEl || !resultEl) {
         return;
       }
 
@@ -1414,6 +1771,13 @@
       dateEl.textContent = `${displayDate} / ${signLabel}`;
       scoreEl.textContent = `${displayName}の運勢スコア ${score}/100`;
       scoreBarEl.style.width = `${score}%`;
+      seijinEl.textContent = normalizeText(record?.seijinType, "解析中星人");
+      seijinSubEl.textContent = normalizeText(record?.seijinDesc, "生年月日から行動傾向を推定しました。");
+      const p = record?.pillars || {};
+      pillarsEl.textContent = p.year && p.month && p.day && p.hour
+        ? `年柱 ${p.year} / 月柱 ${p.month} / 日柱 ${p.day} / 時柱 ${p.hour}${p.timeKnown ? "" : "（時刻未入力補正）"}`
+        : "四柱: 生年月日を入力すると表示されます。";
+      statEl.textContent = normalizeText(record?.statSummary, "統計推定は占い実行後に表示されます。");
       mainEl.textContent = normalizeText(record?.message, '今日は丁寧な一歩が運の鍵です。');
       colorEl.textContent = normalizeText(record?.luckyColor, 'インディゴ');
       itemEl.textContent = normalizeText(record?.luckyItem, '白いノート');
@@ -1426,28 +1790,54 @@
 
     window.generateFortune = async () => {
       const name = normalizeText(document.getElementById('fortune-name')?.value, 'あなた');
-      const sign = normalizeText(document.getElementById('fortune-sign')?.value, 'aries');
+      const birthDateText = normalizeText(document.getElementById('fortune-birthdate')?.value, '');
+      const birthTimeText = normalizeText(document.getElementById('fortune-birthtime')?.value, '');
+      const birthDate = parseBirthDate(birthDateText);
+      const birthTime = parseBirthTime(birthTimeText);
+      if (!birthDate) {
+        alert("四柱推命を組み合わせるため、生年月日を入力してください。");
+        return;
+      }
+
+      const detectedSign = detectSignFromBirthDate(birthDate);
+      const signSelect = document.getElementById('fortune-sign');
+      if (signSelect && detectedSign) signSelect.value = detectedSign;
+      const sign = normalizeText(detectedSign || document.getElementById('fortune-sign')?.value, 'aries');
       const focus = normalizeText(document.getElementById('fortune-focus')?.value, 'overall');
       const keyword = normalizeText(document.getElementById('fortune-keyword')?.value, '');
       const now = new Date();
       const todayKey = formatFortuneDate(now);
+      const fourPillars = deriveFourPillars(birthDate, birthTime);
+      const baseVector = getFourPillarVector(fourPillars);
+      const combinedVector = applySignAdjustment(baseVector, sign);
+      const traitScores = getTraitScores(combinedVector);
+      const classified = classifySeijin(combinedVector);
+      const topType = classified[0] || SEIJIN_ARCHETYPES[0];
+      const focusPotential = computeFocusPotential(combinedVector, focus);
 
-      const baseSeed = hashString(`${todayKey}|${sign}|${focus}|${name}|${keyword}`);
-      const score = 45 + (baseSeed % 56);
+      const baseSeed = hashString(`${todayKey}|${birthDateText}|${birthTimeText}|${sign}|${focus}|${name}|${keyword}|${topType.id}`);
+      const baseLuck = 45 + (baseSeed % 56);
+      const score = clamp(Math.round((baseLuck * 0.45) + (focusPotential * 0.55) + ((topType.probability || 0) * 8)), 1, 100);
       const grade = getFortuneGrade(score);
 
       const focusLabel = FORTUNE_FOCUS_LABELS[focus] || '総合運';
       const signLabel = FORTUNE_SIGN_LABELS[sign] || 'あなたの星座';
       const messages = FORTUNE_MESSAGES[focus] || FORTUNE_MESSAGES.overall;
-      const message = pickBySeed(messages, hashString(`${baseSeed}|main`));
+      const baseMessage = pickBySeed(messages, hashString(`${baseSeed}|main`));
+      const dominantTraits = formatTopTraits(traitScores, 2);
+      const message = `${topType.name}傾向（${dominantTraits}）が強め。${baseMessage}`;
       const action = pickBySeed(FORTUNE_ACTION_TIPS, hashString(`${baseSeed}|action`));
       const caution = pickBySeed(FORTUNE_CAUTIONS, hashString(`${baseSeed}|caution`));
       const luckyColor = pickBySeed(FORTUNE_LUCKY_COLORS, hashString(`${baseSeed}|color`));
       const luckyItem = pickBySeed(FORTUNE_LUCKY_ITEMS, hashString(`${baseSeed}|item`));
       const luckyTime = pickBySeed(FORTUNE_LUCKY_TIMES, hashString(`${baseSeed}|time`));
+      const statSummary = buildStatSummary(classified, fourPillars, traitScores);
 
       const fortuneRecord = {
         name,
+        birthDate: birthDateText,
+        birthTime: birthTimeText,
+        birthTimeKnown: !!birthTime,
         sign,
         signLabel,
         focus,
@@ -1458,6 +1848,23 @@
         message,
         action,
         caution,
+        seijinType: topType.name,
+        seijinTypeId: topType.id,
+        seijinDesc: normalizeText(topType?.desc, "四柱の傾向を数値化したタイプです。"),
+        statSummary,
+        traitScores,
+        topCandidates: classified.slice(0, 3).map((entry) => ({
+          id: entry.id,
+          name: entry.name,
+          probability: Math.round((entry.probability || 0) * 1000) / 1000
+        })),
+        pillars: {
+          year: fourPillars?.year || "",
+          month: fourPillars?.month || "",
+          day: fourPillars?.day || "",
+          hour: fourPillars?.hour || "",
+          timeKnown: !!fourPillars?.timeKnown
+        },
         luckyColor,
         luckyItem,
         luckyTime,
@@ -2300,13 +2707,14 @@ RIASEC: ${JSON.stringify(riasecScores)}
         const dateLabel = formatFortuneDate(getFortuneRecordDate(item));
         const nameLabel = escapeHtml(normalizeText(item?.name, 'あなた'));
         const signLabel = normalizeText(item?.signLabel, FORTUNE_SIGN_LABELS[normalizeText(item?.sign, 'aries')] || '星座');
+        const seijinLabel = escapeHtml(normalizeText(item?.seijinType, '解析中星人'));
 
         return `
           <div onclick='openFortuneHistoryItem("${item.id}")' class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer group flex items-center justify-between gap-3">
             <div class="space-y-1">
               <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${dateLabel}</p>
               <h4 class="text-sm font-black text-slate-800 group-hover:text-indigo-600 transition-colors">${focusLabel} ${grade} / ${score}</h4>
-              <p class="text-xs text-slate-500">${nameLabel} ・ ${signLabel}</p>
+              <p class="text-xs text-slate-500">${nameLabel} ・ ${signLabel} ・ ${seijinLabel}</p>
             </div>
             <i data-lucide="arrow-up-right" class="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors"></i>
           </div>
@@ -2340,10 +2748,14 @@ RIASEC: ${JSON.stringify(riasecScores)}
       currentFortuneDocId = item.id;
 
       const nameInput = document.getElementById('fortune-name');
+      const birthDateInput = document.getElementById('fortune-birthdate');
+      const birthTimeInput = document.getElementById('fortune-birthtime');
       const signSelect = document.getElementById('fortune-sign');
       const focusSelect = document.getElementById('fortune-focus');
       const keywordInput = document.getElementById('fortune-keyword');
       if (nameInput) nameInput.value = normalizeText(item?.name, '');
+      if (birthDateInput) birthDateInput.value = normalizeText(item?.birthDate, '');
+      if (birthTimeInput) birthTimeInput.value = normalizeText(item?.birthTime, '');
       if (signSelect) signSelect.value = normalizeText(item?.sign, 'aries');
       if (focusSelect) focusSelect.value = normalizeText(item?.focus, 'overall');
       if (keywordInput) keywordInput.value = normalizeText(item?.keyword, '');
