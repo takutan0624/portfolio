@@ -6,6 +6,7 @@
   <title>DeepProfile AI | 超精密性格プロファイリング</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
     
@@ -603,8 +604,22 @@
                 <p id="res-analysis-summary" class="text-white/95 leading-relaxed font-semibold"></p>
               </div>
               <div class="relative z-10 bg-white/10 border border-white/20 rounded-2xl p-4 space-y-2">
-                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">詳細分析</p>
-                <p id="res-analysis-detail" class="text-white/95 leading-relaxed font-medium"></p>
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">詳細分析</p>
+                  <button
+                    id="toggle-analysis-btn"
+                    onclick="toggleDetailSection('analysis')"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-300 bg-white/70 text-[10px] font-black tracking-wide hover:bg-white transition-colors"
+                    aria-expanded="false"
+                    type="button"
+                  >
+                    <span id="toggle-analysis-label">開く</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+                <div id="res-analysis-detail-wrap" style="height: 0; opacity: 0; overflow: hidden;">
+                  <p id="res-analysis-detail" class="text-white/95 leading-relaxed font-medium"></p>
+                </div>
               </div>
             </div>
           </div>
@@ -657,8 +672,22 @@
             <p id="res-hybrid-summary" class="text-indigo-800 text-sm leading-relaxed font-semibold"></p>
           </div>
           <div class="bg-white/65 border border-indigo-100 rounded-xl p-4 space-y-2">
-            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">詳細統合</p>
-            <p id="res-hybrid" class="text-indigo-800 text-sm md:text-base leading-relaxed"></p>
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">詳細統合</p>
+              <button
+                id="toggle-hybrid-btn"
+                onclick="toggleDetailSection('hybrid')"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-300 bg-white/70 text-[10px] font-black tracking-wide hover:bg-white transition-colors"
+                aria-expanded="false"
+                type="button"
+              >
+                <span id="toggle-hybrid-label">開く</span>
+                <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+            <div id="res-hybrid-detail-wrap" style="height: 0; opacity: 0; overflow: hidden;">
+              <p id="res-hybrid" class="text-indigo-800 text-sm md:text-base leading-relaxed"></p>
+            </div>
           </div>
           <p id="res-evidence" class="text-xs md:text-sm text-indigo-600/90 leading-relaxed"></p>
         </div>
@@ -673,8 +702,22 @@
             <p id="res-hidden-summary" class="text-rose-700 text-sm leading-relaxed font-semibold"></p>
           </div>
           <div class="bg-white/65 border border-rose-100 rounded-xl p-4 space-y-2">
-            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">詳細分析</p>
-            <p id="res-hidden" class="text-rose-700 text-sm md:text-base leading-relaxed"></p>
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">詳細分析</p>
+              <button
+                id="toggle-hidden-btn"
+                onclick="toggleDetailSection('hidden')"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-300 bg-white/70 text-[10px] font-black tracking-wide hover:bg-white transition-colors"
+                aria-expanded="false"
+                type="button"
+              >
+                <span id="toggle-hidden-label">開く</span>
+                <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+            <div id="res-hidden-detail-wrap" style="height: 0; opacity: 0; overflow: hidden;">
+              <p id="res-hidden" class="text-rose-700 text-sm md:text-base leading-relaxed"></p>
+            </div>
           </div>
         </div>
 
@@ -996,6 +1039,11 @@
     let geminiCooldownUntilMs = 0;
     let geminiCooldownTimer = null;
     let lastGeminiMeta = { model: "", fallbackUsed: false, at: 0 };
+    const detailCollapseState = {
+      analysis: false,
+      hybrid: false,
+      hidden: false
+    };
 
     // --- Firebase Auth ---
     function parseFirebaseConfigCandidate(candidate) {
@@ -1529,6 +1577,120 @@
       }
       refreshGeminiRateLimitUi();
     }
+
+    function getDetailCollapseNodes(section) {
+      const mapping = {
+        analysis: {
+          wrapId: 'res-analysis-detail-wrap',
+          buttonId: 'toggle-analysis-btn',
+          labelId: 'toggle-analysis-label'
+        },
+        hybrid: {
+          wrapId: 'res-hybrid-detail-wrap',
+          buttonId: 'toggle-hybrid-btn',
+          labelId: 'toggle-hybrid-label'
+        },
+        hidden: {
+          wrapId: 'res-hidden-detail-wrap',
+          buttonId: 'toggle-hidden-btn',
+          labelId: 'toggle-hidden-label'
+        }
+      };
+      const entry = mapping[section];
+      if (!entry) return null;
+      return {
+        wrap: document.getElementById(entry.wrapId),
+        button: document.getElementById(entry.buttonId),
+        label: document.getElementById(entry.labelId)
+      };
+    }
+
+    function refreshDetailToggleButton(section) {
+      const nodes = getDetailCollapseNodes(section);
+      if (!nodes) return;
+      const expanded = !!detailCollapseState[section];
+      if (nodes.label) nodes.label.textContent = expanded ? '閉じる' : '開く';
+      if (nodes.button) {
+        nodes.button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        const icon = nodes.button.querySelector('svg, i');
+        if (icon) {
+          icon.style.transition = 'transform 220ms ease';
+          icon.style.transform = expanded ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+      }
+    }
+
+    function setDetailCollapse(section, expanded, { animate = true } = {}) {
+      const nodes = getDetailCollapseNodes(section);
+      if (!nodes?.wrap) return;
+      const wrap = nodes.wrap;
+      const isExpanded = !!expanded;
+      detailCollapseState[section] = isExpanded;
+
+      const hasAnime = typeof window !== 'undefined' && typeof window.anime === 'function';
+      if (hasAnime) window.anime.remove(wrap);
+
+      if (isExpanded) {
+        const targetHeight = Math.max(0, wrap.scrollHeight);
+        if (!animate || !hasAnime) {
+          wrap.style.height = 'auto';
+          wrap.style.opacity = '1';
+          wrap.style.overflow = 'visible';
+          refreshDetailToggleButton(section);
+          return;
+        }
+        wrap.style.height = '0px';
+        wrap.style.opacity = '0';
+        wrap.style.overflow = 'hidden';
+        window.anime({
+          targets: wrap,
+          height: [0, targetHeight],
+          opacity: [0, 1],
+          duration: 280,
+          easing: 'easeOutCubic',
+          complete: () => {
+            wrap.style.height = 'auto';
+            wrap.style.overflow = 'visible';
+          }
+        });
+        refreshDetailToggleButton(section);
+        return;
+      }
+
+      const currentHeight = Math.max(0, wrap.getBoundingClientRect().height || wrap.scrollHeight);
+      if (!animate || !hasAnime) {
+        wrap.style.height = '0px';
+        wrap.style.opacity = '0';
+        wrap.style.overflow = 'hidden';
+        refreshDetailToggleButton(section);
+        return;
+      }
+      wrap.style.overflow = 'hidden';
+      window.anime({
+        targets: wrap,
+        height: [currentHeight, 0],
+        opacity: [1, 0],
+        duration: 240,
+        easing: 'easeInOutCubic',
+        complete: () => {
+          wrap.style.height = '0px';
+          wrap.style.opacity = '0';
+          wrap.style.overflow = 'hidden';
+        }
+      });
+      refreshDetailToggleButton(section);
+    }
+
+    function resetDetailCollapses({ animate = false } = {}) {
+      ['analysis', 'hybrid', 'hidden'].forEach((section) => {
+        setDetailCollapse(section, false, { animate });
+      });
+    }
+
+    window.toggleDetailSection = (section) => {
+      if (!['analysis', 'hybrid', 'hidden'].includes(section)) return;
+      setDetailCollapse(section, !detailCollapseState[section], { animate: true });
+    };
 
     function getGeminiCooldownRemainingSec() {
       return Math.max(0, Math.ceil((geminiCooldownUntilMs - Date.now()) / 1000));
@@ -2970,6 +3132,8 @@ RIASEC: ${JSON.stringify(riasecScores)}
       renderExtraTopics();
 
       lucide.createIcons();
+      resetDetailCollapses({ animate: false });
+      ['analysis', 'hybrid', 'hidden'].forEach((section) => refreshDetailToggleButton(section));
     }
 
     function renderScoreBars(containerId, items, scores, theme) {
