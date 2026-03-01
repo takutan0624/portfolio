@@ -545,13 +545,20 @@
           </div>
 
           <div class="space-y-6">
-            <div class="bg-gradient-to-br from-violet-300 to-indigo-300 text-white rounded-[2rem] p-8 shadow-lg relative overflow-hidden h-full">
+            <div class="bg-gradient-to-br from-violet-300 to-indigo-300 text-white rounded-[2rem] p-8 shadow-lg relative overflow-hidden h-full space-y-5">
               <i data-lucide="quote" class="absolute top-4 right-6 w-12 h-12 opacity-25"></i>
-              <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+              <h3 class="text-lg font-bold flex items-center gap-2">
                 <i data-lucide="scan-face" class="w-5 h-5"></i>
                 Base Insight
               </h3>
-              <p id="res-analysis" class="text-white/95 leading-relaxed font-medium"></p>
+              <div class="relative z-10 bg-white/15 border border-white/25 rounded-2xl p-4 space-y-2">
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">要約</p>
+                <p id="res-analysis-summary" class="text-white/95 leading-relaxed font-semibold"></p>
+              </div>
+              <div class="relative z-10 bg-white/10 border border-white/20 rounded-2xl p-4 space-y-2">
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">詳細分析</p>
+                <p id="res-analysis-detail" class="text-white/95 leading-relaxed font-medium"></p>
+              </div>
             </div>
           </div>
         </div>
@@ -1292,6 +1299,30 @@
 
     function normalizeText(value, fallback = "") {
       return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+    }
+
+    function buildAnalysisSummary(profile) {
+      const explicit = normalizeText(
+        profile?.analysisSummary || profile?.summaryAnalysis || profile?.analysisDigest,
+        ""
+      );
+      if (explicit) return explicit;
+
+      const detail = normalizeText(profile?.deepAnalysis || profile?.analysisDetail || "", "");
+      if (!detail) return "";
+
+      const parts = detail
+        .split(/[。！？\n]/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+
+      if (!parts.length) {
+        return detail.length > 180 ? `${detail.slice(0, 180)}…` : detail;
+      }
+
+      const raw = parts.slice(0, 2).join("。");
+      const clipped = raw.length > 180 ? `${raw.slice(0, 180)}…` : raw;
+      return /[。！？]$/.test(clipped) ? clipped : `${clipped}。`;
     }
 
     function normalizeStringArray(value) {
@@ -2545,7 +2576,8 @@ RIASEC: ${JSON.stringify(riasecScores)}
 - JSONのみ返す。
 - catchphrase: 18〜34文字、覚えやすく鮮明。
 - witLine: 35〜90文字、知的で軽いユーモアの一言。
-- deepAnalysis: 900〜1400文字。中核パターン、トリガー、起こりやすい行動、実行策を含める。
+- analysisSummary: 140〜260文字。最重要ポイントを先に示す要約。
+- deepAnalysis: 900〜1400文字。中核パターン、トリガー、起こりやすい行動、実行策を含める詳細分析。
 - hybridSynthesis: 500〜850文字。BIG5×RIASECの交差作用と矛盾の統合を明示する。
 - hiddenDesire: 500〜900文字。未充足欲求と防衛的パターンを示し、健全な満たし方を提案する。
 - big5Interpretation: 280〜480文字。
@@ -2557,6 +2589,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
         properties: {
           catchphrase: { type: "STRING" },
           witLine: { type: "STRING" },
+          analysisSummary: { type: "STRING" },
           deepAnalysis: { type: "STRING" },
           hybridSynthesis: { type: "STRING" },
           hiddenDesire: { type: "STRING" },
@@ -2736,7 +2769,12 @@ RIASEC: ${JSON.stringify(riasecScores)}
         witEl.textContent = data.witLine || '';
         witEl.classList.toggle('hidden', !data.witLine);
       }
-      document.getElementById('res-analysis').textContent = data.deepAnalysis || '';
+      const summaryEl = document.getElementById('res-analysis-summary');
+      const detailEl = document.getElementById('res-analysis-detail');
+      const summaryText = buildAnalysisSummary(data);
+      const detailText = normalizeText(data?.deepAnalysis, summaryText);
+      if (summaryEl) summaryEl.textContent = summaryText;
+      if (detailEl) detailEl.textContent = detailText;
       document.getElementById('res-hybrid').textContent = data.hybridSynthesis || data.deepAnalysis || '';
       document.getElementById('res-hidden').textContent = data.hiddenDesire || '';
       const evidenceEl = document.getElementById('res-evidence');
