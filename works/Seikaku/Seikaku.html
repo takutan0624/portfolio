@@ -600,12 +600,19 @@
           </div>
         </div>
 
-        <div class="bg-gradient-to-r from-indigo-50 to-cyan-50 rounded-[2rem] p-8 border border-indigo-100 space-y-4">
+        <div class="bg-gradient-to-r from-indigo-50 to-cyan-50 rounded-[2rem] p-8 border border-indigo-100 space-y-5">
           <h4 class="text-indigo-700 font-black flex items-center gap-2">
             <i data-lucide="git-merge" class="w-5 h-5"></i>
             Hybrid Synthesis (BIG5 × RIASEC × Deep Answers)
           </h4>
-          <p id="res-hybrid" class="text-indigo-800 text-sm md:text-base leading-relaxed"></p>
+          <div class="bg-white/70 border border-indigo-100 rounded-xl p-4 space-y-2">
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">要約</p>
+            <p id="res-hybrid-summary" class="text-indigo-800 text-sm leading-relaxed font-semibold"></p>
+          </div>
+          <div class="bg-white/65 border border-indigo-100 rounded-xl p-4 space-y-2">
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">詳細統合</p>
+            <p id="res-hybrid" class="text-indigo-800 text-sm md:text-base leading-relaxed"></p>
+          </div>
           <p id="res-evidence" class="text-xs md:text-sm text-indigo-600/90 leading-relaxed"></p>
         </div>
 
@@ -1339,6 +1346,16 @@
       if (explicit) return explicit;
 
       const detail = normalizeText(profile?.deepAnalysis || profile?.analysisDetail || "", "");
+      return buildSummaryFromText(detail, { maxChars: 180, sentenceLimit: 2 });
+    }
+
+    function buildHybridSummary(profile) {
+      const explicit = normalizeText(
+        profile?.hybridSynthesisSummary || profile?.hybridSummary || profile?.hybridDigest,
+        ""
+      );
+      if (explicit) return explicit;
+      const detail = normalizeText(profile?.hybridSynthesis || profile?.hybridAnalysis || profile?.deepAnalysis || "", "");
       return buildSummaryFromText(detail, { maxChars: 180, sentenceLimit: 2 });
     }
 
@@ -2605,6 +2622,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
 - witLine: 35〜90文字、知的で軽いユーモアの一言。
 - analysisSummary: 140〜260文字。最重要ポイントを先に示す要約。
 - deepAnalysis: 900〜1400文字。中核パターン、トリガー、起こりやすい行動、実行策を含める詳細分析。
+- hybridSynthesisSummary: 120〜220文字。BIG5×RIASEC交差作用の中核と活かし方を示す要約。
 - hybridSynthesis: 500〜850文字。BIG5×RIASECの交差作用と矛盾の統合を明示する。
 - hiddenDesireSummary: 120〜220文字。未充足欲求の核心と扱い方を簡潔に示す要約。
 - hiddenDesire: 500〜900文字。未充足欲求と防衛的パターンを示し、健全な満たし方を提案する。
@@ -2619,6 +2637,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
           witLine: { type: "STRING" },
           analysisSummary: { type: "STRING" },
           deepAnalysis: { type: "STRING" },
+          hybridSynthesisSummary: { type: "STRING" },
           hybridSynthesis: { type: "STRING" },
           hiddenDesireSummary: { type: "STRING" },
           hiddenDesire: { type: "STRING" },
@@ -2804,7 +2823,11 @@ RIASEC: ${JSON.stringify(riasecScores)}
       const detailText = normalizeText(data?.deepAnalysis, summaryText);
       if (summaryEl) summaryEl.textContent = summaryText;
       if (detailEl) detailEl.textContent = detailText;
-      document.getElementById('res-hybrid').textContent = data.hybridSynthesis || data.deepAnalysis || '';
+      const hybridSummaryEl = document.getElementById('res-hybrid-summary');
+      const hybridSummaryText = buildHybridSummary(data);
+      const hybridDetailText = normalizeText(data?.hybridSynthesis, normalizeText(data?.deepAnalysis, hybridSummaryText));
+      if (hybridSummaryEl) hybridSummaryEl.textContent = hybridSummaryText;
+      document.getElementById('res-hybrid').textContent = hybridDetailText;
       const hiddenSummaryEl = document.getElementById('res-hidden-summary');
       const hiddenSummaryText = buildHiddenSummary(data);
       const hiddenDetailText = normalizeText(data?.hiddenDesire, hiddenSummaryText);
