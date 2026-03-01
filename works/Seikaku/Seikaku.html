@@ -609,12 +609,19 @@
           <p id="res-evidence" class="text-xs md:text-sm text-indigo-600/90 leading-relaxed"></p>
         </div>
 
-        <div class="bg-gradient-to-r from-amber-50 to-rose-50 rounded-[2rem] p-8 border border-amber-100 space-y-4">
+        <div class="bg-gradient-to-r from-amber-50 to-rose-50 rounded-[2rem] p-8 border border-amber-100 space-y-5">
           <h4 class="text-rose-700 font-black flex items-center gap-2">
             <i data-lucide="eye" class="w-5 h-5"></i>
             Hidden Self (隠された欲求)
           </h4>
-          <p id="res-hidden" class="text-rose-700 text-sm md:text-base leading-relaxed"></p>
+          <div class="bg-white/70 border border-rose-100 rounded-xl p-4 space-y-2">
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">要約</p>
+            <p id="res-hidden-summary" class="text-rose-700 text-sm leading-relaxed font-semibold"></p>
+          </div>
+          <div class="bg-white/65 border border-rose-100 rounded-xl p-4 space-y-2">
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">詳細分析</p>
+            <p id="res-hidden" class="text-rose-700 text-sm md:text-base leading-relaxed"></p>
+          </div>
         </div>
 
         <!-- Extra Topics Generation -->
@@ -1301,6 +1308,29 @@
       return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
     }
 
+    function buildSummaryFromText(text, options = {}) {
+      const normalized = normalizeText(text, "");
+      if (!normalized) return "";
+
+      const maxCharsRaw = Number(options?.maxChars);
+      const maxChars = Number.isFinite(maxCharsRaw) && maxCharsRaw >= 40 ? Math.round(maxCharsRaw) : 180;
+      const sentenceLimitRaw = Number(options?.sentenceLimit);
+      const sentenceLimit = Number.isFinite(sentenceLimitRaw) && sentenceLimitRaw >= 1 ? Math.round(sentenceLimitRaw) : 2;
+
+      const parts = normalized
+        .split(/[。！？\n]/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+
+      if (!parts.length) {
+        return normalized.length > maxChars ? `${normalized.slice(0, maxChars)}…` : normalized;
+      }
+
+      const raw = parts.slice(0, sentenceLimit).join("。");
+      const clipped = raw.length > maxChars ? `${raw.slice(0, maxChars)}…` : raw;
+      return /[。！？]$/.test(clipped) ? clipped : `${clipped}。`;
+    }
+
     function buildAnalysisSummary(profile) {
       const explicit = normalizeText(
         profile?.analysisSummary || profile?.summaryAnalysis || profile?.analysisDigest,
@@ -1309,20 +1339,17 @@
       if (explicit) return explicit;
 
       const detail = normalizeText(profile?.deepAnalysis || profile?.analysisDetail || "", "");
-      if (!detail) return "";
+      return buildSummaryFromText(detail, { maxChars: 180, sentenceLimit: 2 });
+    }
 
-      const parts = detail
-        .split(/[。！？\n]/)
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0);
-
-      if (!parts.length) {
-        return detail.length > 180 ? `${detail.slice(0, 180)}…` : detail;
-      }
-
-      const raw = parts.slice(0, 2).join("。");
-      const clipped = raw.length > 180 ? `${raw.slice(0, 180)}…` : raw;
-      return /[。！？]$/.test(clipped) ? clipped : `${clipped}。`;
+    function buildHiddenSummary(profile) {
+      const explicit = normalizeText(
+        profile?.hiddenDesireSummary || profile?.hiddenSummary || profile?.hiddenDigest,
+        ""
+      );
+      if (explicit) return explicit;
+      const detail = normalizeText(profile?.hiddenDesire || profile?.hiddenSelf || "", "");
+      return buildSummaryFromText(detail, { maxChars: 180, sentenceLimit: 2 });
     }
 
     function normalizeStringArray(value) {
@@ -2579,6 +2606,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
 - analysisSummary: 140〜260文字。最重要ポイントを先に示す要約。
 - deepAnalysis: 900〜1400文字。中核パターン、トリガー、起こりやすい行動、実行策を含める詳細分析。
 - hybridSynthesis: 500〜850文字。BIG5×RIASECの交差作用と矛盾の統合を明示する。
+- hiddenDesireSummary: 120〜220文字。未充足欲求の核心と扱い方を簡潔に示す要約。
 - hiddenDesire: 500〜900文字。未充足欲求と防衛的パターンを示し、健全な満たし方を提案する。
 - big5Interpretation: 280〜480文字。
 - riasecInterpretation: 280〜480文字。
@@ -2592,6 +2620,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
           analysisSummary: { type: "STRING" },
           deepAnalysis: { type: "STRING" },
           hybridSynthesis: { type: "STRING" },
+          hiddenDesireSummary: { type: "STRING" },
           hiddenDesire: { type: "STRING" },
           big5Interpretation: { type: "STRING" },
           riasecInterpretation: { type: "STRING" },
@@ -2776,7 +2805,11 @@ RIASEC: ${JSON.stringify(riasecScores)}
       if (summaryEl) summaryEl.textContent = summaryText;
       if (detailEl) detailEl.textContent = detailText;
       document.getElementById('res-hybrid').textContent = data.hybridSynthesis || data.deepAnalysis || '';
-      document.getElementById('res-hidden').textContent = data.hiddenDesire || '';
+      const hiddenSummaryEl = document.getElementById('res-hidden-summary');
+      const hiddenSummaryText = buildHiddenSummary(data);
+      const hiddenDetailText = normalizeText(data?.hiddenDesire, hiddenSummaryText);
+      if (hiddenSummaryEl) hiddenSummaryEl.textContent = hiddenSummaryText;
+      document.getElementById('res-hidden').textContent = hiddenDetailText;
       const evidenceEl = document.getElementById('res-evidence');
       if (evidenceEl) {
         evidenceEl.textContent = data.evidenceSummary ? `Evidence Note: ${data.evidenceSummary}` : '';
@@ -2858,24 +2891,39 @@ RIASEC: ${JSON.stringify(riasecScores)}
       if (typeof raw === 'string') {
         const text = raw.trim();
         return {
+          summaryText: buildSummaryFromText(text, { maxChars: 170, sentenceLimit: 2 }),
           analysisText: text,
           improvementAdvice: []
         };
       }
       if (!raw || typeof raw !== 'object') {
         return {
+          summaryText: "",
           analysisText: "",
           improvementAdvice: []
         };
       }
       const analysisText = normalizeText(raw.analysisText || raw.analysis || raw.text, "");
+      const summaryText = normalizeText(
+        raw.summaryText || raw.summary || raw.analysisSummary || raw.digest,
+        buildSummaryFromText(analysisText, { maxChars: 170, sentenceLimit: 2 })
+      );
       const improvementAdvice = normalizeStringArray(raw.improvementAdvice || raw.advice || raw.tips).slice(0, 4);
-      return { analysisText, improvementAdvice };
+      return { summaryText, analysisText, improvementAdvice };
     }
 
     function renderExtraTopicContent(entry) {
       const normalized = normalizeExtraTopicEntry(entry);
+      const summaryHtml = escapeHtml(normalized.summaryText).replace(/\n/g, '<br>');
       const analysisHtml = escapeHtml(normalized.analysisText).replace(/\n/g, '<br>');
+      const summaryBlock = normalized.summaryText
+        ? `
+          <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 space-y-1">
+            <p class="text-[10px] font-black tracking-wide text-indigo-600 uppercase">要約</p>
+            <p class="text-sm text-indigo-700 leading-relaxed font-semibold">${summaryHtml}</p>
+          </div>
+        `
+        : '';
       const adviceHtml = normalized.improvementAdvice.length
         ? `
           <div class="mt-4 pt-4 border-t border-indigo-100">
@@ -2887,8 +2935,12 @@ RIASEC: ${JSON.stringify(riasecScores)}
         `
         : '';
       return `
-        <div class="mt-4 fade-in">
-          <p class="text-sm text-indigo-700 leading-relaxed font-medium">${analysisHtml}</p>
+        <div class="mt-4 fade-in space-y-3">
+          ${summaryBlock}
+          <div class="bg-white/80 border border-indigo-100 rounded-xl p-3 space-y-1">
+            <p class="text-[10px] font-black tracking-wide text-indigo-600 uppercase">詳細分析</p>
+            <p class="text-sm text-indigo-700 leading-relaxed font-medium">${analysisHtml}</p>
+          </div>
           ${adviceHtml}
         </div>
       `;
@@ -2967,12 +3019,14 @@ RIASEC: ${JSON.stringify(riasecScores)}
       [キャッチコピー]: ${finalProfile.catchphrase}
       [ベース分析]: ${finalProfile.deepAnalysis}
       [ハイブリッド統合]: ${finalProfile.hybridSynthesis || finalProfile.deepAnalysis}
+      [隠された欲求(要約)]: ${buildHiddenSummary(finalProfile)}
       [隠された欲求]: ${finalProfile.hiddenDesire}
       [BIG5スコア]: ${JSON.stringify(finalProfile.scoring?.big5 || baseScores)}
       [RIASECスコア]: ${JSON.stringify(finalProfile.scoring?.riasec || riasecScores)}
 
       指示:
       ・${topic.prompt}
+      ・summaryTextは120〜220文字で、最重要の示唆を1〜2文で要約してください。
       ・analysisTextは最低700文字以上、最大1200文字程度で出力してください。
       ・ユーザーが読んで深く納得し、時にハッとするような鋭い洞察を含めてください。
       ・分析は「傾向の説明」だけでなく、「起こりやすい具体場面」「回避策/活用策」まで書いてください。
@@ -2982,6 +3036,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
       const schema = {
         type: "OBJECT",
         properties: {
+          summaryText: { type: "STRING" },
           analysisText: { type: "STRING" },
           improvementAdvice: {
             type: "ARRAY",
