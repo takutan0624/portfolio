@@ -766,14 +766,14 @@
     };
 
     const EXTRA_TOPICS = [
-      { id: 'romance', title: '恋愛・パートナーシップ', icon: 'heart', prompt: 'この人物の恋愛傾向、惹かれる相手のタイプ、パートナーとしてうまくいくための条件を詳細に分析してください。（700〜1000字程度）' },
-      { id: 'career', title: '天職とキャリア', icon: 'briefcase', prompt: 'この人物の才能が最も活きる職業環境、絶対に避けるべき職場、リーダーシップのスタイルについて詳細に分析してください。（700〜1000字程度）' },
-      { id: 'stress', title: 'ストレスと地雷ポイント', icon: 'bomb', prompt: 'この人物が密かにストレスを抱える要因、激怒する・あるいは心を閉ざす「地雷」ポイントとその対処法を詳細に分析してください。（700〜1000字程度）' },
-      { id: 'talent', title: '隠された才能', icon: 'sparkles', prompt: '本人がまだ自覚していない可能性が高い、他の人にはない特異な才能やポテンシャルについて詳細に分析してください。（700〜1000字程度）' },
-      { id: 'money', title: '金銭感覚とリスク', icon: 'coins', prompt: 'この人物のお金に対する価値観、浪費しやすいポイント、リスクを取る際の思考回路について詳細に分析してください。（700〜1000字程度）' },
-      { id: 'darkside', title: '人間関係のダークサイド', icon: 'moon', prompt: '極限のストレス下や絶望した時に現れる「闇落ち」した姿（シャドウ）と、他者を無意識にコントロールしようとする際の癖について詳細に分析してください。（700〜1000字程度）' },
-      { id: 'growth', title: '人生最大の壁と突破口', icon: 'mountain', prompt: 'この人物が人生で何度もぶつかるであろう本質的な「壁」と、それを乗り越えるための具体的な突破口について詳細に分析してください。（700〜1000字程度）' },
-      { id: 'lifestyle', title: '究極の理想のライフスタイル', icon: 'coffee', prompt: 'この人物が心からの安らぎと充実を感じる、究極的に理想とする生活環境や日常のルーティンについて詳細に分析してください。（700〜1000字程度）' }
+      { id: 'romance', title: '恋愛・パートナーシップ', icon: 'heart', prompt: 'この人物の恋愛傾向、惹かれる相手のタイプ、パートナーとしてうまくいくための条件を詳細に分析してください。（350〜550字程度）' },
+      { id: 'career', title: '天職とキャリア', icon: 'briefcase', prompt: 'この人物の才能が最も活きる職業環境、絶対に避けるべき職場、リーダーシップのスタイルについて詳細に分析してください。（350〜550字程度）' },
+      { id: 'stress', title: 'ストレスと地雷ポイント', icon: 'bomb', prompt: 'この人物が密かにストレスを抱える要因、激怒する・あるいは心を閉ざす「地雷」ポイントとその対処法を詳細に分析してください。（350〜550字程度）' },
+      { id: 'talent', title: '隠された才能', icon: 'sparkles', prompt: '本人がまだ自覚していない可能性が高い、他の人にはない特異な才能やポテンシャルについて詳細に分析してください。（350〜550字程度）' },
+      { id: 'money', title: '金銭感覚とリスク', icon: 'coins', prompt: 'この人物のお金に対する価値観、浪費しやすいポイント、リスクを取る際の思考回路について詳細に分析してください。（350〜550字程度）' },
+      { id: 'darkside', title: '人間関係のダークサイド', icon: 'moon', prompt: '極限のストレス下や絶望した時に現れる「闇落ち」した姿（シャドウ）と、他者を無意識にコントロールしようとする際の癖について詳細に分析してください。（350〜550字程度）' },
+      { id: 'growth', title: '人生最大の壁と突破口', icon: 'mountain', prompt: 'この人物が人生で何度もぶつかるであろう本質的な「壁」と、それを乗り越えるための具体的な突破口について詳細に分析してください。（350〜550字程度）' },
+      { id: 'lifestyle', title: '究極の理想のライフスタイル', icon: 'coffee', prompt: 'この人物が心からの安らぎと充実を感じる、究極的に理想とする生活環境や日常のルーティンについて詳細に分析してください。（350〜550字程度）' }
     ];
 
     const FORTUNE_SIGN_LABELS = {
@@ -1336,6 +1336,67 @@
       const raw = parts.slice(0, sentenceLimit).join("。");
       const clipped = raw.length > maxChars ? `${raw.slice(0, maxChars)}…` : raw;
       return /[。！？]$/.test(clipped) ? clipped : `${clipped}。`;
+    }
+
+    function condenseDetailText(text, options = {}) {
+      const normalized = normalizeText(text, "");
+      if (!normalized) return "";
+
+      const ratioRaw = Number(options?.ratio);
+      const ratio = Number.isFinite(ratioRaw) && ratioRaw > 0 && ratioRaw < 1 ? ratioRaw : 0.55;
+      const minCharsRaw = Number(options?.minChars);
+      const minChars = Number.isFinite(minCharsRaw) && minCharsRaw >= 120 ? Math.round(minCharsRaw) : 260;
+
+      if (normalized.length <= minChars) return normalized;
+
+      const targetCharsRaw = Number(options?.targetChars);
+      const targetChars = Number.isFinite(targetCharsRaw) && targetCharsRaw >= minChars
+        ? Math.round(targetCharsRaw)
+        : Math.max(minChars, Math.round(normalized.length * ratio));
+
+      const sentences = (normalized.match(/[^。！？\n]+[。！？]?/g) || [])
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (sentences.length <= 2) {
+        return buildSummaryFromText(normalized, { maxChars: targetChars, sentenceLimit: 2 });
+      }
+
+      const keywordPattern = /(要点|核|本質|重要|強み|弱み|課題|リスク|対策|改善|行動|戦略|優先|トリガー|再現|実行|根拠|一貫|矛盾|注意)/;
+      const scored = sentences.map((sentence, index) => {
+        const lengthScore = Math.min(40, Math.round(sentence.length / 3));
+        const keywordScore = keywordPattern.test(sentence) ? 28 : 0;
+        const positionScore = Math.max(0, 12 - index);
+        return { sentence, index, score: lengthScore + keywordScore + positionScore };
+      });
+
+      const chosen = new Set([0]); // 先頭文は残す
+      let currentLen = sentences[0].length;
+      const ranked = scored
+        .slice(1)
+        .sort((a, b) => (b.score - a.score) || (a.index - b.index));
+
+      for (const item of ranked) {
+        if (currentLen >= targetChars && chosen.size >= 3) break;
+        if (chosen.has(item.index)) continue;
+        chosen.add(item.index);
+        currentLen += item.sentence.length;
+      }
+
+      const merged = sentences
+        .map((sentence, index) => ({ sentence, index }))
+        .filter((entry) => chosen.has(entry.index))
+        .sort((a, b) => a.index - b.index)
+        .map((entry) => entry.sentence)
+        .join("");
+
+      const finalized = normalizeText(merged, "");
+      if (!finalized) {
+        return buildSummaryFromText(normalized, { maxChars: targetChars, sentenceLimit: 3 });
+      }
+      if (finalized.length > targetChars + 80) {
+        return buildSummaryFromText(finalized, { maxChars: targetChars, sentenceLimit: 3 });
+      }
+      return finalized;
     }
 
     function buildAnalysisSummary(profile) {
@@ -2615,21 +2676,22 @@ RIASEC: ${JSON.stringify(riasecScores)}
 - BIG5とRIASECの交差作用を最低2点示す。
 - 反証可能性（当てはまりにくい条件）を短く示す。
 - 文章は知的で読みやすく、ユーモアは気づきを深める軽い一言に限定する。
+- 冗長な言い換え・重複説明を避け、各段落は「要点 -> 根拠 -> 行動」で簡潔にまとめる。
 
 [出力仕様]
 - responseSchemaに厳密準拠。
 - JSONのみ返す。
 - catchphrase: 18〜34文字、覚えやすく鮮明。
 - witLine: 35〜90文字、知的で軽いユーモアの一言。
-- analysisSummary: 140〜260文字。最重要ポイントを先に示す要約。
-- deepAnalysis: 900〜1400文字。中核パターン、トリガー、起こりやすい行動、実行策を含める詳細分析。
-- hybridSynthesisSummary: 120〜220文字。BIG5×RIASEC交差作用の中核と活かし方を示す要約。
-- hybridSynthesis: 500〜850文字。BIG5×RIASECの交差作用と矛盾の統合を明示する。
-- hiddenDesireSummary: 120〜220文字。未充足欲求の核心と扱い方を簡潔に示す要約。
-- hiddenDesire: 500〜900文字。未充足欲求と防衛的パターンを示し、健全な満たし方を提案する。
-- big5Interpretation: 280〜480文字。
-- riasecInterpretation: 280〜480文字。
-- evidenceSummary: 220〜420文字。根拠と不確実性を分け、最後に信頼度（高/中/低）を明記する。`;
+- analysisSummary: 110〜180文字。最重要ポイントを先に示す要約。
+- deepAnalysis: 450〜700文字。中核パターン、トリガー、起こりやすい行動、実行策を高密度で示す詳細分析。
+- hybridSynthesisSummary: 100〜170文字。BIG5×RIASEC交差作用の中核と活かし方を示す要約。
+- hybridSynthesis: 260〜420文字。BIG5×RIASECの交差作用と矛盾の統合を簡潔に示す。
+- hiddenDesireSummary: 100〜170文字。未充足欲求の核心と扱い方を簡潔に示す要約。
+- hiddenDesire: 260〜450文字。未充足欲求と防衛的パターンを示し、健全な満たし方を提案する。
+- big5Interpretation: 150〜260文字。
+- riasecInterpretation: 150〜260文字。
+- evidenceSummary: 120〜220文字。根拠と不確実性を分け、最後に信頼度（高/中/低）を明記する。`;
 
       const schema = {
         type: "OBJECT",
@@ -2821,17 +2883,26 @@ RIASEC: ${JSON.stringify(riasecScores)}
       const summaryEl = document.getElementById('res-analysis-summary');
       const detailEl = document.getElementById('res-analysis-detail');
       const summaryText = buildAnalysisSummary(data);
-      const detailText = normalizeText(data?.deepAnalysis, summaryText);
+      const detailText = condenseDetailText(
+        normalizeText(data?.deepAnalysis, summaryText),
+        { ratio: 0.55, minChars: 260 }
+      );
       if (summaryEl) summaryEl.textContent = summaryText;
       if (detailEl) detailEl.textContent = detailText;
       const hybridSummaryEl = document.getElementById('res-hybrid-summary');
       const hybridSummaryText = buildHybridSummary(data);
-      const hybridDetailText = normalizeText(data?.hybridSynthesis, normalizeText(data?.deepAnalysis, hybridSummaryText));
+      const hybridDetailText = condenseDetailText(
+        normalizeText(data?.hybridSynthesis, normalizeText(data?.deepAnalysis, hybridSummaryText)),
+        { ratio: 0.55, minChars: 200 }
+      );
       if (hybridSummaryEl) hybridSummaryEl.textContent = hybridSummaryText;
       document.getElementById('res-hybrid').textContent = hybridDetailText;
       const hiddenSummaryEl = document.getElementById('res-hidden-summary');
       const hiddenSummaryText = buildHiddenSummary(data);
-      const hiddenDetailText = normalizeText(data?.hiddenDesire, hiddenSummaryText);
+      const hiddenDetailText = condenseDetailText(
+        normalizeText(data?.hiddenDesire, hiddenSummaryText),
+        { ratio: 0.55, minChars: 200 }
+      );
       if (hiddenSummaryEl) hiddenSummaryEl.textContent = hiddenSummaryText;
       document.getElementById('res-hidden').textContent = hiddenDetailText;
       const evidenceEl = document.getElementById('res-evidence');
@@ -2913,7 +2984,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
 
     function normalizeExtraTopicEntry(raw) {
       if (typeof raw === 'string') {
-        const text = raw.trim();
+        const text = condenseDetailText(raw.trim(), { ratio: 0.55, minChars: 260 });
         return {
           summaryText: buildSummaryFromText(text, { maxChars: 170, sentenceLimit: 2 }),
           analysisText: text,
@@ -2927,7 +2998,10 @@ RIASEC: ${JSON.stringify(riasecScores)}
           improvementAdvice: []
         };
       }
-      const analysisText = normalizeText(raw.analysisText || raw.analysis || raw.text, "");
+      const analysisText = condenseDetailText(
+        normalizeText(raw.analysisText || raw.analysis || raw.text, ""),
+        { ratio: 0.55, minChars: 260 }
+      );
       const summaryText = normalizeText(
         raw.summaryText || raw.summary || raw.analysisSummary || raw.digest,
         buildSummaryFromText(analysisText, { maxChars: 170, sentenceLimit: 2 })
@@ -3050,11 +3124,12 @@ RIASEC: ${JSON.stringify(riasecScores)}
 
       指示:
       ・${topic.prompt}
-      ・summaryTextは120〜220文字で、最重要の示唆を1〜2文で要約してください。
-      ・analysisTextは最低700文字以上、最大1200文字程度で出力してください。
+      ・summaryTextは100〜170文字で、最重要の示唆を1〜2文で要約してください。
+      ・analysisTextは360〜650文字程度で、要点を高密度にまとめてください。
       ・ユーザーが読んで深く納得し、時にハッとするような鋭い洞察を含めてください。
+      ・同じ意味の言い換えや重複説明を避け、結論先行で書いてください。
       ・分析は「傾向の説明」だけでなく、「起こりやすい具体場面」「回避策/活用策」まで書いてください。
-      ・improvementAdviceとして、明日から実行できる改善アドバイスを3つ、短く具体的に作ってください（1項目あたり30〜70文字）。
+      ・improvementAdviceとして、明日から実行できる改善アドバイスを3つ、短く具体的に作ってください（1項目あたり25〜55文字）。
       ・responseSchemaに厳密準拠したJSONのみを返してください。`;
 
       const schema = {
