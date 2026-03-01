@@ -177,7 +177,7 @@
         </div>
         <div>
           <h1 class="text-xl font-black tracking-tight text-slate-800">DeepProfile <span class="text-indigo-600">AI</span></h1>
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Version 3.0 Auto-Sync</p>
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">バージョン 3.0 自動同期</p>
         </div>
       </div>
       
@@ -186,11 +186,11 @@
           Googleでログイン
         </button>
         <div class="hidden sm:flex flex-col items-end">
-          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Your ID</span>
-          <span id="display-uid" class="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Connecting...</span>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">あなたのID</span>
+          <span id="display-uid" class="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">接続中...</span>
         </div>
         <div id="phase-badge" class="hidden text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-4 py-1.5 rounded-full">
-          Phase 1
+          フェーズ1
         </div>
       </div>
     </header>
@@ -273,7 +273,7 @@
           <div class="fortune-orbit"></div>
           <i data-lucide="sun-moon" class="absolute -top-5 -right-5 w-32 h-32 text-amber-300 opacity-70"></i>
           <div class="relative z-10 max-w-2xl space-y-4">
-            <span class="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white/85 border border-amber-200 text-amber-700 text-[10px] font-black uppercase tracking-[0.2em]">Fortune Mode</span>
+            <span class="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white/85 border border-amber-200 text-amber-700 text-[10px] font-black uppercase tracking-[0.2em]">占いモード</span>
             <h2 class="text-3xl md:text-4xl font-black text-slate-900 leading-tight">
               今年の流れを、<br/>立体的に読み解く。
             </h2>
@@ -447,7 +447,7 @@
       <div id="screen-questions" class="hidden glass rounded-[2.5rem] p-8 md:p-12 shadow-2xl space-y-10">
         <div class="space-y-4">
           <div class="flex justify-between items-end">
-            <span class="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Phase 1: Base Analysis</span>
+            <span class="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">フェーズ1：基礎分析</span>
             <span id="q-progress-text" class="text-sm font-mono font-bold text-slate-400">01 / 16</span>
           </div>
           <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
@@ -496,7 +496,7 @@
         <div class="bg-indigo-600 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden">
           <i data-lucide="sparkles" class="absolute -bottom-4 -right-4 w-32 h-32 opacity-20"></i>
           <div class="relative z-10">
-            <span class="inline-block px-3 py-1 bg-white/20 rounded-lg text-[10px] font-bold uppercase tracking-widest mb-4">Phase 2: Deep Dive</span>
+            <span class="inline-block px-3 py-1 bg-white/20 rounded-lg text-[10px] font-bold uppercase tracking-widest mb-4">フェーズ2：深掘り分析</span>
             <h2 class="text-2xl md:text-3xl font-black">AIが生成した「3つの鍵」</h2>
             <p class="text-indigo-100 mt-2 text-sm md:text-base">これらの問いにどう答えるかで、あなたの輪郭が決定します。</p>
           </div>
@@ -531,7 +531,7 @@
         <div class="bg-gradient-to-br from-pink-50 via-violet-50 to-sky-50 rounded-[2.5rem] p-10 md:p-16 text-center space-y-6 shadow-xl border border-violet-100 relative overflow-hidden">
           <div class="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent"></div>
           <div class="relative z-10 space-y-4">
-            <span class="inline-block px-4 py-1 rounded-full bg-white/80 border border-violet-200 text-violet-500 font-bold text-[10px] tracking-[0.3em] uppercase">Result Identity</span>
+            <span class="inline-block px-4 py-1 rounded-full bg-white/80 border border-violet-200 text-violet-500 font-bold text-[10px] tracking-[0.3em] uppercase">診断結果</span>
             <h2 id="res-catchphrase" class="text-3xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 via-indigo-500 to-sky-500 animate-gradient pb-2"></h2>
             <p id="res-wit" class="hidden text-sm md:text-base font-semibold text-indigo-700"></p>
           </div>
@@ -540,7 +540,7 @@
         <!-- Metrics & Main Analysis -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div class="bg-gradient-to-br from-cyan-50 to-indigo-50 rounded-[2.5rem] p-8 shadow-xl border border-cyan-100 flex flex-col items-center">
-            <h3 class="text-xs font-black text-cyan-600 uppercase tracking-widest mb-8">Personality Spectrum</h3>
+            <h3 class="text-xs font-black text-cyan-600 uppercase tracking-widest mb-8">性格スペクトラム</h3>
             <div id="radar-chart-container" class="w-full aspect-square max-w-[320px]"></div>
           </div>
 
@@ -549,7 +549,7 @@
               <i data-lucide="quote" class="absolute top-4 right-6 w-12 h-12 opacity-25"></i>
               <h3 class="text-lg font-bold flex items-center gap-2">
                 <i data-lucide="scan-face" class="w-5 h-5"></i>
-                Base Insight
+                基本分析
               </h3>
               <div class="relative z-10 bg-white/15 border border-white/25 rounded-2xl p-4 space-y-2">
                 <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">要約</p>
@@ -567,7 +567,7 @@
           <div class="bg-gradient-to-br from-sky-50 to-indigo-50 rounded-[2rem] p-8 border border-sky-100 space-y-5">
             <h4 class="text-sky-700 font-black flex items-center gap-2">
               <i data-lucide="activity" class="w-5 h-5"></i>
-              BIG5 Scores
+              BIG5スコア
             </h4>
             <div id="res-big5" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
           </div>
@@ -575,7 +575,7 @@
           <div class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-[2rem] p-8 border border-emerald-100 space-y-5">
             <h4 class="text-emerald-700 font-black flex items-center gap-2">
               <i data-lucide="compass" class="w-5 h-5"></i>
-              RIASEC Aptitude
+              RIASEC適性
             </h4>
             <div id="res-riasec" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
           </div>
@@ -603,7 +603,7 @@
         <div class="bg-gradient-to-r from-indigo-50 to-cyan-50 rounded-[2rem] p-8 border border-indigo-100 space-y-5">
           <h4 class="text-indigo-700 font-black flex items-center gap-2">
             <i data-lucide="git-merge" class="w-5 h-5"></i>
-            Hybrid Synthesis (BIG5 × RIASEC × Deep Answers)
+            統合分析（BIG5 × RIASEC × 深層回答）
           </h4>
           <div class="bg-white/70 border border-indigo-100 rounded-xl p-4 space-y-2">
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">要約</p>
@@ -619,7 +619,7 @@
         <div class="bg-gradient-to-r from-amber-50 to-rose-50 rounded-[2rem] p-8 border border-amber-100 space-y-5">
           <h4 class="text-rose-700 font-black flex items-center gap-2">
             <i data-lucide="eye" class="w-5 h-5"></i>
-            Hidden Self (隠された欲求)
+            隠された欲求
           </h4>
           <div class="bg-white/70 border border-rose-100 rounded-xl p-4 space-y-2">
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">要約</p>
@@ -638,7 +638,7 @@
               <i data-lucide="layers" class="w-5 h-5 text-fuchsia-600"></i>
             </div>
             <div>
-              <h3 class="text-xl md:text-2xl font-black text-indigo-700">Deep Exploration</h3>
+              <h3 class="text-xl md:text-2xl font-black text-indigo-700">深掘り分析</h3>
               <p class="text-xs font-bold text-indigo-400 mt-0.5">知りたい項目を選んでAIに深く掘り下げさせましょう</p>
             </div>
           </div>
@@ -665,8 +665,8 @@
 
     <!-- Footer -->
     <footer class="mt-16 text-center text-slate-400 text-xs pb-10 space-y-2">
-      <p>&copy; 2024 DeepProfile AI. All rights reserved.</p>
-      <p class="font-mono opacity-50">Experimental Cognitive Analysis Model v3.0</p>
+      <p>&copy; 2024 DeepProfile AI. 全著作権所有。</p>
+      <p class="font-mono opacity-50">実験的認知分析モデル v3.0</p>
     </footer>
   </div>
 
@@ -757,12 +757,12 @@
 
     const RIASEC_TRAITS = ['Realistic', 'Investigative', 'Artistic', 'Social', 'Enterprising', 'Conventional'];
     const RIASEC_LABELS = {
-      Realistic: 'Realistic',
-      Investigative: 'Investigative',
-      Artistic: 'Artistic',
-      Social: 'Social',
-      Enterprising: 'Enterprising',
-      Conventional: 'Conventional'
+      Realistic: '現実型',
+      Investigative: '探究型',
+      Artistic: '芸術型',
+      Social: '社会型',
+      Enterprising: '企業型',
+      Conventional: '慣習型'
     };
 
     const EXTRA_TOPICS = [
@@ -1194,10 +1194,10 @@
       const badge = document.getElementById('phase-badge');
       if (screenId === 'questions') {
         badge.classList.remove('hidden');
-        badge.textContent = 'Phase 1';
+        badge.textContent = 'フェーズ1';
       } else if (screenId === 'dynamic-question') {
         badge.classList.remove('hidden');
-        badge.textContent = 'Phase 2';
+        badge.textContent = 'フェーズ2';
       } else {
         badge.classList.add('hidden');
       }
@@ -1395,8 +1395,8 @@
       if (!text) return null;
 
       return {
-        theme: normalizeText(raw?.theme, "Deep Dive"),
-        role: normalizeText(raw?.role, "probe"),
+        theme: normalizeText(raw?.theme, "深掘り"),
+        role: normalizeText(raw?.role, "探索"),
         objective: normalizeText(raw?.objective, ""),
         text,
         requiredPoints,
@@ -2378,7 +2378,7 @@ ${topic.prompt}
           });
           const raw = await res.text();
           if (!res.ok) {
-            let msg = "API Error";
+            let msg = "APIエラー";
             try {
               const parsed = JSON.parse(raw);
               msg = parsed?.error || msg;
@@ -2394,7 +2394,7 @@ ${topic.prompt}
             throw err;
           }
           const parsed = JSON.parse(raw);
-          if (!parsed?.ok || !parsed?.data) throw new Error("Invalid API response");
+          if (!parsed?.ok || !parsed?.data) throw new Error("APIレスポンスが不正です");
           lastGeminiMeta = {
             model: typeof parsed?.model === "string" ? parsed.model : "",
             fallbackUsed: !!parsed?.fallbackUsed,
@@ -2450,12 +2450,13 @@ RIASEC上位: ${topRiasec}
 RIASEC下位: ${bottomRiasec}
 
 [必須役割]
-1. high_validation（強み確認）
-2. low_validation（弱み確認）
-3. contradiction_check（状況による揺れ確認）
+1. 強み確認
+2. 弱み確認
+3. 状況差確認
 
 [生成ルール]
 - 各質問は20〜40文字程度、1文、平易な日本語。
+- theme・role・objective・required_points・rubric配下も日本語で記述する（英語語句を使わない）。
 - 誘導・断定・説教は禁止。
 - 回答者が具体例を自然に書ける問いにする。
 - 役割ごとに観点を重複させない。
@@ -2835,7 +2836,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
       document.getElementById('res-hidden').textContent = hiddenDetailText;
       const evidenceEl = document.getElementById('res-evidence');
       if (evidenceEl) {
-        evidenceEl.textContent = data.evidenceSummary ? `Evidence Note: ${data.evidenceSummary}` : '';
+        evidenceEl.textContent = data.evidenceSummary ? `根拠メモ: ${data.evidenceSummary}` : '';
         evidenceEl.classList.toggle('hidden', !data.evidenceSummary);
       }
 
@@ -2891,12 +2892,12 @@ RIASEC: ${JSON.stringify(riasecScores)}
 
     function renderRiasecScores(scores) {
       const items = [
-        { key: 'Realistic', label: 'Realistic' },
-        { key: 'Investigative', label: 'Investigative' },
-        { key: 'Artistic', label: 'Artistic' },
-        { key: 'Social', label: 'Social' },
-        { key: 'Enterprising', label: 'Enterprising' },
-        { key: 'Conventional', label: 'Conventional' }
+        { key: 'Realistic', label: '現実型' },
+        { key: 'Investigative', label: '探究型' },
+        { key: 'Artistic', label: '芸術型' },
+        { key: 'Social', label: '社会型' },
+        { key: 'Enterprising', label: '企業型' },
+        { key: 'Conventional', label: '慣習型' }
       ];
       renderScoreBars('res-riasec', items, scores, 'emerald');
     }
