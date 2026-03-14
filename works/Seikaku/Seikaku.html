@@ -585,6 +585,20 @@
           </div>
         </div>
 
+        <!-- Easy Explanation -->
+        <div id="res-easy-card" class="hidden bg-white rounded-[2rem] p-8 border-2 border-amber-200 shadow-lg space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="bg-amber-100 p-2 rounded-xl">
+              <i data-lucide="book-open-text" class="w-5 h-5 text-amber-600"></i>
+            </div>
+            <div>
+              <h3 class="font-black text-slate-800">やさしい解説</h3>
+              <p class="text-[11px] text-slate-400 font-semibold">専門用語なし・読みやすい言葉でまとめました</p>
+            </div>
+          </div>
+          <p id="res-easy-explanation" class="text-slate-700 leading-[1.9] whitespace-pre-wrap"></p>
+        </div>
+
         <!-- Metrics & Main Analysis -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div class="pastel-card pastel-2 rounded-[2.5rem] p-8 shadow-xl border border-cyan-100 flex flex-col items-center">
@@ -2931,8 +2945,10 @@ RIASEC: ${JSON.stringify(riasecScores)}
 - 強みだけでなく、弱み・トレードオフ・状況依存性を示す。
 - BIG5とRIASECの交差作用を最低2点示す。
 - 反証可能性（当てはまりにくい条件）を短く示す。
-- 文章は知的で読みやすく、ユーモアは気づきを深める軽い一言に限定する。
+- 文章は短い文で読みやすく書く。1文は40字以内を目安にする。
+- 専門用語（「BIG5」「RIASEC」「神経傾向」「開放性」等）を使う場合は必ず日常語で言い換えを添える。
 - 冗長な言い換え・重複説明を避け、各段落は「要点 -> 根拠 -> 行動」で簡潔にまとめる。
+- ユーモアは気づきを深める軽い一言に限定する。
 
 [rubric活用ルール]
 - 各質問のrubric.confirm_signalsに挙げられた言葉・行動が回答に含まれているか確認し、実際に見つかったシグナルを根拠として分析に組み込む。
@@ -2947,21 +2963,23 @@ RIASEC: ${JSON.stringify(riasecScores)}
 - JSONのみ返す。
 - catchphrase: 18〜34文字、覚えやすく鮮明。
 - witLine: 35〜90文字、知的で軽いユーモアの一言。
-- analysisSummary: 110〜180文字。最重要ポイントを先に示す要約。
-- deepAnalysis: 450〜700文字。中核パターン、トリガー、起こりやすい行動、実行策を高密度で示す詳細分析。
-- hybridSynthesisSummary: 100〜170文字。BIG5×RIASEC交差作用の中核と活かし方を示す要約。
-- hybridSynthesis: 260〜420文字。BIG5×RIASECの交差作用と矛盾の統合を簡潔に示す。
-- hiddenDesireSummary: 100〜170文字。未充足欲求の核心と扱い方を簡潔に示す要約。
-- hiddenDesire: 260〜450文字。未充足欲求と防衛的パターンを示し、健全な満たし方を提案する。
-- big5Interpretation: 150〜260文字。
-- riasecInterpretation: 150〜260文字。
-- evidenceSummary: 120〜220文字。根拠と不確実性を分け、最後に信頼度（高/中/低）を明記する。`;
+- analysisSummary: 110〜180文字。最重要ポイントを先に示す要約。専門用語を使わず日常語で書く。
+- deepAnalysis: 450〜700文字。この人のパターン・きっかけ・起こりやすい行動・具体的な対処策を示す詳細分析。専門用語（BIG5・RIASEC・神経傾向・開放性など）を使う場合は必ず「（＝〇〇）」と日常語の言い換えを括弧で添える。日常のリアルな場面（仕事・人間関係など）に置き換えて説明する。
+- hybridSynthesisSummary: 100〜170文字。性格の特徴と向いている方向性の組み合わせを一言でまとめた要約。専門用語を使わず日常語で書く。
+- hybridSynthesis: 260〜420文字。性格の特徴と向いている仕事・行動スタイルがどう組み合わさっているかを簡潔に説明する。「BIG5×RIASEC」などの専門語は使わず、「〇〇な性格と〇〇な適性が重なっているため〜」という形で日常語に落とし込む。
+- hiddenDesireSummary: 100〜170文字。この人が内心求めていることと、それをうまく満たすヒントを一言で示す要約。専門用語を使わず日常語で書く。
+- hiddenDesire: 260〜450文字。この人が無意識に求めていること・なりやすいパターン・健全な満たし方を説明する。心理学用語は使わず、「〇〇な場面で〜しがち」「〜するとうまくいく」という具体的な表現で書く。
+- big5Interpretation: 150〜260文字。各スコアを日常行動に置き換えて解説する。例: 「外向性が高い＝人と話すと元気になりやすく、一人の作業が続くと疲れを感じやすい」のように書く。「開放性」「誠実性」などの用語は使わず、すべて日常語に言い換える。
+- riasecInterpretation: 150〜260文字。向いている仕事・環境を具体的な職場場面で説明する。「RIASEC」「探究型」などの用語は使わず、「調査や分析が得意」「チームをまとめる役割に向いている」など分かりやすい言葉で書く。
+- evidenceSummary: 120〜220文字。この結果がどれくらい信頼できるかを分かりやすく説明する。最後に信頼度（高/中/低）を明記する。
+- easyExplanation: 300〜500文字。専門用語を一切使わず、「あなたは〜」という語りかけ形式で書く。中学生でも理解できる平易な日本語で、この人の性格の特徴・得意なこと・気をつけるとよいことを3〜4つの短い段落で説明する。難しい言葉を使わず、具体的な日常の場面に置き換えて表現すること。`;
 
       const schema = {
         type: "OBJECT",
         properties: {
           catchphrase: { type: "STRING" },
           witLine: { type: "STRING" },
+          easyExplanation: { type: "STRING" },
           analysisSummary: { type: "STRING" },
           deepAnalysis: { type: "STRING" },
           hybridSynthesisSummary: { type: "STRING" },
@@ -3143,6 +3161,12 @@ RIASEC: ${JSON.stringify(riasecScores)}
       if (witEl) {
         witEl.textContent = data.witLine || '';
         witEl.classList.toggle('hidden', !data.witLine);
+      }
+      const easyCard = document.getElementById('res-easy-card');
+      const easyEl = document.getElementById('res-easy-explanation');
+      if (easyEl && data.easyExplanation) {
+        easyEl.textContent = data.easyExplanation;
+        if (easyCard) easyCard.classList.remove('hidden');
       }
       const summaryEl = document.getElementById('res-analysis-summary');
       const detailEl = document.getElementById('res-analysis-detail');
@@ -3392,11 +3416,12 @@ RIASEC: ${JSON.stringify(riasecScores)}
 
       指示:
       ・${topic.prompt}
-      ・summaryTextは100〜170文字で、最重要の示唆を1〜2文で要約してください。
-      ・analysisTextは360〜650文字程度で、要点を高密度にまとめてください。
-      ・ユーザーが読んで深く納得し、時にハッとするような鋭い洞察を含めてください。
-      ・同じ意味の言い換えや重複説明を避け、結論先行で書いてください。
-      ・分析は「傾向の説明」だけでなく、「起こりやすい具体場面」「回避策/活用策」まで書いてください。
+      ・summaryTextは100〜170文字で、最重要の示唆を1〜2文で要約してください。専門用語を使わず日常語で書くこと。
+      ・analysisTextは360〜650文字程度。結論を先に書き、その後に具体的な場面・理由・対処策の順で説明してください。
+      ・文章は1文40字以内を目安に、短く区切って書いてください。
+      ・専門用語（BIG5・RIASEC・神経傾向・開放性など）は使わず、すべて日常語に言い換えてください。
+      ・「〜な場面では」「〜しやすい人は」のように、読んだ人が自分のことだと気づける具体的な表現を使ってください。
+      ・ユーザーが読んで「たしかに」と納得できる鋭い洞察を含めてください。重複説明は避けてください。
       ・improvementAdviceとして、明日から実行できる改善アドバイスを3つ、短く具体的に作ってください（1項目あたり25〜55文字）。
       ・responseSchemaに厳密準拠したJSONのみを返してください。`;
 
