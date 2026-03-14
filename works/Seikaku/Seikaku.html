@@ -789,20 +789,30 @@
 
     // --- State & Constants ---
     const QUESTIONS = [
-      { id: 'O1', type: 'Openness', text: '新しいやり方を試すのが好きだ。' },
-      { id: 'O2', type: 'Openness', text: '慣れた方法より、未知の方法にわくわくする。' },
+      { id: 'O1',  type: 'Openness', text: '新しいやり方を試すのが好きだ。' },
+      { id: 'O2',  type: 'Openness', text: '慣れた方法より、未知の方法にわくわくする。' },
+      { id: 'O3',  type: 'Openness', text: '抽象的なアイデアや概念について考えるのが好きだ。' },
+      { id: 'O4R', type: 'Openness', text: '新しいことより、実績のある方法を使うほうが安心だ。', reverse: true },
 
-      { id: 'C1', type: 'Conscientiousness', text: '締切から逆算して行動するほうだ。' },
-      { id: 'C2', type: 'Conscientiousness', text: '面倒な作業でも最後までやり切る。' },
+      { id: 'C1',  type: 'Conscientiousness', text: '締切から逆算して行動するほうだ。' },
+      { id: 'C2',  type: 'Conscientiousness', text: '面倒な作業でも最後までやり切る。' },
+      { id: 'C3',  type: 'Conscientiousness', text: '計画を立ててから行動することが多い。' },
+      { id: 'C4R', type: 'Conscientiousness', text: '気が向いたときにまとめてやる方が自分に合っている。', reverse: true },
 
-      { id: 'E1', type: 'Extraversion', text: '初対面でも自分から話しかけやすい。' },
-      { id: 'E2', type: 'Extraversion', text: '大人数の場に行くとエネルギーが上がる。' },
+      { id: 'E1',  type: 'Extraversion', text: '初対面でも自分から話しかけやすい。' },
+      { id: 'E2',  type: 'Extraversion', text: '大人数の場に行くとエネルギーが上がる。' },
+      { id: 'E3',  type: 'Extraversion', text: '会話の中で積極的に意見を発言するほうだ。' },
+      { id: 'E4R', type: 'Extraversion', text: '人と長時間一緒にいると疲れを感じやすい。', reverse: true },
 
-      { id: 'AG1', type: 'Agreeableness', text: '意見が違っても相手の立場を考えて話す。' },
-      { id: 'AG2', type: 'Agreeableness', text: '対立よりも合意点を探すほうだ。' },
+      { id: 'AG1',  type: 'Agreeableness', text: '意見が違っても相手の立場を考えて話す。' },
+      { id: 'AG2',  type: 'Agreeableness', text: '対立よりも合意点を探すほうだ。' },
+      { id: 'AG3',  type: 'Agreeableness', text: '困っている人がいると自然に手を差し伸べたくなる。' },
+      { id: 'AG4R', type: 'Agreeableness', text: '自分の利益のためなら、強く主張することをためらわない。', reverse: true },
 
-      { id: 'N1', type: 'Neuroticism', text: '小さな失敗を長く気にしやすい。' },
-      { id: 'N2', type: 'Neuroticism', text: '予想外の出来事で気持ちが乱れやすい。' },
+      { id: 'N1',  type: 'Neuroticism', text: '小さな失敗を長く気にしやすい。' },
+      { id: 'N2',  type: 'Neuroticism', text: '予想外の出来事で気持ちが乱れやすい。' },
+      { id: 'N3',  type: 'Neuroticism', text: '人の言葉や態度が気になってモヤモヤすることがある。' },
+      { id: 'N4R', type: 'Neuroticism', text: '感情的になっても、すぐに落ち着きを取り戻せる。', reverse: true },
 
       { id: 'R1', type: 'Realistic', text: '手を動かして形にする作業が好きだ。' },
       { id: 'R2', type: 'Realistic', text: '体を使う実務のほうが集中しやすい。' },
@@ -1384,7 +1394,11 @@
       const scores = {};
       traits.forEach((trait) => {
         const subset = QUESTIONS.filter((q) => q.type === trait);
-        const sum = subset.reduce((acc, q) => acc + (answers[q.id] || 3), 0);
+        const sum = subset.reduce((acc, q) => {
+          const raw = answers[q.id] || 3;
+          const val = q.reverse ? (6 - raw) : raw;
+          return acc + val;
+        }, 0);
         scores[trait] = Math.round((sum / (subset.length * 5)) * 100);
       });
       return scores;
@@ -2920,7 +2934,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
       };
 
       try {
-        const { data: aiProfile, meta } = await fetchGemini(prompt, schema, { temperature: 0.64 });
+        const { data: aiProfile, meta } = await fetchGemini(prompt, schema, { temperature: 0.35 });
         finalProfile = {
           ...aiProfile,
           scoring: {
