@@ -224,6 +224,26 @@
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
+
+    /* ── Font-size toggle for result screen ── */
+    .res-body-text {
+      transition: font-size 0.2s ease, line-height 0.2s ease;
+    }
+    #screen-result.result-font-sm .res-body-text {
+      font-size: 0.8125rem !important;
+      line-height: 1.7 !important;
+    }
+    #screen-result.result-font-lg .res-body-text {
+      font-size: 1.125rem !important;
+      line-height: 2.3 !important;
+    }
+    .font-size-btn {
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    .font-size-btn.active {
+      background-color: #6366f1;
+      color: #ffffff;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-[#f8fafc] text-slate-900 selection:bg-indigo-100 overflow-x-hidden relative">
@@ -605,6 +625,19 @@
           </div>
         </div>
 
+        <!-- Font Size Toggle -->
+        <div class="flex items-center justify-end gap-2.5 -mt-4 px-1">
+          <span class="text-xs text-slate-400 font-semibold select-none">文字サイズ</span>
+          <div class="inline-flex rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+            <button onclick="setResultFontSize('sm')" id="font-btn-sm" type="button"
+              class="font-size-btn px-3.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50">小</button>
+            <button onclick="setResultFontSize('md')" id="font-btn-md" type="button"
+              class="font-size-btn px-3.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50 border-x border-slate-200">中</button>
+            <button onclick="setResultFontSize('lg')" id="font-btn-lg" type="button"
+              class="font-size-btn px-3.5 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50">大</button>
+          </div>
+        </div>
+
         <!-- Easy Explanation -->
         <div id="res-easy-card" class="hidden bg-white rounded-[2rem] p-8 border-2 border-amber-200 shadow-lg space-y-4">
           <div class="flex items-center gap-3">
@@ -616,7 +649,7 @@
               <p class="text-[11px] text-slate-400 font-semibold">専門用語なし・読みやすい言葉でまとめました</p>
             </div>
           </div>
-          <p id="res-easy-explanation" class="text-base text-slate-700 leading-[1.9] whitespace-pre-wrap"></p>
+          <p id="res-easy-explanation" class="res-body-text text-base text-slate-700 leading-[1.9] whitespace-pre-wrap"></p>
         </div>
 
         <!-- Metrics & Main Analysis -->
@@ -635,7 +668,7 @@
               </h3>
               <div class="relative z-10 bg-white/15 border border-white/25 rounded-2xl p-4 space-y-2">
                 <p class="text-xs font-black uppercase tracking-[0.2em] text-white/90">要約</p>
-                <p id="res-analysis-summary" class="text-base text-white/95 leading-loose font-semibold"></p>
+                <p id="res-analysis-summary" class="res-body-text text-base text-white/95 leading-loose font-semibold"></p>
               </div>
               <div class="relative z-10 bg-white/10 border border-white/20 rounded-2xl p-4 space-y-2">
                 <div class="flex items-center justify-between gap-2">
@@ -652,7 +685,7 @@
                   </button>
                 </div>
                 <div id="res-analysis-detail-wrap" style="height: 0; opacity: 0; overflow: hidden;">
-                  <p id="res-analysis-detail" class="text-base text-white/95 leading-loose font-medium"></p>
+                  <p id="res-analysis-detail" class="res-body-text text-base text-white/95 leading-loose font-medium"></p>
                 </div>
               </div>
             </div>
@@ -684,7 +717,7 @@
               診断の信頼度
             </h4>
             <p id="res-confidence-level" class="text-2xl font-black text-emerald-700"></p>
-            <p id="res-confidence-note" class="text-base text-emerald-700 leading-loose"></p>
+            <p id="res-confidence-note" class="res-body-text text-base text-emerald-700 leading-loose"></p>
             <p id="res-model-used" class="text-sm text-emerald-700/90 font-semibold"></p>
           </div>
           <div class="pastel-card pastel-7 rounded-[2rem] p-8 border border-slate-200 space-y-3">
@@ -692,7 +725,7 @@
               <i data-lucide="git-compare-arrows" class="w-5 h-5"></i>
               前回からの変化
             </h4>
-            <p id="res-history-compare" class="text-base text-slate-700 leading-loose"></p>
+            <p id="res-history-compare" class="res-body-text text-base text-slate-700 leading-loose"></p>
           </div>
         </div>
 
@@ -703,7 +736,7 @@
           </h4>
           <div class="bg-white/70 border border-indigo-100 rounded-xl p-4 space-y-2">
             <p class="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">要約</p>
-            <p id="res-hybrid-summary" class="text-base text-indigo-800 leading-loose font-semibold"></p>
+            <p id="res-hybrid-summary" class="res-body-text text-base text-indigo-800 leading-loose font-semibold"></p>
           </div>
           <div class="bg-white/65 border border-indigo-100 rounded-xl p-4 space-y-2">
             <div class="flex items-center justify-between gap-2">
@@ -720,10 +753,10 @@
               </button>
             </div>
             <div id="res-hybrid-detail-wrap" style="height: 0; opacity: 0; overflow: hidden;">
-              <p id="res-hybrid" class="text-base text-indigo-800 leading-loose"></p>
+              <p id="res-hybrid" class="res-body-text text-base text-indigo-800 leading-loose"></p>
             </div>
           </div>
-          <p id="res-evidence" class="text-sm text-indigo-600/90 leading-loose"></p>
+          <p id="res-evidence" class="res-body-text text-sm text-indigo-600/90 leading-loose"></p>
         </div>
 
         <div class="pastel-card pastel-9 rounded-[2rem] p-8 border border-amber-100 space-y-5">
@@ -733,7 +766,7 @@
           </h4>
           <div class="bg-white/70 border border-rose-100 rounded-xl p-4 space-y-2">
             <p class="text-xs font-black uppercase tracking-[0.2em] text-rose-500">要約</p>
-            <p id="res-hidden-summary" class="text-base text-rose-700 leading-loose font-semibold"></p>
+            <p id="res-hidden-summary" class="res-body-text text-base text-rose-700 leading-loose font-semibold"></p>
           </div>
           <div class="bg-white/65 border border-rose-100 rounded-xl p-4 space-y-2">
             <div class="flex items-center justify-between gap-2">
@@ -750,7 +783,7 @@
               </button>
             </div>
             <div id="res-hidden-detail-wrap" style="height: 0; opacity: 0; overflow: hidden;">
-              <p id="res-hidden" class="text-base text-rose-700 leading-loose"></p>
+              <p id="res-hidden" class="res-body-text text-base text-rose-700 leading-loose"></p>
             </div>
           </div>
         </div>
@@ -3208,6 +3241,21 @@ RIASEC: ${JSON.stringify(riasecScores)}
       }
     }
 
+    // ── Font-size toggle ──────────────────────────────────────────
+    function setResultFontSize(size) {
+      const screen = document.getElementById('screen-result');
+      if (!screen) return;
+      screen.classList.remove('result-font-sm', 'result-font-lg');
+      if (size === 'sm' || size === 'lg') screen.classList.add('result-font-' + size);
+      ['sm', 'md', 'lg'].forEach(s => {
+        const btn = document.getElementById('font-btn-' + s);
+        if (!btn) return;
+        btn.classList.toggle('active', s === size);
+      });
+      try { localStorage.setItem('resultFontSize', size); } catch (_) {}
+    }
+    // ─────────────────────────────────────────────────────────────
+
     function renderResult(data) {
       const storedBig5 = pickScoreSubset(data?.scoring?.big5, BIG5_TRAITS);
       const storedRiasec = pickScoreSubset(data?.scoring?.riasec, RIASEC_TRAITS);
@@ -3282,6 +3330,12 @@ RIASEC: ${JSON.stringify(riasecScores)}
       lucide.createIcons();
       resetDetailCollapses({ animate: false });
       ['analysis', 'hybrid', 'hidden'].forEach((section) => refreshDetailToggleButton(section));
+
+      // Restore saved font-size preference
+      try {
+        const saved = localStorage.getItem('resultFontSize') || 'md';
+        setResultFontSize(saved);
+      } catch (_) { setResultFontSize('md'); }
     }
 
     function renderScoreBars(containerId, items, scores, theme) {
@@ -3377,7 +3431,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
         ? `
           <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 space-y-1">
             <p class="text-xs font-black tracking-wide text-indigo-600 uppercase">要約</p>
-            <p class="text-base text-indigo-700 leading-loose font-semibold">${summaryHtml}</p>
+            <p class="res-body-text text-base text-indigo-700 leading-loose font-semibold">${summaryHtml}</p>
           </div>
         `
         : '';
@@ -3386,7 +3440,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
           <div class="mt-4 pt-4 border-t border-indigo-100">
             <p class="text-xs font-black tracking-wide text-violet-700 uppercase">改善アドバイス</p>
             <ul class="mt-2 space-y-2">
-              ${normalized.improvementAdvice.map((tip) => `<li class="text-base text-slate-700 leading-relaxed">・${escapeHtml(tip)}</li>`).join('')}
+              ${normalized.improvementAdvice.map((tip) => `<li class="res-body-text text-base text-slate-700 leading-relaxed">・${escapeHtml(tip)}</li>`).join('')}
             </ul>
           </div>
         `
@@ -3396,7 +3450,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
           ${summaryBlock}
           <div class="bg-white/80 border border-indigo-100 rounded-xl p-3 space-y-1">
             <p class="text-xs font-black tracking-wide text-indigo-600 uppercase">詳細分析</p>
-            <p class="text-base text-indigo-700 leading-loose font-medium">${analysisHtml}</p>
+            <p class="res-body-text text-base text-indigo-700 leading-loose font-medium">${analysisHtml}</p>
           </div>
           ${adviceHtml}
         </div>
