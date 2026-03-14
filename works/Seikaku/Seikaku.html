@@ -23,11 +23,30 @@
 
     .fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .options-fade-in { animation: optionsFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes slideUp { 
-      from { opacity: 0; transform: translateY(20px); } 
-      to { opacity: 1; transform: translateY(0); } 
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes optionsFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes animateGradient {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .animate-gradient {
+      background-size: 200% 200%;
+      animation: animateGradient 5s ease infinite;
+    }
+    .btn-selected {
+      outline: 2px solid #6366f1;
+      outline-offset: 2px;
+      transform: scale(0.98);
     }
 
     .loader-ring {
@@ -495,12 +514,13 @@
       <div id="screen-questions" class="hidden glass rounded-[2.5rem] p-8 md:p-12 shadow-2xl space-y-10">
         <div class="space-y-4">
           <div class="flex justify-between items-end">
-            <span class="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">フェーズ1：基礎分析</span>
-            <span id="q-progress-text" class="text-sm font-mono font-bold text-slate-400">01 / 16</span>
+            <span id="q-phase-label" class="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">フェーズ1：基礎分析</span>
+            <span id="q-progress-text" class="text-sm font-mono font-bold text-slate-400">01 / 45</span>
           </div>
-          <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+          <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
             <div id="q-progress-bar" class="bg-indigo-600 h-full transition-all duration-500 ease-out" style="width: 0%"></div>
           </div>
+          <p id="q-remaining-text" class="text-[11px] text-slate-400 font-semibold text-right"></p>
         </div>
 
         <div class="min-h-[140px] flex items-center">
@@ -565,11 +585,11 @@
       </div>
 
       <!-- Screen: Analyzing -->
-      <div id="screen-analyzing" class="hidden flex flex-col items-center justify-center py-24 space-y-8 text-center bg-slate-900 rounded-[2.5rem] shadow-2xl text-white">
-        <div class="loader-ring !border-white/10 !border-top-white"></div>
+      <div id="screen-analyzing" class="hidden flex flex-col items-center justify-center py-24 space-y-8 text-center bg-white rounded-[2.5rem] shadow-xl border border-slate-100">
+        <div class="loader-ring"></div>
         <div class="space-y-3">
-          <h3 class="text-2xl font-black">ディーププロファイリング中</h3>
-          <p class="text-slate-400 max-w-sm mx-auto">100億通りの性格マトリックスと照合し、<br/>あなただけの定義を構築しています...</p>
+          <h3 class="text-2xl font-black text-slate-800">ディーププロファイリング中</h3>
+          <p class="text-slate-500 max-w-sm mx-auto">あなたの回答パターンをAIが解析しています。<br/>少しお待ちください...</p>
         </div>
       </div>
 
@@ -1379,10 +1399,20 @@
     function renderQuestion() {
       const q = QUESTIONS[currentQIndex];
       const progress = ((currentQIndex + 1) / QUESTIONS.length) * 100;
-      
-      document.getElementById('q-progress-text').textContent = `${(currentQIndex + 1).toString().padStart(2, '0')} / ${QUESTIONS.length}`;
+      const remaining = QUESTIONS.length - currentQIndex - 1;
+
+      document.getElementById('q-progress-text').textContent =
+        `${(currentQIndex + 1).toString().padStart(2, '0')} / ${QUESTIONS.length}`;
       document.getElementById('q-progress-bar').style.width = `${progress}%`;
-      
+      const remainingEl = document.getElementById('q-remaining-text');
+      if (remainingEl) remainingEl.textContent = remaining > 0 ? `残り ${remaining} 問` : '最後の問いです';
+
+      // アテンションチェック問のラベル変更
+      const phaseLabel = document.getElementById('q-phase-label');
+      if (phaseLabel) {
+        phaseLabel.textContent = q.type === '_attention' ? '確認' : 'フェーズ1：基礎分析';
+      }
+
       const qText = document.getElementById('question-text');
       qText.classList.remove('fade-in');
       void qText.offsetWidth;
@@ -1394,18 +1424,33 @@
       OPTIONS.forEach(opt => {
         const btn = document.createElement('button');
         btn.className = `p-5 border-2 rounded-2xl text-left font-bold transition-all active:scale-[0.97] flex justify-between items-center ${opt.color}`;
-        btn.innerHTML = `<span>${opt.label}</span> <i data-lucide="circle" class="w-4 h-4 opacity-30"></i>`;
-        btn.onclick = () => handleAnswer(opt.value);
+        btn.innerHTML = `<span>${opt.label}</span> <i data-lucide="circle" class="w-4 h-4 opacity-30 transition-all"></i>`;
+        btn.onclick = () => {
+          // 選択フィードバック：ハイライト + チェックアイコン
+          container.querySelectorAll('button').forEach(b => b.disabled = true);
+          btn.classList.add('btn-selected');
+          const icon = btn.querySelector('i[data-lucide]');
+          if (icon) {
+            icon.setAttribute('data-lucide', 'circle-check-big');
+            icon.classList.remove('opacity-30');
+            lucide.createIcons({ nodes: [icon] });
+          }
+          setTimeout(() => handleAnswer(opt.value), 280);
+        };
         container.appendChild(btn);
       });
+
+      // 選択肢フェードイン
+      container.classList.remove('options-fade-in');
+      void container.offsetWidth;
+      container.classList.add('options-fade-in');
+
       lucide.createIcons();
     }
 
     async function handleAnswer(val) {
       if (isAnswering || isGeneratingDynamicQuestions) return;
       isAnswering = true;
-      const optionButtons = document.querySelectorAll('#options-container button');
-      optionButtons.forEach((btn) => { btn.disabled = true; });
       answers[QUESTIONS[currentQIndex].id] = val;
       if (currentQIndex < QUESTIONS.length - 1) {
         currentQIndex++;
@@ -2881,20 +2926,44 @@ RIASEC下位: ${bottomRiasec}
           </div>
           <h4 class="font-bold text-slate-800 text-lg">${q.text}</h4>
           <textarea id="ans-${i}" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 text-sm focus:border-indigo-500 focus:outline-none focus:bg-white transition-all min-h-[120px]" placeholder="短くてもOKです。自由に書いてください。"></textarea>
+          <div class="flex justify-between items-center mt-1 min-h-[1.2rem]">
+            <span id="counter-hint-${i}" class="text-xs font-semibold text-amber-500"></span>
+            <span id="char-count-${i}" class="text-xs font-mono text-slate-400">0文字</span>
+          </div>
         `;
         container.appendChild(div);
       });
-      
+
+      function updateCharCounter(ta, i) {
+        const len = ta.value.trim().length;
+        const countEl = document.getElementById(`char-count-${i}`);
+        const hintEl  = document.getElementById(`counter-hint-${i}`);
+        if (countEl) countEl.textContent = `${len}文字`;
+        if (hintEl) {
+          if (len === 0) {
+            hintEl.textContent = '';
+            hintEl.className = 'text-xs font-semibold';
+          } else if (len < 30) {
+            hintEl.textContent = 'もう少し詳しく書くと精度が上がります';
+            hintEl.className = 'text-xs font-semibold text-amber-500';
+          } else if (len < 80) {
+            hintEl.textContent = '具体的な場面を加えるとさらに精度アップ';
+            hintEl.className = 'text-xs font-semibold text-sky-500';
+          } else {
+            hintEl.textContent = '十分な情報量です';
+            hintEl.className = 'text-xs font-semibold text-emerald-500';
+          }
+        }
+      }
+
       const inputs = container.querySelectorAll('textarea');
       if (analyzeBtn) analyzeBtn.disabled = true;
-      const validate = () => {
-        refreshGeminiRateLimitUi();
-      };
-      inputs.forEach((ta) => {
-        ta.addEventListener('input', validate);
-        ta.addEventListener('change', validate);
-        ta.addEventListener('blur', validate);
-        ta.addEventListener('keyup', validate);
+      const validate = () => { refreshGeminiRateLimitUi(); };
+      inputs.forEach((ta, i) => {
+        ta.addEventListener('input', () => { updateCharCounter(ta, i); validate(); });
+        ta.addEventListener('change', () => { updateCharCounter(ta, i); validate(); });
+        ta.addEventListener('blur',   () => { updateCharCounter(ta, i); validate(); });
+        ta.addEventListener('keyup',  () => { updateCharCounter(ta, i); validate(); });
       });
       validate();
     }
@@ -3621,6 +3690,17 @@ RIASEC: ${JSON.stringify(riasecScores)}
       showScreen('fortune');
       window.scrollTo(0, 0);
     };
+
+    // キーボードショートカット（1〜5キーで回答）
+    document.addEventListener('keydown', (e) => {
+      const screen = document.getElementById('screen-questions');
+      if (!screen || screen.classList.contains('hidden')) return;
+      if (isAnswering || isGeneratingDynamicQuestions) return;
+      const idx = { '1': 0, '2': 1, '3': 2, '4': 3, '5': 4 }[e.key];
+      if (idx === undefined) return;
+      const btn = document.querySelectorAll('#options-container button')[idx];
+      if (btn && !btn.disabled) btn.click();
+    });
 
     // 初期起動
     lucide.createIcons();
