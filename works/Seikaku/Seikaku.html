@@ -616,7 +616,7 @@
               <p class="text-[11px] text-slate-400 font-semibold">専門用語なし・読みやすい言葉でまとめました</p>
             </div>
           </div>
-          <p id="res-easy-explanation" class="text-slate-700 leading-[1.9] whitespace-pre-wrap"></p>
+          <p id="res-easy-explanation" class="text-base text-slate-700 leading-[1.9] whitespace-pre-wrap"></p>
         </div>
 
         <!-- Metrics & Main Analysis -->
@@ -634,12 +634,12 @@
                 基本分析
               </h3>
               <div class="relative z-10 bg-white/15 border border-white/25 rounded-2xl p-4 space-y-2">
-                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">要約</p>
-                <p id="res-analysis-summary" class="text-white/95 leading-relaxed font-semibold"></p>
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-white/90">要約</p>
+                <p id="res-analysis-summary" class="text-base text-white/95 leading-loose font-semibold"></p>
               </div>
               <div class="relative z-10 bg-white/10 border border-white/20 rounded-2xl p-4 space-y-2">
                 <div class="flex items-center justify-between gap-2">
-                  <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">詳細分析</p>
+                  <p class="text-xs font-black uppercase tracking-[0.2em] text-white/90">詳細分析</p>
                   <button
                     id="toggle-analysis-btn"
                     onclick="toggleDetailSection('analysis')"
@@ -652,7 +652,7 @@
                   </button>
                 </div>
                 <div id="res-analysis-detail-wrap" style="height: 0; opacity: 0; overflow: hidden;">
-                  <p id="res-analysis-detail" class="text-white/95 leading-relaxed font-medium"></p>
+                  <p id="res-analysis-detail" class="text-base text-white/95 leading-loose font-medium"></p>
                 </div>
               </div>
             </div>
@@ -684,15 +684,15 @@
               診断の信頼度
             </h4>
             <p id="res-confidence-level" class="text-2xl font-black text-emerald-700"></p>
-            <p id="res-confidence-note" class="text-sm text-emerald-700 leading-relaxed"></p>
-            <p id="res-model-used" class="text-xs text-emerald-700/90 font-semibold"></p>
+            <p id="res-confidence-note" class="text-base text-emerald-700 leading-loose"></p>
+            <p id="res-model-used" class="text-sm text-emerald-700/90 font-semibold"></p>
           </div>
           <div class="pastel-card pastel-7 rounded-[2rem] p-8 border border-slate-200 space-y-3">
             <h4 class="text-slate-700 font-black flex items-center gap-2">
               <i data-lucide="git-compare-arrows" class="w-5 h-5"></i>
               前回からの変化
             </h4>
-            <p id="res-history-compare" class="text-sm text-slate-700 leading-relaxed"></p>
+            <p id="res-history-compare" class="text-base text-slate-700 leading-loose"></p>
           </div>
         </div>
 
@@ -702,12 +702,12 @@
             統合分析（BIG5 × RIASEC × 深層回答）
           </h4>
           <div class="bg-white/70 border border-indigo-100 rounded-xl p-4 space-y-2">
-            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">要約</p>
-            <p id="res-hybrid-summary" class="text-indigo-800 text-sm leading-relaxed font-semibold"></p>
+            <p class="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">要約</p>
+            <p id="res-hybrid-summary" class="text-base text-indigo-800 leading-loose font-semibold"></p>
           </div>
           <div class="bg-white/65 border border-indigo-100 rounded-xl p-4 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <p class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">詳細統合</p>
+              <p class="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">詳細統合</p>
               <button
                 id="toggle-hybrid-btn"
                 onclick="toggleDetailSection('hybrid')"
@@ -720,10 +720,10 @@
               </button>
             </div>
             <div id="res-hybrid-detail-wrap" style="height: 0; opacity: 0; overflow: hidden;">
-              <p id="res-hybrid" class="text-indigo-800 text-sm md:text-base leading-relaxed"></p>
+              <p id="res-hybrid" class="text-base text-indigo-800 leading-loose"></p>
             </div>
           </div>
-          <p id="res-evidence" class="text-xs md:text-sm text-indigo-600/90 leading-relaxed"></p>
+          <p id="res-evidence" class="text-sm text-indigo-600/90 leading-loose"></p>
         </div>
 
         <div class="pastel-card pastel-9 rounded-[2rem] p-8 border border-amber-100 space-y-5">
@@ -732,12 +732,12 @@
             隠された欲求
           </h4>
           <div class="bg-white/70 border border-rose-100 rounded-xl p-4 space-y-2">
-            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">要約</p>
-            <p id="res-hidden-summary" class="text-rose-700 text-sm leading-relaxed font-semibold"></p>
+            <p class="text-xs font-black uppercase tracking-[0.2em] text-rose-500">要約</p>
+            <p id="res-hidden-summary" class="text-base text-rose-700 leading-loose font-semibold"></p>
           </div>
           <div class="bg-white/65 border border-rose-100 rounded-xl p-4 space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <p class="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500">詳細分析</p>
+              <p class="text-xs font-black uppercase tracking-[0.2em] text-rose-500">詳細分析</p>
               <button
                 id="toggle-hidden-btn"
                 onclick="toggleDetailSection('hidden')"
@@ -750,7 +750,7 @@
               </button>
             </div>
             <div id="res-hidden-detail-wrap" style="height: 0; opacity: 0; overflow: hidden;">
-              <p id="res-hidden" class="text-rose-700 text-sm md:text-base leading-relaxed"></p>
+              <p id="res-hidden" class="text-base text-rose-700 leading-loose"></p>
             </div>
           </div>
         </div>
@@ -3297,7 +3297,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
           : 'bg-gradient-to-r from-emerald-400 to-teal-500';
         return `
           <div class="bg-white/80 rounded-xl border border-slate-100 p-3">
-            <div class="flex items-center justify-between text-xs font-bold text-slate-600">
+            <div class="flex items-center justify-between text-sm font-bold text-slate-600">
               <span>${item.label}</span>
               <span class="${valueClass}">${value}</span>
             </div>
@@ -3376,8 +3376,8 @@ RIASEC: ${JSON.stringify(riasecScores)}
       const summaryBlock = normalized.summaryText
         ? `
           <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 space-y-1">
-            <p class="text-[10px] font-black tracking-wide text-indigo-600 uppercase">要約</p>
-            <p class="text-sm text-indigo-700 leading-relaxed font-semibold">${summaryHtml}</p>
+            <p class="text-xs font-black tracking-wide text-indigo-600 uppercase">要約</p>
+            <p class="text-base text-indigo-700 leading-loose font-semibold">${summaryHtml}</p>
           </div>
         `
         : '';
@@ -3386,7 +3386,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
           <div class="mt-4 pt-4 border-t border-indigo-100">
             <p class="text-xs font-black tracking-wide text-violet-700 uppercase">改善アドバイス</p>
             <ul class="mt-2 space-y-2">
-              ${normalized.improvementAdvice.map((tip) => `<li class="text-sm text-slate-700 leading-relaxed">・${escapeHtml(tip)}</li>`).join('')}
+              ${normalized.improvementAdvice.map((tip) => `<li class="text-base text-slate-700 leading-relaxed">・${escapeHtml(tip)}</li>`).join('')}
             </ul>
           </div>
         `
@@ -3395,8 +3395,8 @@ RIASEC: ${JSON.stringify(riasecScores)}
         <div class="mt-4 fade-in space-y-3">
           ${summaryBlock}
           <div class="bg-white/80 border border-indigo-100 rounded-xl p-3 space-y-1">
-            <p class="text-[10px] font-black tracking-wide text-indigo-600 uppercase">詳細分析</p>
-            <p class="text-sm text-indigo-700 leading-relaxed font-medium">${analysisHtml}</p>
+            <p class="text-xs font-black tracking-wide text-indigo-600 uppercase">詳細分析</p>
+            <p class="text-base text-indigo-700 leading-loose font-medium">${analysisHtml}</p>
           </div>
           ${adviceHtml}
         </div>
