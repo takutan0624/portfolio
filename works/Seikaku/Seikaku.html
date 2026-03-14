@@ -814,23 +814,37 @@
       { id: 'N3',  type: 'Neuroticism', text: '人の言葉や態度が気になってモヤモヤすることがある。' },
       { id: 'N4R', type: 'Neuroticism', text: '感情的になっても、すぐに落ち着きを取り戻せる。', reverse: true },
 
-      { id: 'R1', type: 'Realistic', text: '手を動かして形にする作業が好きだ。' },
-      { id: 'R2', type: 'Realistic', text: '体を使う実務のほうが集中しやすい。' },
+      { id: 'R1',  type: 'Realistic', text: '手を動かして形にする作業が好きだ。' },
+      { id: 'R2',  type: 'Realistic', text: '体を使う実務のほうが集中しやすい。' },
+      { id: 'R3',  type: 'Realistic', text: '機械や道具の仕組みを理解するのが得意だ。' },
+      { id: 'R4R', type: 'Realistic', text: '作業よりも企画・提案の仕事の方が向いている。', reverse: true },
 
-      { id: 'I1', type: 'Investigative', text: '原因を分析して筋道で考えるのが好きだ。' },
-      { id: 'I2', type: 'Investigative', text: 'データや根拠を調べて判断したい。' },
+      { id: 'I1',  type: 'Investigative', text: '原因を分析して筋道で考えるのが好きだ。' },
+      { id: 'I2',  type: 'Investigative', text: 'データや根拠を調べて判断したい。' },
+      { id: 'I3',  type: 'Investigative', text: '複雑な問題ほど、根拠を調べてから結論を出したい。' },
+      { id: 'I4R', type: 'Investigative', text: '調査や分析より、まず動いて試してみるほうが好きだ。', reverse: true },
 
-      { id: 'AR1', type: 'Artistic', text: '文章やデザインで自分らしさを表現したい。' },
-      { id: 'AR2', type: 'Artistic', text: '正解のない課題を工夫するのが好きだ。' },
+      { id: 'AR1',  type: 'Artistic', text: '文章やデザインで自分らしさを表現したい。' },
+      { id: 'AR2',  type: 'Artistic', text: '正解のない課題を工夫するのが好きだ。' },
+      { id: 'AR3',  type: 'Artistic', text: '自分なりの視点や表現スタイルを持ちたい。' },
+      { id: 'AR4R', type: 'Artistic', text: '独自のやり方より、決まった手順に沿う方が仕事しやすい。', reverse: true },
 
-      { id: 'S1', type: 'Social', text: '人の相談に乗るとやりがいを感じる。' },
-      { id: 'S2', type: 'Social', text: '誰かの成長を支える役割が向いている。' },
+      { id: 'ATT1', type: '_attention', text: 'この質問には「ややある」を選んでください。', expected: 4 },
 
-      { id: 'EN1', type: 'Enterprising', text: '目標達成のために周囲を動かすのが得意だ。' },
-      { id: 'EN2', type: 'Enterprising', text: '提案や交渉の場で前に出るほうだ。' },
+      { id: 'S1',  type: 'Social', text: '人の相談に乗るとやりがいを感じる。' },
+      { id: 'S2',  type: 'Social', text: '誰かの成長を支える役割が向いている。' },
+      { id: 'S3',  type: 'Social', text: 'チームで協力しながら取り組む仕事が好きだ。' },
+      { id: 'S4R', type: 'Social', text: '人に関わるより、一人で集中して取り組む方が得意だ。', reverse: true },
 
-      { id: 'CV1', type: 'Conventional', text: '手順やルールに沿って正確に進めるのが得意だ。' },
-      { id: 'CV2', type: 'Conventional', text: '記録や整理をきちんと行うと安心する。' }
+      { id: 'EN1',  type: 'Enterprising', text: '目標達成のために周囲を動かすのが得意だ。' },
+      { id: 'EN2',  type: 'Enterprising', text: '提案や交渉の場で前に出るほうだ。' },
+      { id: 'EN3',  type: 'Enterprising', text: '目標を設定して周囲を引っ張るのが好きだ。' },
+      { id: 'EN4R', type: 'Enterprising', text: '先頭に立つより、サポート役の方が動きやすい。', reverse: true },
+
+      { id: 'CV1',  type: 'Conventional', text: '手順やルールに沿って正確に進めるのが得意だ。' },
+      { id: 'CV2',  type: 'Conventional', text: '記録や整理をきちんと行うと安心する。' },
+      { id: 'CV3',  type: 'Conventional', text: '作業の流れを標準化して効率よく進めるのが得意だ。' },
+      { id: 'CV4R', type: 'Conventional', text: '細かいルールや手順より、状況に応じた柔軟な対応を好む。', reverse: true }
     ];
 
     const introQuestionCountEl = document.getElementById('intro-question-count');
@@ -1046,6 +1060,7 @@
     let isAnswering = false;
     let isGeneratingDynamicQuestions = false;
     let isSubmittingProfile = false;
+    let attentionCheckPassed = true;
     let geminiCooldownUntilMs = 0;
     let geminiCooldownTimer = null;
     let lastGeminiMeta = { model: "", fallbackUsed: false, at: 0 };
@@ -1329,6 +1344,7 @@
       isAnswering = false;
       isGeneratingDynamicQuestions = false;
       isSubmittingProfile = false;
+      attentionCheckPassed = true;
       updateFortuneSaveStatus("");
       lucide.createIcons();
       showScreen('intro');
@@ -1382,6 +1398,21 @@
         renderQuestion();
         isAnswering = false;
       } else {
+        // アテンションチェック検証
+        const attItem = QUESTIONS.find((q) => q.type === '_attention');
+        if (attItem) {
+          attentionCheckPassed = answers[attItem.id] === attItem.expected;
+          if (!attentionCheckPassed) {
+            const retry = confirm(
+              '回答のムラが検出されました。\n\n各質問をよく読まずに回答している可能性があります。\n\n最初からやり直しますか？（「キャンセル」で続行もできます）'
+            );
+            if (retry) {
+              isAnswering = false;
+              window.resetApp();
+              return;
+            }
+          }
+        }
         try {
           await generateDynamicQuestions();
         } finally {
@@ -2738,15 +2769,16 @@ RIASEC下位: ${bottomRiasec}
 2. 弱み確認
 3. 状況差確認
 
-[生成ルール]
-- 各質問は20〜40文字程度、1文、平易な日本語。
+[生成ルール：BEI（行動事象面接）形式]
+- 各質問は「最近（または過去に）〜した具体的な場面を教えてください。そのときあなたはどう動きましたか？」の形を基本とする。
+- 抽象的な傾向を聞く（「〜が好きですか」「〜できますか」）のではなく、過去の実際の行動・判断を引き出す問いにする。
+- 各質問は1文で30〜60文字程度、平易な日本語。
 - theme・role・objective・required_points・rubric配下も日本語で記述する（英語語句を使わない）。
 - 誘導・断定・説教は禁止。
-- 回答者が具体例を自然に書ける問いにする。
 - 役割ごとに観点を重複させない。
-- 各質問は「1つの特性差」と「1つの状況差」を見分けられるようにする。
-- 曖昧で誰にでも当てはまる表現を避け、回答で個人差が出る問いにする。
-- yes/noだけで終わらない、行動や判断の具体が出る問いにする。
+- 「誰でも同じ答えになる」質問は禁止。回答で個人差が明確に出る問いにする。
+- 「はい/いいえ」だけで終わらない、具体的な状況・行動・結果が出る問いにする。
+- confirm_signalsには「この回答があればその特性を裏付ける言葉・行動の具体例」を、contradict_signalsには「この回答があれば特性スコアと矛盾する言葉・行動の具体例」を記述する。
 
 [出力]
 - responseSchemaに厳密準拠。
@@ -2882,13 +2914,14 @@ RIASEC下位: ${bottomRiasec}
         .map((entry) => `【${entry.theme}/${entry.role}】${entry.question}\n回答: ${entry.answer}`)
         .join('\n\n');
       
+      const attentionNote = attentionCheckPassed ? "" : "\n注意: アテンションチェックで不整合が検出されました。選択式スコアの信頼性が低い可能性があります。自由記述の内容を優先して解釈してください。";
       const prompt = `あなたは心理測定（BIG5/RIASEC）と行動科学に精通し、知的ユーモアも扱える分析AIです。
-以下のデータを統合し、専門性と実用性の高いハイブリッド診断を作成してください。
+以下のデータを統合し、専門性と実用性の高いハイブリッド診断を作成してください。${attentionNote}
 
 [入力]
 BIG5: ${JSON.stringify(baseScores)}
 RIASEC: ${JSON.stringify(riasecScores)}
-質問設計: ${JSON.stringify(dynamicQuestions)}
+質問設計（rubric含む）: ${JSON.stringify(dynamicQuestions)}
 回答: ${freeAnswers}
 
 [分析方針]
@@ -2900,6 +2933,14 @@ RIASEC: ${JSON.stringify(riasecScores)}
 - 反証可能性（当てはまりにくい条件）を短く示す。
 - 文章は知的で読みやすく、ユーモアは気づきを深める軽い一言に限定する。
 - 冗長な言い換え・重複説明を避け、各段落は「要点 -> 根拠 -> 行動」で簡潔にまとめる。
+
+[rubric活用ルール]
+- 各質問のrubric.confirm_signalsに挙げられた言葉・行動が回答に含まれているか確認し、実際に見つかったシグナルを根拠として分析に組み込む。
+- rubric.contradict_signalsに挙げられた言葉・行動が回答に含まれていた場合は「スコアとの矛盾点」として明示する。
+
+[整合性チェック]
+- BIG5スコアと自由記述の内容が矛盾している特性がある場合（例：外向性スコアが低いのに積極的なリーダー行動を記述している）、どちらの情報の信頼性が高いかを判断して明示する。
+- 矛盾がある場合はevidenceSummaryに「スコアと記述の乖離：〇〇特性」と記載する。
 
 [出力仕様]
 - responseSchemaに厳密準拠。
