@@ -3338,18 +3338,18 @@ RIASEC: ${JSON.stringify(riasecScores)}
     }
 
     // ── Font-size toggle ──────────────────────────────────────────
-    function setResultFontSize(size) {
-      const screen = document.getElementById('screen-result');
-      if (!screen) return;
-      screen.classList.remove('result-font-sm', 'result-font-lg');
-      if (size === 'sm' || size === 'lg') screen.classList.add('result-font-' + size);
+    window.setResultFontSize = function(size) {
+      const el = document.getElementById('screen-result');
+      if (!el) return;
+      el.classList.remove('result-font-sm', 'result-font-lg');
+      if (size === 'sm' || size === 'lg') el.classList.add('result-font-' + size);
       ['sm', 'md', 'lg'].forEach(s => {
         const btn = document.getElementById('font-btn-' + s);
         if (!btn) return;
         btn.classList.toggle('active', s === size);
       });
       try { localStorage.setItem('resultFontSize', size); } catch (_) {}
-    }
+    };
     // ─────────────────────────────────────────────────────────────
 
     function renderResult(data) {
