@@ -1891,7 +1891,7 @@
       }
 
       if (analyzeBtn) {
-        const canSubmit = isDynamicAnswersReady(1) && !isSubmittingProfile;
+        const canSubmit = isDynamicAnswersReady(20) && !isSubmittingProfile;
         analyzeBtn.disabled = remainingSec > 0 || !canSubmit;
       }
 
@@ -2977,7 +2977,7 @@ RIASEC下位: ${bottomRiasec}
             <span class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">${q.theme}</span>
           </div>
           <h4 class="font-bold text-slate-800 text-lg">${q.text}</h4>
-          <textarea id="ans-${i}" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 text-sm focus:border-indigo-500 focus:outline-none focus:bg-white transition-all min-h-[120px]" placeholder="短くてもOKです。自由に書いてください。"></textarea>
+          <textarea id="ans-${i}" class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-4 text-sm focus:border-indigo-500 focus:outline-none focus:bg-white transition-all min-h-[120px]" placeholder="いつ・どこで・どうしたか、具体的な場面を書くほど精度が上がります。"></textarea>
           <div class="flex justify-between items-center mt-1 min-h-[1.2rem]">
             <span id="counter-hint-${i}" class="text-xs font-semibold text-amber-500"></span>
             <span id="char-count-${i}" class="text-xs font-mono text-slate-400">0文字</span>
@@ -2995,11 +2995,14 @@ RIASEC下位: ${bottomRiasec}
           if (len === 0) {
             hintEl.textContent = '';
             hintEl.className = 'text-xs font-semibold';
-          } else if (len < 30) {
-            hintEl.textContent = 'もう少し詳しく書くと精度が上がります';
+          } else if (len < 20) {
+            hintEl.textContent = '20文字以上書いてから送信できます';
+            hintEl.className = 'text-xs font-semibold text-rose-500';
+          } else if (len < 50) {
+            hintEl.textContent = 'いつ・どこで・どうしたかを加えると精度アップ';
             hintEl.className = 'text-xs font-semibold text-amber-500';
-          } else if (len < 80) {
-            hintEl.textContent = '具体的な場面を加えるとさらに精度アップ';
+          } else if (len < 100) {
+            hintEl.textContent = '具体的な結果や感情を一言加えるとさらに精度アップ';
             hintEl.className = 'text-xs font-semibold text-sky-500';
           } else {
             hintEl.textContent = '十分な情報量です';
@@ -3045,10 +3048,33 @@ RIASEC下位: ${bottomRiasec}
         question: q.text,
         answer: document.getElementById(`ans-${i}`).value.trim()
       }));
-      const freeAnswers = dynamicAnswerPayload
-        .map((entry) => `【${entry.theme}/${entry.role}】${entry.question}\n回答: ${entry.answer}`)
-        .join('\n\n');
-      
+
+      // rubricと回答を1セットにまとめた形式で渡す
+      const freeAnswers = dynamicQuestions.map((q, i) => {
+        const ans = dynamicAnswerPayload[i];
+        const required = Array.isArray(q.required_points) && q.required_points.length
+          ? `確認ポイント: ${q.required_points.join(' / ')}`
+          : '';
+        const confirm = Array.isArray(q.rubric?.confirm_signals) && q.rubric.confirm_signals.length
+          ? `裏付けシグナル（回答にあれば特性を支持）: ${q.rubric.confirm_signals.join(' / ')}`
+          : '';
+        const contradict = Array.isArray(q.rubric?.contradict_signals) && q.rubric.contradict_signals.length
+          ? `矛盾シグナル（回答にあれば特性スコアと矛盾）: ${q.rubric.contradict_signals.join(' / ')}`
+          : '';
+        const shortWarning = ans.answer.length < 20
+          ? '⚠️ 回答が極めて短いため信頼性が低い。スコアを優先して解釈すること。'
+          : '';
+        return [
+          `── 質問${i + 1}【${ans.theme} / ${ans.role}】`,
+          `質問: ${ans.question}`,
+          required,
+          confirm,
+          contradict,
+          `回答: ${ans.answer || '（未回答）'}`,
+          shortWarning
+        ].filter(Boolean).join('\n');
+      }).join('\n\n');
+
       const attentionNote = attentionCheckPassed ? "" : "\n注意: アテンションチェックで不整合が検出されました。選択式スコアの信頼性が低い可能性があります。自由記述の内容を優先して解釈してください。";
       const prompt = `あなたは心理測定（BIG5/RIASEC）と行動科学に精通し、知的ユーモアも扱える分析AIです。
 以下のデータを統合し、専門性と実用性の高いハイブリッド診断を作成してください。${attentionNote}
@@ -3056,8 +3082,8 @@ RIASEC下位: ${bottomRiasec}
 [入力]
 BIG5: ${JSON.stringify(baseScores)}
 RIASEC: ${JSON.stringify(riasecScores)}
-質問設計（rubric含む）: ${JSON.stringify(dynamicQuestions)}
-回答: ${freeAnswers}
+自由記述回答（各質問のrubric・確認ポイント付き）:
+${freeAnswers}
 
 [分析方針]
 - 数値は観測値として扱い、改変しない。
@@ -3076,12 +3102,15 @@ RIASEC: ${JSON.stringify(riasecScores)}
 - ユーモアは気づきを深める軽い一言に限定する。
 
 [rubric活用ルール]
-- 各質問のrubric.confirm_signalsに挙げられた言葉・行動が回答に含まれているか確認し、実際に見つかったシグナルを根拠として分析に組み込む。
-- rubric.contradict_signalsに挙げられた言葉・行動が回答に含まれていた場合は「スコアとの矛盾点」として明示する。
+- 各質問の「裏付けシグナル」に挙げられた言葉・行動が回答に含まれているか照合し、見つかったシグナルを具体的な根拠として分析文に組み込む（例：「〇〇という行動を挙げていることから〜」）。
+- 「矛盾シグナル」に挙げられた言葉・行動が回答に含まれていた場合は、スコアとの矛盾として明示し、どちらの信頼性が高いか判断を示す。
+- 「確認ポイント」に対して回答が具体的に答えているかを確認し、答えられていない場合は「記述不足により〇〇の判断が困難」と注記する。
+- ⚠️マークがついた回答（極端に短い）はrubric照合をスキップし、スコアのみで判断する。
 
 [整合性チェック]
 - BIG5スコアと自由記述の内容が矛盾している特性がある場合（例：外向性スコアが低いのに積極的なリーダー行動を記述している）、どちらの情報の信頼性が高いかを判断して明示する。
 - 矛盾がある場合はevidenceSummaryに「スコアと記述の乖離：〇〇特性」と記載する。
+- 3問すべての回答を横断して一貫したパターンが見られるか確認し、一貫性がある場合は信頼性の根拠として言及する。
 
 [出力仕様]
 - responseSchemaに厳密準拠。
@@ -3645,6 +3674,15 @@ RIASEC: ${JSON.stringify(riasecScores)}
 隠された欲求: ${finalProfile.hiddenDesire}
 BIG5スコア（0〜100）: ${JSON.stringify(finalProfile.scoring?.big5 || baseScores)}
 RIASECスコア（0〜100）: ${JSON.stringify(_riasecRaw)}
+
+[本人の言葉（フェーズ2自由記述）]
+${Array.isArray(finalProfile.dynamicAnswers) && finalProfile.dynamicAnswers.length
+  ? finalProfile.dynamicAnswers.map((a, i) =>
+      `Q${i + 1}【${a.theme || ''}/${a.role || ''}】${a.question || ''}\n回答: ${a.answer || '（なし）'}`
+    ).join('\n\n')
+  : '（データなし）'
+}
+※上記は本人が実際に書いた言葉です。分析の根拠として積極的に引用・活用してください。
 
 [RIASEC構造分析]
 トップ3タイプ: ${_top3Code}
