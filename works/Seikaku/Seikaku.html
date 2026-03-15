@@ -699,6 +699,10 @@
               BIG5スコア
             </h4>
             <div id="res-big5" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+            <div id="res-big5-interp-wrap" class="hidden border-t border-sky-100 pt-4 space-y-1">
+              <p class="text-xs font-black uppercase tracking-[0.2em] text-sky-500">スコア解説</p>
+              <p id="res-big5-interp" class="res-body-text text-base text-sky-800 leading-loose"></p>
+            </div>
           </div>
 
           <div class="pastel-card pastel-5 rounded-[2rem] p-8 border border-emerald-100 space-y-5">
@@ -707,6 +711,21 @@
               RIASEC適性
             </h4>
             <div id="res-riasec" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+          </div>
+        </div>
+
+        <!-- RIASEC Type Analysis Card -->
+        <div class="pastel-card rounded-[2rem] p-8 border border-teal-100 space-y-6" style="background: linear-gradient(135deg, #f0fdfa 0%, #e0f2fe 100%);">
+          <h4 class="text-teal-700 font-black flex items-center gap-2">
+            <i data-lucide="hexagon" class="w-5 h-5"></i>
+            RIASECタイプ分析
+          </h4>
+          <!-- Top 3 code + badges -->
+          <div id="res-riasec-code" class="space-y-4"></div>
+          <!-- AI Interpretation -->
+          <div class="border-t border-teal-100 pt-4 space-y-1">
+            <p class="text-xs font-black uppercase tracking-[0.2em] text-teal-500">詳細解説</p>
+            <p id="res-riasec-interp" class="res-body-text text-base text-teal-800 leading-loose"></p>
           </div>
         </div>
 
@@ -3047,6 +3066,10 @@ RIASEC: ${JSON.stringify(riasecScores)}
 - 強みだけでなく、弱み・トレードオフ・状況依存性を示す。
 - BIG5とRIASECの交差作用を最低2点示す。
 - 反証可能性（当てはまりにくい条件）を短く示す。
+- RIASECは六角形モデル（隣接順：R-I-A-S-E-C-R）で解釈する。スコア上位2タイプが六角形上で隣接していれば「一貫性が高く方向性が明確」、対角（R↔S、I↔E、A↔C）に位置していれば「異なる動機が混在し葛藤や迷いが生じやすい」と判断し、その影響を分析に反映する。
+- スコアの最も高い3タイプのコード（例：IAS）を特定し、その組み合わせが示す職業環境・行動スタイル・得意な役割を具体的に解釈する。
+- スコアの最高値と最低値の差が大きいほど「タイプが明確で強みが際立つ」、差が小さいほど「柔軟だが方向性が定まりにくい」という差別化指標として解釈し言及する。
+- 現在の仕事・生活環境とRIASECタイプの一致度を推定する。一致度が高ければ「力を発揮しやすい」、低ければ「ストレスや消耗が生じやすい」という観点で言及する。
 - 文章は短い文で読みやすく書く。1文は40字以内を目安にする。
 - 専門用語（「BIG5」「RIASEC」「神経傾向」「開放性」等）を使う場合は必ず日常語で言い換えを添える。
 - 冗長な言い換え・重複説明を避け、各段落は「要点 -> 根拠 -> 行動」で簡潔にまとめる。
@@ -3072,7 +3095,7 @@ RIASEC: ${JSON.stringify(riasecScores)}
 - hiddenDesireSummary: 100〜170文字。この人が内心求めていることと、それをうまく満たすヒントを一言で示す要約。専門用語を使わず日常語で書く。
 - hiddenDesire: 260〜450文字。この人が無意識に求めていること・なりやすいパターン・健全な満たし方を説明する。心理学用語は使わず、「〇〇な場面で〜しがち」「〜するとうまくいく」という具体的な表現で書く。
 - big5Interpretation: 150〜260文字。各スコアを日常行動に置き換えて解説する。例: 「外向性が高い＝人と話すと元気になりやすく、一人の作業が続くと疲れを感じやすい」のように書く。「開放性」「誠実性」などの用語は使わず、すべて日常語に言い換える。
-- riasecInterpretation: 150〜260文字。向いている仕事・環境を具体的な職場場面で説明する。「RIASEC」「探究型」などの用語は使わず、「調査や分析が得意」「チームをまとめる役割に向いている」など分かりやすい言葉で書く。
+- riasecInterpretation: 220〜350文字。①上位3タイプの組み合わせが示す得意な役割・環境を具体的な職場場面で説明する、②上位2タイプの一貫性（隣接なら「方向性が明確」、対角なら「葛藤が生じやすい」）に触れる、③スコアの分散（高低差が大きい=特化型、小さい=オールラウンド型）を一言で補足する、④現在の環境との一致度を推定して「合っている/合っていない可能性がある」と一言触れる、の4点を盛り込む。「RIASEC」「探究型」などの専門語は使わず、すべて日常語に言い換える。
 - evidenceSummary: 120〜220文字。この結果がどれくらい信頼できるかを分かりやすく説明する。最後に信頼度（高/中/低）を明記する。
 - easyExplanation: 300〜500文字。専門用語を一切使わず、「あなたは〜」という語りかけ形式で書く。中学生でも理解できる平易な日本語で、この人の性格の特徴・得意なこと・気をつけるとよいことを3〜4つの短い段落で説明する。難しい言葉を使わず、具体的な日常の場面に置き換えて表現すること。
 - strengths: この人の強みを3つ、それぞれ20〜45文字で書く。「〜が得意」「〜できる」の形で具体的な日常場面に即して表現する。専門用語は使わない。
@@ -3230,6 +3253,90 @@ RIASEC: ${JSON.stringify(riasecScores)}
       el.innerHTML = html;
     }
 
+    // ── RIASEC type code card ─────────────────────────────────────
+    const RIASEC_ORDER = ['Realistic','Investigative','Artistic','Social','Enterprising','Conventional'];
+    const RIASEC_SHORT  = { Realistic:'R', Investigative:'I', Artistic:'A', Social:'S', Enterprising:'E', Conventional:'C' };
+    const RIASEC_JP     = { Realistic:'現実型', Investigative:'研究型', Artistic:'芸術型', Social:'社会型', Enterprising:'企業型', Conventional:'慣習型' };
+
+    function riasecHexDistance(a, b) {
+      const ai = RIASEC_ORDER.indexOf(a);
+      const bi = RIASEC_ORDER.indexOf(b);
+      if (ai < 0 || bi < 0) return 3;
+      const d = Math.abs(ai - bi);
+      return Math.min(d, 6 - d);
+    }
+
+    function renderRiasecTypeCard(scores, profile) {
+      const codeEl  = document.getElementById('res-riasec-code');
+      const interpEl = document.getElementById('res-riasec-interp');
+      if (!codeEl) return;
+
+      // Top 3 types
+      const sorted = RIASEC_ORDER
+        .map(t => ({ trait: t, score: Number(scores[t] || 0) }))
+        .sort((a, b) => b.score - a.score);
+      const top3 = sorted.slice(0, 3);
+
+      // Consistency: distance between top 2
+      const dist = riasecHexDistance(top3[0].trait, top3[1].trait);
+      const consistency = dist === 1
+        ? { label: '一貫性：高', desc: '方向性が明確', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' }
+        : dist === 2
+        ? { label: '一貫性：中', desc: 'やや複合的', color: 'bg-amber-100 text-amber-700 border-amber-200' }
+        : { label: '一貫性：低', desc: '葛藤が生じやすい', color: 'bg-rose-100 text-rose-700 border-rose-200' };
+
+      // Differentiation: max - min
+      const maxScore = sorted[0].score;
+      const minScore = sorted[sorted.length - 1].score;
+      const spread = maxScore - minScore;
+      const diffType = spread >= 40
+        ? { label: '特化型', desc: '強みが際立つ', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' }
+        : spread >= 20
+        ? { label: 'やや特化', desc: 'バランスと個性の中間', color: 'bg-sky-100 text-sky-700 border-sky-200' }
+        : { label: 'オールラウンド型', desc: '柔軟だが方向性が定まりにくい', color: 'bg-slate-100 text-slate-600 border-slate-200' };
+
+      // Render code letters
+      const letterColors = ['bg-teal-500', 'bg-teal-400', 'bg-teal-300'];
+      const codeHtml = `
+        <div class="flex flex-wrap items-end gap-3">
+          ${top3.map((t, i) => `
+            <div class="flex flex-col items-center gap-1">
+              <span class="text-[10px] font-black text-teal-500 uppercase tracking-widest">${i === 0 ? '1位' : i === 1 ? '2位' : '3位'}</span>
+              <div class="${letterColors[i]} text-white font-black rounded-2xl flex flex-col items-center justify-center shadow-md ${i === 0 ? 'w-16 h-16 text-3xl' : i === 1 ? 'w-13 h-13 text-2xl' : 'w-11 h-11 text-xl'}" style="${i===1?'width:3.25rem;height:3.25rem':''}${i===2?'width:2.75rem;height:2.75rem':''}">
+                ${RIASEC_SHORT[t.trait]}
+              </div>
+              <span class="text-[10px] font-bold text-teal-600">${RIASEC_JP[t.trait]}</span>
+              <span class="text-[10px] text-slate-400">${t.score}点</span>
+            </div>
+          `).join('')}
+        </div>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold ${consistency.color}">
+            ${consistency.label}
+            <span class="opacity-70 font-normal">— ${consistency.desc}</span>
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold ${diffType.color}">
+            ${diffType.label}
+            <span class="opacity-70 font-normal">— ${diffType.desc}</span>
+          </span>
+        </div>`;
+      codeEl.innerHTML = codeHtml;
+
+      // AI interpretation text
+      const interp = String(profile?.riasecInterpretation || '').trim();
+      if (interpEl) interpEl.textContent = interp || '解析データがありません';
+    }
+
+    function renderBig5Interpretation(profile) {
+      const wrap  = document.getElementById('res-big5-interp-wrap');
+      const textEl = document.getElementById('res-big5-interp');
+      if (!wrap || !textEl) return;
+      const text = String(profile?.big5Interpretation || '').trim();
+      if (!text) return;
+      textEl.textContent = text;
+      wrap.classList.remove('hidden');
+    }
+
     // ── Font-size toggle ──────────────────────────────────────────
     function setResultFontSize(size) {
       const screen = document.getElementById('screen-result');
@@ -3310,6 +3417,8 @@ RIASEC: ${JSON.stringify(riasecScores)}
 
       renderConfidenceAndModel(data);
       renderStrengthsCautions(data);
+      renderRiasecTypeCard(riasecForDisplay, data);
+      renderBig5Interpretation(data);
       renderBig5Scores(big5ForDisplay);
       renderRiasecScores(riasecForDisplay);
       
