@@ -966,14 +966,14 @@
     };
 
     const EXTRA_TOPICS = [
-      { id: 'romance', title: '恋愛・パートナーシップ', icon: 'heart', prompt: 'この人物の恋愛傾向、惹かれる相手のタイプ、パートナーとしてうまくいくための条件を詳細に分析してください。（350〜550字程度）' },
-      { id: 'career', title: '天職とキャリア', icon: 'briefcase', prompt: 'この人物の才能が最も活きる職業環境、絶対に避けるべき職場、リーダーシップのスタイルについて詳細に分析してください。（350〜550字程度）' },
-      { id: 'stress', title: 'ストレスと地雷ポイント', icon: 'bomb', prompt: 'この人物が密かにストレスを抱える要因、激怒する・あるいは心を閉ざす「地雷」ポイントとその対処法を詳細に分析してください。（350〜550字程度）' },
-      { id: 'talent', title: '隠された才能', icon: 'sparkles', prompt: '本人がまだ自覚していない可能性が高い、他の人にはない特異な才能やポテンシャルについて詳細に分析してください。（350〜550字程度）' },
-      { id: 'money', title: '金銭感覚とリスク', icon: 'coins', prompt: 'この人物のお金に対する価値観、浪費しやすいポイント、リスクを取る際の思考回路について詳細に分析してください。（350〜550字程度）' },
-      { id: 'darkside', title: '人間関係のダークサイド', icon: 'moon', prompt: '極限のストレス下や絶望した時に現れる「闇落ち」した姿（シャドウ）と、他者を無意識にコントロールしようとする際の癖について詳細に分析してください。（350〜550字程度）' },
-      { id: 'growth', title: '人生最大の壁と突破口', icon: 'mountain', prompt: 'この人物が人生で何度もぶつかるであろう本質的な「壁」と、それを乗り越えるための具体的な突破口について詳細に分析してください。（350〜550字程度）' },
-      { id: 'lifestyle', title: '究極の理想のライフスタイル', icon: 'coffee', prompt: 'この人物が心からの安らぎと充実を感じる、究極的に理想とする生活環境や日常のルーティンについて詳細に分析してください。（350〜550字程度）' }
+      { id: 'romance', title: '恋愛・パートナーシップ', icon: 'heart', prompt: 'BIG5の外向性・協調性・神経傾向のスコアと、RIASECのSocial型(S)・Artistic型(A)の高低を主軸に、この人の恋愛傾向・惹かれる相手のタイプ・パートナーとうまくいくための条件を詳細に分析してください。協調性が低い場合の摩擦パターン、神経傾向が高い場合の不安パターンにも必ず言及してください。' },
+      { id: 'career', title: '天職とキャリア', icon: 'briefcase', prompt: 'RIASECのトップ3タイプの組み合わせと環境適合度を中心に、才能が最も活きる職業環境・絶対に避けるべき職場・リーダーシップスタイルを詳細に分析してください。上位2タイプが六角形上で隣接か対角かによる一貫性（隣接＝方向性明確、対角＝葛藤しやすい）も必ず言及し、BIG5の誠実性・外向性との組み合わせが職場での行動にどう現れるかも示してください。' },
+      { id: 'stress', title: 'ストレスと地雷ポイント', icon: 'bomb', prompt: 'BIG5の神経傾向スコアをメインに、RIASECタイプと現在の環境との不一致（例：探究型なのにルーティン業務が多い環境）をストレス源として分析してください。また誠実性・協調性の高低が「地雷」の種類にどう影響するかを踏まえ、密かに蓄積するストレス要因・激怒または心を閉ざすトリガーとその対処法を詳細に分析してください。' },
+      { id: 'talent', title: '隠された才能', icon: 'sparkles', prompt: 'RIASECのスコア上位タイプと一貫性（トップ2が六角形上で隣接か対角か）、BIG5の開放性・誠実性スコアを組み合わせて、本人がまだ自覚していない可能性が高い特異な才能を分析してください。スコアが2番目・3番目に高いRIASECタイプが示す「埋もれた適性」にも着目し、どんな場面でその才能が発現しやすいかを具体的に示してください。' },
+      { id: 'money', title: '金銭感覚とリスク', icon: 'coins', prompt: 'RIASECのEnterprising型(E)スコアが高いほどリスクを取りやすく、Conventional型(C)が高いほど保守的になる傾向を軸に、BIG5の誠実性（計画性）・神経傾向（不安の強さ）と組み合わせてお金に対する価値観・浪費しやすいポイント・リスク判断の傾向を詳細に分析してください。' },
+      { id: 'darkside', title: '人間関係のダークサイド', icon: 'moon', prompt: 'BIG5の神経傾向（高いほど爆発・内向きの怒りが出やすい）・協調性の低さ（対立行動が出やすい）を主軸に、RIASECの一貫性が低い（対角タイプが上位に混在）場合の内的葛藤が「闇落ち」をどう加速させるかを分析してください。極限ストレス下に現れる行動パターンと他者を無意識にコントロールしようとする癖を詳細に描写してください。' },
+      { id: 'growth', title: '人生最大の壁と突破口', icon: 'mountain', prompt: 'RIASECトップ2タイプの一貫性（隣接なら「迷いが少ない」、対角なら「相反する動機が繰り返し衝突する」）と、BIG5のうちスコアが極端に高いまたは低い特性を「壁の根本原因」として分析してください。この人が人生で何度もぶつかる本質的なパターンと、そこから脱出するための具体的な突破口を詳細に示してください。' },
+      { id: 'lifestyle', title: '究極の理想のライフスタイル', icon: 'coffee', prompt: 'RIASECのトップタイプが示す「どんな環境で回復・充電できるか」（例：S型は人との交流で回復、I型は静かな思索時間で回復）と、BIG5の外向性（高い＝刺激多めが合う、低い＝静かな環境が合う）・開放性（高い＝新しい体験が必要）を組み合わせて、心からの安らぎと充実を感じる究極の生活環境・日常ルーティンを詳細に描いてください。' }
     ];
 
     const FORTUNE_SIGN_LABELS = {
@@ -3624,27 +3624,45 @@ RIASEC: ${JSON.stringify(riasecScores)}
       btn.classList.add('hidden');
       loader.classList.remove('hidden');
 
-      const prompt = `あなたは世界トップクラスの深層心理アナリストです。
-      以下のプロファイルデータを基に、ユーザーの【${topic.title}】について詳細な分析を生成してください。
+      // RIASEC構造データを事前計算してプロンプトに渡す
+      const _riasecRaw = finalProfile.scoring?.riasec || riasecScores;
+      const _riasecSorted = RIASEC_ORDER
+        .map(t => ({ trait: t, score: Number(_riasecRaw[t] || 0), short: RIASEC_SHORT[t], jp: RIASEC_JP[t] }))
+        .sort((a, b) => b.score - a.score);
+      const _top3Code = _riasecSorted.slice(0, 3).map(t => `${t.short}（${t.jp}:${t.score}点）`).join('・');
+      const _top2Dist = riasecHexDistance(_riasecSorted[0].trait, _riasecSorted[1].trait);
+      const _consistencyLabel = _top2Dist === 1 ? '高（方向性が明確）' : _top2Dist === 2 ? '中（やや複合的）' : '低（異なる動機が混在・葛藤しやすい）';
+      const _spread = _riasecSorted[0].score - _riasecSorted[_riasecSorted.length - 1].score;
+      const _diffLabel = _spread >= 40 ? '特化型（強みが際立つ）' : _spread >= 20 ? 'やや特化' : 'オールラウンド型（柔軟だが方向性が定まりにくい）';
 
-      [キャッチコピー]: ${finalProfile.catchphrase}
-      [ベース分析]: ${finalProfile.deepAnalysis}
-      [ハイブリッド統合]: ${finalProfile.hybridSynthesis || finalProfile.deepAnalysis}
-      [隠された欲求(要約)]: ${buildHiddenSummary(finalProfile)}
-      [隠された欲求]: ${finalProfile.hiddenDesire}
-      [BIG5スコア]: ${JSON.stringify(finalProfile.scoring?.big5 || baseScores)}
-      [RIASECスコア]: ${JSON.stringify(finalProfile.scoring?.riasec || riasecScores)}
+      const prompt = `あなたは心理測定（BIG5/RIASEC）と行動科学に精通した深層分析AIです。
+以下のプロファイルデータを基に、ユーザーの【${topic.title}】について詳細な分析を生成してください。
 
-      指示:
-      ・${topic.prompt}
-      ・summaryTextは100〜170文字で、最重要の示唆を1〜2文で要約してください。専門用語を使わず日常語で書くこと。
-      ・analysisTextは360〜650文字程度。結論を先に書き、その後に具体的な場面・理由・対処策の順で説明してください。
-      ・文章は1文40字以内を目安に、短く区切って書いてください。
-      ・専門用語（BIG5・RIASEC・神経傾向・開放性など）は使わず、すべて日常語に言い換えてください。
-      ・「〜な場面では」「〜しやすい人は」のように、読んだ人が自分のことだと気づける具体的な表現を使ってください。
-      ・ユーザーが読んで「たしかに」と納得できる鋭い洞察を含めてください。重複説明は避けてください。
-      ・improvementAdviceとして、明日から実行できる改善アドバイスを3つ、短く具体的に作ってください（1項目あたり25〜55文字）。
-      ・responseSchemaに厳密準拠したJSONのみを返してください。`;
+[プロファイル]
+キャッチコピー: ${finalProfile.catchphrase}
+ベース分析: ${finalProfile.deepAnalysis}
+統合分析: ${finalProfile.hybridSynthesis || finalProfile.deepAnalysis}
+隠された欲求: ${finalProfile.hiddenDesire}
+BIG5スコア（0〜100）: ${JSON.stringify(finalProfile.scoring?.big5 || baseScores)}
+RIASECスコア（0〜100）: ${JSON.stringify(_riasecRaw)}
+
+[RIASEC構造分析]
+トップ3タイプ: ${_top3Code}
+一貫性（上位2タイプの六角形距離）: ${_consistencyLabel}
+特化度（最高点と最低点の差）: ${_diffLabel}
+RIASECの六角形モデル: 隣接順はR-I-A-S-E-C-R。対角（R↔S・I↔E・A↔C）が上位に混在すると内的葛藤が生じやすい。
+
+[分析指示]
+・${topic.prompt}
+・上記のRIASEC構造分析（トップ3コード・一貫性・特化度）を必ず分析の根拠として使うこと。
+・BIG5の各スコアとRIASECタイプの交差作用（組み合わせによって何が起きるか）を最低1点具体的に示すこと。
+・スコアの数値をそのまま書くのではなく、日常の具体的な場面・行動・感情に置き換えて表現すること。
+・専門用語（BIG5・RIASEC・神経傾向・開放性等）は使わず、すべて日常語に言い換えること。
+・summaryTextは100〜170文字で最重要の示唆を1〜2文で要約。
+・analysisTextは360〜650文字程度。結論を先に書き、場面→理由→対処策の順で説明。1文は40字以内を目安に短く区切る。
+・ユーザーが「たしかに」と納得できる鋭い洞察を含めること。重複説明は避ける。
+・improvementAdviceは明日から実行できる改善アドバイスを3つ、1項目25〜55文字で具体的に。
+・responseSchemaに厳密準拠したJSONのみを返すこと。`;
 
       const schema = {
         type: "OBJECT",
