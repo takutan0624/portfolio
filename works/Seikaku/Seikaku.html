@@ -720,13 +720,6 @@
             <p id="res-confidence-note" class="res-body-text text-base text-emerald-700 leading-loose"></p>
             <p id="res-model-used" class="text-sm text-emerald-700/90 font-semibold"></p>
           </div>
-          <div class="pastel-card pastel-7 rounded-[2rem] p-8 border border-slate-200 space-y-3">
-            <h4 class="text-slate-700 font-black flex items-center gap-2">
-              <i data-lucide="git-compare-arrows" class="w-5 h-5"></i>
-              前回からの変化
-            </h4>
-            <p id="res-history-compare" class="res-body-text text-base text-slate-700 leading-loose"></p>
-          </div>
         </div>
 
         <div class="pastel-card pastel-8 rounded-[2rem] p-8 border border-indigo-100 space-y-5">
@@ -3176,53 +3169,6 @@ RIASEC: ${JSON.stringify(riasecScores)}
       };
     }
 
-    function renderHistoryComparison(currentScores, currentId) {
-      const compareEl = document.getElementById('res-history-compare');
-      if (!compareEl) return;
-
-      const sorted = historyData
-        .slice()
-        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      const previous = sorted.find((item) => item.id !== currentId && Object.keys(resolveBig5ScoresFromItem(item)).length);
-
-      if (!previous) {
-        compareEl.textContent = "比較できる過去データがまだありません。";
-        return;
-      }
-
-      const prevScores = resolveBig5ScoresFromItem(previous);
-      if (!Object.keys(prevScores).length || !Object.keys(currentScores).length) {
-        compareEl.textContent = "比較に必要なスコアが不足しています。";
-        return;
-      }
-
-      const changes = BIG5_TRAITS.map((trait) => {
-        const current = Number(currentScores[trait] || 0);
-        const prev = Number(prevScores[trait] || 0);
-        return {
-          trait,
-          label: BIG5_LABELS[trait] || trait,
-          delta: Math.round(current - prev)
-        };
-      })
-        .filter((item) => Math.abs(item.delta) >= 1)
-        .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
-
-      const dateLabel = previous.createdAt?.seconds
-        ? new Date(previous.createdAt.seconds * 1000).toLocaleDateString()
-        : "前回";
-
-      if (!changes.length) {
-        compareEl.textContent = `${dateLabel}比で大きな変化はありません。`;
-        return;
-      }
-
-      const summary = changes
-        .slice(0, 3)
-        .map((item) => `${item.label} ${item.delta >= 0 ? "+" : ""}${item.delta}`)
-        .join(" / ");
-      compareEl.textContent = `${dateLabel}比: ${summary}`;
-    }
 
     function renderConfidenceAndModel(profile) {
       const confidence = computeDiagnosisConfidence(profile);
@@ -3320,7 +3266,6 @@ RIASEC: ${JSON.stringify(riasecScores)}
       chartCont.innerHTML = generateRadar(big5ForDisplay);
 
       renderConfidenceAndModel(data);
-      renderHistoryComparison(big5ForDisplay, data?.id || currentDocId);
       renderBig5Scores(big5ForDisplay);
       renderRiasecScores(riasecForDisplay);
       
