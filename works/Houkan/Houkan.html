@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1072,6 +1073,180 @@
 
         .staff-name { font-size: 15px; font-weight: 500; }
 
+        /* ---- Calendar ---- */
+        .calendar-wrapper {
+            background: white;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+
+        .calendar-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px 8px;
+        }
+
+        .calendar-month-title {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        .cal-nav-btn {
+            background: rgba(120,120,128,0.1);
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-size: 18px;
+            color: var(--accent);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .calendar-day-headers {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            padding: 0 8px;
+        }
+
+        .cal-day-header {
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            padding: 4px 0;
+        }
+
+        .cal-day-header.sun { color: var(--red); }
+        .cal-day-header.sat { color: var(--accent); }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            padding: 4px 8px 12px;
+        }
+
+        .cal-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .cal-cell:not(.empty):active { background: rgba(120,120,128,0.12); }
+        .cal-cell.empty { cursor: default; }
+
+        .cal-day-num {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .cal-cell.sun .cal-day-num { color: var(--red); }
+        .cal-cell.sat .cal-day-num { color: var(--accent); }
+
+        .cal-cell.today .cal-day-num {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .cal-cell.selected {
+            background: var(--accent);
+        }
+
+        .cal-cell.selected .cal-day-num { color: white; }
+        .cal-cell.selected .cal-dot { background: rgba(255,255,255,0.8); }
+
+        .cal-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--accent);
+            margin-top: 3px;
+        }
+
+        .calendar-selected-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            padding: 0 4px 12px;
+        }
+
+        /* ---- Stats ---- */
+        .stats-card {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+
+        .stats-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 16px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 200px;
+        }
+
+        .chart-container-sm {
+            position: relative;
+            height: 160px;
+        }
+
+        /* ---- Staff Management ---- */
+        .staff-row-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .staff-delete-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255,59,48,0.1);
+            border: none;
+            color: var(--red);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .staff-add-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-top: 0.5px solid var(--separator);
+            cursor: pointer;
+            color: var(--accent);
+            font-size: 15px;
+            font-weight: 500;
+        }
+
         /* Utility */
         .hidden { display: none !important; }
     </style>
@@ -1169,8 +1344,9 @@
             <div class="tab-view-inner">
                 <div class="tab-view-title">
                     <h2>スケジュール</h2>
-                    <p id="scheduleDateLabel"></p>
                 </div>
+                <div id="calendarContainer"></div>
+                <p class="calendar-selected-label" id="calendarSelectedLabel"></p>
                 <div class="filter-pills" style="margin-bottom:16px;">
                     <button class="filter-pill active" data-schedule-filter="all">全て</button>
                     <button class="filter-pill" data-schedule-filter="scheduled">予定</button>
@@ -1200,12 +1376,38 @@
                 <p class="settings-group-label">スタッフ</p>
                 <div class="settings-group">
                     <div id="settingsStaffList"></div>
+                    <div class="staff-add-row" onclick="window.promptAddStaff()">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        スタッフを追加
+                    </div>
                 </div>
                 <p class="settings-group-label">アプリ情報</p>
                 <div class="settings-group">
                     <div class="settings-row"><span>アプリ名</span><span class="settings-row-value">CareNavi</span></div>
                     <div class="settings-row"><span>バージョン</span><span class="settings-row-value">1.0.0</span></div>
-                    <div class="settings-row"><span>データ</span><span class="settings-row-value">モック</span></div>
+                    <div class="settings-row"><span>ステーション</span><span class="settings-row-value">鶴見区</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats View -->
+        <div class="tab-view" id="viewStats">
+            <div class="tab-view-inner">
+                <div class="tab-view-title">
+                    <h2>統計</h2>
+                    <p id="statsDateLabel"></p>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-title">本日のステータス</div>
+                    <div class="chart-container-sm"><canvas id="chartStatus"></canvas></div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-title">過去7日間の訪問件数</div>
+                    <div class="chart-container"><canvas id="chartHistory"></canvas></div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-title">スタッフ別担当件数（本日）</div>
+                    <div class="chart-container"><canvas id="chartNurse"></canvas></div>
                 </div>
             </div>
         </div>
@@ -1237,6 +1439,12 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                     </svg>
                     <span>設定</span>
+                </button>
+                <button class="tab-item" data-tab="stats">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    <span>統計</span>
                 </button>
             </div>
         </nav>
@@ -1327,11 +1535,20 @@
         let currentScheduleFilter = 'all';
         let db         = null;
         let visitsUnsub = null;
+        // Calendar
+        let selectedDate    = TODAY;
+        let calendarYear    = new Date().getFullYear();
+        let calendarMonth   = new Date().getMonth();
+        let monthVisitDates = new Set();
+        let datePatients    = [];
+        // Stats charts
+        let statsCharts = {};
 
         // ---- Firestore refs ----
         const visitsCol = () => collection(db, 'artifacts', 'houkan', 'public', 'data', 'visits');
         const staffCol  = () => collection(db, 'artifacts', 'houkan', 'public', 'data', 'staff');
         const visitDoc  = (id) => doc(db, 'artifacts', 'houkan', 'public', 'data', 'visits', id);
+        const staffDocRef = (id) => doc(db, 'artifacts', 'houkan', 'public', 'data', 'staff', id);
 
         // ---- Mock data (fallback & seed) ----
         const MOCK_STAFF  = [{ name: '田中花子' }, { name: '佐藤太郎' }, { name: '鈴木美咲' }, { name: '伊藤りか' }, { name: '中村誠' }];
@@ -1442,7 +1659,8 @@
         // Render Visit List
         function renderVisitList(filter = 'all', searchQuery = '', containerId = 'visitList') {
             const container = document.getElementById(containerId);
-            let filteredPatients = filter === 'all' ? [...patients] : patients.filter(p => p.status === filter);
+            const source = containerId === 'scheduleList' ? datePatients : patients;
+            let filteredPatients = filter === 'all' ? [...source] : source.filter(p => p.status === filter);
 
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
@@ -1800,15 +2018,20 @@
 
             if (tabName === 'schedule') {
                 document.getElementById('viewSchedule').classList.add('active');
-                document.getElementById('scheduleDateLabel').textContent =
-                    new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
-                renderVisitList(currentScheduleFilter, '', 'scheduleList');
+                fetchMonthVisitDates(calendarYear, calendarMonth).then(() => {
+                    renderCalendar();
+                    datePatients = [...patients];
+                    loadScheduleDate(selectedDate);
+                });
             } else if (tabName === 'patients') {
                 document.getElementById('viewPatients').classList.add('active');
                 renderPatientsView();
             } else if (tabName === 'settings') {
                 document.getElementById('viewSettings').classList.add('active');
                 renderSettingsView();
+            } else if (tabName === 'stats') {
+                document.getElementById('viewStats').classList.add('active');
+                renderStatsView();
             }
         }
 
@@ -1837,8 +2060,211 @@
                 <div class="settings-staff-item">
                     <div class="staff-avatar">${s.name.slice(0, 1)}</div>
                     <span class="staff-name">${s.name}</span>
+                    <div class="staff-row-actions">
+                        <button class="staff-delete-btn" onclick="window.deleteStaff('${s.id}')">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             `).join('');
+        }
+
+        // ---- Calendar ----
+        async function fetchMonthVisitDates(year, month) {
+            monthVisitDates = new Set();
+            if (!db) {
+                MOCK_VISITS.forEach(v => monthVisitDates.add(v.visitDate));
+                return;
+            }
+            const pad = n => String(n).padStart(2, '0');
+            const start = `${year}-${pad(month + 1)}-01`;
+            const end   = `${year}-${pad(month + 1)}-${new Date(year, month + 1, 0).getDate()}`;
+            try {
+                const q = query(visitsCol(), where('visitDate', '>=', start), where('visitDate', '<=', end));
+                const snap = await getDocs(q);
+                snap.forEach(d => monthVisitDates.add(d.data().visitDate));
+            } catch {}
+        }
+
+        function renderCalendar() {
+            const container = document.getElementById('calendarContainer');
+            if (!container) return;
+            const firstDay   = new Date(calendarYear, calendarMonth, 1).getDay();
+            const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+            const monthTitle = new Date(calendarYear, calendarMonth, 1)
+                .toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
+            const dayNames = ['日','月','火','水','木','金','土'];
+
+            let cells = '';
+            for (let i = 0; i < firstDay; i++) cells += `<div class="cal-cell empty"></div>`;
+            for (let d = 1; d <= daysInMonth; d++) {
+                const pad = n => String(n).padStart(2, '0');
+                const dateStr  = `${calendarYear}-${pad(calendarMonth + 1)}-${pad(d)}`;
+                const dow      = (firstDay + d - 1) % 7;
+                const dowClass = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
+                const isToday    = dateStr === TODAY;
+                const isSelected = dateStr === selectedDate;
+                const hasDot     = monthVisitDates.has(dateStr);
+                cells += `
+                    <div class="cal-cell ${dowClass} ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}"
+                         onclick="window.selectCalendarDate('${dateStr}')">
+                        <span class="cal-day-num">${d}</span>
+                        ${hasDot ? '<span class="cal-dot"></span>' : ''}
+                    </div>`;
+            }
+
+            container.innerHTML = `
+                <div class="calendar-wrapper">
+                    <div class="calendar-nav">
+                        <button class="cal-nav-btn" onclick="window.calendarPrev()">‹</button>
+                        <span class="calendar-month-title">${monthTitle}</span>
+                        <button class="cal-nav-btn" onclick="window.calendarNext()">›</button>
+                    </div>
+                    <div class="calendar-day-headers">
+                        ${dayNames.map((n,i) => `<div class="cal-day-header ${i===0?'sun':i===6?'sat':''}">${n}</div>`).join('')}
+                    </div>
+                    <div class="calendar-grid">${cells}</div>
+                </div>`;
+
+            const label = document.getElementById('calendarSelectedLabel');
+            if (label) {
+                label.textContent = new Date(selectedDate + 'T00:00:00')
+                    .toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+            }
+        }
+
+        async function loadScheduleDate(dateStr) {
+            if (dateStr === TODAY) {
+                datePatients = [...patients];
+            } else if (db) {
+                try {
+                    const q = query(visitsCol(), where('visitDate', '==', dateStr), orderBy('time'));
+                    const snap = await getDocs(q);
+                    datePatients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                } catch { datePatients = []; }
+            } else {
+                datePatients = MOCK_VISITS.filter(v => v.visitDate === dateStr)
+                    .map((v, i) => ({ id: String(i + 1), ...v }));
+            }
+            renderVisitList(currentScheduleFilter, '', 'scheduleList');
+        }
+
+        window.selectCalendarDate = async function(dateStr) {
+            selectedDate = dateStr;
+            renderCalendar();
+            await loadScheduleDate(dateStr);
+        };
+
+        window.calendarPrev = async function() {
+            calendarMonth--;
+            if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+            await fetchMonthVisitDates(calendarYear, calendarMonth);
+            renderCalendar();
+        };
+
+        window.calendarNext = async function() {
+            calendarMonth++;
+            if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+            await fetchMonthVisitDates(calendarYear, calendarMonth);
+            renderCalendar();
+        };
+
+        // ---- Staff Management ----
+        window.promptAddStaff = async function() {
+            const name = prompt('スタッフ名を入力してください');
+            if (!name || !name.trim()) return;
+            const newStaff = { name: name.trim() };
+            if (db) {
+                const ref = await addDoc(staffCol(), newStaff);
+                staff.push({ id: ref.id, ...newStaff });
+            } else {
+                staff.push({ id: String(Date.now()), ...newStaff });
+            }
+            populateNurseSelect();
+            renderSettingsView();
+        };
+
+        window.deleteStaff = async function(id) {
+            if (!confirm('このスタッフを削除しますか？')) return;
+            if (db) {
+                try { await deleteDoc(staffDocRef(id)); } catch {}
+            }
+            staff = staff.filter(s => s.id !== id);
+            populateNurseSelect();
+            renderSettingsView();
+        };
+
+        // ---- Stats ----
+        function renderStatsView() {
+            document.getElementById('statsDateLabel').textContent =
+                new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric' });
+
+            // Destroy old charts
+            Object.values(statsCharts).forEach(c => c.destroy());
+            statsCharts = {};
+
+            const scheduled = patients.filter(p => p.status === 'scheduled').length;
+            const completed = patients.filter(p => p.status === 'completed').length;
+            const pending   = patients.filter(p => p.status === 'pending').length;
+
+            // Donut: status breakdown
+            statsCharts.status = new Chart(document.getElementById('chartStatus'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['予定', '完了', '保留'],
+                    datasets: [{ data: [scheduled, completed, pending],
+                        backgroundColor: ['#007AFF','#34C759','#FF9500'],
+                        borderWidth: 0, hoverOffset: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom',
+                        labels: { font: { family: 'Inter', size: 12 }, padding: 16 } } } }
+            });
+
+            // Bar: past 7 days (mock history + today's real count)
+            const labels = [];
+            const counts = [11, 14, 9, 13, 10, 12, patients.length];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                labels.push(d.toLocaleDateString('ja-JP', { month:'numeric', day:'numeric' }));
+            }
+            statsCharts.history = new Chart(document.getElementById('chartHistory'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{ label: '訪問件数', data: counts,
+                        backgroundColor: labels.map((_, i) => i === 6 ? '#007AFF' : 'rgba(0,122,255,0.25)'),
+                        borderRadius: 6, borderSkipped: false }]
+                },
+                options: { responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 5 },
+                        grid: { color: 'rgba(0,0,0,0.05)' } },
+                        x: { grid: { display: false } } } }
+            });
+
+            // Horizontal bar: nurse breakdown
+            const nurseCounts = {};
+            patients.forEach(p => { nurseCounts[p.nurse] = (nurseCounts[p.nurse] || 0) + 1; });
+            const nurseLabels = Object.keys(nurseCounts);
+            const nurseData   = Object.values(nurseCounts);
+            const palette = ['#007AFF','#34C759','#FF9500','#FF2D55','#AF52DE'];
+            statsCharts.nurse = new Chart(document.getElementById('chartNurse'), {
+                type: 'bar',
+                data: {
+                    labels: nurseLabels,
+                    datasets: [{ label: '担当件数', data: nurseData,
+                        backgroundColor: nurseLabels.map((_, i) => palette[i % palette.length]),
+                        borderRadius: 6, borderSkipped: false }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, ticks: { stepSize: 1 },
+                        grid: { color: 'rgba(0,0,0,0.05)' } },
+                        y: { grid: { display: false } } } }
+            });
         }
 
         // ---- Window exports (inline onclick用) ----
