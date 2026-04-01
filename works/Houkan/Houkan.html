@@ -9,7 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&language=ja"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <style>
         * {
             margin: 0;
@@ -1200,8 +1201,8 @@
             populateNurseSelect();
             renderVisitList();
             updateStats();
-            initMap();
             setupEventListeners();
+            initMap();
         }
 
         // Set Today's Date
@@ -1302,20 +1303,14 @@
 
         // Initialize Map
         function initMap() {
-            const mapElement = document.getElementById('map');
             const placeholder = document.getElementById('mapPlaceholder');
 
             try {
-                map = new google.maps.Map(mapElement, {
-                    zoom: 13,
-                    center: { lat: 35.6762, lng: 139.7674 },
-                    disableDefaultUI: true,
-                    zoomControl: true,
-                    styles: [
-                        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-                        { featureType: 'transit', elementType: 'labels', stylers: [{ visibility: 'off' }] }
-                    ]
-                });
+                map = L.map('map', { zoomControl: true }).setView([35.6762, 139.7674], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19
+                }).addTo(map);
                 placeholder.classList.add('hidden');
                 updateMapMarkers();
             } catch (e) {
@@ -1327,7 +1322,7 @@
         function updateMapMarkers() {
             if (!map) return;
 
-            markers.forEach(marker => marker.setMap(null));
+            markers.forEach(marker => marker.remove());
             markers = [];
 
             const markerColors = {
@@ -1337,41 +1332,30 @@
             };
 
             patients.forEach(patient => {
-                const marker = new google.maps.Marker({
-                    position: { lat: patient.lat, lng: patient.lng },
-                    map: map,
-                    title: patient.name,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 12,
-                        fillColor: markerColors[patient.status],
-                        fillOpacity: 1,
-                        strokeColor: '#FFFFFF',
-                        strokeWeight: 3
-                    }
+                const color = markerColors[patient.status];
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div style="width:24px;height:24px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
                 });
 
-                const infoWindow = new google.maps.InfoWindow({
-                    content: `
-                        <div style="padding: 12px; font-family: 'Inter', -apple-system, sans-serif; min-width: 180px;">
-                            <h3 style="margin: 0 0 6px; font-size: 16px; font-weight: 600;">${patient.name}</h3>
-                            <p style="margin: 0 0 4px; font-size: 13px; color: #8E8E93;">${patient.time} - ${patient.nurse}</p>
-                            <p style="margin: 0; font-size: 13px; color: #8E8E93;">${patient.address}</p>
+                const marker = L.marker([patient.lat, patient.lng], { icon, title: patient.name })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div style="padding:4px;font-family:'Inter',-apple-system,sans-serif;min-width:180px;">
+                            <h3 style="margin:0 0 6px;font-size:16px;font-weight:600;">${patient.name}</h3>
+                            <p style="margin:0 0 4px;font-size:13px;color:#8E8E93;">${patient.time} - ${patient.nurse}</p>
+                            <p style="margin:0;font-size:13px;color:#8E8E93;">${patient.address}</p>
                         </div>
-                    `
-                });
-
-                marker.addListener('click', () => {
-                    infoWindow.open(map, marker);
-                });
+                    `);
 
                 markers.push(marker);
             });
 
             if (markers.length > 0) {
-                const bounds = new google.maps.LatLngBounds();
-                markers.forEach(marker => bounds.extend(marker.getPosition()));
-                map.fitBounds(bounds);
+                const group = L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.2));
             }
         }
 
@@ -1379,10 +1363,7 @@
         function focusOnMap(id) {
             const patient = patients.find(p => p.id === id);
             if (patient && map) {
-                map.panTo({ lat: patient.lat, lng: patient.lng });
-                map.setZoom(16);
-
-                // Collapse bottom sheet
+                map.setView([patient.lat, patient.lng], 16);
                 document.getElementById('bottomSheet').classList.remove('expanded');
             }
         }
