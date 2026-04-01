@@ -260,15 +260,15 @@
             border: 0.5px solid var(--glass-border);
         }
 
-        .stat-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
+        .stat-icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
         }
 
-        .stat-dot.blue { background: var(--accent); }
-        .stat-dot.green { background: var(--green); }
-        .stat-dot.orange { background: var(--orange); }
+        .stat-icon.blue { color: var(--accent); }
+        .stat-icon.green { color: var(--green); }
+        .stat-icon.orange { color: var(--orange); }
 
         .stat-pill span {
             font-size: 14px;
@@ -490,6 +490,12 @@
             color: var(--accent);
         }
 
+        .visit-tag.disease {
+            background: rgba(255, 45, 85, 0.1);
+            color: var(--pink);
+            font-weight: 600;
+        }
+
         .visit-actions {
             display: flex;
             flex-direction: column;
@@ -498,25 +504,29 @@
         }
 
         .status-badge {
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
+            padding: 5px 10px 5px 8px;
+            border-radius: 8px;
+            font-size: 12px;
             font-weight: 600;
+            border-left: 3px solid transparent;
         }
 
         .status-badge.scheduled {
             background: rgba(0, 122, 255, 0.12);
             color: var(--accent);
+            border-left-color: var(--accent);
         }
 
         .status-badge.completed {
             background: rgba(52, 199, 89, 0.12);
             color: var(--green);
+            border-left-color: var(--green);
         }
 
         .status-badge.pending {
             background: rgba(255, 149, 0, 0.12);
             color: var(--orange);
+            border-left-color: var(--orange);
         }
 
         .action-btn {
@@ -570,6 +580,7 @@
             border: none;
             cursor: pointer;
             transition: all 0.2s ease;
+            position: relative;
         }
 
         .tab-item svg {
@@ -588,10 +599,15 @@
 
         .tab-item.active svg {
             color: var(--accent);
+            background: rgba(0, 122, 255, 0.12);
+            padding: 4px;
+            border-radius: 12px;
+            box-sizing: content-box;
         }
 
         .tab-item.active span {
             color: var(--accent);
+            font-weight: 600;
         }
 
         .tab-item:active {
@@ -1077,7 +1093,11 @@
         <header class="top-header">
             <div class="header-content">
                 <div class="header-title">
-                    <div class="app-icon">+</div>
+                    <div class="app-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                            <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                    </div>
                     <div class="title-text">
                         <h1>CareNavi</h1>
                         <span>訪問看護管理</span>
@@ -1109,17 +1129,17 @@
         <!-- Floating Stats -->
         <div class="floating-stats">
             <div class="stat-pill">
-                <div class="stat-dot blue"></div>
+                <svg class="stat-icon blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 <span id="statScheduled">0</span>
                 <small>予定</small>
             </div>
             <div class="stat-pill">
-                <div class="stat-dot green"></div>
+                <svg class="stat-icon green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span id="statCompleted">0</span>
                 <small>完了</small>
             </div>
             <div class="stat-pill">
-                <div class="stat-dot orange"></div>
+                <svg class="stat-icon orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span id="statPending">0</span>
                 <small>保留</small>
             </div>
@@ -1471,7 +1491,7 @@
                             </div>
                             <div class="visit-tags">
                                 <span class="visit-tag nurse">${patient.nurse}</span>
-                                <span class="visit-tag">${patient.notes.slice(0, 15)}...</span>
+                                <span class="visit-tag disease">${patient.notes ? patient.notes.split('・')[0].trim() : ''}</span>
                             </div>
                         </div>
                         <div class="visit-actions">
@@ -1532,9 +1552,9 @@
                 const color = markerColors[patient.status];
                 const icon = L.divIcon({
                     className: '',
-                    html: `<div style="width:24px;height:24px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
+                    html: `<div style="width:32px;height:32px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;font-family:-apple-system,sans-serif;">${patient.name.slice(0,2)}</div>`,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
                 });
 
                 const marker = L.marker([patient.lat, patient.lng], { icon, title: patient.name })
