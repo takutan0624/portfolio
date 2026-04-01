@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>CareNavi - 訪問看護</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&language=ja"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.72);
+            --glass-bg-dark: rgba(30, 30, 30, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            --blur: 24px;
+            --accent: #007AFF;
+            --accent-light: #5AC8FA;
+            --green: #34C759;
+            --orange: #FF9500;
+            --red: #FF3B30;
+            --pink: #FF2D55;
+            --purple: #AF52DE;
+            --text-primary: #1C1C1E;
+            --text-secondary: #8E8E93;
+            --text-tertiary: #C7C7CC;
+            --separator: rgba(60, 60, 67, 0.12);
+            --safe-top: env(safe-area-inset-top, 20px);
+            --safe-bottom: env(safe-area-inset-bottom, 20px);
+            --radius-sm: 12px;
+            --radius-md: 16px;
+            --radius-lg: 22px;
+            --radius-xl: 28px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            background: #F2F2F7;
+            color: var(--text-primary);
+            line-height: 1.4;
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow: hidden;
+        }
+
+        .app {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Full Screen Map */
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+            color: white;
+        }
+
+        .map-placeholder-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-placeholder-text {
+            font-size: 17px;
+            font-weight: 500;
+            text-align: center;
+            padding: 0 40px;
+        }
+
+        /* iOS Status Bar Area */
+        .status-bar-spacer {
+            height: var(--safe-top);
+            flex-shrink: 0;
+        }
+
+        /* Top Glass Header */
+        .top-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: var(--safe-top) 16px 12px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            border-bottom: 0.5px solid var(--glass-border);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .app-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .title-text h1 {
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .title-text span {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            background: rgba(120, 120, 128, 0.12);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-primary);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.92);
+            background: rgba(120, 120, 128, 0.2);
+        }
+
+        .icon-btn.primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Search Bar */
+        .search-container {
+            margin-top: 12px;
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(120, 120, 128, 0.12);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: none;
+        }
+
+        .search-bar input {
+            flex: 1;
+            border: none;
+            background: none;
+            font-size: 16px;
+            font-family: inherit;
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .search-bar input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-icon {
+            color: var(--text-secondary);
+        }
+
+        /* Floating Stats Cards */
+        .floating-stats {
+            position: absolute;
+            top: calc(var(--safe-top) + 110px);
+            left: 16px;
+            right: 16px;
+            z-index: 50;
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .floating-stats::-webkit-scrollbar {
+            display: none;
+        }
+
+        .stat-pill {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            border-radius: 20px;
+            box-shadow: var(--glass-shadow);
+            border: 0.5px solid var(--glass-border);
+        }
+
+        .stat-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .stat-dot.blue { background: var(--accent); }
+        .stat-dot.green { background: var(--green); }
+        .stat-dot.orange { background: var(--orange); }
+
+        .stat-pill span {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .stat-pill small {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Bottom Sheet */
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 200;
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.15);
+            max-height: 70vh;
+            transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+            transform: translateY(calc(100% - 180px));
+        }
+
+        .bottom-sheet.expanded {
+            transform: translateY(0);
+        }
+
+        .sheet-handle {
+            width: 36px;
+            height: 5px;
+            background: rgba(60, 60, 67, 0.3);
+            border-radius: 3px;
+            margin: 8px auto 16px;
+        }
+
+        .sheet-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px 16px;
+            border-bottom: 0.5px solid var(--separator);
+        }
+
+        .sheet-title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .sheet-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .filter-pills {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-pill {
+            padding: 6px 12px;
+            background: rgba(120, 120, 128, 0.12);
+            border: none;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-pill.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .sheet-content {
+            padding: 16px 20px;
+            padding-bottom: calc(100px + var(--safe-bottom));
+            max-height: calc(70vh - 80px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Visit Cards */
+        .visit-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .visit-card {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            display: flex;
+            gap: 14px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .visit-card:active {
+            transform: scale(0.98);
+            background: #F9F9F9;
+        }
+
+        .visit-time {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 50px;
+        }
+
+        .time-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .time-period {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .visit-status-line {
+            width: 3px;
+            flex: 1;
+            margin-top: 8px;
+            border-radius: 2px;
+            background: var(--text-tertiary);
+        }
+
+        .visit-status-line.scheduled { background: var(--accent); }
+        .visit-status-line.completed { background: var(--green); }
+        .visit-status-line.pending { background: var(--orange); }
+
+        .visit-details {
+            flex: 1;
+        }
+
+        .visit-patient {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .patient-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .patient-avatar.blue { background: linear-gradient(135deg, #007AFF, #5AC8FA); }
+        .patient-avatar.green { background: linear-gradient(135deg, #34C759, #30D158); }
+        .patient-avatar.orange { background: linear-gradient(135deg, #FF9500, #FFCC00); }
+        .patient-avatar.pink { background: linear-gradient(135deg, #FF2D55, #FF6482); }
+        .patient-avatar.purple { background: linear-gradient(135deg, #AF52DE, #BF5AF2); }
+
+        .patient-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .patient-info span {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .visit-address {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .visit-address svg {
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .visit-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .visit-tag {
+            padding: 4px 10px;
+            background: rgba(120, 120, 128, 0.08);
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .visit-tag.nurse {
+            background: rgba(0, 122, 255, 0.1);
+            color: var(--accent);
+        }
+
+        .visit-actions {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-badge.scheduled {
+            background: rgba(0, 122, 255, 0.12);
+            color: var(--accent);
+        }
+
+        .status-badge.completed {
+            background: rgba(52, 199, 89, 0.12);
+            color: var(--green);
+        }
+
+        .status-badge.pending {
+            background: rgba(255, 149, 0, 0.12);
+            color: var(--orange);
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .action-btn.navigate {
+            background: var(--accent);
+            color: white;
+        }
+
+        .action-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* Tab Bar */
+        .tab-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 300;
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            border-top: 0.5px solid var(--glass-border);
+            padding: 8px 0 var(--safe-bottom);
+        }
+
+        .tab-items {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 16px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-item svg {
+            width: 24px;
+            height: 24px;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+        }
+
+        .tab-item span {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+        }
+
+        .tab-item.active svg {
+            color: var(--accent);
+        }
+
+        .tab-item.active span {
+            color: var(--accent);
+        }
+
+        .tab-item:active {
+            transform: scale(0.9);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 500;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            background: #F2F2F7;
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+            overflow: hidden;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            border-bottom: 0.5px solid var(--separator);
+        }
+
+        .modal-close {
+            font-size: 17px;
+            font-weight: 400;
+            color: var(--accent);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .modal-title {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .modal-save {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--accent);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: calc(90vh - 60px);
+            overflow-y: auto;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: var(--radius-md);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .form-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 0.5px solid var(--separator);
+        }
+
+        .form-row:last-child {
+            border-bottom: none;
+        }
+
+        .form-row label {
+            width: 80px;
+            font-size: 15px;
+            color: var(--text-primary);
+            flex-shrink: 0;
+        }
+
+        .form-row input,
+        .form-row select,
+        .form-row textarea {
+            flex: 1;
+            border: none;
+            background: none;
+            font-size: 15px;
+            font-family: inherit;
+            color: var(--text-primary);
+            outline: none;
+            text-align: right;
+        }
+
+        .form-row input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .form-row select {
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .form-row textarea {
+            text-align: left;
+            min-height: 80px;
+            resize: none;
+        }
+
+        .form-row.full {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .form-row.full label {
+            width: 100%;
+        }
+
+        .form-row.full textarea {
+            width: 100%;
+        }
+
+        /* Responsive for tablets and desktop */
+        @media (min-width: 768px) {
+            .bottom-sheet {
+                left: 50%;
+                transform: translateX(-50%) translateY(calc(100% - 200px));
+                max-width: 420px;
+                border-radius: var(--radius-xl);
+                margin-bottom: 20px;
+            }
+
+            .bottom-sheet.expanded {
+                transform: translateX(-50%) translateY(0);
+            }
+
+            .floating-stats {
+                justify-content: center;
+            }
+
+            .tab-bar {
+                left: 50%;
+                transform: translateX(-50%);
+                max-width: 420px;
+                border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            }
+
+            .modal-content {
+                border-radius: var(--radius-xl);
+                margin: auto;
+                max-height: 85vh;
+            }
+        }
+
+        /* Patient Detail View */
+        .patient-detail {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 400;
+            background: #F2F2F7;
+        }
+
+        .patient-detail.active {
+            display: block;
+            animation: slideFromRight 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        @keyframes slideFromRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        .detail-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: var(--safe-top) 16px 12px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            border-bottom: 0.5px solid var(--separator);
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        .detail-title {
+            flex: 1;
+            text-align: center;
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .detail-body {
+            padding: 20px 16px;
+            padding-bottom: calc(100px + var(--safe-bottom));
+            overflow-y: auto;
+            height: calc(100vh - 60px);
+        }
+
+        .detail-card {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 20px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .detail-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 24px;
+            margin: 0 auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+        }
+
+        .detail-name {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .detail-meta {
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        .detail-info-list {
+            background: white;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+        }
+
+        .detail-info-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 0.5px solid var(--separator);
+        }
+
+        .detail-info-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-info-label {
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+
+        .detail-info-value {
+            font-size: 15px;
+            color: var(--text-secondary);
+            text-align: right;
+            max-width: 60%;
+        }
+
+        .detail-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .detail-action-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: var(--radius-md);
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .detail-action-btn.primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .detail-action-btn.secondary {
+            background: rgba(120, 120, 128, 0.12);
+            color: var(--text-primary);
+        }
+
+        .detail-action-btn.success {
+            background: var(--green);
+            color: white;
+        }
+
+        .detail-action-btn.warning {
+            background: var(--orange);
+            color: white;
+        }
+
+        /* Utility */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Full Screen Map -->
+        <div id="map"></div>
+        <div id="mapPlaceholder" class="map-placeholder">
+            <div class="map-placeholder-icon">
+                <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                </svg>
+            </div>
+            <p class="map-placeholder-text">Google Maps APIキーを設定してください</p>
+        </div>
+
+        <!-- Top Header -->
+        <header class="top-header">
+            <div class="header-content">
+                <div class="header-title">
+                    <div class="app-icon">+</div>
+                    <div class="title-text">
+                        <h1>CareNavi</h1>
+                        <span>訪問看護管理</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" id="refreshBtn">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </button>
+                    <button class="icon-btn primary" id="addPatientBtn">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="search-container">
+                <div class="search-bar">
+                    <svg class="search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="text" placeholder="患者名・住所で検索" id="searchInput">
+                </div>
+            </div>
+        </header>
+
+        <!-- Floating Stats -->
+        <div class="floating-stats">
+            <div class="stat-pill">
+                <div class="stat-dot blue"></div>
+                <span id="statScheduled">0</span>
+                <small>予定</small>
+            </div>
+            <div class="stat-pill">
+                <div class="stat-dot green"></div>
+                <span id="statCompleted">0</span>
+                <small>完了</small>
+            </div>
+            <div class="stat-pill">
+                <div class="stat-dot orange"></div>
+                <span id="statPending">0</span>
+                <small>保留</small>
+            </div>
+        </div>
+
+        <!-- Bottom Sheet -->
+        <div class="bottom-sheet" id="bottomSheet">
+            <div class="sheet-handle" id="sheetHandle"></div>
+            <div class="sheet-header">
+                <div>
+                    <h2 class="sheet-title">本日の訪問</h2>
+                    <p class="sheet-subtitle" id="todayDate"></p>
+                </div>
+                <div class="filter-pills">
+                    <button class="filter-pill active" data-filter="all">全て</button>
+                    <button class="filter-pill" data-filter="scheduled">予定</button>
+                    <button class="filter-pill" data-filter="completed">完了</button>
+                </div>
+            </div>
+            <div class="sheet-content">
+                <div class="visit-list" id="visitList"></div>
+            </div>
+        </div>
+
+        <!-- Tab Bar -->
+        <nav class="tab-bar">
+            <div class="tab-items">
+                <button class="tab-item active" data-tab="map">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                    </svg>
+                    <span>マップ</span>
+                </button>
+                <button class="tab-item" data-tab="schedule">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <span>スケジュール</span>
+                </button>
+                <button class="tab-item" data-tab="patients">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    <span>患者</span>
+                </button>
+                <button class="tab-item" data-tab="settings">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    <span>設定</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Patient Detail View -->
+        <div class="patient-detail" id="patientDetail">
+            <div class="detail-header">
+                <button class="back-btn" id="backBtn">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    戻る
+                </button>
+                <span class="detail-title">患者詳細</span>
+                <span style="width: 60px;"></span>
+            </div>
+            <div class="detail-body" id="detailBody"></div>
+        </div>
+
+        <!-- Add Patient Modal -->
+        <div class="modal-overlay" id="addModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button class="modal-close" id="modalClose">キャンセル</button>
+                    <span class="modal-title">新規患者</span>
+                    <button class="modal-save" id="modalSave">保存</button>
+                </div>
+                <div class="modal-body">
+                    <form id="patientForm">
+                        <div class="form-section">
+                            <div class="form-row">
+                                <label>患者名</label>
+                                <input type="text" id="patientName" placeholder="山田太郎" required>
+                            </div>
+                            <div class="form-row">
+                                <label>年齢</label>
+                                <input type="number" id="patientAge" placeholder="75" required>
+                            </div>
+                            <div class="form-row">
+                                <label>電話</label>
+                                <input type="tel" id="patientPhone" placeholder="090-1234-5678" required>
+                            </div>
+                        </div>
+                        <div class="form-section">
+                            <div class="form-row">
+                                <label>住所</label>
+                                <input type="text" id="patientAddress" placeholder="東京都渋谷区..." required>
+                            </div>
+                            <div class="form-row">
+                                <label>担当</label>
+                                <select id="assignedNurse" required>
+                                    <option value="">選択</option>
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <label>訪問時間</label>
+                                <input type="time" id="visitTime" value="09:00" required>
+                            </div>
+                        </div>
+                        <div class="form-section">
+                            <div class="form-row full">
+                                <label>備考</label>
+                                <textarea id="patientNotes" placeholder="特記事項を入力..."></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data
+        const staff = [
+            { id: 1, name: '田中花子' },
+            { id: 2, name: '佐藤太郎' },
+            { id: 3, name: '鈴木美咲' }
+        ];
+
+        const avatarColors = ['blue', 'green', 'orange', 'pink', 'purple'];
+
+        let patients = [
+            {
+                id: 1,
+                name: '山田太郎',
+                age: 75,
+                address: '東京都渋谷区道玄坂1-2-3',
+                phone: '090-1234-5678',
+                nurse: '田中花子',
+                notes: '毎日のバイタルチェック必要',
+                lat: 35.6595,
+                lng: 139.7004,
+                status: 'scheduled',
+                time: '09:00',
+                color: 'blue'
+            },
+            {
+                id: 2,
+                name: '鈴木美香',
+                age: 82,
+                address: '東京都新宿区新宿3-1-1',
+                phone: '090-2345-6789',
+                nurse: '佐藤太郎',
+                notes: 'インスリン投与が必要',
+                lat: 35.6758,
+                lng: 139.7009,
+                status: 'completed',
+                time: '11:00',
+                color: 'green'
+            },
+            {
+                id: 3,
+                name: '佐藤花子',
+                age: 68,
+                address: '東京都渋谷区宇田川町36-2',
+                phone: '090-3456-7890',
+                nurse: '鈴木美咲',
+                notes: 'リハビリテーション実施',
+                lat: 35.6652,
+                lng: 139.7029,
+                status: 'pending',
+                time: '14:00',
+                color: 'orange'
+            },
+            {
+                id: 4,
+                name: '高橋健一',
+                age: 71,
+                address: '東京都港区六本木4-5-6',
+                phone: '090-4567-8901',
+                nurse: '田中花子',
+                notes: '血圧測定・服薬確認',
+                lat: 35.6640,
+                lng: 139.7290,
+                status: 'scheduled',
+                time: '16:00',
+                color: 'purple'
+            }
+        ];
+
+        let map;
+        let markers = [];
+        let currentFilter = 'all';
+
+        // Initialize
+        function init() {
+            setTodayDate();
+            populateNurseSelect();
+            renderVisitList();
+            updateStats();
+            initMap();
+            setupEventListeners();
+        }
+
+        // Set Today's Date
+        function setTodayDate() {
+            const today = new Date().toLocaleDateString('ja-JP', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'short'
+            });
+            document.getElementById('todayDate').textContent = today;
+        }
+
+        // Populate Nurse Select
+        function populateNurseSelect() {
+            const select = document.getElementById('assignedNurse');
+            staff.forEach(nurse => {
+                const option = document.createElement('option');
+                option.value = nurse.name;
+                option.textContent = nurse.name;
+                select.appendChild(option);
+            });
+        }
+
+        // Render Visit List
+        function renderVisitList(filter = 'all') {
+            const container = document.getElementById('visitList');
+            let filteredPatients = [...patients];
+
+            if (filter !== 'all') {
+                filteredPatients = patients.filter(p => p.status === filter);
+            }
+
+            filteredPatients.sort((a, b) => a.time.localeCompare(b.time));
+
+            container.innerHTML = filteredPatients.map(patient => {
+                const initials = patient.name.slice(0, 2);
+                const statusText = {
+                    'scheduled': '予定',
+                    'completed': '完了',
+                    'pending': '保留'
+                }[patient.status];
+                const timePeriod = parseInt(patient.time.split(':')[0]) < 12 ? 'AM' : 'PM';
+
+                return `
+                    <div class="visit-card" data-id="${patient.id}">
+                        <div class="visit-time">
+                            <span class="time-value">${patient.time}</span>
+                            <span class="time-period">${timePeriod}</span>
+                            <div class="visit-status-line ${patient.status}"></div>
+                        </div>
+                        <div class="visit-details">
+                            <div class="visit-patient">
+                                <div class="patient-avatar ${patient.color}">${initials}</div>
+                                <div class="patient-info">
+                                    <h3>${patient.name}</h3>
+                                    <span>${patient.age}歳</span>
+                                </div>
+                            </div>
+                            <div class="visit-address">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                </svg>
+                                ${patient.address}
+                            </div>
+                            <div class="visit-tags">
+                                <span class="visit-tag nurse">${patient.nurse}</span>
+                                <span class="visit-tag">${patient.notes.slice(0, 15)}...</span>
+                            </div>
+                        </div>
+                        <div class="visit-actions">
+                            <span class="status-badge ${patient.status}">${statusText}</span>
+                            <button class="action-btn navigate" onclick="event.stopPropagation(); focusOnMap(${patient.id})">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add click handlers for visit cards
+            container.querySelectorAll('.visit-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const id = parseInt(card.dataset.id);
+                    showPatientDetail(id);
+                });
+            });
+        }
+
+        // Update Stats
+        function updateStats() {
+            document.getElementById('statScheduled').textContent = patients.filter(p => p.status === 'scheduled').length;
+            document.getElementById('statCompleted').textContent = patients.filter(p => p.status === 'completed').length;
+            document.getElementById('statPending').textContent = patients.filter(p => p.status === 'pending').length;
+        }
+
+        // Initialize Map
+        function initMap() {
+            const mapElement = document.getElementById('map');
+            const placeholder = document.getElementById('mapPlaceholder');
+
+            try {
+                map = new google.maps.Map(mapElement, {
+                    zoom: 13,
+                    center: { lat: 35.6762, lng: 139.7674 },
+                    disableDefaultUI: true,
+                    zoomControl: true,
+                    styles: [
+                        { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+                        { featureType: 'transit', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+                    ]
+                });
+                placeholder.classList.add('hidden');
+                updateMapMarkers();
+            } catch (e) {
+                placeholder.classList.remove('hidden');
+            }
+        }
+
+        // Update Map Markers
+        function updateMapMarkers() {
+            if (!map) return;
+
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+
+            const markerColors = {
+                'scheduled': '#007AFF',
+                'completed': '#34C759',
+                'pending': '#FF9500'
+            };
+
+            patients.forEach(patient => {
+                const marker = new google.maps.Marker({
+                    position: { lat: patient.lat, lng: patient.lng },
+                    map: map,
+                    title: patient.name,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 12,
+                        fillColor: markerColors[patient.status],
+                        fillOpacity: 1,
+                        strokeColor: '#FFFFFF',
+                        strokeWeight: 3
+                    }
+                });
+
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div style="padding: 12px; font-family: 'Inter', -apple-system, sans-serif; min-width: 180px;">
+                            <h3 style="margin: 0 0 6px; font-size: 16px; font-weight: 600;">${patient.name}</h3>
+                            <p style="margin: 0 0 4px; font-size: 13px; color: #8E8E93;">${patient.time} - ${patient.nurse}</p>
+                            <p style="margin: 0; font-size: 13px; color: #8E8E93;">${patient.address}</p>
+                        </div>
+                    `
+                });
+
+                marker.addListener('click', () => {
+                    infoWindow.open(map, marker);
+                });
+
+                markers.push(marker);
+            });
+
+            if (markers.length > 0) {
+                const bounds = new google.maps.LatLngBounds();
+                markers.forEach(marker => bounds.extend(marker.getPosition()));
+                map.fitBounds(bounds);
+            }
+        }
+
+        // Focus on Map
+        function focusOnMap(id) {
+            const patient = patients.find(p => p.id === id);
+            if (patient && map) {
+                map.panTo({ lat: patient.lat, lng: patient.lng });
+                map.setZoom(16);
+
+                // Collapse bottom sheet
+                document.getElementById('bottomSheet').classList.remove('expanded');
+            }
+        }
+
+        // Show Patient Detail
+        function showPatientDetail(id) {
+            const patient = patients.find(p => p.id === id);
+            if (!patient) return;
+
+            const detailBody = document.getElementById('detailBody');
+            const initials = patient.name.slice(0, 2);
+            const statusText = {
+                'scheduled': '予定',
+                'completed': '完了',
+                'pending': '保留'
+            }[patient.status];
+
+            detailBody.innerHTML = `
+                <div class="detail-card">
+                    <div class="detail-avatar" style="background: linear-gradient(135deg, ${getGradientColor(patient.color)});">${initials}</div>
+                    <h2 class="detail-name">${patient.name}</h2>
+                    <p class="detail-meta">${patient.age}歳 | ${statusText}</p>
+                </div>
+
+                <div class="detail-info-list">
+                    <div class="detail-info-item">
+                        <span class="detail-info-label">訪問時間</span>
+                        <span class="detail-info-value">${patient.time}</span>
+                    </div>
+                    <div class="detail-info-item">
+                        <span class="detail-info-label">住所</span>
+                        <span class="detail-info-value">${patient.address}</span>
+                    </div>
+                    <div class="detail-info-item">
+                        <span class="detail-info-label">電話番号</span>
+                        <span class="detail-info-value">${patient.phone}</span>
+                    </div>
+                    <div class="detail-info-item">
+                        <span class="detail-info-label">担当看護師</span>
+                        <span class="detail-info-value">${patient.nurse}</span>
+                    </div>
+                </div>
+
+                <div class="detail-info-list">
+                    <div class="detail-info-item">
+                        <span class="detail-info-label">備考</span>
+                        <span class="detail-info-value">${patient.notes}</span>
+                    </div>
+                </div>
+
+                <div class="detail-actions">
+                    <button class="detail-action-btn success" onclick="updatePatientStatus(${patient.id}, 'completed')">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        完了
+                    </button>
+                    <button class="detail-action-btn warning" onclick="updatePatientStatus(${patient.id}, 'pending')">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        延期
+                    </button>
+                </div>
+
+                <div class="detail-actions" style="margin-top: 12px;">
+                    <button class="detail-action-btn primary" onclick="focusOnMapAndClose(${patient.id})">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                        </svg>
+                        地図で表示
+                    </button>
+                    <button class="detail-action-btn secondary" onclick="deletePatient(${patient.id})">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        削除
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('patientDetail').classList.add('active');
+        }
+
+        function getGradientColor(color) {
+            const gradients = {
+                'blue': '#007AFF, #5AC8FA',
+                'green': '#34C759, #30D158',
+                'orange': '#FF9500, #FFCC00',
+                'pink': '#FF2D55, #FF6482',
+                'purple': '#AF52DE, #BF5AF2'
+            };
+            return gradients[color] || gradients.blue;
+        }
+
+        // Update Patient Status
+        function updatePatientStatus(id, status) {
+            const patient = patients.find(p => p.id === id);
+            if (patient) {
+                patient.status = status;
+                renderVisitList(currentFilter);
+                updateStats();
+                updateMapMarkers();
+                document.getElementById('patientDetail').classList.remove('active');
+            }
+        }
+
+        // Focus on Map and Close Detail
+        function focusOnMapAndClose(id) {
+            document.getElementById('patientDetail').classList.remove('active');
+            setTimeout(() => focusOnMap(id), 300);
+        }
+
+        // Delete Patient
+        function deletePatient(id) {
+            if (confirm('この患者を削除しますか?')) {
+                patients = patients.filter(p => p.id !== id);
+                renderVisitList(currentFilter);
+                updateStats();
+                updateMapMarkers();
+                document.getElementById('patientDetail').classList.remove('active');
+            }
+        }
+
+        // Setup Event Listeners
+        function setupEventListeners() {
+            // Bottom Sheet Toggle
+            const bottomSheet = document.getElementById('bottomSheet');
+            const sheetHandle = document.getElementById('sheetHandle');
+
+            sheetHandle.addEventListener('click', () => {
+                bottomSheet.classList.toggle('expanded');
+            });
+
+            // Touch handling for bottom sheet
+            let startY = 0;
+            let currentY = 0;
+
+            sheetHandle.addEventListener('touchstart', (e) => {
+                startY = e.touches[0].clientY;
+            });
+
+            sheetHandle.addEventListener('touchmove', (e) => {
+                currentY = e.touches[0].clientY;
+                const diff = startY - currentY;
+                if (diff > 50) {
+                    bottomSheet.classList.add('expanded');
+                } else if (diff < -50) {
+                    bottomSheet.classList.remove('expanded');
+                }
+            });
+
+            // Filter Pills
+            document.querySelectorAll('.filter-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    currentFilter = pill.dataset.filter;
+                    renderVisitList(currentFilter);
+                });
+            });
+
+            // Tab Bar
+            document.querySelectorAll('.tab-item').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    // Handle tab navigation here if needed
+                });
+            });
+
+            // Add Patient Modal
+            document.getElementById('addPatientBtn').addEventListener('click', () => {
+                document.getElementById('addModal').classList.add('active');
+            });
+
+            document.getElementById('modalClose').addEventListener('click', () => {
+                document.getElementById('addModal').classList.remove('active');
+            });
+
+            document.getElementById('addModal').addEventListener('click', (e) => {
+                if (e.target.id === 'addModal') {
+                    document.getElementById('addModal').classList.remove('active');
+                }
+            });
+
+            document.getElementById('modalSave').addEventListener('click', () => {
+                saveNewPatient();
+            });
+
+            // Back Button
+            document.getElementById('backBtn').addEventListener('click', () => {
+                document.getElementById('patientDetail').classList.remove('active');
+            });
+
+            // Search
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                const filteredPatients = patients.filter(p =>
+                    p.name.toLowerCase().includes(query) ||
+                    p.address.toLowerCase().includes(query)
+                );
+                renderFilteredVisitList(filteredPatients);
+            });
+
+            // Refresh
+            document.getElementById('refreshBtn').addEventListener('click', () => {
+                renderVisitList(currentFilter);
+                updateMapMarkers();
+            });
+        }
+
+        // Save New Patient
+        function saveNewPatient() {
+            const name = document.getElementById('patientName').value;
+            const age = document.getElementById('patientAge').value;
+            const phone = document.getElementById('patientPhone').value;
+            const address = document.getElementById('patientAddress').value;
+            const nurse = document.getElementById('assignedNurse').value;
+            const time = document.getElementById('visitTime').value;
+            const notes = document.getElementById('patientNotes').value;
+
+            if (!name || !age || !phone || !address || !nurse) {
+                alert('必須項目を入力してください');
+                return;
+            }
+
+            const newPatient = {
+                id: Date.now(),
+                name,
+                age: parseInt(age),
+                address,
+                phone,
+                nurse,
+                notes: notes || '特記事項なし',
+                lat: 35.6595 + (Math.random() - 0.5) * 0.05,
+                lng: 139.7004 + (Math.random() - 0.5) * 0.05,
+                status: 'scheduled',
+                time,
+                color: avatarColors[Math.floor(Math.random() * avatarColors.length)]
+            };
+
+            patients.push(newPatient);
+            document.getElementById('patientForm').reset();
+            document.getElementById('addModal').classList.remove('active');
+            renderVisitList(currentFilter);
+            updateStats();
+            updateMapMarkers();
+        }
+
+        // Render Filtered Visit List
+        function renderFilteredVisitList(filteredPatients) {
+            const container = document.getElementById('visitList');
+
+            if (filteredPatients.length === 0) {
+                container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-secondary);">該当する患者が見つかりません</p>';
+                return;
+            }
+
+            filteredPatients.sort((a, b) => a.time.localeCompare(b.time));
+
+            container.innerHTML = filteredPatients.map(patient => {
+                const initials = patient.name.slice(0, 2);
+                const statusText = {
+                    'scheduled': '予定',
+                    'completed': '完了',
+                    'pending': '保留'
+                }[patient.status];
+                const timePeriod = parseInt(patient.time.split(':')[0]) < 12 ? 'AM' : 'PM';
+
+                return `
+                    <div class="visit-card" data-id="${patient.id}">
+                        <div class="visit-time">
+                            <span class="time-value">${patient.time}</span>
+                            <span class="time-period">${timePeriod}</span>
+                            <div class="visit-status-line ${patient.status}"></div>
+                        </div>
+                        <div class="visit-details">
+                            <div class="visit-patient">
+                                <div class="patient-avatar ${patient.color}">${initials}</div>
+                                <div class="patient-info">
+                                    <h3>${patient.name}</h3>
+                                    <span>${patient.age}歳</span>
+                                </div>
+                            </div>
+                            <div class="visit-address">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                </svg>
+                                ${patient.address}
+                            </div>
+                            <div class="visit-tags">
+                                <span class="visit-tag nurse">${patient.nurse}</span>
+                                <span class="visit-tag">${patient.notes.slice(0, 15)}...</span>
+                            </div>
+                        </div>
+                        <div class="visit-actions">
+                            <span class="status-badge ${patient.status}">${statusText}</span>
+                            <button class="action-btn navigate" onclick="event.stopPropagation(); focusOnMap(${patient.id})">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.querySelectorAll('.visit-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const id = parseInt(card.dataset.id);
+                    showPatientDetail(id);
+                });
+            });
+        }
+
+        // Initialize on DOM Load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
