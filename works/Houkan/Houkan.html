@@ -937,6 +937,125 @@
             color: white;
         }
 
+        /* Tab Views */
+        .tab-view {
+            position: absolute;
+            top: calc(var(--safe-top) + 110px);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 250;
+            background: #F2F2F7;
+            overflow-y: auto;
+            display: none;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-view.active { display: block; }
+
+        .tab-view-inner {
+            padding: 16px 16px calc(80px + var(--safe-bottom));
+        }
+
+        .tab-view-title { margin-bottom: 16px; }
+        .tab-view-title h2 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 2px;
+        }
+        .tab-view-title p { font-size: 13px; color: var(--text-secondary); }
+
+        /* Patient Cards */
+        .patient-card-item {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            cursor: pointer;
+        }
+
+        .patient-card-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .patient-card-avatar.blue   { background: linear-gradient(135deg, #007AFF, #5AC8FA); }
+        .patient-card-avatar.green  { background: linear-gradient(135deg, #34C759, #30D158); }
+        .patient-card-avatar.orange { background: linear-gradient(135deg, #FF9500, #FFCC00); }
+        .patient-card-avatar.pink   { background: linear-gradient(135deg, #FF2D55, #FF6482); }
+        .patient-card-avatar.purple { background: linear-gradient(135deg, #AF52DE, #BF5AF2); }
+
+        .patient-card-info { flex: 1; min-width: 0; }
+        .patient-card-name { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+        .patient-card-meta { font-size: 13px; color: var(--text-secondary); margin-bottom: 1px; }
+
+        /* Settings */
+        .settings-group {
+            background: white;
+            border-radius: var(--radius-md);
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+
+        .settings-group-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 0 4px 8px;
+        }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-top: 0.5px solid var(--separator);
+            font-size: 15px;
+        }
+
+        .settings-row-value { color: var(--text-secondary); font-size: 15px; }
+
+        .settings-staff-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-top: 0.5px solid var(--separator);
+        }
+
+        .settings-staff-item:first-of-type { border-top: none; }
+
+        .staff-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .staff-name { font-size: 15px; font-weight: 500; }
+
         /* Utility */
         .hidden { display: none !important; }
     </style>
@@ -1022,6 +1141,52 @@
             </div>
             <div class="sheet-content">
                 <div class="visit-list" id="visitList"></div>
+            </div>
+        </div>
+
+        <!-- Schedule View -->
+        <div class="tab-view" id="viewSchedule">
+            <div class="tab-view-inner">
+                <div class="tab-view-title">
+                    <h2>スケジュール</h2>
+                    <p id="scheduleDateLabel"></p>
+                </div>
+                <div class="filter-pills" style="margin-bottom:16px;">
+                    <button class="filter-pill active" data-schedule-filter="all">全て</button>
+                    <button class="filter-pill" data-schedule-filter="scheduled">予定</button>
+                    <button class="filter-pill" data-schedule-filter="completed">完了</button>
+                </div>
+                <div id="scheduleList"></div>
+            </div>
+        </div>
+
+        <!-- Patients View -->
+        <div class="tab-view" id="viewPatients">
+            <div class="tab-view-inner">
+                <div class="tab-view-title">
+                    <h2>患者一覧</h2>
+                    <p id="patientCountLabel"></p>
+                </div>
+                <div id="patientCardList"></div>
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div class="tab-view" id="viewSettings">
+            <div class="tab-view-inner">
+                <div class="tab-view-title">
+                    <h2>設定</h2>
+                </div>
+                <p class="settings-group-label">スタッフ</p>
+                <div class="settings-group">
+                    <div id="settingsStaffList"></div>
+                </div>
+                <p class="settings-group-label">アプリ情報</p>
+                <div class="settings-group">
+                    <div class="settings-row"><span>アプリ名</span><span class="settings-row-value">CareNavi</span></div>
+                    <div class="settings-row"><span>バージョン</span><span class="settings-row-value">1.0.0</span></div>
+                    <div class="settings-row"><span>データ</span><span class="settings-row-value">モック</span></div>
+                </div>
             </div>
         </div>
 
@@ -1195,6 +1360,7 @@
         let map;
         let markers = [];
         let currentFilter = 'all';
+        let currentScheduleFilter = 'all';
 
         // Initialize
         function init() {
@@ -1229,8 +1395,8 @@
         }
 
         // Render Visit List
-        function renderVisitList(filter = 'all', searchQuery = '') {
-            const container = document.getElementById('visitList');
+        function renderVisitList(filter = 'all', searchQuery = '', containerId = 'visitList') {
+            const container = document.getElementById(containerId);
             let filteredPatients = filter === 'all' ? [...patients] : patients.filter(p => p.status === filter);
 
             if (searchQuery) {
@@ -1536,10 +1702,16 @@
 
             // Tab Bar
             document.querySelectorAll('.tab-item').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    // Handle tab navigation here if needed
+                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            });
+
+            // Schedule filter pills
+            document.querySelectorAll('[data-schedule-filter]').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    document.querySelectorAll('[data-schedule-filter]').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    currentScheduleFilter = pill.dataset.scheduleFilter;
+                    renderVisitList(currentScheduleFilter, '', 'scheduleList');
                 });
             });
 
@@ -1621,6 +1793,59 @@
             updateMapMarkers();
         }
 
+
+        // Switch Tab
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            const isMap = tabName === 'map';
+            document.getElementById('bottomSheet').style.display = isMap ? '' : 'none';
+
+            document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+
+            if (tabName === 'schedule') {
+                document.getElementById('viewSchedule').classList.add('active');
+                document.getElementById('scheduleDateLabel').textContent =
+                    new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+                renderVisitList(currentScheduleFilter, '', 'scheduleList');
+            } else if (tabName === 'patients') {
+                document.getElementById('viewPatients').classList.add('active');
+                renderPatientsView();
+            } else if (tabName === 'settings') {
+                document.getElementById('viewSettings').classList.add('active');
+                renderSettingsView();
+            }
+        }
+
+        // Render Patients View
+        function renderPatientsView() {
+            const container = document.getElementById('patientCardList');
+            document.getElementById('patientCountLabel').textContent = `${patients.length}名登録中`;
+            const statusText = { scheduled: '予定', completed: '完了', pending: '保留' };
+
+            container.innerHTML = patients.map(p => `
+                <div class="patient-card-item" onclick="showPatientDetail(${p.id})">
+                    <div class="patient-card-avatar ${p.color}">${p.name.slice(0, 2)}</div>
+                    <div class="patient-card-info">
+                        <div class="patient-card-name">${p.name} <span style="font-size:13px;font-weight:400;color:var(--text-secondary);">${p.age}歳</span></div>
+                        <div class="patient-card-meta">${p.nurse} | ${p.time}</div>
+                        <div class="patient-card-meta">${p.phone}</div>
+                    </div>
+                    <span class="status-badge ${p.status}">${statusText[p.status]}</span>
+                </div>
+            `).join('');
+        }
+
+        // Render Settings View
+        function renderSettingsView() {
+            document.getElementById('settingsStaffList').innerHTML = staff.map(s => `
+                <div class="settings-staff-item">
+                    <div class="staff-avatar">${s.name.slice(0, 1)}</div>
+                    <span class="staff-name">${s.name}</span>
+                </div>
+            `).join('');
+        }
 
         // Initialize on DOM Load
         window.addEventListener('DOMContentLoaded', init);
