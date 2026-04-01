@@ -1288,108 +1288,121 @@
         </div>
     </div>
 
-    <script>
-        // Data
-        const staff = [
-            { id: 1, name: '田中花子' },
-            { id: 2, name: '佐藤太郎' },
-            { id: 3, name: '鈴木美咲' }
-        ];
+    <script type="module">
+        import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // ---- Config ----
+        const FIREBASE_CONFIG_ENDPOINT = "/api/firebase-config-antiage";
+        const APP_NAME = "carenavi";
+        const TODAY = new Date().toISOString().split('T')[0];
         const avatarColors = ['blue', 'green', 'orange', 'pink', 'purple'];
 
-        let patients = [
-            {
-                id: 1,
-                name: '山田太郎',
-                age: 75,
-                address: '東京都渋谷区道玄坂1-2-3',
-                phone: '090-1234-5678',
-                nurse: '田中花子',
-                notes: '毎日のバイタルチェック必要',
-                lat: 35.6595,
-                lng: 139.7004,
-                status: 'scheduled',
-                time: '09:00',
-                color: 'blue'
-            },
-            {
-                id: 2,
-                name: '鈴木美香',
-                age: 82,
-                address: '東京都新宿区新宿3-1-1',
-                phone: '090-2345-6789',
-                nurse: '佐藤太郎',
-                notes: 'インスリン投与が必要',
-                lat: 35.6758,
-                lng: 139.7009,
-                status: 'completed',
-                time: '11:00',
-                color: 'green'
-            },
-            {
-                id: 3,
-                name: '佐藤花子',
-                age: 68,
-                address: '東京都渋谷区宇田川町36-2',
-                phone: '090-3456-7890',
-                nurse: '鈴木美咲',
-                notes: 'リハビリテーション実施',
-                lat: 35.6652,
-                lng: 139.7029,
-                status: 'pending',
-                time: '14:00',
-                color: 'orange'
-            },
-            {
-                id: 4,
-                name: '高橋健一',
-                age: 71,
-                address: '東京都港区六本木4-5-6',
-                phone: '090-4567-8901',
-                nurse: '田中花子',
-                notes: '血圧測定・服薬確認',
-                lat: 35.6640,
-                lng: 139.7290,
-                status: 'scheduled',
-                time: '16:00',
-                color: 'purple'
-            }
+        // ---- State ----
+        let staff    = [];
+        let patients = [];
+        let map;
+        let markers  = [];
+        let currentFilter         = 'all';
+        let currentScheduleFilter = 'all';
+        let db         = null;
+        let visitsUnsub = null;
+
+        // ---- Firestore refs ----
+        const visitsCol = () => collection(db, 'artifacts', 'houkan', 'public', 'data', 'visits');
+        const staffCol  = () => collection(db, 'artifacts', 'houkan', 'public', 'data', 'staff');
+        const visitDoc  = (id) => doc(db, 'artifacts', 'houkan', 'public', 'data', 'visits', id);
+
+        // ---- Mock data (fallback & seed) ----
+        const MOCK_STAFF  = [{ name: '田中花子' }, { name: '佐藤太郎' }, { name: '鈴木美咲' }];
+        const MOCK_VISITS = [
+            { name: '山田太郎', age: 75, address: '東京都渋谷区道玄坂1-2-3', phone: '090-1234-5678', nurse: '田中花子', notes: '毎日のバイタルチェック必要', lat: 35.6595, lng: 139.7004, status: 'scheduled', time: '09:00', color: 'blue',   visitDate: TODAY },
+            { name: '鈴木美香', age: 82, address: '東京都新宿区新宿3-1-1',     phone: '090-2345-6789', nurse: '佐藤太郎', notes: 'インスリン投与が必要',       lat: 35.6758, lng: 139.7009, status: 'completed', time: '11:00', color: 'green',  visitDate: TODAY },
+            { name: '佐藤花子', age: 68, address: '東京都渋谷区宇田川町36-2',   phone: '090-3456-7890', nurse: '鈴木美咲', notes: 'リハビリテーション実施',     lat: 35.6652, lng: 139.7029, status: 'pending',   time: '14:00', color: 'orange', visitDate: TODAY },
+            { name: '高橋健一', age: 71, address: '東京都港区六本木4-5-6',       phone: '090-4567-8901', nurse: '田中花子', notes: '血圧測定・服薬確認',         lat: 35.6640, lng: 139.7290, status: 'scheduled', time: '16:00', color: 'purple', visitDate: TODAY }
         ];
 
-        let map;
-        let markers = [];
-        let currentFilter = 'all';
-        let currentScheduleFilter = 'all';
+        function applyMockData() {
+            staff    = MOCK_STAFF.map((s, i) => ({ id: String(i + 1), ...s }));
+            patients = MOCK_VISITS.map((v, i) => ({ id: String(i + 1), ...v }));
+        }
 
-        // Initialize
-        function init() {
-            setTodayDate();
-            populateNurseSelect();
-            renderVisitList();
+        // ---- Firebase init ----
+        async function initFirebase() {
+            try {
+                const res = await fetch(FIREBASE_CONFIG_ENDPOINT);
+                if (!res.ok) throw new Error('Config fetch failed');
+                const config = await res.json();
+                const existing = getApps().find(a => a.name === APP_NAME);
+                const app = existing || initializeApp(config, APP_NAME);
+                db = getFirestore(app);
+            } catch (e) {
+                console.warn('Firestore unavailable, using mock data:', e.message);
+            }
+        }
+
+        // ---- Load staff ----
+        async function loadStaff() {
+            if (!db) return;
+            try {
+                let snap = await getDocs(staffCol());
+                if (snap.empty) {
+                    for (const s of MOCK_STAFF) await addDoc(staffCol(), s);
+                    snap = await getDocs(staffCol());
+                }
+                staff = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            } catch {
+                staff = MOCK_STAFF.map((s, i) => ({ id: String(i + 1), ...s }));
+            }
+        }
+
+        // ---- Subscribe visits (real-time) ----
+        function subscribeVisits() {
+            if (!db) { applyMockData(); refreshUI(); return; }
+            try {
+                const q = query(visitsCol(), where('visitDate', '==', TODAY), orderBy('time'));
+                visitsUnsub = onSnapshot(q, async (snap) => {
+                    if (snap.empty) {
+                        for (const v of MOCK_VISITS) await addDoc(visitsCol(), v);
+                        return;
+                    }
+                    patients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    refreshUI();
+                }, () => { applyMockData(); refreshUI(); });
+            } catch { applyMockData(); refreshUI(); }
+        }
+
+        function refreshUI() {
+            renderVisitList(currentFilter);
             updateStats();
-            setupEventListeners();
+            updateMapMarkers();
+        }
+
+        // ---- Initialize ----
+        async function init() {
+            setTodayDate();
+            await initFirebase();
+            await loadStaff();
+            populateNurseSelect();
+            subscribeVisits();
             initMap();
+            setupEventListeners();
         }
 
-        // Set Today's Date
+        // ---- Set Today's Date ----
         function setTodayDate() {
-            const today = new Date().toLocaleDateString('ja-JP', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                weekday: 'short'
-            });
-            document.getElementById('todayDate').textContent = today;
+            document.getElementById('todayDate').textContent =
+                new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
         }
 
-        // Populate Nurse Select
+        // ---- Populate Nurse Select ----
         function populateNurseSelect() {
             const select = document.getElementById('assignedNurse');
-            staff.forEach(nurse => {
+            select.innerHTML = '<option value="">選択</option>';
+            staff.forEach(s => {
                 const option = document.createElement('option');
-                option.value = nurse.name;
-                option.textContent = nurse.name;
+                option.value = s.name;
+                option.textContent = s.name;
                 select.appendChild(option);
             });
         }
@@ -1451,7 +1464,7 @@
                         </div>
                         <div class="visit-actions">
                             <span class="status-badge ${patient.status}">${statusText}</span>
-                            <button class="action-btn navigate" onclick="event.stopPropagation(); focusOnMap(${patient.id})">
+                            <button class="action-btn navigate" onclick="event.stopPropagation(); window.focusOnMap('${patient.id}')">
                                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                                 </svg>
@@ -1461,12 +1474,8 @@
                 `;
             }).join('');
 
-            // Add click handlers for visit cards
             container.querySelectorAll('.visit-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const id = parseInt(card.dataset.id);
-                    showPatientDetail(id);
-                });
+                card.addEventListener('click', () => showPatientDetail(card.dataset.id));
             });
         }
 
@@ -1544,124 +1553,80 @@
             }
         }
 
-        // Show Patient Detail
+        // ---- Show Patient Detail ----
         function showPatientDetail(id) {
             const patient = patients.find(p => p.id === id);
             if (!patient) return;
 
-            const detailBody = document.getElementById('detailBody');
-            const initials = patient.name.slice(0, 2);
-            const statusText = {
-                'scheduled': '予定',
-                'completed': '完了',
-                'pending': '保留'
-            }[patient.status];
+            const statusText = { scheduled: '予定', completed: '完了', pending: '保留' }[patient.status];
+            const gradients  = { blue: '#007AFF, #5AC8FA', green: '#34C759, #30D158', orange: '#FF9500, #FFCC00', pink: '#FF2D55, #FF6482', purple: '#AF52DE, #BF5AF2' };
 
-            detailBody.innerHTML = `
+            document.getElementById('detailBody').innerHTML = `
                 <div class="detail-card">
-                    <div class="detail-avatar" style="background: linear-gradient(135deg, ${getGradientColor(patient.color)});">${initials}</div>
+                    <div class="detail-avatar" style="background:linear-gradient(135deg,${gradients[patient.color] || gradients.blue});">${patient.name.slice(0,2)}</div>
                     <h2 class="detail-name">${patient.name}</h2>
                     <p class="detail-meta">${patient.age}歳 | ${statusText}</p>
                 </div>
-
                 <div class="detail-info-list">
-                    <div class="detail-info-item">
-                        <span class="detail-info-label">訪問時間</span>
-                        <span class="detail-info-value">${patient.time}</span>
-                    </div>
-                    <div class="detail-info-item">
-                        <span class="detail-info-label">住所</span>
-                        <span class="detail-info-value">${patient.address}</span>
-                    </div>
-                    <div class="detail-info-item">
-                        <span class="detail-info-label">電話番号</span>
-                        <span class="detail-info-value">${patient.phone}</span>
-                    </div>
-                    <div class="detail-info-item">
-                        <span class="detail-info-label">担当看護師</span>
-                        <span class="detail-info-value">${patient.nurse}</span>
-                    </div>
+                    <div class="detail-info-item"><span class="detail-info-label">訪問時間</span><span class="detail-info-value">${patient.time}</span></div>
+                    <div class="detail-info-item"><span class="detail-info-label">住所</span><span class="detail-info-value">${patient.address}</span></div>
+                    <div class="detail-info-item"><span class="detail-info-label">電話番号</span><span class="detail-info-value">${patient.phone}</span></div>
+                    <div class="detail-info-item"><span class="detail-info-label">担当看護師</span><span class="detail-info-value">${patient.nurse}</span></div>
                 </div>
-
                 <div class="detail-info-list">
-                    <div class="detail-info-item">
-                        <span class="detail-info-label">備考</span>
-                        <span class="detail-info-value">${patient.notes}</span>
-                    </div>
+                    <div class="detail-info-item"><span class="detail-info-label">備考</span><span class="detail-info-value">${patient.notes}</span></div>
                 </div>
-
                 <div class="detail-actions">
-                    <button class="detail-action-btn success" onclick="updatePatientStatus(${patient.id}, 'completed')">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
+                    <button class="detail-action-btn success" onclick="window.updatePatientStatus('${patient.id}','completed')">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                         完了
                     </button>
-                    <button class="detail-action-btn warning" onclick="updatePatientStatus(${patient.id}, 'pending')">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+                    <button class="detail-action-btn warning" onclick="window.updatePatientStatus('${patient.id}','pending')">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         延期
                     </button>
                 </div>
-
-                <div class="detail-actions" style="margin-top: 12px;">
-                    <button class="detail-action-btn primary" onclick="focusOnMapAndClose(${patient.id})">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                        </svg>
+                <div class="detail-actions" style="margin-top:12px;">
+                    <button class="detail-action-btn primary" onclick="window.focusOnMapAndClose('${patient.id}')">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
                         地図で表示
                     </button>
-                    <button class="detail-action-btn secondary" onclick="deletePatient(${patient.id})">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
+                    <button class="detail-action-btn secondary" onclick="window.deletePatient('${patient.id}')">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         削除
                     </button>
                 </div>
             `;
-
             document.getElementById('patientDetail').classList.add('active');
         }
 
-        function getGradientColor(color) {
-            const gradients = {
-                'blue': '#007AFF, #5AC8FA',
-                'green': '#34C759, #30D158',
-                'orange': '#FF9500, #FFCC00',
-                'pink': '#FF2D55, #FF6482',
-                'purple': '#AF52DE, #BF5AF2'
-            };
-            return gradients[color] || gradients.blue;
-        }
-
-        // Update Patient Status
-        function updatePatientStatus(id, status) {
-            const patient = patients.find(p => p.id === id);
-            if (patient) {
-                patient.status = status;
-                renderVisitList(currentFilter);
-                updateStats();
-                updateMapMarkers();
-                document.getElementById('patientDetail').classList.remove('active');
+        // ---- Update Patient Status ----
+        async function updatePatientStatus(id, status) {
+            if (db) {
+                await updateDoc(visitDoc(id), { status });
+            } else {
+                const p = patients.find(p => p.id === id);
+                if (p) { p.status = status; refreshUI(); }
             }
+            document.getElementById('patientDetail').classList.remove('active');
         }
 
-        // Focus on Map and Close Detail
+        // ---- Focus on Map and Close ----
         function focusOnMapAndClose(id) {
             document.getElementById('patientDetail').classList.remove('active');
             setTimeout(() => focusOnMap(id), 300);
         }
 
-        // Delete Patient
-        function deletePatient(id) {
-            if (confirm('この患者を削除しますか?')) {
+        // ---- Delete Patient ----
+        async function deletePatient(id) {
+            if (!confirm('この患者を削除しますか?')) return;
+            if (db) {
+                await deleteDoc(visitDoc(id));
+            } else {
                 patients = patients.filter(p => p.id !== id);
-                renderVisitList(currentFilter);
-                updateStats();
-                updateMapMarkers();
-                document.getElementById('patientDetail').classList.remove('active');
+                refreshUI();
             }
+            document.getElementById('patientDetail').classList.remove('active');
         }
 
         // Setup Event Listeners
@@ -1757,40 +1722,37 @@
         }
 
         // Save New Patient
-        function saveNewPatient() {
-            const name = document.getElementById('patientName').value;
-            const age = document.getElementById('patientAge').value;
-            const phone = document.getElementById('patientPhone').value;
+        async function saveNewPatient() {
+            const name    = document.getElementById('patientName').value;
+            const age     = document.getElementById('patientAge').value;
+            const phone   = document.getElementById('patientPhone').value;
             const address = document.getElementById('patientAddress').value;
-            const nurse = document.getElementById('assignedNurse').value;
-            const time = document.getElementById('visitTime').value;
-            const notes = document.getElementById('patientNotes').value;
+            const nurse   = document.getElementById('assignedNurse').value;
+            const time    = document.getElementById('visitTime').value;
+            const notes   = document.getElementById('patientNotes').value;
 
-            if (!name || !age || !phone || !address || !nurse) {
-                return;
-            }
+            if (!name || !age || !phone || !address || !nurse) return;
 
-            const newPatient = {
-                id: Date.now(),
-                name,
-                age: parseInt(age),
-                address,
-                phone,
-                nurse,
+            const newVisit = {
+                name, age: parseInt(age), address, phone, nurse,
                 notes: notes || '特記事項なし',
                 lat: 35.6595 + (Math.random() - 0.5) * 0.05,
                 lng: 139.7004 + (Math.random() - 0.5) * 0.05,
-                status: 'scheduled',
-                time,
-                color: avatarColors[Math.floor(Math.random() * avatarColors.length)]
+                status: 'scheduled', time,
+                color: avatarColors[Math.floor(Math.random() * avatarColors.length)],
+                visitDate: TODAY
             };
 
-            patients.push(newPatient);
+            if (db) {
+                await addDoc(visitsCol(), newVisit);
+                // onSnapshot が自動でUIを更新
+            } else {
+                patients.push({ id: String(Date.now()), ...newVisit });
+                refreshUI();
+            }
+
             document.getElementById('patientForm').reset();
             document.getElementById('addModal').classList.remove('active');
-            renderVisitList(currentFilter);
-            updateStats();
-            updateMapMarkers();
         }
 
 
@@ -1825,7 +1787,7 @@
             const statusText = { scheduled: '予定', completed: '完了', pending: '保留' };
 
             container.innerHTML = patients.map(p => `
-                <div class="patient-card-item" onclick="showPatientDetail(${p.id})">
+                <div class="patient-card-item" onclick="window.showPatientDetail('${p.id}')">
                     <div class="patient-card-avatar ${p.color}">${p.name.slice(0, 2)}</div>
                     <div class="patient-card-info">
                         <div class="patient-card-name">${p.name} <span style="font-size:13px;font-weight:400;color:var(--text-secondary);">${p.age}歳</span></div>
@@ -1847,7 +1809,14 @@
             `).join('');
         }
 
-        // Initialize on DOM Load
+        // ---- Window exports (inline onclick用) ----
+        window.updatePatientStatus = updatePatientStatus;
+        window.deletePatient       = deletePatient;
+        window.focusOnMap          = focusOnMap;
+        window.focusOnMapAndClose  = focusOnMapAndClose;
+        window.showPatientDetail   = showPatientDetail;
+
+        // ---- Boot ----
         window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
