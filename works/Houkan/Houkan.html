@@ -951,7 +951,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
                 </svg>
             </div>
-            <p class="map-placeholder-text">Google Maps APIキーを設定してください</p>
+            <p class="map-placeholder-text">地図を読み込んでいます...</p>
         </div>
 
         <!-- Top Header -->
@@ -1229,12 +1229,21 @@
         }
 
         // Render Visit List
-        function renderVisitList(filter = 'all') {
+        function renderVisitList(filter = 'all', searchQuery = '') {
             const container = document.getElementById('visitList');
-            let filteredPatients = [...patients];
+            let filteredPatients = filter === 'all' ? [...patients] : patients.filter(p => p.status === filter);
 
-            if (filter !== 'all') {
-                filteredPatients = patients.filter(p => p.status === filter);
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                filteredPatients = filteredPatients.filter(p =>
+                    p.name.toLowerCase().includes(query) ||
+                    p.address.toLowerCase().includes(query)
+                );
+            }
+
+            if (filteredPatients.length === 0) {
+                container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-secondary);">該当する患者が見つかりません</p>';
+                return;
             }
 
             filteredPatients.sort((a, b) => a.time.localeCompare(b.time));
@@ -1501,18 +1510,16 @@
 
             // Touch handling for bottom sheet
             let startY = 0;
-            let currentY = 0;
 
             sheetHandle.addEventListener('touchstart', (e) => {
                 startY = e.touches[0].clientY;
             });
 
             sheetHandle.addEventListener('touchmove', (e) => {
-                currentY = e.touches[0].clientY;
-                const diff = startY - currentY;
-                if (diff > 50) {
+                const diff = startY - e.touches[0].clientY;
+                if (diff > 50 && !bottomSheet.classList.contains('expanded')) {
                     bottomSheet.classList.add('expanded');
-                } else if (diff < -50) {
+                } else if (diff < -50 && bottomSheet.classList.contains('expanded')) {
                     bottomSheet.classList.remove('expanded');
                 }
             });
@@ -1552,7 +1559,12 @@
             });
 
             document.getElementById('modalSave').addEventListener('click', () => {
-                saveNewPatient();
+                const form = document.getElementById('patientForm');
+                if (form.checkValidity()) {
+                    saveNewPatient();
+                } else {
+                    form.reportValidity();
+                }
             });
 
             // Back Button
@@ -1562,12 +1574,7 @@
 
             // Search
             document.getElementById('searchInput').addEventListener('input', (e) => {
-                const query = e.target.value.toLowerCase();
-                const filteredPatients = patients.filter(p =>
-                    p.name.toLowerCase().includes(query) ||
-                    p.address.toLowerCase().includes(query)
-                );
-                renderFilteredVisitList(filteredPatients);
+                renderVisitList(currentFilter, e.target.value);
             });
 
             // Refresh
@@ -1588,7 +1595,6 @@
             const notes = document.getElementById('patientNotes').value;
 
             if (!name || !age || !phone || !address || !nurse) {
-                alert('必須項目を入力してください');
                 return;
             }
 
@@ -1615,71 +1621,6 @@
             updateMapMarkers();
         }
 
-        // Render Filtered Visit List
-        function renderFilteredVisitList(filteredPatients) {
-            const container = document.getElementById('visitList');
-
-            if (filteredPatients.length === 0) {
-                container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-secondary);">該当する患者が見つかりません</p>';
-                return;
-            }
-
-            filteredPatients.sort((a, b) => a.time.localeCompare(b.time));
-
-            container.innerHTML = filteredPatients.map(patient => {
-                const initials = patient.name.slice(0, 2);
-                const statusText = {
-                    'scheduled': '予定',
-                    'completed': '完了',
-                    'pending': '保留'
-                }[patient.status];
-                const timePeriod = parseInt(patient.time.split(':')[0]) < 12 ? 'AM' : 'PM';
-
-                return `
-                    <div class="visit-card" data-id="${patient.id}">
-                        <div class="visit-time">
-                            <span class="time-value">${patient.time}</span>
-                            <span class="time-period">${timePeriod}</span>
-                            <div class="visit-status-line ${patient.status}"></div>
-                        </div>
-                        <div class="visit-details">
-                            <div class="visit-patient">
-                                <div class="patient-avatar ${patient.color}">${initials}</div>
-                                <div class="patient-info">
-                                    <h3>${patient.name}</h3>
-                                    <span>${patient.age}歳</span>
-                                </div>
-                            </div>
-                            <div class="visit-address">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                </svg>
-                                ${patient.address}
-                            </div>
-                            <div class="visit-tags">
-                                <span class="visit-tag nurse">${patient.nurse}</span>
-                                <span class="visit-tag">${patient.notes.slice(0, 15)}...</span>
-                            </div>
-                        </div>
-                        <div class="visit-actions">
-                            <span class="status-badge ${patient.status}">${statusText}</span>
-                            <button class="action-btn navigate" onclick="event.stopPropagation(); focusOnMap(${patient.id})">
-                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            container.querySelectorAll('.visit-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const id = parseInt(card.dataset.id);
-                    showPatientDetail(id);
-                });
-            });
-        }
 
         // Initialize on DOM Load
         window.addEventListener('DOMContentLoaded', init);
