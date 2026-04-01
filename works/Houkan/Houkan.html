@@ -1314,12 +1314,24 @@
         const visitDoc  = (id) => doc(db, 'artifacts', 'houkan', 'public', 'data', 'visits', id);
 
         // ---- Mock data (fallback & seed) ----
-        const MOCK_STAFF  = [{ name: '田中花子' }, { name: '佐藤太郎' }, { name: '鈴木美咲' }];
+        const MOCK_STAFF  = [{ name: '田中花子' }, { name: '佐藤太郎' }, { name: '鈴木美咲' }, { name: '伊藤りか' }, { name: '中村誠' }];
         const MOCK_VISITS = [
-            { name: '山田太郎', age: 75, address: '東京都渋谷区道玄坂1-2-3', phone: '090-1234-5678', nurse: '田中花子', notes: '毎日のバイタルチェック必要', lat: 35.6595, lng: 139.7004, status: 'scheduled', time: '09:00', color: 'blue',   visitDate: TODAY },
-            { name: '鈴木美香', age: 82, address: '東京都新宿区新宿3-1-1',     phone: '090-2345-6789', nurse: '佐藤太郎', notes: 'インスリン投与が必要',       lat: 35.6758, lng: 139.7009, status: 'completed', time: '11:00', color: 'green',  visitDate: TODAY },
-            { name: '佐藤花子', age: 68, address: '東京都渋谷区宇田川町36-2',   phone: '090-3456-7890', nurse: '鈴木美咲', notes: 'リハビリテーション実施',     lat: 35.6652, lng: 139.7029, status: 'pending',   time: '14:00', color: 'orange', visitDate: TODAY },
-            { name: '高橋健一', age: 71, address: '東京都港区六本木4-5-6',       phone: '090-4567-8901', nurse: '田中花子', notes: '血圧測定・服薬確認',         lat: 35.6640, lng: 139.7290, status: 'scheduled', time: '16:00', color: 'purple', visitDate: TODAY }
+            { name: '山田太郎',   age: 45, address: '神奈川県横浜市鶴見区生麦2-4-8',         phone: '090-1234-5678', nurse: '田中花子', notes: 'うつ病・服薬管理・睡眠状態確認',             lat: 35.5092, lng: 139.6814, status: 'scheduled',  time: '08:30', color: 'blue',   visitDate: TODAY },
+            { name: '鈴木美香',   age: 38, address: '神奈川県横浜市鶴見区潮田町2-100-5',     phone: '090-2345-6789', nurse: '佐藤太郎', notes: '双極性障害・気分変動観察・躁状態チェック',   lat: 35.5045, lng: 139.6888, status: 'completed',  time: '09:00', color: 'green',  visitDate: TODAY },
+            { name: '佐藤花子',   age: 52, address: '神奈川県川崎市川崎区小川町12-3',         phone: '090-3456-7890', nurse: '鈴木美咲', notes: '統合失調症・幻覚症状確認・生活支援',         lat: 35.5308, lng: 139.7025, status: 'pending',    time: '09:45', color: 'orange', visitDate: TODAY },
+            { name: '高橋健一',   age: 67, address: '神奈川県横浜市神奈川区六角橋3-5-2',     phone: '090-4567-8901', nurse: '田中花子', notes: '認知症・見当識確認・転倒リスク評価',         lat: 35.4917, lng: 139.6345, status: 'scheduled',  time: '10:15', color: 'purple', visitDate: TODAY },
+            { name: '伊藤幸子',   age: 29, address: '神奈川県横浜市西区浅間町4-340-1',       phone: '090-5678-9012', nurse: '伊藤りか', notes: 'パニック障害・呼吸法指導・不安スケール測定', lat: 35.4572, lng: 139.6230, status: 'completed',  time: '10:30', color: 'pink',   visitDate: TODAY },
+            { name: '中村正男',   age: 41, address: '神奈川県横浜市中区山下町78-2',           phone: '090-6789-0123', nurse: '中村誠',   notes: 'PTSD・フラッシュバック状況確認・安全確保',   lat: 35.4437, lng: 139.6489, status: 'scheduled',  time: '11:00', color: 'blue',   visitDate: TODAY },
+            { name: '渡辺きよ',   age: 34, address: '神奈川県横浜市南区南太田1-5-8',         phone: '090-7890-1234', nurse: '佐藤太郎', notes: '摂食障害・体重・食事記録確認',               lat: 35.4295, lng: 139.6315, status: 'pending',    time: '11:30', color: 'green',  visitDate: TODAY },
+            { name: '小林義雄',   age: 58, address: '神奈川県川崎市川崎区田町3-7-12',         phone: '090-8901-2345', nurse: '鈴木美咲', notes: 'アルコール依存症・断酒状況・CIWA評価',       lat: 35.5352, lng: 139.6953, status: 'completed',  time: '12:00', color: 'orange', visitDate: TODAY },
+            { name: '加藤みつ',   age: 72, address: '神奈川県横浜市鶴見区東寺尾北台8-4',     phone: '090-9012-3456', nurse: '田中花子', notes: '認知症・BPSDへの非薬物療法・家族支援',       lat: 35.5155, lng: 139.6721, status: 'scheduled',  time: '13:00', color: 'purple', visitDate: TODAY },
+            { name: '斎藤一郎',   age: 25, address: '神奈川県横浜市神奈川区子安通2-310',     phone: '090-0123-4567', nurse: '伊藤りか', notes: 'ASD・感覚過敏対応・生活リズム調整支援',       lat: 35.4976, lng: 139.6539, status: 'scheduled',  time: '13:30', color: 'pink',   visitDate: TODAY },
+            { name: '田中よしえ', age: 33, address: '神奈川県横浜市中区本牧原15-1',           phone: '090-1122-3344', nurse: '中村誠',   notes: 'ADHD・服薬自己管理支援・集中力評価',         lat: 35.4335, lng: 139.6612, status: 'pending',    time: '14:00', color: 'blue',   visitDate: TODAY },
+            { name: '木村正子',   age: 47, address: '神奈川県川崎市川崎区渡田向町2-5',       phone: '090-2233-4455', nurse: '佐藤太郎', notes: '強迫性障害・洗浄強迫・暴露療法サポート',     lat: 35.5221, lng: 139.7089, status: 'completed',  time: '14:30', color: 'green',  visitDate: TODAY },
+            { name: '松本敏夫',   age: 61, address: '神奈川県横浜市西区高島2-11-2',           phone: '090-3344-5566', nurse: '鈴木美咲', notes: '睡眠障害・概日リズム改善・睡眠日誌確認',     lat: 35.4655, lng: 139.6218, status: 'scheduled',  time: '15:00', color: 'orange', visitDate: TODAY },
+            { name: '林ふじ子',   age: 55, address: '神奈川県横浜市南区中村町3-194',         phone: '090-4455-6677', nurse: '伊藤りか', notes: '適応障害・ストレス源整理・復職支援',          lat: 35.4357, lng: 139.6408, status: 'scheduled',  time: '15:30', color: 'purple', visitDate: TODAY },
+            { name: '清水博之',   age: 39, address: '神奈川県横浜市神奈川区白幡上町13-7',   phone: '090-5566-7788', nurse: '田中花子', notes: '薬物依存症・渇望スケール・NA参加状況確認',   lat: 35.4887, lng: 139.6291, status: 'pending',    time: '16:00', color: 'pink',   visitDate: TODAY },
+            { name: '橋本静江',   age: 44, address: '神奈川県横浜市鶴見区鶴見中央4-32-1',   phone: '090-6677-8899', nurse: '中村誠',   notes: 'パーソナリティ障害・感情調整スキル訓練',      lat: 35.5063, lng: 139.6782, status: 'completed',  time: '16:30', color: 'blue',   visitDate: TODAY },
         ];
 
         function applyMockData() {
@@ -1491,7 +1503,7 @@
             const placeholder = document.getElementById('mapPlaceholder');
 
             try {
-                map = L.map('map', { zoomControl: true }).setView([35.6762, 139.7674], 13);
+                map = L.map('map', { zoomControl: true }).setView([35.5085, 139.6792], 13);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                     maxZoom: 19
@@ -1736,8 +1748,8 @@
             const newVisit = {
                 name, age: parseInt(age), address, phone, nurse,
                 notes: notes || '特記事項なし',
-                lat: 35.6595 + (Math.random() - 0.5) * 0.05,
-                lng: 139.7004 + (Math.random() - 0.5) * 0.05,
+                lat: 35.5085 + (Math.random() - 0.5) * 0.05,
+                lng: 139.6792 + (Math.random() - 0.5) * 0.05,
                 status: 'scheduled', time,
                 color: avatarColors[Math.floor(Math.random() * avatarColors.length)],
                 visitDate: TODAY
