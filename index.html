@@ -1009,6 +1009,19 @@
       color: rgba(255, 255, 255, 0.1);
     }
 
+    .work-screenshot {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+      transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .work-card:hover .work-screenshot {
+      transform: scale(1.04);
+    }
+
     .work-overlay {
       position: absolute;
       inset: 0;
@@ -1779,9 +1792,7 @@
       <div class="works-grid">
         <article class="work-card" data-category="web">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">01</span>
-            </div>
+            <img src="works/screenshots/01.jpg" alt="Project 01" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/GirlComic/GirlComic.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1794,9 +1805,7 @@
         </article>
         <article class="work-card" data-category="web">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">02</span>
-            </div>
+            <img src="works/screenshots/02.jpg" alt="Project 02" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/mind/mind.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1809,9 +1818,7 @@
         </article>
         <article class="work-card" data-category="web">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">03</span>
-            </div>
+            <img src="works/screenshots/03.jpg" alt="Project 03" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/reframing/reframing500.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1824,9 +1831,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">04</span>
-            </div>
+            <img src="works/screenshots/04.jpg" alt="Project 04" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/hobby/hobby-200-plus.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1839,9 +1844,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">05</span>
-            </div>
+            <img src="works/screenshots/05.jpg" alt="Project 05" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/talkGacha/talkGacha.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1854,9 +1857,7 @@
         </article>
         <article class="work-card" data-category="web">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">06</span>
-            </div>
+            <img src="works/screenshots/06.jpg" alt="Project 06" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Today/今日は何の日 Ver1.2.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1869,9 +1870,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">07</span>
-            </div>
+            <img src="works/screenshots/07.jpg" alt="Project 07" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/jenga/jenga.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1884,9 +1883,7 @@
         </article>
         <article class="work-card" data-category="web">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">08</span>
-            </div>
+            <img src="works/screenshots/08.jpg" alt="Project 08" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Toeic240/TOEIC240.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1899,9 +1896,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">09</span>
-            </div>
+            <img src="works/screenshots/09.jpg" alt="Project 09" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Mario/マリオVer1.8.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1914,9 +1909,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">10</span>
-            </div>
+            <img src="works/screenshots/10.jpg" alt="Project 10" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Neontower/Neontower.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1929,9 +1922,7 @@
         </article>
         <article class="work-card" data-category="web">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">11</span>
-            </div>
+            <img src="works/screenshots/11.jpg" alt="Project 11" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/weather/WeatherVer1.1.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1944,9 +1935,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">12</span>
-            </div>
+            <img src="works/screenshots/12.jpg" alt="Project 12" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Poke/Poke.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1959,9 +1948,7 @@
         </article>
         <article class="work-card" data-category="web">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">13</span>
-            </div>
+            <img src="works/screenshots/13.jpg" alt="Project 13" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Clean/clean.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1974,9 +1961,7 @@
         </article>
         <article class="work-card" data-category="web">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">14</span>
-            </div>
+            <img src="works/screenshots/14.jpg" alt="Project 14" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Selfcare/selfcare.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -1989,9 +1974,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">15</span>
-            </div>
+            <img src="works/screenshots/15.jpg" alt="Project 15" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/roofrun/roofrun.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2004,9 +1987,7 @@
         </article>
         <article class="work-card" data-category="app">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">16</span>
-            </div>
+            <img src="works/screenshots/16.jpg" alt="Project 16" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/ROBOHON/robohon-commands.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2019,9 +2000,7 @@
         </article>
         <article class="work-card" data-category="app">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">17</span>
-            </div>
+            <img src="works/screenshots/17.jpg" alt="Project 17" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/job interview/job interview.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2034,9 +2013,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">18</span>
-            </div>
+            <img src="works/screenshots/18.jpg" alt="Project 18" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/fruits/fruits.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2049,9 +2026,7 @@
         </article>
         <article class="work-card" data-category="web">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">19</span>
-            </div>
+            <img src="works/screenshots/19.jpg" alt="Project 19" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/mental partner/Mental partner.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2064,9 +2039,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">20</span>
-            </div>
+            <img src="works/screenshots/20.jpg" alt="Project 20" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Solitire/elemental_solitaire.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2079,9 +2052,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">21</span>
-            </div>
+            <img src="works/screenshots/21.jpg" alt="Project 21" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Umekidoll/Umekidoll.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2094,9 +2065,7 @@
         </article>
         <article class="work-card" data-category="game">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">22</span>
-            </div>
+            <img src="works/screenshots/22.jpg" alt="Project 22" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Mine/Mine.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2109,9 +2078,7 @@
         </article>
         <article class="work-card" data-category="app">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">23</span>
-            </div>
+            <img src="works/screenshots/23.jpg" alt="Project 23" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Antiage/Antiage.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2124,9 +2091,7 @@
         </article>
         <article class="work-card" data-category="app">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">24</span>
-            </div>
+            <img src="works/screenshots/24.jpg" alt="Project 24" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Kondate/Kondate.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2139,9 +2104,7 @@
         </article>
         <article class="work-card" data-category="app">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">25</span>
-            </div>
+            <img src="works/screenshots/25.jpg" alt="Project 25" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Seikaku/Seikaku.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>
@@ -2154,9 +2117,7 @@
         </article>
         <article class="work-card" data-category="app">
           <div class="work-image">
-            <div class="work-placeholder">
-              <span class="placeholder-icon">26</span>
-            </div>
+            <img src="works/screenshots/26.jpg" alt="Project 26" class="work-screenshot" loading="lazy">
             <div class="work-overlay">
               <a href="works/Houkan/Houkan.html" class="work-link" target="_blank" rel="noopener">View Project</a>
             </div>

@@ -3,6 +3,24 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "firebase-admin": "^12.5.0"
-  }
+    "firebase-admin": "^12.5.0",
+    "playwright-core": "^1.59.1"
+  },
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/takutan0624/portfolio.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/takutan0624/portfolio/issues"
+  },
+  "homepage": "https://github.com/takutan0624/portfolio#readme"
 }
