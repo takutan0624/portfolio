@@ -6,6 +6,19 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>CareNavi - 訪問看護</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007AFF">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+      }
+      // テーマ初期化（チラつき防止のためインラインで）
+      (function() {
+        const saved = localStorage.getItem('carenavi-theme');
+        const sys   = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = saved || sys;
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1317,6 +1330,346 @@
             font-weight: 500;
         }
 
+        /* ---- Dark Mode ---- */
+        [data-theme="dark"] {
+            --glass-bg: rgba(28, 28, 30, 0.88);
+            --glass-bg-dark: rgba(10, 10, 10, 0.9);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --text-primary: #FFFFFF;
+            --text-secondary: #AEAEB2;
+            --text-tertiary: #636366;
+            --separator: rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="dark"] body { background: #000; }
+        [data-theme="dark"] .visit-card { background: #1C1C1E; }
+        [data-theme="dark"] .visit-card:active { background: #2C2C2E; }
+        [data-theme="dark"] .detail-card,
+        [data-theme="dark"] .detail-info-list,
+        [data-theme="dark"] .settings-group,
+        [data-theme="dark"] .stats-card,
+        [data-theme="dark"] .patient-card-item,
+        [data-theme="dark"] .calendar-wrapper { background: #1C1C1E; }
+        [data-theme="dark"] .tab-view,
+        [data-theme="dark"] .patient-detail,
+        [data-theme="dark"] .modal-content { background: #000; }
+        [data-theme="dark"] .form-section { background: #1C1C1E; }
+        [data-theme="dark"] .app::before { background: #000; border-right-color: rgba(255,255,255,0.1); }
+
+        /* ---- Progress Ring ---- */
+        .progress-ring-wrap {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .progress-ring-text {
+            position: absolute;
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+        }
+
+        /* ---- Route Button ---- */
+        .route-btn {
+            position: absolute;
+            top: calc(var(--safe-top) + 120px);
+            right: 16px;
+            z-index: 60;
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            border: 0.5px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            box-shadow: var(--glass-shadow);
+            transition: all 0.2s;
+        }
+
+        .route-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: transparent;
+        }
+
+        .route-btn:active { transform: scale(0.96); }
+
+        @media (min-width: 900px) {
+            .route-btn { right: calc(100% - var(--sidebar-w) - 140px + 16px); }
+        }
+
+        /* ---- Swipe feedback ---- */
+        .visit-card {
+            will-change: transform;
+        }
+
+        .swipe-hint {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .swipe-hint.right { left: 12px; background: var(--green); }
+        .swipe-hint.left  { right: 12px; background: var(--orange); }
+
+        /* ---- Emergency Flag ---- */
+        .emergency-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: rgba(255, 59, 48, 0.12);
+            color: var(--red);
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            border: 1px solid rgba(255, 59, 48, 0.25);
+        }
+
+        .visit-card.emergency {
+            border-left: 3px solid var(--red);
+        }
+
+        .emergency-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: white;
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+            cursor: pointer;
+        }
+
+        [data-theme="dark"] .emergency-toggle { background: #1C1C1E; }
+
+        .emergency-toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--red);
+        }
+
+        /* ---- Voice Input ---- */
+        .notes-wrap {
+            position: relative;
+            flex: 1;
+        }
+
+        .voice-btn {
+            position: absolute;
+            bottom: 8px;
+            right: 4px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(0, 122, 255, 0.1);
+            border: none;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .voice-btn.recording {
+            background: var(--red);
+            color: white;
+            animation: pulse 0.8s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        /* ---- Vitals Section ---- */
+        .vitals-section {
+            background: white;
+            border-radius: var(--radius-md);
+            margin-top: 16px;
+            overflow: hidden;
+        }
+
+        [data-theme="dark"] .vitals-section { background: #1C1C1E; }
+
+        .vitals-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .vitals-header svg { transition: transform 0.2s; }
+        .vitals-header.open svg { transform: rotate(180deg); }
+
+        .vitals-body {
+            padding: 0 16px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .vitals-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .vitals-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            min-width: 60px;
+        }
+
+        .vitals-input {
+            background: rgba(120,120,128,0.1);
+            border: none;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 15px;
+            font-family: inherit;
+            color: var(--text-primary);
+            outline: none;
+            text-align: right;
+            width: 100px;
+        }
+
+        [data-theme="dark"] .vitals-input { background: rgba(255,255,255,0.08); }
+
+        .mood-btns {
+            display: flex;
+            gap: 6px;
+        }
+
+        .mood-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            background: rgba(120,120,128,0.1);
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .mood-btn.selected {
+            border-color: var(--accent);
+            background: rgba(0, 122, 255, 0.1);
+            transform: scale(1.15);
+        }
+
+        .meds-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .meds-btn {
+            padding: 6px 16px;
+            border-radius: 16px;
+            border: 1.5px solid var(--separator);
+            background: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+
+        .meds-btn.selected.yes {
+            background: rgba(52, 199, 89, 0.12);
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .meds-btn.selected.no {
+            background: rgba(255, 59, 48, 0.12);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .vitals-save-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        /* ---- Print ---- */
+        .print-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        @media print {
+            .tab-bar, .top-header, .bottom-sheet, #map, #mapPlaceholder,
+            .floating-stats, .patient-detail, .modal-overlay,
+            .print-btn, .back-btn, .detail-actions { display: none !important; }
+
+            body { background: white !important; }
+
+            .tab-view#viewStats {
+                display: block !important;
+                position: static !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+
+            .stats-card { box-shadow: none; border: 1px solid #eee; }
+            .chart-container, .chart-container-sm { height: 250px; }
+        }
+
         /* Utility */
         .hidden { display: none !important; }
     </style>
@@ -1349,6 +1702,23 @@
                     </div>
                 </div>
                 <div class="header-actions">
+                    <!-- 進捗リング -->
+                    <div class="progress-ring-wrap" title="本日の完了率">
+                        <svg width="40" height="40" viewBox="0 0 40 40" style="transform:rotate(-90deg)">
+                            <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(120,120,128,0.15)" stroke-width="3"/>
+                            <circle id="progressRingFill" cx="20" cy="20" r="16" fill="none"
+                                    stroke="#34C759" stroke-width="3" stroke-linecap="round"
+                                    stroke-dasharray="100.53 100.53" stroke-dashoffset="100.53"
+                                    style="transition:stroke-dashoffset 0.6s ease,stroke 0.4s"/>
+                        </svg>
+                        <span id="progressRingText" class="progress-ring-text">0%</span>
+                    </div>
+                    <!-- ダークモード -->
+                    <button class="icon-btn" id="darkModeBtn" title="ダークモード切替">
+                        <svg id="darkModeIcon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                        </svg>
+                    </button>
                     <button class="icon-btn" id="refreshBtn">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
@@ -1370,6 +1740,14 @@
                 </div>
             </div>
         </header>
+
+        <!-- Route Optimization Button -->
+        <button class="route-btn" id="routeBtn" onclick="window.toggleRoute()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+            </svg>
+            最短ルート
+        </button>
 
         <!-- Floating Stats -->
         <div class="floating-stats">
@@ -1467,6 +1845,12 @@
                     <h2>統計</h2>
                     <p id="statsDateLabel"></p>
                 </div>
+                <button class="print-btn" onclick="window.printReport()">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                    月次レポートを印刷
+                </button>
                 <div class="stats-card">
                     <div class="stats-card-title">本日のステータス</div>
                     <div class="chart-container-sm"><canvas id="chartStatus"></canvas></div>
@@ -1577,7 +1961,14 @@
                         <div class="form-section">
                             <div class="form-row full">
                                 <label>備考</label>
-                                <textarea id="patientNotes" placeholder="特記事項を入力..."></textarea>
+                                <div class="notes-wrap">
+                                    <textarea id="patientNotes" placeholder="特記事項を入力..." style="padding-right:36px;"></textarea>
+                                    <button type="button" class="voice-btn" id="voiceBtn" title="音声入力">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z"/>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -1766,6 +2157,7 @@
             renderVisitList(currentFilter);
             updateStats();
             updateMapMarkers();
+            updateProgressRing();
         }
 
         // ---- Initialize ----
@@ -1777,6 +2169,8 @@
             subscribeVisits();
             initMap();
             setupEventListeners();
+            initDarkMode();
+            initVoiceInput();
             seedAprilIfNeeded(); // バックグラウンドで4月データをシード
         }
 
@@ -1829,7 +2223,7 @@
                 const timePeriod = parseInt(patient.time.split(':')[0]) < 12 ? 'AM' : 'PM';
 
                 return `
-                    <div class="visit-card" data-id="${patient.id}">
+                    <div class="visit-card ${patient.emergency ? 'emergency' : ''}" data-id="${patient.id}">
                         <div class="visit-time">
                             <span class="time-value">${patient.time}</span>
                             <span class="time-period">${timePeriod}</span>
@@ -1839,7 +2233,7 @@
                             <div class="visit-patient">
                                 <div class="patient-avatar ${patient.color}">${initials}</div>
                                 <div class="patient-info">
-                                    <h3>${patient.name}</h3>
+                                    <h3>${patient.name} ${patient.emergency ? '<span class="emergency-badge">🚨 緊急</span>' : ''}</h3>
                                     <span>${patient.age}歳</span>
                                 </div>
                             </div>
@@ -1868,6 +2262,7 @@
 
             container.querySelectorAll('.visit-card').forEach(card => {
                 card.addEventListener('click', () => showPatientDetail(card.dataset.id));
+                addSwipeHandlers(card, card.dataset.id);
             });
         }
 
@@ -1987,6 +2382,76 @@
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         削除
                     </button>
+                </div>
+
+                <!-- 緊急フラグ -->
+                <div class="emergency-toggle" onclick="window.toggleEmergency('${patient.id}')">
+                    <span class="emergency-toggle-label">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        緊急対応が必要
+                    </span>
+                    <span style="font-size:22px;">${patient.emergency ? '🔴' : '⚪'}</span>
+                </div>
+
+                <!-- ワンタップ連絡 -->
+                <div style="display:flex;gap:10px;margin-bottom:8px;">
+                    <a href="tel:${patient.phone}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;background:rgba(52,199,89,0.12);color:#34C759;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                        電話
+                    </a>
+                    <a href="mailto:?subject=${encodeURIComponent(patient.name + ' 様について')}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;background:rgba(0,122,255,0.1);color:#007AFF;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        メール
+                    </a>
+                </div>
+
+                <!-- バイタル・服薬記録 -->
+                <div class="vitals-section">
+                    <div class="vitals-header" id="vitalsHeader_${patient.id}" onclick="window.toggleVitals('${patient.id}')">
+                        <span>📋 バイタル・服薬記録</span>
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                    <div class="vitals-body hidden" id="vitalsBody_${patient.id}">
+                        <div class="vitals-row">
+                            <span class="vitals-label">体温</span>
+                            <span style="display:flex;align-items:center;gap:4px;">
+                                <input class="vitals-input" id="vitalTemp_${patient.id}" type="number" step="0.1" min="35" max="42" placeholder="36.5" value="${patient.vitals?.temp || ''}">
+                                <span style="font-size:13px;color:var(--text-secondary);">°C</span>
+                            </span>
+                        </div>
+                        <div class="vitals-row">
+                            <span class="vitals-label">血圧</span>
+                            <span style="display:flex;align-items:center;gap:4px;">
+                                <input class="vitals-input" id="vitalBpS_${patient.id}" type="number" min="60" max="220" placeholder="120" style="width:70px;" value="${patient.vitals?.bp?.split('/')[0] || ''}">
+                                <span style="color:var(--text-secondary);">/</span>
+                                <input class="vitals-input" id="vitalBpD_${patient.id}" type="number" min="40" max="130" placeholder="80" style="width:70px;" value="${patient.vitals?.bp?.split('/')[1] || ''}">
+                                <span style="font-size:13px;color:var(--text-secondary);">mmHg</span>
+                            </span>
+                        </div>
+                        <div class="vitals-row">
+                            <span class="vitals-label">気分</span>
+                            <div class="mood-btns">
+                                ${['😞','😕','😐','🙂','😊'].map((e, i) => `
+                                    <button class="mood-btn ${patient.vitals?.mood === i+1 ? 'selected' : ''}"
+                                            onclick="window.setMood('${patient.id}', ${i+1})">${e}</button>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="vitals-row">
+                            <span class="vitals-label">服薬</span>
+                            <div class="meds-btns">
+                                <button class="meds-btn yes ${patient.vitals?.meds === true ? 'selected' : ''}"
+                                        id="medsBtn_true_${patient.id}" onclick="window.setMeds('${patient.id}', true)">○ 服薬</button>
+                                <button class="meds-btn no ${patient.vitals?.meds === false ? 'selected' : ''}"
+                                        id="medsBtn_false_${patient.id}" onclick="window.setMeds('${patient.id}', false)">✕ 未服薬</button>
+                            </div>
+                        </div>
+                        <button class="vitals-save-btn" onclick="window.saveVitals('${patient.id}')">保存する</button>
+                    </div>
                 </div>
             `;
             document.getElementById('patientDetail').classList.add('active');
@@ -2409,7 +2874,251 @@
             });
         }
 
+        // ================================================================
+        // ---- Dark Mode ----
+        // ================================================================
+        function initDarkMode() {
+            const btn  = document.getElementById('darkModeBtn');
+            const icon = document.getElementById('darkModeIcon');
+            const sunPath  = 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z';
+            const moonPath = 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z';
+
+            function applyIcon() {
+                const dark = document.documentElement.dataset.theme === 'dark';
+                icon.querySelector('path').setAttribute('d', dark ? sunPath : moonPath);
+            }
+            applyIcon();
+
+            btn.addEventListener('click', () => {
+                const isDark = document.documentElement.dataset.theme === 'dark';
+                document.documentElement.dataset.theme = isDark ? 'light' : 'dark';
+                localStorage.setItem('carenavi-theme', isDark ? 'light' : 'dark');
+                applyIcon();
+            });
+        }
+
+        // ================================================================
+        // ---- Progress Ring ----
+        // ================================================================
+        function updateProgressRing() {
+            const total     = patients.length;
+            const completed = patients.filter(p => p.status === 'completed').length;
+            const pct = total > 0 ? completed / total : 0;
+            const C   = 2 * Math.PI * 16; // circumference ≈ 100.53
+            const ring = document.getElementById('progressRingFill');
+            const text = document.getElementById('progressRingText');
+            if (!ring) return;
+            ring.style.strokeDashoffset = C * (1 - pct);
+            ring.style.stroke = pct >= 1 ? '#34C759' : pct >= 0.5 ? '#007AFF' : '#FF9500';
+            if (text) text.textContent = `${Math.round(pct * 100)}%`;
+        }
+
+        // ================================================================
+        // ---- Route Optimization (Nearest Neighbor) ----
+        // ================================================================
+        let routePolyline = null;
+        let routeActive   = false;
+
+        function nearestNeighborTour(pts) {
+            if (!pts.length) return [];
+            const rem  = [...pts];
+            const tour = [rem.splice(0, 1)[0]];
+            while (rem.length) {
+                const last = tour[tour.length - 1];
+                let ni = 0, nd = Infinity;
+                rem.forEach((p, i) => {
+                    const d = (p.lat - last.lat) ** 2 + (p.lng - last.lng) ** 2;
+                    if (d < nd) { nd = d; ni = i; }
+                });
+                tour.push(rem.splice(ni, 1)[0]);
+            }
+            return tour;
+        }
+
+        window.toggleRoute = function() {
+            if (!map) return;
+            routeActive = !routeActive;
+            const btn = document.getElementById('routeBtn');
+
+            if (routePolyline) { routePolyline.remove(); routePolyline = null; }
+
+            if (routeActive) {
+                const active = patients.filter(p => p.status !== 'completed');
+                const tour   = nearestNeighborTour(active);
+                if (tour.length > 1) {
+                    routePolyline = L.polyline(tour.map(p => [p.lat, p.lng]), {
+                        color: '#007AFF', weight: 3, opacity: 0.75, dashArray: '8 5'
+                    }).addTo(map);
+
+                    // 訪問順番号マーカー
+                    tour.forEach((p, i) => {
+                        L.divIcon; // already rendered by updateMapMarkers
+                        L.marker([p.lat, p.lng], {
+                            icon: L.divIcon({
+                                className: '',
+                                html: `<div style="background:#007AFF;color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3);">${i + 1}</div>`,
+                                iconSize: [18, 18], iconAnchor: [9, 9]
+                            })
+                        }).addTo(map);
+                    });
+
+                    map.fitBounds(routePolyline.getBounds().pad(0.1));
+                }
+                if (btn) btn.classList.add('active');
+            } else {
+                if (btn) btn.classList.remove('active');
+                // 番号マーカー削除は updateMapMarkers に委ねる
+                updateMapMarkers();
+            }
+        };
+
+        // ================================================================
+        // ---- Swipe Actions ----
+        // ================================================================
+        function addSwipeHandlers(card, patientId) {
+            let startX = 0, startY = 0, swiped = false;
+            const THRESHOLD = 70;
+
+            card.addEventListener('touchstart', e => {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                swiped = false;
+                card.style.transition = '';
+            }, { passive: true });
+
+            card.addEventListener('touchmove', e => {
+                const dx = e.touches[0].clientX - startX;
+                const dy = e.touches[0].clientY - startY;
+                if (Math.abs(dx) < Math.abs(dy)) return;
+                swiped = true;
+                const clamped = Math.max(-100, Math.min(100, dx));
+                card.style.transform = `translateX(${clamped}px)`;
+                const alpha = Math.min(Math.abs(dx) / 100, 0.25);
+                card.style.background = dx > 0
+                    ? `rgba(52,199,89,${alpha})` : `rgba(255,149,0,${alpha})`;
+            }, { passive: true });
+
+            card.addEventListener('touchend', e => {
+                const dx = e.changedTouches[0].clientX - startX;
+                card.style.transition = 'transform 0.3s, background 0.3s';
+                card.style.transform  = 'translateX(0)';
+                card.style.background = '';
+                setTimeout(() => { card.style.transition = ''; }, 300);
+                if (swiped) {
+                    if (dx >  THRESHOLD) window.updatePatientStatus(patientId, 'completed');
+                    if (dx < -THRESHOLD) window.updatePatientStatus(patientId, 'pending');
+                }
+            });
+        }
+
+        // ================================================================
+        // ---- Emergency Flag ----
+        // ================================================================
+        window.toggleEmergency = async function(id) {
+            const p = patients.find(p => p.id === id);
+            if (!p) return;
+            p.emergency = !p.emergency;
+            if (db) {
+                try { await updateDoc(visitDoc(id), { emergency: p.emergency }); } catch {}
+            }
+            refreshUI();
+            window.showPatientDetail(id); // 詳細画面を更新
+        };
+
+        // ================================================================
+        // ---- Voice Input ----
+        // ================================================================
+        function initVoiceInput() {
+            const btn = document.getElementById('voiceBtn');
+            if (!btn) return;
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SR) { btn.style.display = 'none'; return; }
+
+            let rec = null;
+            btn.addEventListener('click', () => {
+                if (rec) { rec.stop(); return; }
+                rec = new SR();
+                rec.lang = 'ja-JP';
+                rec.continuous = false;
+                rec.interimResults = false;
+                btn.classList.add('recording');
+                rec.onresult = e => {
+                    const t = e.results[0][0].transcript;
+                    const ta = document.getElementById('patientNotes');
+                    ta.value += (ta.value ? '・' : '') + t;
+                };
+                rec.onend = rec.onerror = () => {
+                    btn.classList.remove('recording');
+                    rec = null;
+                };
+                rec.start();
+            });
+        }
+
+        // ================================================================
+        // ---- Vitals ----
+        // ================================================================
+        let vitalsState = {}; // { [visitId]: { temp, bp, mood, meds } }
+
+        window.toggleVitals = function(id) {
+            const header = document.getElementById(`vitalsHeader_${id}`);
+            const body   = document.getElementById(`vitalsBody_${id}`);
+            if (!header || !body) return;
+            const isOpen = !body.classList.contains('hidden');
+            body.classList.toggle('hidden');
+            header.classList.toggle('open', !isOpen);
+        };
+
+        window.setMood = function(id, val) {
+            if (!vitalsState[id]) vitalsState[id] = {};
+            vitalsState[id].mood = val;
+            document.querySelectorAll(`#vitalsBody_${id} .mood-btn`).forEach((b, i) => {
+                b.classList.toggle('selected', i + 1 === val);
+            });
+        };
+
+        window.setMeds = function(id, val) {
+            if (!vitalsState[id]) vitalsState[id] = {};
+            vitalsState[id].meds = val;
+            document.querySelectorAll(`#vitalsBody_${id} .meds-btn`).forEach(b => {
+                b.classList.remove('selected');
+            });
+            document.getElementById(`medsBtn_${val}_${id}`)?.classList.add('selected');
+        };
+
+        window.saveVitals = async function(id) {
+            const temp  = document.getElementById(`vitalTemp_${id}`)?.value;
+            const bpS   = document.getElementById(`vitalBpS_${id}`)?.value;
+            const bpD   = document.getElementById(`vitalBpD_${id}`)?.value;
+            const state = vitalsState[id] || {};
+            const vitals = {
+                temp:  temp  ? parseFloat(temp)  : null,
+                bp:    (bpS && bpD) ? `${bpS}/${bpD}` : null,
+                mood:  state.mood || null,
+                meds:  state.meds ?? null,
+                savedAt: new Date().toISOString()
+            };
+            if (db) {
+                try { await updateDoc(visitDoc(id), { vitals }); } catch {}
+            } else {
+                const p = patients.find(p => p.id === id);
+                if (p) p.vitals = vitals;
+            }
+            alert('バイタルを保存しました');
+        };
+
+        // ================================================================
+        // ---- Print Report ----
+        // ================================================================
+        window.printReport = function() {
+            // 統計タブを確実にアクティブにして印刷
+            switchTab('stats');
+            setTimeout(() => window.print(), 400);
+        };
+
+        // ================================================================
         // ---- Window exports (inline onclick用) ----
+        // ================================================================
         window.updatePatientStatus = updatePatientStatus;
         window.deletePatient       = deletePatient;
         window.focusOnMap          = focusOnMap;

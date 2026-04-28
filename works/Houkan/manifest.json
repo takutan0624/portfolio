@@ -1,0 +1,22 @@
+{
+  "name": "CareNavi - 訪問看護管理",
+  "short_name": "CareNavi",
+  "description": "精神科訪問看護ステーション向け管理アプリ",
+  "start_url": "/works/Houkan/Houkan.html",
+  "display": "standalone",
+  "background_color": "#F2F2F7",
+  "theme_color": "#007AFF",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='42' fill='%23007AFF'/><path d='M96 48v96M48 96h96' stroke='white' stroke-width='16' stroke-linecap='round'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%23007AFF'/><path d='M256 128v256M128 256h256' stroke='white' stroke-width='42' stroke-linecap='round'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
