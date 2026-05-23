@@ -352,9 +352,18 @@ function passRateForDeadline() {
 
 function setup(cv) {
   const dpr = window.devicePixelRatio || 1;
-  const w = cv.clientWidth, h = cv.height;
-  cv.width = w*dpr; cv.height = h*dpr;
-  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr); ctx.clearRect(0,0,w,h);
+  const rect = cv.getBoundingClientRect();
+  if(!cv.dataset.logicalHeight) cv.dataset.logicalHeight = cv.getAttribute('height') || Math.round(rect.height) || 260;
+  const w = Math.max(1, Math.round(rect.width));
+  const h = Math.max(1, Number(cv.dataset.logicalHeight));
+  const bw = Math.round(w * dpr);
+  const bh = Math.round(h * dpr);
+  cv.style.height = `${h}px`;
+  if(cv.width !== bw) cv.width = bw;
+  if(cv.height !== bh) cv.height = bh;
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0,0,w,h);
   return {ctx, w, h};
 }
 const colors = { bg:'#f8fafc', border:'#e2e8f0', textMain:'#0f172a', textSub:'#64748b',
