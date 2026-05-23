@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>就活オプティマイザー — 内定の航路図</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700;800&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f1f5f9;
+    --surface: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --text-light: #94a3b8;
+    --primary: #3b82f6;
+    --primary-soft: #eff6ff;
+    --coral: #fb7185;
+    --coral-soft: #fff1f2;
+    --emerald: #10b981;
+    --emerald-soft: #ecfdf5;
+    --amber: #f59e0b;
+    --amber-soft: #fffbeb;
+    --border: #cbd5e1;
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --radius-sm: 8px;
+    --font-sans: 'Inter', 'Noto Sans JP', sans-serif;
+    --font-display: 'Outfit', 'Noto Sans JP', sans-serif;
+    --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 20px 48px -12px rgba(15, 23, 42, 0.18), 0 8px 16px -4px rgba(15, 23, 42, 0.06);
+    --shadow-hover: 0 32px 64px -12px rgba(59, 130, 246, 0.25), 0 16px 32px -8px rgba(15, 23, 42, 0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 85% 10%, rgba(251, 113, 133, 0.08) 0%, transparent 50%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='30'%3E%3Cg fill='none' stroke='%2364748b' stroke-width='1.5' stroke-opacity='0.12'%3E%3Cpath d='M 0 15 A 15 15 0 0 0 30 15 A 15 15 0 0 0 60 15' /%3E%3Cpath d='M 5 15 A 10 10 0 0 0 25 15 A 10 10 0 0 0 55 15' /%3E%3Cpath d='M 10 15 A 5 5 0 0 0 20 15 A 5 5 0 0 0 50 15' /%3E%3Cpath d='M -15 30 A 15 15 0 0 0 15 30 A 15 15 0 0 0 45 30 A 15 15 0 0 0 75 30' /%3E%3Cpath d='M -10 30 A 10 10 0 0 0 10 30 A 10 10 0 0 0 40 30 A 10 10 0 0 0 70 30' /%3E%3Cpath d='M -5 30 A 5 5 0 0 0 5 30 A 5 5 0 0 0 35 30 A 5 5 0 0 0 65 30' /%3E%3C/g%3E%3C/svg%3E");
+    background-attachment: fixed;
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: 0 0 100px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .anim-1 { animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  .anim-2 { animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards; opacity: 0; }
+  .anim-3 { animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards; opacity: 0; }
+  header { padding: 70px 0 40px; text-align: center; }
+  .kicker { display: inline-block; font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.1em; color: var(--primary); background: var(--primary-soft); padding: 6px 16px; border-radius: 100px; margin-bottom: 24px; }
+  h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(32px, 5vw, 56px); line-height: 1.2; letter-spacing: -0.02em; color: var(--text-main); margin-bottom: 20px; }
+  h1 span.hl { color: var(--coral); }
+  .lede { color: var(--text-muted); font-size: 16px; max-width: 660px; margin: 0 auto; line-height: 1.8; }
+  .layout { display: grid; grid-template-columns: 360px 1fr; gap: 40px; align-items: start; }
+  @media(max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; box-shadow: var(--shadow-md); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease; }
+  .panel:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+  .controls { position: sticky; top: 24px; padding: 36px 32px; }
+  .sec-t { font-size: 13px; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 28px; display: flex; align-items: center; gap: 16px; }
+  .sec-t::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .field { margin-bottom: 28px; }
+  .field label { display: flex; justify-content: space-between; align-items: flex-end; font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 12px; }
+  .field label .v { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--primary); line-height: 1; }
+  .field label .v.coral { color: var(--coral); }
+  .field label .v.amber { color: var(--amber); }
+  .field .hint { font-size: 11.5px; color: var(--text-light); font-weight: 500; margin-top: 8px; line-height: 1.5; }
+  input[type=range] { -webkit-appearance: none; width: 100%; height: 8px; background: var(--border); border-radius: 4px; outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input.coral[type=range]::-webkit-slider-thumb { background: var(--coral); box-shadow: 0 4px 10px rgba(251, 113, 133, 0.3); }
+  input.amber[type=range]::-webkit-slider-thumb { background: var(--amber); box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); }
+  .seg-btns { display: flex; background: var(--bg); padding: 6px; border-radius: 12px; }
+  .seg-btns button { flex: 1; background: transparent; border: none; color: var(--text-muted); font-size: 15px; font-weight: 600; padding: 10px 0; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+  .seg-btns button:hover { color: var(--text-main); }
+  .seg-btns button.on { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }
+  .date-in { width: 100%; background: var(--surface); border: 2px solid var(--border); color: var(--text-main); font-family: var(--font-sans); font-weight: 500; font-size: 15px; padding: 12px 16px; border-radius: 12px; outline: none; transition: all 0.2s; }
+  .date-in:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft); }
+  details { margin-top: 12px; background: var(--bg); border-radius: 16px; padding: 20px; }
+  summary { font-size: 14px; font-weight: 700; color: var(--text-main); cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '＋'; color: var(--primary); font-weight: 800; transition: transform 0.3s; }
+  details[open] summary::after { transform: rotate(45deg); }
+  .seg-row { margin-top: 24px; }
+  .seg-row .nm { font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .seg-row .nm b { color: var(--primary); font-family: var(--font-display); font-size: 15px; }
+  .obs { display: flex; gap: 12px; margin-top: 12px; }
+  .obs input { flex: 1; width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text-main); font-size: 14px; padding: 12px; border-radius: 10px; outline: none; transition: all 0.2s; }
+  .obs input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+  .obs-note { font-size: 12px; color: var(--text-muted); margin-top: 12px; line-height: 1.6; }
+
+  /* === SUMMARY BANNER (中立) === */
+  .verdict { border-radius: var(--radius-lg); padding: 28px 32px; margin-bottom: 32px; box-shadow: var(--shadow-md); border: 1px solid var(--border); background: var(--surface); position: relative; overflow: hidden; transition: all 0.4s ease; }
+  .verdict::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--primary); }
+  .verdict .vbadge { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: 0.05em; padding: 5px 14px; border-radius: 100px; margin-bottom: 14px; background: var(--primary-soft); color: var(--primary); }
+  .verdict .vmain { font-size: 17px; font-weight: 700; color: var(--text-main); line-height: 1.5; margin-bottom: 10px; }
+  .verdict .vmain b { font-family: var(--font-display); color: var(--primary); }
+  .verdict .vfix { font-size: 14px; color: var(--text-muted); line-height: 1.7; }
+  .verdict .vfix strong { color: var(--text-main); font-weight: 700; }
+
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 36px; }
+  @media(max-width: 760px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+  @media(max-width: 420px) { .cards { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 22px 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; position: relative; overflow: hidden; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease; }
+  .card:hover { transform: translateY(-6px); box-shadow: var(--shadow-md); }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; }
+  .card:nth-child(1)::before { background: var(--primary); }
+  .card:nth-child(2)::before { background: var(--emerald); }
+  .card:nth-child(3)::before { background: var(--amber); }
+  .card:nth-child(4)::before { background: var(--coral); }
+  .card .lab { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; }
+  .card .big { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 1; color: var(--text-main); }
+  .card .big .u { font-size: 14px; color: var(--text-light); font-weight: 600; margin-left: 3px; }
+  .card .cap { font-size: 12px; color: var(--text-muted); margin-top: auto; padding-top: 12px; line-height: 1.5; }
+  .chart-card { margin-bottom: 32px; padding: 40px; }
+  @media(max-width: 640px) { .chart-card { padding: 24px; } }
+  .chart-head { margin-bottom: 24px; }
+  .chart-title { font-size: 18px; font-weight: 800; color: var(--text-main); margin-bottom: 8px; }
+  .chart-sub { font-size: 14px; color: var(--text-muted); max-width: 600px; line-height: 1.6; }
+  .legend { display: flex; gap: 20px; font-size: 13px; font-weight: 600; margin-top: 16px; flex-wrap: wrap; }
+  .legend span { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+  .legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .legend i.line { width: 16px; height: 3px; border-radius: 2px; }
+  canvas { width: 100%; display: block; margin-top: 24px; }
+  .tl-wrap { padding: 40px; }
+  @media(max-width: 640px) { .tl-wrap { padding: 24px; } }
+  .tl { position: relative; margin-top: 24px; }
+  .tl::before { content: ''; position: absolute; left: 15px; top: 12px; bottom: 12px; width: 2px; background: var(--border); z-index: 0; }
+  .tl-wave { display: flex; gap: 28px; padding: 24px 0; border-bottom: 1px dashed var(--border); position: relative; z-index: 1; }
+  .tl-wave:last-child { border-bottom: none; }
+  .tl-dot { width: 32px; height: 32px; border-radius: 50%; background: var(--surface); border: 4px solid var(--primary); flex-shrink: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--surface); }
+  .tl-dot::after { content: ''; width: 8px; height: 8px; background: var(--primary); border-radius: 50%; }
+  .tl-wave:nth-child(2) .tl-dot { border-color: var(--amber); } .tl-wave:nth-child(2) .tl-dot::after { background: var(--amber); }
+  .tl-wave:nth-child(3) .tl-dot { border-color: var(--coral); } .tl-wave:nth-child(3) .tl-dot::after { background: var(--coral); }
+  .tl-wave:nth-child(4) .tl-dot { border-color: var(--emerald); } .tl-wave:nth-child(4) .tl-dot::after { background: var(--emerald); }
+  .tl-content { flex: 1; padding-top: 4px; }
+  .tl-when { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 6px; letter-spacing: 0.05em; }
+  .tl-wave:nth-child(2) .tl-when { color: var(--amber); }
+  .tl-wave:nth-child(3) .tl-when { color: var(--coral); }
+  .tl-wave:nth-child(4) .tl-when { color: var(--emerald); }
+  .tl-ttl { font-size: 18px; color: var(--text-main); font-weight: 700; margin-bottom: 8px; }
+  .tl-ttl b { background: var(--bg); padding: 2px 8px; border-radius: 6px; color: var(--text-main); }
+  .tl-desc { font-size: 14.5px; color: var(--text-muted); line-height: 1.7; }
+  .tl-desc strong { color: var(--text-main); font-weight: 700; background: linear-gradient(transparent 60%, var(--primary-soft) 40%); padding: 0 4px; }
+  .foot { margin-top: 60px; padding: 40px; background: var(--surface); border-radius: var(--radius-lg); font-size: 13.5px; color: var(--text-muted); line-height: 1.8; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+  .foot b { color: var(--text-main); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="anim-1">
+    <div class="kicker">Job Hunting Optimizer · Deadline Mode</div>
+    <h1>3〜4ヶ月で<span class="hl">終える</span>。<br>その道のりを、数字で見る。</h1>
+    <p class="lede">
+      「いつまでに内定するか」を起点に、必要なペースを逆算します。つまみを動かすと、その締切に
+      <strong>どれだけのペースが要るか</strong>と、ペース上限のままなら実際に何ヶ月かかるかが表示されます。
+      回せるかどうかの判断は、あなた自身が下すためのものです。
+    </p>
+  </header>
+
+  <div class="layout">
+    <aside class="panel controls anim-2">
+      <div class="sec-t">変数設定（舵を切る）</div>
+
+      <div class="field">
+        <label>内定までの目標期間<span class="v amber" id="targV">4.0ヶ月</span></label>
+        <input type="range" class="amber" id="targ" min="12" max="26" value="17" step="1">
+        <div class="hint">この期限を起点に、必要な応募ペースを逆算します。</div>
+      </div>
+
+      <div class="field">
+        <label>書類通過率（予測）<span class="v" id="docV">15%</span></label>
+        <input type="range" id="doc" min="3" max="45" value="15" step="1">
+        <div class="hint">射程を絞る（本命に寄せる）ほど上がる、最重要の舵。</div>
+      </div>
+
+      <div class="field">
+        <label>狙う内定数</label>
+        <div class="seg-btns" id="goalBtns">
+          <button data-k="1">1社</button>
+          <button data-k="2" class="on">2社</button>
+          <button data-k="3">3社</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>達成したい確実性<span class="v coral" id="confV">80%</span></label>
+        <input type="range" class="coral" id="conf" min="50" max="95" value="80" step="5">
+      </div>
+
+      <div class="field">
+        <label>持続可能なペース上限<span class="v" id="ceilV">4社/週</span></label>
+        <input type="range" id="ceil" min="2" max="10" value="4" step="1">
+        <div class="hint">就労移行に通いながら無理なく出せる週あたり社数。判定の基準線です。</div>
+      </div>
+
+      <div class="field" style="margin-bottom: 20px;">
+        <label>就活開始日</label>
+        <input type="date" class="date-in" id="startD">
+      </div>
+
+      <details>
+        <summary>企業群の配分と実測値の入力</summary>
+        <div id="segHost"></div>
+        <div class="seg-row" style="border-top:1px dashed var(--border); padding-top:20px; margin-top:24px">
+          <div class="nm">第1波の実測値を入れる <b id="obsRate">—</b></div>
+          <div class="obs">
+            <input type="number" id="obsApp" placeholder="応募数 例:15" min="0">
+            <input type="number" id="obsPass" placeholder="通過数 例:3" min="0">
+          </div>
+          <div class="obs-note">実数を入れると「書類通過率」があなたの実測値に上書き更新され、判定とスケジュールが自動補正されます。</div>
+        </div>
+      </details>
+    </aside>
+
+    <main class="anim-3">
+      <div class="verdict" id="verdict">
+        <span class="vbadge" id="vbadge">判定中</span>
+        <div class="vmain" id="vmain">—</div>
+        <div class="vfix" id="vfix">—</div>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <div class="lab">必要な総応募社数</div>
+          <div class="big" id="needN" style="color:var(--primary)">82<span class="u">社</span></div>
+          <div class="cap" id="needCap">2社を80%で得るため</div>
+        </div>
+        <div class="card">
+          <div class="lab">締切に必要なペース</div>
+          <div class="big" id="reqPace" style="color:var(--emerald)">8<span class="u">社/週</span></div>
+          <div class="cap" id="reqPaceCap">応募期間で割った値</div>
+        </div>
+        <div class="card">
+          <div class="lab">1社あたりの内定率</div>
+          <div class="big" id="pOff" style="color:var(--amber)">3.6<span class="u">%</span></div>
+          <div class="cap" id="pOffCap">書類 × 面接突破</div>
+        </div>
+        <div class="card">
+          <div class="lab">ペース上限での所要</div>
+          <div class="big" id="realMonths" style="color:var(--coral)">6.3<span class="u">ヶ月</span></div>
+          <div class="cap" id="realCap">週4社で進める場合</div>
+        </div>
+      </div>
+
+      <div class="panel chart-card">
+        <div class="chart-head">
+          <div class="chart-title">締切 vs 必要ペース — 持続可能ラインを越えていないか</div>
+          <div class="chart-sub">目標期間を縮めるほど必要ペースは跳ね上がります。緑の線が設定中のペース上限。曲線がこの線を上回る区間では、上限のままだと期間が延びることになります。丸が現在地。</div>
+        </div>
+        <canvas id="paceChart" height="260"></canvas>
+      </div>
+
+      <div class="panel chart-card">
+        <div class="chart-head">
+          <div class="chart-title">通過率 vs 内定までの月数（週4社固定）</div>
+          <div class="chart-sub">射程を絞って通過率を上げると、ペースを上げずに期間が縮みます。緑帯が3〜4ヶ月ターゲット。曲線がこの帯に入る通過率が、あなたの狙うべき水準です。</div>
+        </div>
+        <canvas id="sensChart" height="260"></canvas>
+      </div>
+
+      <div class="panel chart-card">
+        <div class="chart-head">
+          <div class="chart-title">応募社数 vs 内定獲得確率</div>
+          <div class="chart-sub">縦の点線が必要社数。狙う内定数を増やすほど曲線は右へ逃げます。</div>
+          <div class="legend">
+            <span><i style="background:var(--emerald)"></i>1件以上</span>
+            <span><i style="background:var(--primary)"></i>2件以上</span>
+            <span><i style="background:var(--coral)"></i>3件以上</span>
+          </div>
+        </div>
+        <canvas id="curve" height="240"></canvas>
+      </div>
+
+      <div class="panel tl-wrap">
+        <div class="sec-t" style="margin-bottom:0">航海計画（締切から逆算）</div>
+        <div class="tl" id="timeline"></div>
+      </div>
+
+      <div class="foot">
+        <p style="margin-bottom:12px">
+          <b>算出ロジック：</b> 1社内定率 pᵢ = 書類通過率 × 面接突破率。総応募 N を企業群へ配分し、ポアソン二項分布で P(X≥k) ≧ 確実性 を満たす最小の N を必要社数とする。
+          <b>締切に必要なペース</b> = 必要社数 ÷（目標期間 − 選考6週）。この値とペース上限を見比べられるよう、両方を表示しています。
+        </p>
+        <p>※ どのペース・期間で進めるかの判断はあなた自身が行うものです。目標に届かないときに動かせるのは、期間を延ばす・通過率を上げる（射程を絞る）・確実性や件数を下げる、のいずれか。このうち<b>通過率を上げる</b>道は、件数も確実性もペースも変えずに済む選択肢です。</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+const SEGS = [
+  {key:'honmei', name:'本命 (日系大手等)', mult:1.5, reach:0.20, share:0.6},
+  {key:'jun',    name:'準本命 (その他)',    mult:1.0, reach:0.18, share:0.3},
+  {key:'chal',   name:'チャレンジ (外資等)',  mult:0.6, reach:0.11, share:0.1},
+];
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const WPM = 30.4 / 7; // 1ヶ月あたり週数 ≈ 4.345
+const SEL_WEEKS = 6;  // 選考・最終面接
+
+const today = new Date();
+const defaultStart = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+document.getElementById('startD').value = defaultStart;
+
+const state = {
+  doc: 0.15, goal: 2, conf: 0.80, ceil: 4, targWeeks: 17,
+  start: defaultStart, segs: SEGS.map(s => ({...s})), obsApp: '', obsPass: ''
+};
+
+function segP(s) { return clamp(state.doc * s.mult, 0, 0.98) * s.reach; }
+function avgDoc() { return state.segs.reduce((a, s) => a + state.doc * s.mult * s.share, 0); }
+function buildPs(N) {
+  const ps = []; let used = 0;
+  state.segs.forEach((s, i) => {
+    let n = i === state.segs.length - 1 ? N - used : Math.round(N * s.share);
+    n = Math.max(0, n); used += n;
+    const p = segP(s);
+    for(let j=0; j<n; j++) ps.push(p);
+  });
+  return ps;
+}
+function poissonBinom(ps) {
+  let pmf = [1];
+  for (const p of ps) { const np = new Array(pmf.length+1).fill(0);
+    for (let k=0; k<pmf.length; k++){ np[k]+=pmf[k]*(1-p); np[k+1]+=pmf[k]*p; } pmf = np; }
+  return pmf;
+}
+function pAtLeast(ps, k) { const pmf = poissonBinom(ps); let s=0; for(let i=0;i<k&&i<pmf.length;i++) s+=pmf[i]; return 1-s; }
+function requiredN(k, conf) { for(let N=1;N<=400;N++){ if(pAtLeast(buildPs(N),k)>=conf) return N; } return 400; }
+function blendedP() { return state.segs.reduce((a, s) => a + segP(s)*s.share, 0); }
+
+// 目標期間(週)で必要ペースを逆算
+function applyWeeksAvail() { return Math.max(1, state.targWeeks - SEL_WEEKS); }
+function reqPaceFor(need) { return Math.ceil(need / applyWeeksAvail()); }
+// ペース上限で進めた場合の実所要週
+function realWeeksAtCeil(need) { return Math.ceil(need / state.ceil) + SEL_WEEKS; }
+// 上限ペースで目標に間に合わせるのに必要な最小通過率(現state.doc以外固定)
+function passRateForDeadline() {
+  const savedDoc = state.doc;
+  const needMax = state.ceil * applyWeeksAvail();
+  let found = null;
+  for(let r=3; r<=98; r++){ state.doc = r/100; if(requiredN(state.goal, state.conf) <= needMax){ found = r; break; } }
+  state.doc = savedDoc;
+  return found;
+}
+
+function setup(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.height;
+  cv.width = w*dpr; cv.height = h*dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr); ctx.clearRect(0,0,w,h);
+  return {ctx, w, h};
+}
+const colors = { bg:'#f8fafc', border:'#e2e8f0', textMain:'#0f172a', textSub:'#64748b',
+  primary:'#3b82f6', coral:'#fb7185', emerald:'#10b981', amber:'#f59e0b' };
+const fontStr = "'Inter', 'Noto Sans JP', sans-serif";
+
+// 締切 vs 必要ペース
+function drawPaceChart() {
+  const {ctx, w, h} = setup(document.getElementById('paceChart'));
+  const pad = {l:45, r:20, t:14, b:34};
+  const need = requiredN(state.goal, state.conf);
+  const Wmin=12, Wmax=26;
+  // 各目標週での必要ペース
+  const data = [];
+  for(let W=Wmin; W<=Wmax; W++){ const A=Math.max(1,W-SEL_WEEKS); data.push({W, pace: need/A}); }
+  const paceMax = Math.max(state.ceil*1.6, ...data.map(d=>d.pace), 6);
+  const X = W => pad.l + ((W-Wmin)/(Wmax-Wmin))*(w-pad.l-pad.r);
+  const Y = p => h-pad.b - (p/paceMax)*(h-pad.t-pad.b);
+  // grid
+  ctx.font = `500 11px ${fontStr}`;
+  const stepP = paceMax>16?4:2;
+  for(let p=0; p<=paceMax; p+=stepP){ const y=Y(p);
+    ctx.strokeStyle=colors.border; ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+    ctx.fillStyle=colors.textSub; ctx.textAlign='right'; ctx.fillText(p, pad.l-8, y+4); }
+  ctx.textAlign='center';
+  for(let W=12; W<=26; W+=2){ ctx.fillStyle=colors.textSub; ctx.fillText((W/WPM).toFixed(1), X(W), h-pad.b+20); }
+  ctx.fillStyle=colors.textSub; ctx.fillText('（ヶ月）', X(26)-4, h-pad.b+20);
+  ctx.save();ctx.translate(13,h/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('必要ペース 社/週',0,0);ctx.restore();
+  // 持続可能ライン
+  const yc = Y(state.ceil);
+  ctx.fillStyle='rgba(16,185,129,0.08)'; ctx.fillRect(pad.l, yc, w-pad.l-pad.r, h-pad.b-yc);
+  ctx.strokeStyle=colors.emerald; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+  ctx.beginPath();ctx.moveTo(pad.l,yc);ctx.lineTo(w-pad.r,yc);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=colors.emerald; ctx.font=`700 11px ${fontStr}`; ctx.textAlign='left';
+  ctx.fillText(`持続可能上限 ${state.ceil}社/週`, pad.l+8, yc-7);
+  // axes
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=2; ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,h-pad.b);ctx.lineTo(w-pad.r,h-pad.b);ctx.stroke();
+  // curve
+  ctx.strokeStyle=colors.primary; ctx.lineWidth=3; ctx.beginPath();
+  data.forEach((d,i)=>{ const x=X(d.W), y=Y(d.pace); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }); ctx.stroke();
+  // 現在地
+  const cx=X(state.targWeeks), cp=need/applyWeeksAvail(), cy=Y(cp);
+  ctx.strokeStyle=colors.amber; ctx.setLineDash([4,4]); ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(cx,h-pad.b);ctx.lineTo(cx,cy);ctx.stroke();ctx.setLineDash([]);
+  const over = cp>state.ceil;
+  ctx.fillStyle = over?colors.coral:colors.emerald;
+  ctx.beginPath();ctx.arc(cx,cy,6,0,7);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(cx,cy,3,0,7);ctx.fill();
+  ctx.font=`700 13px ${fontStr}`; ctx.fillStyle=over?colors.coral:colors.emerald; ctx.textAlign='left';
+  const lx = cx+10>w-90?cx-90:cx+10;
+  ctx.fillText(`週${Math.ceil(cp)}社`, lx, cy-12);
+}
+
+// 通過率 vs 月数（週4社=ceil固定）
+function drawSensChart() {
+  const {ctx, w, h} = setup(document.getElementById('sensChart'));
+  const pad = {l:45, r:20, t:14, b:34};
+  const saved = state.doc;
+  const rates=[]; for(let r=6; r<=44; r+=2) rates.push(r/100);
+  const months = rates.map(r => { state.doc=r; return realWeeksAtCeil(requiredN(state.goal,state.conf))/WPM; });
+  state.doc = saved;
+  const mMax = Math.max(...months, 6);
+  const X = r => pad.l + ((r-0.06)/(0.44-0.06))*(w-pad.l-pad.r);
+  const Y = m => h-pad.b - (m/mMax)*(h-pad.t-pad.b);
+  // 3-4ヶ月帯
+  const yb1=Y(4), yb2=Y(3);
+  ctx.fillStyle='rgba(16,185,129,0.10)'; ctx.fillRect(pad.l, yb1, w-pad.l-pad.r, yb2-yb1);
+  ctx.font=`500 11px ${fontStr}`;
+  const stepM = mMax>10?2:1;
+  for(let m=0;m<=mMax;m+=stepM){ const y=Y(m);
+    ctx.strokeStyle=colors.border;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+    ctx.fillStyle=colors.textSub;ctx.textAlign='right';ctx.fillText(m, pad.l-8, y+4); }
+  ctx.textAlign='center';
+  for(let r=10;r<=40;r+=10){ ctx.fillStyle=colors.textSub; ctx.fillText(r+'%', X(r/100), h-pad.b+20); }
+  ctx.fillStyle=colors.textSub; ctx.fillText('書類通過率', X(0.40), h-pad.b+20);
+  ctx.save();ctx.translate(13,h/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('内定までの月数',0,0);ctx.restore();
+  ctx.fillStyle=colors.emerald; ctx.font=`700 11px ${fontStr}`; ctx.textAlign='right';
+  ctx.fillText('3〜4ヶ月ターゲット', w-pad.r-6, (yb1+yb2)/2+4);
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=2; ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,h-pad.b);ctx.lineTo(w-pad.r,h-pad.b);ctx.stroke();
+  // curve
+  ctx.strokeStyle=colors.primary; ctx.lineWidth=3; ctx.beginPath();
+  rates.forEach((r,i)=>{ const x=X(r), y=Y(months[i]); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }); ctx.stroke();
+  // 現在地
+  const cm = realWeeksAtCeil(requiredN(state.goal,state.conf))/WPM;
+  const cx=X(state.doc), cy=Y(cm);
+  ctx.strokeStyle=colors.amber; ctx.setLineDash([4,4]); ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(cx,h-pad.b);ctx.lineTo(cx,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(pad.l,cy);ctx.lineTo(cx,cy);ctx.stroke();ctx.setLineDash([]);
+  const inBand = cm<=4 && cm>=3;
+  ctx.fillStyle = cm<=4?colors.emerald:colors.coral;
+  ctx.beginPath();ctx.arc(cx,cy,6,0,7);ctx.fill(); ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(cx,cy,3,0,7);ctx.fill();
+  ctx.font=`700 13px ${fontStr}`; ctx.fillStyle=cm<=4?colors.emerald:colors.coral; ctx.textAlign='left';
+  const lx=cx+10>w-80?cx-80:cx+10;
+  ctx.fillText(`${cm.toFixed(1)}ヶ月`, lx, cy-12);
+}
+
+function drawCurve() {
+  const {ctx, w, h} = setup(document.getElementById('curve'));
+  const pad = {l:40, r:20, t:10, b:30};
+  const Nmax = Math.max(60, Math.ceil(requiredN(3,0.85)/10)*10, 100);
+  const X = n => pad.l + (n/Nmax)*(w-pad.l-pad.r);
+  const Y = p => h-pad.b - p*(h-pad.t-pad.b);
+  ctx.font=`500 11px ${fontStr}`; ctx.fillStyle=colors.textSub;
+  for(let p=0;p<=100;p+=25){ const y=Y(p/100);
+    ctx.strokeStyle=colors.border;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+    ctx.textAlign='right';ctx.fillText(p+'%', pad.l-8, y+4); }
+  ctx.textAlign='center';
+  const step = Nmax<=100?20:(Nmax<=200?40:50);
+  for(let n=0;n<=Nmax;n+=step) ctx.fillText(n, X(n), h-pad.b+20);
+  ctx.strokeStyle='#cbd5e1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,h-pad.b);ctx.lineTo(w-pad.r,h-pad.b);ctx.stroke();
+  const cols=[colors.emerald,colors.primary,colors.coral];
+  for(let k=1;k<=3;k++){ ctx.strokeStyle=cols[k-1]; ctx.lineWidth=k===state.goal?4:2; ctx.globalAlpha=k===state.goal?1:0.3;
+    ctx.beginPath(); for(let n=0;n<=Nmax;n++){ const p=pAtLeast(buildPs(n),k); const x=X(n),y=Y(p); n===0?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.stroke(); ctx.globalAlpha=1; }
+  const need=requiredN(state.goal,state.conf);
+  if(need<=Nmax){ const x=X(need);
+    ctx.strokeStyle=colors.primary;ctx.setLineDash([4,4]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,h-pad.b);ctx.stroke();ctx.setLineDash([]);
+    const y=Y(state.conf); ctx.fillStyle=colors.primary;ctx.beginPath();ctx.arc(x,y,6,0,7);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,y,3,0,7);ctx.fill();
+    ctx.font=`700 13px ${fontStr}`;ctx.fillStyle=colors.primary;ctx.textAlign='left'; const lx=x+10>w-40?x-45:x+10; ctx.fillText(need+'社', lx, pad.t+16); }
+}
+
+function fmt(d){ return `${d.getMonth()+1}月${d.getDate()}日`; }
+
+function buildTimeline() {
+  const need = requiredN(state.goal, state.conf);
+  const rp = reqPaceFor(need);
+  const pace = Math.min(rp, state.ceil); // 実際に出すペース（上限を超えない）
+  const startD = new Date(state.start+'T00:00:00');
+  const w1n = Math.min(20, need);
+  const w1weeks = Math.max(1, Math.ceil(w1n/pace));
+  const w2n = Math.max(need-w1n, 0);
+  const applyWeeks = Math.max(1, Math.ceil(need/pace));
+  const totalWeeks = applyWeeks + SEL_WEEKS;
+  const confPct = Math.round(state.conf*100), missPct = 100-confPct;
+
+  const d1=new Date(startD);
+  const d2=new Date(startD); d2.setDate(d2.getDate()+w1weeks*7);
+  const d3=new Date(startD); d3.setDate(d3.getDate()+applyWeeks*7);
+  const d4=new Date(startD); d4.setDate(d4.getDate()+totalWeeks*7);
+
+  const waves = [
+    {when:`出航 / ${fmt(d1)}〜`, ttl:`第1波：測定の波 — <b>約${w1n}社</b>（約${w1weeks}週）`,
+     desc:`目的は内定ではなく<strong>「自分の実通過率」を測ること</strong>。左下に実測値を入れると、判定と計画があなたの現実に最適化されます。`},
+    {when:`加速 / ${fmt(d2)}〜`, ttl:`軌道修正と第2波 — <b>約${w2n}社</b>`,
+     desc:`実測を元に海図を引き直し、週${pace}社のペースで残りを進めます。通過率が良ければ応募数を減らせます。`},
+    {when:`山場 / ${fmt(d3)}頃`, ttl:`応募完了・面接ピーク（約${applyWeeks}週目）`,
+     desc:`新規エントリーを概ね完了。選考の窓（承諾期限2〜4週）が重なるよう、スピードの近い会社を同時期に出すと「複数を並べて比較」が成立します。`},
+    {when:`着岸 / ${fmt(d4)}頃`, ttl:`内定獲得（実所要 約${(totalWeeks/WPM).toFixed(1)}ヶ月）`,
+     desc:`最終結果が揃い始める時期。これは<strong>${confPct}%の確実性</strong>での見通しで、約${missPct}%は届かない可能性も含みます。外れは計画の失敗ではなく確率の揺らぎです。`}
+  ];
+  document.getElementById('timeline').innerHTML = waves.map(w=>`
+    <div class="tl-wave"><div class="tl-dot"></div>
+      <div class="tl-content"><div class="tl-when">${w.when}</div>
+        <div class="tl-ttl">${w.ttl}</div><div class="tl-desc">${w.desc}</div></div></div>`).join('');
+}
+
+function updateVerdict() {
+  const need = requiredN(state.goal, state.conf);
+  const rp = reqPaceFor(need);
+  const realM = realWeeksAtCeil(need)/WPM;
+  const targM = state.targWeeks/WPM;
+  const badge = document.getElementById('vbadge');
+  const main = document.getElementById('vmain');
+  const fix = document.getElementById('vfix');
+
+  badge.textContent = '見通し';
+
+  if(rp <= state.ceil){
+    main.innerHTML = `目標<b>${targM.toFixed(1)}ヶ月</b>に対し、必要なのは<b>${need}社</b>を週<b>${rp}社</b>のペースで出すこと。これは設定中のペース上限（週${state.ceil}社）の範囲に収まっています。`;
+    fix.innerHTML = `週${rp}社で進めた場合の実所要は約<strong>${realM.toFixed(1)}ヶ月</strong>。このペースで進められるかは、ご自身の調子に照らして判断してください。`;
+  } else {
+    const pr = passRateForDeadline();
+    main.innerHTML = `目標<b>${targM.toFixed(1)}ヶ月</b>に必要なペースは週<b>${rp}社</b>。設定中のペース上限（週${state.ceil}社）で進める場合、実所要は約<b>${realM.toFixed(1)}ヶ月</b>になります。`;
+    if(pr){
+      fix.innerHTML = `週${state.ceil}社のまま目標期間に近づける場合の選択肢：<strong>書類通過率を${pr}%まで上げる</strong>（現在${(state.doc*100).toFixed(0)}%／射程を絞ると上がります）、<strong>目標期間を延ばす</strong>、<strong>確実性や狙う件数を調整する</strong>。どれを取るかはご自身の判断です。`;
+    } else {
+      fix.innerHTML = `この件数・確実性では、通過率を上げても週${state.ceil}社で目標期間に収めるのは数字上むずかしい状況です。<strong>目標期間</strong>か<strong>確実性・件数</strong>を動かすと数字が変化します。`;
+    }
+  }
+}
+
+function buildSegUI() {
+  const host = document.getElementById('segHost');
+  host.innerHTML = state.segs.map((s,i)=>`
+    <div class="seg-row">
+      <div class="nm"><span>${s.name}</span><b id="sp${i}">—</b></div>
+      <label style="font-size:12px;color:var(--text-muted);display:block;margin:6px 0 8px;font-weight:600">配分割合 <span id="sh${i}"></span></label>
+      <input type="range" class="coral" data-seg="${i}" min="0" max="100" value="${s.share*100}" step="5">
+    </div>`).join('');
+  host.querySelectorAll('input').forEach(inp=>inp.addEventListener('input', e=>{
+    const i=+e.target.dataset.seg; state.segs[i].share=+e.target.value/100; render();
+  }));
+}
+function normShares(){ const tot=state.segs.reduce((a,s)=>a+s.share,0)||1; return state.segs.map(s=>s.share/tot); }
+
+function render() {
+  const ns=normShares(); state.segs.forEach((s,i)=>s.share=ns[i]);
+  const need = requiredN(state.goal, state.conf);
+  const rp = reqPaceFor(need);
+  const realM = realWeeksAtCeil(need)/WPM;
+  document.getElementById('needN').innerHTML = need+'<span class="u">社</span>';
+  document.getElementById('needCap').textContent = `${state.goal}社を${(state.conf*100).toFixed(0)}%で得るため`;
+  document.getElementById('reqPace').innerHTML = rp+'<span class="u">社/週</span>';
+  document.getElementById('reqPaceCap').textContent = `応募期間 ${applyWeeksAvail()}週で割った値`;
+  document.getElementById('pOff').innerHTML = (blendedP()*100).toFixed(1)+'<span class="u">%</span>';
+  document.getElementById('pOffCap').textContent = `書類${(avgDoc()*100).toFixed(0)}% × 面接`;
+  document.getElementById('realMonths').innerHTML = realM.toFixed(1)+'<span class="u">ヶ月</span>';
+  document.getElementById('realCap').textContent = `週${state.ceil}社で進める場合`;
+  // reqPace card: 中立色に固定（持続可能性の断定はしない）
+  document.getElementById('reqPace').style.color = 'var(--emerald)';
+
+  state.segs.forEach((s,i)=>{ const sp=document.getElementById('sp'+i); if(sp) sp.textContent=(segP(s)*100).toFixed(1)+'%';
+    const sh=document.getElementById('sh'+i); if(sh) sh.textContent=(s.share*100).toFixed(0)+'%'; });
+
+  updateVerdict(); drawPaceChart(); drawSensChart(); drawCurve(); buildTimeline();
+}
+
+const $ = id => document.getElementById(id);
+$('targ').addEventListener('input', e=>{ state.targWeeks=+e.target.value; $('targV').textContent=(state.targWeeks/WPM).toFixed(1)+'ヶ月'; render(); });
+$('doc').addEventListener('input', e=>{ if(!state.obsApp){ state.doc=+e.target.value/100; $('docV').textContent=e.target.value+'%'; } render(); });
+$('conf').addEventListener('input', e=>{ state.conf=+e.target.value/100; $('confV').textContent=e.target.value+'%'; render(); });
+$('ceil').addEventListener('input', e=>{ state.ceil=+e.target.value; $('ceilV').textContent=e.target.value+'社/週'; render(); });
+$('startD').addEventListener('change', e=>{ state.start=e.target.value||defaultStart; render(); });
+$('goalBtns').querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
+  $('goalBtns').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); state.goal=+b.dataset.k; render();
+}));
+function applyObs(){
+  const a=parseFloat($('obsApp').value), p=parseFloat($('obsPass').value);
+  if(a>0 && p>=0 && p<=a){ state.obsApp=a; state.doc=clamp(p/a,0.01,0.98);
+    $('docV').textContent=(state.doc*100).toFixed(0)+'% (実測)'; $('doc').value=Math.round(state.doc*100); $('doc').disabled=true; $('obsRate').textContent=(state.doc*100).toFixed(0)+'%';
+  } else { state.obsApp=''; $('doc').disabled=false; $('obsRate').textContent='—'; $('docV').textContent=$('doc').value+'%'; state.doc=+$('doc').value/100; }
+  render();
+}
+$('obsApp').addEventListener('input', applyObs);
+$('obsPass').addEventListener('input', applyObs);
+
+buildSegUI();
+window.addEventListener('resize', ()=>{ clearTimeout(window.rt); window.rt=setTimeout(render,100); });
+render();
+</script>
+</body>
+</html>

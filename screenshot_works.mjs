@@ -34,6 +34,7 @@ const projects = [
   { id: '24', file: 'works/Kondate/Kondate.html' },
   { id: '25', file: 'works/Seikaku/Seikaku.html' },
   { id: '26', file: 'works/Houkan/Houkan.html' },
+  { id: '27', file: 'works/Job SOpt/job-search-optimizer.html' },
 ];
 
 async function takeScreenshots() {

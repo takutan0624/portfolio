@@ -5,7 +5,7 @@ const filePath = path.join(import.meta.dirname, 'index.html');
 let html = fs.readFileSync(filePath, 'utf8');
 
 // Replace each work-placeholder div with an img tag
-for (let i = 1; i <= 26; i++) {
+for (let i = 1; i <= 27; i++) {
   const id = String(i).padStart(2, '0');
   const placeholder = `            <div class="work-placeholder">\n              <span class="placeholder-icon">${id}</span>\n            </div>`;
   const img = `            <img src="works/screenshots/${id}.jpg" alt="Project ${id}" class="work-screenshot" loading="lazy">`;
@@ -59,4 +59,4 @@ const cssReplacement = `    .work-placeholder {
 html = html.replace(cssTarget, cssReplacement);
 
 fs.writeFileSync(filePath, html, 'utf8');
-console.log('✅ All 26 placeholders replaced with screenshot images.');
+console.log('✅ All 27 placeholders replaced with screenshot images.');
