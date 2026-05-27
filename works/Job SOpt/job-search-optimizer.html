@@ -272,9 +272,9 @@
             <div class="cap" id="secondInterviewCap">1次通過後の推計</div>
           </div>
           <div class="card">
-            <div class="lab">内定見込み</div>
-            <div class="big" id="offerEstimate" style="color:var(--coral)">—<span class="u">件</span></div>
-            <div class="cap" id="offerEstimateCap">2次通過後の期待値</div>
+            <div class="lab">3次面接</div>
+            <div class="big" id="thirdInterview" style="color:var(--coral)">—<span class="u">回</span></div>
+            <div class="cap" id="thirdInterviewCap">2次通過後の推計</div>
           </div>
         </div>
       </div>
@@ -315,9 +315,9 @@
 
       <div class="foot">
         <p style="margin-bottom:12px">
-          <b>算出ロジック：</b> 1社内定率 pᵢ = 書類通過率 × 1次面接通過率40% × 2次面接通過率70%。総応募 N を企業群へ配分し、ポアソン二項分布で P(X≥k) ≧ 確実性 を満たす最小の N を必要社数とする。
+          <b>算出ロジック：</b> 1社内定率 pᵢ = 書類通過率 × 1次面接通過率40% × 2次面接通過率70% × 3次面接通過率70%。総応募 N を企業群へ配分し、ポアソン二項分布で P(X≥k) ≧ 確実性 を満たす最小の N を必要社数とする。
           <b>締切に必要なペース</b> = 必要社数 ÷（目標期間 − 選考6週）。この値とペース上限を見比べられるよう、両方を表示しています。
-          <b>面接回数の推計</b>は、書類通過数を1次面接回数、1次通過数を2次面接回数、2次通過数を内定見込みとして算出しています。
+          <b>面接回数の推計</b>は、書類通過数を1次面接回数、1次通過数を2次面接回数、2次通過数を3次面接回数として算出しています。
         </p>
         <p>※ どのペース・期間で進めるかの判断はあなた自身が行うものです。目標に届かないときに動かせるのは、期間を延ばす・通過率を上げる（射程を絞る）・確実性や件数を下げる、のいずれか。このうち<b>通過率を上げる</b>道は、件数も確実性もペースも変えずに済む選択肢です。</p>
       </div>
@@ -336,6 +336,7 @@ const WPM = 30.4 / 7; // 1ヶ月あたり週数 ≈ 4.345
 const SEL_WEEKS = 6;  // 選考・最終面接
 const FIRST_INTERVIEW_PASS = 0.40;
 const SECOND_INTERVIEW_PASS = 0.70;
+const THIRD_INTERVIEW_PASS = 0.70;
 
 const today = new Date();
 const defaultStart = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
@@ -348,7 +349,7 @@ const state = {
 
 function avgMult() { return state.segs.reduce((a, s) => a + s.mult * s.share, 0) || 1; }
 function docRate(s) { return clamp(state.doc * (s.mult / avgMult()), 0, 0.98); }
-function segP(s) { return docRate(s) * FIRST_INTERVIEW_PASS * SECOND_INTERVIEW_PASS; }
+function segP(s) { return docRate(s) * FIRST_INTERVIEW_PASS * SECOND_INTERVIEW_PASS * THIRD_INTERVIEW_PASS; }
 function avgDoc() { return state.segs.reduce((a, s) => a + docRate(s) * s.share, 0); }
 function segmentCounts(N) {
   const counts = []; let used = 0;
@@ -378,14 +379,15 @@ function pAtLeast(ps, k) { const pmf = poissonBinom(ps); let s=0; for(let i=0;i<
 function requiredN(k, conf) { for(let N=1;N<=400;N++){ if(pAtLeast(buildPs(N),k)>=conf) return N; } return 400; }
 function blendedP() { return state.segs.reduce((a, s) => a + segP(s)*s.share, 0); }
 function interviewEstimate(N) {
-  const est = { first: 0, second: 0, offer: 0 };
+  const est = { first: 0, second: 0, third: 0 };
   segmentCounts(N).forEach((n, i) => {
     const s = state.segs[i];
     const first = n * docRate(s);
     const second = first * FIRST_INTERVIEW_PASS;
+    const third = second * SECOND_INTERVIEW_PASS;
     est.first += first;
     est.second += second;
-    est.offer += second * SECOND_INTERVIEW_PASS;
+    est.third += third;
   });
   return est;
 }
@@ -624,7 +626,7 @@ function render() {
   document.getElementById('reqPace').innerHTML = rp+'<span class="u">社/週</span>';
   document.getElementById('reqPaceCap').textContent = `応募期間 ${applyWeeksAvail()}週で割った値`;
   document.getElementById('pOff').innerHTML = (blendedP()*100).toFixed(1)+'<span class="u">%</span>';
-  document.getElementById('pOffCap').textContent = `書類${(avgDoc()*100).toFixed(0)}% × 1次40% × 2次70%`;
+  document.getElementById('pOffCap').textContent = `書類${(avgDoc()*100).toFixed(0)}% × 1次40% × 2次70% × 3次70%`;
   document.getElementById('realMonths').innerHTML = realM.toFixed(1)+'<span class="u">ヶ月</span>';
   document.getElementById('realCap').textContent = `週${state.ceil}社で進める場合`;
   // reqPace card: 中立色に固定（持続可能性の断定はしない）
@@ -633,10 +635,10 @@ function render() {
   const interviews = interviewEstimate(need);
   document.getElementById('firstInterview').innerHTML = fmtEstimateCount(interviews.first)+'<span class="u">回</span>';
   document.getElementById('secondInterview').innerHTML = fmtEstimateCount(interviews.second)+'<span class="u">回</span>';
-  document.getElementById('offerEstimate').innerHTML = fmtEstimateCount(interviews.offer)+'<span class="u">件</span>';
+  document.getElementById('thirdInterview').innerHTML = fmtEstimateCount(interviews.third)+'<span class="u">回</span>';
   document.getElementById('firstInterviewCap').textContent = `必要${need}社からの書類通過見込み`;
   document.getElementById('secondInterviewCap').textContent = `1次40%通過後の期待回数`;
-  document.getElementById('offerEstimateCap').textContent = `2次70%通過後の期待値`;
+  document.getElementById('thirdInterviewCap').textContent = `2次70%通過後の期待回数`;
 
   state.segs.forEach((s,i)=>{ const sp=document.getElementById('sp'+i); if(sp) sp.textContent=(segP(s)*100).toFixed(1)+'%';
     const sh=document.getElementById('sh'+i); if(sh) sh.textContent=(s.share*100).toFixed(0)+'%'; });
