@@ -181,6 +181,28 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
 .note{font-size:12px;color:var(--mut);line-height:1.6;margin-top:12px}
 hr.sep{border:none;border-top:1px solid var(--line2);margin:20px 0}
 
+/* workout plan */
+.plan-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.plan-chip{background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:var(--rad-md);padding:14px}
+.plan-chip .k{font-size:11px;color:var(--mut);font-weight:600;margin-bottom:6px}
+.plan-chip .v{font-family:var(--disp);font-size:24px;font-weight:800;line-height:1}
+.plan-list{display:flex;flex-direction:column;gap:10px}
+.plan-item{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:var(--rad-md);padding:14px 16px}
+.plan-no{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:var(--grad);color:#000;font-family:var(--mono);font-weight:800}
+.plan-main{min-width:0}
+.plan-part{font-size:11px;color:var(--mut);font-weight:700;margin-bottom:4px}
+.plan-name{font-size:15px;font-weight:700;line-height:1.35}
+.plan-alt{font-size:12px;color:var(--mut);line-height:1.5;margin-top:3px}
+.plan-dose{text-align:right;font-family:var(--mono);font-weight:800;color:var(--amber);white-space:nowrap}
+.plan-dose small{display:block;font-family:var(--jp);font-size:10px;font-weight:600;color:var(--mut);margin-top:3px}
+.plan-cardio{border-color:rgba(96,165,250,0.35);background:rgba(96,165,250,0.08)}
+.plan-cardio .plan-no{background:#60a5fa;color:#000}
+.plan-cardio .plan-dose{color:#60a5fa}
+.rule-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.rule-box{background:rgba(255,255,255,0.035);border:1px solid var(--line);border-radius:var(--rad-md);padding:16px}
+.rule-box h3{font-size:13px;margin-bottom:8px;color:var(--txt)}
+.rule-box p{font-size:12px;color:var(--mut);line-height:1.7}
+
 
 /* =========================================================================
    Responsive Adjustments (for Desktop / Tablet / Mac style)
@@ -276,6 +298,13 @@ hr.sep{border:none;border-top:1px solid var(--line2);margin:20px 0}
     top: 70px;
   }
 }
+
+@media (max-width: 420px) {
+  .plan-hero{grid-template-columns:1fr}
+  .plan-item{grid-template-columns:30px 1fr;align-items:start}
+  .plan-dose{grid-column:2;text-align:left}
+  .rule-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -335,6 +364,102 @@ hr.sep{border:none;border-top:1px solid var(--line2);margin:20px 0}
       </div>
 
       <button class="btn" id="saveLog">記録する</button>
+    </div>
+  </section>
+
+  <!-- ===== メニュー ===== -->
+  <section class="panel" id="p-plan">
+    <div class="card">
+      <h2>今日やるメニュー</h2>
+      <div class="plan-hero">
+        <div class="plan-chip"><div class="k">頻度</div><div class="v num">週2<small>回</small></div></div>
+        <div class="plan-chip"><div class="k">時間</div><div class="v num">45-50<small>分</small></div></div>
+        <div class="plan-chip"><div class="k">形式</div><div class="v">全身</div></div>
+      </div>
+      <div class="plan-list">
+        <div class="plan-item">
+          <div class="plan-no">1</div>
+          <div class="plan-main">
+            <div class="plan-part">脚の大砲</div>
+            <div class="plan-name">シーテッドレッグプレス</div>
+            <div class="plan-alt">または プレートロードのパワーレッグプレス</div>
+          </div>
+          <div class="plan-dose">3 × 10-12<small>セット × 回</small></div>
+        </div>
+        <div class="plan-item">
+          <div class="plan-no">2</div>
+          <div class="plan-main">
+            <div class="plan-part">押す</div>
+            <div class="plan-name">シーテッドチェストプレス</div>
+          </div>
+          <div class="plan-dose">3 × 10<small>セット × 回</small></div>
+        </div>
+        <div class="plan-item">
+          <div class="plan-no">3</div>
+          <div class="plan-main">
+            <div class="plan-part">引く</div>
+            <div class="plan-name">ラットプルダウン</div>
+            <div class="plan-alt">または シーテッドロウ</div>
+          </div>
+          <div class="plan-dose">3 × 10-12<small>セット × 回</small></div>
+        </div>
+        <div class="plan-item">
+          <div class="plan-no">4</div>
+          <div class="plan-main">
+            <div class="plan-part">肩</div>
+            <div class="plan-name">ショルダープレス</div>
+          </div>
+          <div class="plan-dose">2 × 12<small>セット × 回</small></div>
+        </div>
+        <div class="plan-item">
+          <div class="plan-no">5</div>
+          <div class="plan-main">
+            <div class="plan-part">尻・裏もも</div>
+            <div class="plan-name">ヒップスラスト</div>
+            <div class="plan-alt">または レッグカール</div>
+          </div>
+          <div class="plan-dose">2 × 12<small>セット × 回</small></div>
+        </div>
+        <div class="plan-item">
+          <div class="plan-no">6</div>
+          <div class="plan-main">
+            <div class="plan-part">体幹</div>
+            <div class="plan-name">アブドミナル</div>
+          </div>
+          <div class="plan-dose">2 × 15<small>セット × 回</small></div>
+        </div>
+        <div class="plan-item plan-cardio">
+          <div class="plan-no">7</div>
+          <div class="plan-main">
+            <div class="plan-part">仕上げの有酸素</div>
+            <div class="plan-name">リカンベントバイク</div>
+            <div class="plan-alt">または トレッドミル傾斜ウォーク。会話できるくらいの強度</div>
+          </div>
+          <div class="plan-dose">15-20<small>分</small></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>重量と進め方</h2>
+      <div class="rule-grid">
+        <div class="rule-box">
+          <h3>重量</h3>
+          <p>8〜12回でそこそこキツい重さ。最後の2〜3回が苦しいくらいを目安にします。</p>
+        </div>
+        <div class="rule-box">
+          <h3>最初の2〜3週</h3>
+          <p>重量より行く習慣を優先。フォームに慣れてから回数+1、または重量を1段階上げます。</p>
+        </div>
+        <div class="rule-box">
+          <h3>有酸素</h3>
+          <p>週2〜3回、20分程度で十分。筋トレ後の仕上げとして中強度で行います。</p>
+        </div>
+        <div class="rule-box">
+          <h3>減量ペース</h3>
+          <p>月-1〜1.5kgを目安にします。運動強度は主治医にも共有しておくと安全です。</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -413,6 +538,7 @@ hr.sep{border:none;border-top:1px solid var(--line2);margin:20px 0}
 
 <nav class="tabbar" id="tabbar">
   <button data-t="log" class="on"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>記録</button>
+  <button data-t="plan"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>メニュー</button>
   <button data-t="graph"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 4-6"/></svg>グラフ</button>
   <button data-t="body"><svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="3"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>体組成</button>
   <button data-t="hist"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h12"/></svg>履歴</button>
