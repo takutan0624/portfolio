@@ -247,6 +247,18 @@ details.ios-adv .adv-body {
   border-top: none;
 }
 
+/* Reset button (iOS action style) */
+.reset-row { padding: 12px 16px; text-align: center; border-top: 0.5px solid var(--glass-sep); }
+.reset-btn {
+  background: transparent; border: none; color: var(--sys-blue);
+  font-size: 0.9rem; font-weight: 600; cursor: pointer; padding: 6px 14px;
+  font-family: inherit; border-radius: 8px; transition: opacity 0.2s, background 0.2s;
+}
+.reset-btn:hover { background: var(--glass-track); }
+.reset-btn:active { opacity: 0.55; }
+.reset-all-row { text-align: center; margin-top: 12px; }
+.reset-btn-all { color: var(--sys-red); }
+
 /* Result Card */
 .result-card { padding: 24px 20px 20px; }
 .res-line {
@@ -430,8 +442,22 @@ details.ios-adv .adv-body {
           </div>
         </div>
 
+        <details class="ios-adv" id="livDetails">
+          <summary class="glass-panel"><span>生活費の内訳　<span class="num" id="livSumMini" style="color:var(--sys-secondary);font-weight:600;">合計 18.0万/月</span></span></summary>
+          <div class="glass-panel adv-body" id="livBody">
+            <!-- カテゴリ別スライダーはJSで生成 -->
+            <div class="ios-item" style="background:var(--glass-track);">
+              <div class="item-label" style="font-weight:700;">生活費 合計 / 月</div>
+              <div class="item-val num" id="livTotalV" style="color:var(--sys-label);font-weight:700;">18.0万</div>
+            </div>
+            <div class="reset-row">
+              <button type="button" id="livReset" class="reset-btn">↺ デフォルト値に戻す</button>
+            </div>
+          </div>
+        </details>
+
         <details class="ios-adv">
-          <summary class="glass-panel">詳細設定（頭金・金利・生活費など）</summary>
+          <summary class="glass-panel">詳細設定（頭金・金利・積立など）</summary>
           <div class="glass-panel adv-body">
             <div class="ios-item vertical" id="downField">
               <div class="slider-header">
@@ -456,13 +482,6 @@ details.ios-adv .adv-body {
             </div>
             <div class="ios-item vertical">
               <div class="slider-header">
-                <div class="item-label">基礎生活費（月）</div>
-                <div class="item-val num" id="livingV">18万</div>
-              </div>
-              <input type="range" id="living" min="10" max="40" step="1" value="18">
-            </div>
-            <div class="ios-item vertical">
-              <div class="slider-header">
                 <div class="item-label">老後・予備の積立（月）</div>
                 <div class="item-val num" id="saveV">5万</div>
               </div>
@@ -484,6 +503,10 @@ details.ios-adv .adv-body {
             </div>
           </div>
         </details>
+
+        <div class="reset-all-row">
+          <button type="button" id="resetAll" class="reset-btn reset-btn-all">↺ すべて初期値に戻す</button>
+        </div>
       </section>
 
       <section>
@@ -625,12 +648,26 @@ const MADORI = {
   "4LDK":{sqm:85, rf:1.50, pf:0.95},
 };
 
+// ===== 生活費カテゴリ（月額・単身/夫婦の初期値）=====
+const LIV_CATS = [
+  {k:"food",  label:"食費",            single:4.0, couple:6.5, max:15},
+  {k:"util",  label:"水道光熱費",       single:1.1, couple:2.0, max:6},
+  {k:"comm",  label:"通信費（スマホ・ネット）", single:1.0, couple:1.5, max:4},
+  {k:"daily", label:"日用品・雑費",     single:0.9, couple:1.6, max:5},
+  {k:"hobby", label:"趣味・交際・娯楽", single:2.8, couple:3.4, max:12},
+  {k:"cloth", label:"被服・美容",       single:0.9, couple:1.4, max:6},
+  {k:"himed", label:"保険・医療",       single:1.5, couple:1.6, max:6},
+];
+
 // ===== 状態 =====
 const S = {ward:"鶴見区", hh:"single", house:"rent", madori:"1LDK", car:0, kids:0,
-  spouse:300, down:500, rate:2.0, years:30, living:18, save:5,
-  myLow:450, myHigh:650, pension:14, yld:3, age:39, kanri:3.5};
+  spouse:300, down:500, rate:2.0, years:30, save:5,
+  myLow:450, myHigh:650, pension:14, yld:3, age:39, kanri:3.5,
+  liv:{}};
+LIV_CATS.forEach(c=> S.liv[c.k] = c.single);
 let pensionTouched = false;
 let madoriTouched = false;
+let livTouched = false;
 
 // ===== スライダーのグラス風プログレス更新 =====
 function updateSliderVisuals() {
@@ -687,8 +724,8 @@ function calc(ward){
     house = S.kanri*12;
     houseLabel = `実家承継（管理費等 月${S.kanri}万）`;
   }
-  let livingM = couple ? S.living : Math.max(S.living*0.68,10);
-  if(S.house==="inherit") livingM *= 0.9;
+  let livingM = LIV_CATS.reduce((s,c)=> s + (S.liv[c.k]||0), 0);
+  if(S.house==="inherit") livingM *= 0.9; // 実家承継は光熱・雑費がやや軽い想定
   const livingY = livingM*12;
   const bike = 10;
   let car=0;
@@ -762,6 +799,7 @@ function render(){
 
   renderRank();
   renderRetire(c);
+  updateLivTotals();
   updateSliderVisuals();
 }
 
@@ -875,6 +913,52 @@ function renderRetire(c){
   st.classList.remove("pop"); void st.offsetWidth; st.classList.add("pop");
 }
 
+// ===== 生活費カテゴリ：スライダー生成・同期・合計 =====
+function livSum(){ return LIV_CATS.reduce((s,c)=> s + (S.liv[c.k]||0), 0); }
+function buildLivSliders(){
+  const body = $("livBody");
+  // 合計行（既存）は末尾に残し、その前にカテゴリを差し込む
+  const totalRow = body.querySelector(".ios-item");
+  LIV_CATS.forEach(c=>{
+    const wrap = document.createElement("div");
+    wrap.className = "ios-item vertical";
+    wrap.innerHTML =
+      `<div class="slider-header">
+         <div class="item-label">${c.label}</div>
+         <div class="item-val num" id="liv_${c.k}_V">${S.liv[c.k].toFixed(1)}万</div>
+       </div>
+       <input type="range" id="liv_${c.k}" min="0" max="${c.max}" step="0.1" value="${S.liv[c.k]}">`;
+    body.insertBefore(wrap, totalRow);
+    wrap.querySelector("input").addEventListener("input", e=>{
+      livTouched = true;
+      S.liv[c.k] = parseFloat(e.target.value);
+      $(`liv_${c.k}_V`).textContent = S.liv[c.k].toFixed(1)+"万";
+      render();
+    });
+  });
+}
+function syncLivSliders(){
+  LIV_CATS.forEach(c=>{
+    const el = $(`liv_${c.k}`); if(!el) return;
+    el.value = S.liv[c.k];
+    $(`liv_${c.k}_V`).textContent = S.liv[c.k].toFixed(1)+"万";
+  });
+}
+function updateLivTotals(){
+  const t = livSum();
+  if($("livTotalV")) $("livTotalV").textContent = t.toFixed(1)+"万";
+  if($("livSumMini")) $("livSumMini").textContent = `合計 ${t.toFixed(1)}万/月`;
+}
+buildLivSliders();
+// 生活費カテゴリを現在の世帯（単身/夫婦）の初期値に戻す
+$("livReset").addEventListener("click",()=>{
+  const mode = S.hh; // single | couple
+  LIV_CATS.forEach(c=>{ S.liv[c.k] = c[mode]; });
+  livTouched = false;
+  syncLivSliders();
+  render();
+});
+
 // ===== UI 結線 =====
 function segWire(id, key, num){
   $(id).querySelectorAll("button").forEach(b=>{
@@ -910,6 +994,12 @@ function autoDefaults(){
       changed=true;
     }
   }
+  if(!livTouched){
+    const mode = S.hh; // single | couple
+    LIV_CATS.forEach(c=>{ S.liv[c.k] = c[mode]; });
+    syncLivSliders();
+    changed=true;
+  }
   if(changed) render();
 }
 ["hh","house"].forEach(id=>{ $(id).querySelectorAll("button").forEach(b=>b.addEventListener("click",autoDefaults)); });
@@ -923,9 +1013,29 @@ function sliderWire(id, key, suffix){
 }
 sliderWire("age","age","歳"); sliderWire("kanri","kanri","万"); sliderWire("spouse","spouse","万");
 sliderWire("down","down","万"); sliderWire("rate","rate","%"); sliderWire("years","years","年");
-sliderWire("living","living","万"); sliderWire("save","save","万"); sliderWire("myLow","myLow","万");
+sliderWire("save","save","万"); sliderWire("myLow","myLow","万");
 sliderWire("myHigh","myHigh","万"); sliderWire("pension","pension","万"); sliderWire("yld","yld","%");
 $("pension").addEventListener("input",()=>{pensionTouched=true;});
+
+// ===== 全体リセット =====
+const DEFAULTS = {ward:"鶴見区", hh:"single", house:"rent", madori:"1LDK", car:0, kids:0,
+  spouse:300, down:500, rate:2.0, years:30, save:5,
+  myLow:450, myHigh:650, pension:14, yld:3, age:39, kanri:3.5};
+const SLIDER_DEFS = [["age","歳"],["kanri","万"],["spouse","万"],["down","万"],["rate","%"],
+  ["years","年"],["save","万"],["myLow","万"],["myHigh","万"],["pension","万"],["yld","%"]];
+function syncSeg(id,val){ $(id).querySelectorAll("button").forEach(b=> b.classList.toggle("on", b.dataset.v===val)); }
+function resetAll(){
+  Object.assign(S, DEFAULTS);
+  LIV_CATS.forEach(c=>{ S.liv[c.k] = c.single; });
+  pensionTouched=false; madoriTouched=false; livTouched=false;
+  $("ward").value = S.ward;
+  syncSeg("hh",S.hh); syncSeg("house",S.house); syncSeg("madori",S.madori);
+  syncSeg("car",String(S.car)); syncSeg("kids",String(S.kids));
+  SLIDER_DEFS.forEach(([id,suf])=>{ const el=$(id); if(el){ el.value=S[id]; $(id+"V").textContent=S[id]+suf; } });
+  syncLivSliders();
+  render();
+}
+$("resetAll").addEventListener("click",resetAll);
 
 (function(){
   const sel = $("ward"); let g="", html="";
