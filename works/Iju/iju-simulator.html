@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>東京・横浜 移住シミュレーター｜区別・必要年収積算書</title>
+<style>
+/* Glassmorphism & Traditional Japanese Pattern Theme (Debugged) */
+:root {
+  --sys-label: #1d1d1f;
+  --sys-secondary: #58585c;
+  --sys-tertiary: #86868b;
+  --sys-blue: #005A9C;
+  --sys-green: #227D51;
+  --sys-orange: #C35C14;
+  --sys-red: #B92A2C;
+  --sys-purple: #7058A3;
+  --sys-indigo: #27344B;
+
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --glass-sep: rgba(0, 0, 0, 0.08);
+  --glass-segment-on: rgba(255, 255, 255, 1);
+  --glass-track: rgba(255, 255, 255, 0.4);
+
+  --bg-base: linear-gradient(135deg, #e4ebf1, #d5dee7);
+  --bg-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%2327344B' stroke-width='1.2' stroke-opacity='0.15'%3E%3Ccircle cx='0' cy='0' r='20'/%3E%3Ccircle cx='40' cy='0' r='20'/%3E%3Ccircle cx='0' cy='40' r='20'/%3E%3Ccircle cx='40' cy='40' r='20'/%3E%3Ccircle cx='20' cy='20' r='20'/%3E%3C/g%3E%3C/svg%3E");
+
+  --bar-house: var(--sys-blue);
+  --bar-live: var(--sys-green);
+  --bar-car: var(--sys-orange);
+  --bar-child: var(--sys-purple);
+  --bar-save: var(--sys-indigo);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sys-label: #f5f5f7;
+    --sys-secondary: rgba(235, 235, 245, 0.7);
+    --sys-tertiary: rgba(235, 235, 245, 0.4);
+    --sys-blue: #4A90E2;
+    --sys-green: #30D158;
+    --sys-orange: #FF9F0A;
+    --sys-red: #FF453A;
+    --sys-purple: #BF5AF2;
+    --sys-indigo: #5E5CE6;
+
+    --glass-bg: rgba(28, 28, 32, 0.55);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --glass-sep: rgba(255, 255, 255, 0.1);
+    --glass-segment-on: rgba(90, 90, 95, 0.9);
+    --glass-track: rgba(0, 0, 0, 0.4);
+
+    --bg-base: linear-gradient(135deg, #0f172a, #1a202c);
+    --bg-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-width='1.2' stroke-opacity='0.12'%3E%3Ccircle cx='0' cy='0' r='20'/%3E%3Ccircle cx='40' cy='0' r='20'/%3E%3Ccircle cx='0' cy='40' r='20'/%3E%3Ccircle cx='40' cy='40' r='20'/%3E%3Ccircle cx='20' cy='20' r='20'/%3E%3C/g%3E%3C/svg%3E");
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { font-size: 16px; }
+body {
+  background: var(--bg-base);
+  background-attachment: fixed;
+  color: var(--sys-label);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Hiragino Sans", sans-serif;
+  line-height: 1.5;
+  padding-bottom: 80px;
+  position: relative;
+  overflow-x: hidden;
+}
+.num { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Mono", monospace; font-variant-numeric: tabular-nums; }
+
+/* 七宝繋ぎ（Shippo-Tsunagi） Background */
+.bg-pattern {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--bg-pattern);
+  background-size: 60px 60px;
+  background-position: center;
+}
+
+.app-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Header */
+header { padding: 40px 0 24px; }
+.doc-no { font-size: 0.75rem; color: var(--sys-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 4px; }
+h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+.sub { font-size: 0.85rem; color: var(--sys-secondary); }
+
+/* Responsive Layout Grid */
+.main-layout { display: flex; flex-direction: column; gap: 24px; }
+@media (min-width: 860px) {
+  .main-layout { flex-direction: row; align-items: flex-start; }
+  .layout-left { flex: 1.2; min-width: 0; }
+  /* FIX: stickyカラムが画面より高い場合に下が見えなくなる問題 → 内部スクロール化 */
+  .layout-right {
+    flex: 1; min-width: 0;
+    position: sticky; top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    padding: 4px;
+  }
+}
+
+/* iOS Section & Glass List */
+section { margin-bottom: 24px; }
+.sec-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--sys-secondary);
+  margin: 0 0 8px 16px;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.3);
+}
+/* FIX: ダークモードでは白いtext-shadowが浮くので消す */
+@media (prefers-color-scheme: dark) {
+  .sec-title { text-shadow: none; }
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.ios-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--glass-sep);
+  min-height: 48px;
+}
+.ios-item:last-child { border-bottom: none; }
+.ios-item.vertical {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 14px 16px;
+}
+.item-label { font-size: 1rem; font-weight: 500; }
+.item-hint { font-size: 0.75rem; color: var(--sys-secondary); font-weight: 400; display: block; margin-top: 2px; }
+.item-val { font-size: 1rem; color: var(--sys-secondary); }
+
+/* Select */
+.ios-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  margin-left: 16px;
+  min-width: 0;
+}
+.ios-select-wrap select {
+  appearance: none; background: transparent; border: none; outline: none;
+  font-size: 1rem; color: var(--sys-blue); font-weight: 600;
+  text-align: right; width: 100%; padding-right: 20px; cursor: pointer;
+  text-overflow: ellipsis;
+}
+.ios-select-wrap::after {
+  content: "›"; font-size: 1.4rem; color: var(--sys-tertiary);
+  position: absolute; right: 0; top: 50%; transform: translateY(-54%); pointer-events: none;
+}
+
+/* Segmented Control (Glass) */
+.segment {
+  display: flex; background: var(--glass-track); border-radius: 8px; padding: 3px; width: 100%;
+  border: 0.5px solid var(--glass-border);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+}
+.segment button {
+  flex: 1; background: transparent; border: none;
+  font-size: 0.85rem; font-weight: 500; color: var(--sys-label);
+  padding: 8px 4px; border-radius: 6px; cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); line-height: 1.2;
+}
+.segment button small { display: block; font-size: 0.65rem; color: var(--sys-secondary); margin-top: 2px; }
+.segment button.on {
+  background: var(--glass-segment-on);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  font-weight: 600;
+}
+
+/* Range Slider (Glass) */
+.slider-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  /* FIX: セグメントがラベルと押し合って潰れる問題 → 折り返し許可 */
+  flex-wrap: wrap; gap: 6px;
+}
+/* FIX: セグメントは常にラベルの下の行へ（全幅確保） */
+.slider-header .segment { flex: 1 1 100%; width: auto; }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 8px; border-radius: 4px; outline: none;
+  background: var(--glass-track); margin: 10px 0;
+  border: 0.5px solid var(--glass-border);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%;
+  background: #FFFFFF; border: 0.5px solid rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15), 0 0 2px rgba(0,0,0,0.1);
+  cursor: pointer; margin-top: -11px;
+}
+/* FIX: Firefox用のつまみスタイルが無かった */
+input[type=range]::-moz-range-thumb {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #FFFFFF; border: 0.5px solid rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15), 0 0 2px rgba(0,0,0,0.1);
+  cursor: pointer;
+}
+
+/* Details (Advanced)
+   FIX: 旧コードは details 内の .glass-panel 全部（summary含む）に
+   「上角を四角にする」CSSが当たる構造で、インラインstyleで偶然隠れていた。
+   summary と本体(.adv-body)を別クラスで明示的に制御する方式に変更。 */
+details.ios-adv { margin-top: 16px; }
+details.ios-adv summary {
+  padding: 14px 16px; font-size: 0.9rem; font-weight: 500; color: var(--sys-blue);
+  list-style: none; display: flex; justify-content: space-between; cursor: pointer;
+}
+details.ios-adv summary::-webkit-details-marker { display: none; }
+details.ios-adv summary::after { content: "›"; transition: transform 0.2s; font-size: 1.2rem; line-height: 1; }
+details.ios-adv[open] summary::after { transform: rotate(90deg); }
+details.ios-adv summary.glass-panel { border-radius: 16px; }
+details.ios-adv[open] summary.glass-panel {
+  border-radius: 16px 16px 0 0;
+  border-bottom: 0.5px solid var(--glass-sep);
+}
+details.ios-adv .adv-body {
+  border-radius: 0 0 16px 16px;
+  border-top: none;
+}
+
+/* Result Card */
+.result-card { padding: 24px 20px 20px; }
+.res-line {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; font-size: 0.9rem; border-bottom: 0.5px dashed var(--glass-sep);
+  gap: 10px;
+}
+.res-line:last-of-type { border-bottom: none; }
+.res-line .v { font-weight: 600; white-space: nowrap; }
+.res-total { text-align: center; margin: 24px 0 16px; }
+.res-total .t { font-size: 0.85rem; color: var(--sys-secondary); font-weight: 600; margin-bottom: 4px; }
+.res-total .big { font-size: 2.8rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.res-total .big small { font-size: 1.2rem; font-weight: 600; margin-left: 2px; }
+
+/* Bar Chart */
+.bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; margin-bottom: 12px; background: var(--glass-track); border: 0.5px solid var(--glass-border); box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); }
+.bar div { height: 100%; transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 0.75rem; color: var(--sys-secondary); font-weight: 500; }
+.legend span::before {
+  content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+  margin-right: 5px; vertical-align: -1px; background: var(--c);
+}
+
+/* Verdict Box */
+.verdict-box {
+  margin-top: 24px; padding: 16px; border-radius: 12px;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  background: var(--glass-track);
+}
+.verdict-box .lbl { font-size: 0.8rem; color: var(--sys-secondary); font-weight: 600; margin-bottom: 4px; }
+.verdict-box .amt { font-size: 1.6rem; font-weight: 800; }
+.stamp {
+  width: 72px; height: 72px; border: 3px solid var(--sys-blue); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.95rem; transform: rotate(-10deg); text-align: center; line-height: 1.2;
+  background: var(--glass-bg); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08), inset 0 0 0 1.5px rgba(255,255,255,0.4); flex-shrink: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes popIn {
+    0% { transform: rotate(-10deg) scale(1.4); opacity: 0; }
+    60% { transform: rotate(-10deg) scale(0.9); opacity: 1; }
+    100% { transform: rotate(-10deg) scale(1); opacity: 1; }
+  }
+  .stamp.pop { animation: popIn 0.4s cubic-bezier(0.2, 1.4, 0.4, 1); }
+}
+
+/* Rank List */
+.rank-item {
+  display: flex; align-items: center; padding: 10px 16px; border-bottom: 0.5px solid var(--glass-sep);
+}
+.rank-item:last-child { border-bottom: none; }
+.rank-item .nm { width: 80px; font-size: 0.85rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-item.sel .nm { font-weight: 700; color: var(--sys-blue); }
+.bar-wrap { flex: 1; height: 8px; background: var(--glass-track); border: 0.5px solid var(--glass-border); border-radius: 4px; margin: 0 12px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+.bar-inner { height: 100%; background: var(--sys-blue); border-radius: 4px; opacity: 0.85; transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.rank-item.sel .bar-inner { background: var(--sys-blue); opacity: 1; }
+.rank-item.over .bar-inner { background: var(--sys-red); opacity: 0.5; }
+.rank-item .amt { width: 56px; text-align: right; font-size: 0.85rem; font-weight: 600; }
+.range-note { padding: 0 16px 8px; font-size: 0.8rem; color: var(--sys-secondary); }
+
+/* Table */
+.ios-table { width: 100%; border-collapse: collapse; }
+.ios-table th, .ios-table td { padding: 12px 16px; border-bottom: 0.5px solid var(--glass-sep); text-align: left; }
+.ios-table td:last-child { text-align: right; color: var(--sys-secondary); }
+.ios-table th { font-size: 0.75rem; color: var(--sys-secondary); font-weight: 500; text-transform: uppercase; }
+.ios-table tr:last-child td { border-bottom: none; }
+.ios-table tfoot td { font-weight: 700; color: var(--sys-label); font-size: 1.1rem; }
+.ios-table tfoot td:last-child { color: var(--sys-label); }
+
+.note { font-size: 0.75rem; color: var(--sys-secondary); line-height: 1.6; padding: 0 16px; margin-top: 16px; }
+.footer { text-align: center; font-size: 0.7rem; color: var(--sys-tertiary); margin-top: 40px; padding-top: 20px; border-top: 0.5px solid var(--glass-sep); }
+</style>
+</head>
+<body>
+
+<div class="bg-pattern"></div>
+
+<div class="app-container">
+  <header>
+    <div class="doc-no">Life Plan Estimate 2026.06</div>
+    <h1>移住シミュレーター</h1>
+    <div class="sub">東京・横浜の区別相場 × 住まい方から必要年収を算出</div>
+  </header>
+
+  <div class="main-layout">
+    <!-- LEFT COLUMN (Inputs) -->
+    <div class="layout-left">
+      <section>
+        <h2 class="sec-title">Step 1. 条件を設定</h2>
+        <div class="glass-panel">
+          <div class="ios-item">
+            <div>
+              <div class="item-label">エリア</div>
+              <div class="item-hint">家賃・物件相場に影響</div>
+            </div>
+            <div class="ios-select-wrap">
+              <select id="ward"></select>
+            </div>
+          </div>
+
+          <div class="ios-item vertical">
+            <div class="slider-header">
+              <div>
+                <div class="item-label">現在の年齢</div>
+                <div class="item-hint">老後計算・完済年齢に反映</div>
+              </div>
+              <div class="item-val num" id="ageV">39歳</div>
+            </div>
+            <input type="range" id="age" min="20" max="60" step="1" value="39">
+          </div>
+
+          <div class="ios-item vertical">
+            <div class="slider-header">
+              <div class="item-label">世帯</div>
+              <div class="segment" id="hh">
+                <button data-v="single" class="on">単身</button>
+                <button data-v="couple">夫婦</button>
+              </div>
+            </div>
+          </div>
+          <div class="ios-item vertical">
+            <div class="slider-header">
+              <div class="item-label">住まい</div>
+              <div class="segment" id="house">
+                <button data-v="rent" class="on">賃貸</button>
+                <button data-v="buy">購入</button>
+                <button data-v="inherit">実家承継<br><small>同居→相続</small></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ios-item vertical" id="madoriField">
+            <div class="slider-header">
+              <div class="item-label">間取り</div>
+              <div class="segment" id="madori">
+                <button data-v="1K">1K<br><small>25㎡</small></button>
+                <button data-v="1LDK" class="on">1LDK<br><small>40㎡</small></button>
+                <button data-v="2LDK">2LDK<br><small>55㎡</small></button>
+                <button data-v="3LDK">3LDK<br><small>70㎡</small></button>
+                <button data-v="4LDK">4LDK<br><small>85㎡</small></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ios-item vertical" id="kanriField" style="display:none;">
+            <div class="slider-header">
+              <div class="item-label">管理・修繕・税等</div>
+              <div class="item-val num" id="kanriV">3.5万</div>
+            </div>
+            <input type="range" id="kanri" min="1" max="7" step="0.5" value="3.5">
+          </div>
+
+          <div class="ios-item vertical">
+            <div class="slider-header">
+              <div class="item-label">車</div>
+              <div class="segment" id="car">
+                <button data-v="0" class="on">なし</button>
+                <button data-v="1">シェア</button>
+                <button data-v="2">所有</button>
+              </div>
+            </div>
+          </div>
+          <div class="ios-item vertical">
+            <div class="slider-header">
+              <div class="item-label">子ども</div>
+              <div class="segment" id="kids">
+                <button data-v="0" class="on">0人</button>
+                <button data-v="1">1人</button>
+                <button data-v="2">2人</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ios-item vertical" id="spouseField" style="display:none;">
+            <div class="slider-header">
+              <div class="item-label">配偶者の年収（額面）</div>
+              <div class="item-val num" id="spouseV">300万</div>
+            </div>
+            <input type="range" id="spouse" min="0" max="600" step="25" value="300">
+          </div>
+        </div>
+
+        <details class="ios-adv">
+          <summary class="glass-panel">詳細設定（頭金・金利・生活費など）</summary>
+          <div class="glass-panel adv-body">
+            <div class="ios-item vertical" id="downField">
+              <div class="slider-header">
+                <div class="item-label">頭金</div>
+                <div class="item-val num" id="downV">500万</div>
+              </div>
+              <input type="range" id="down" min="0" max="2000" step="100" value="500">
+            </div>
+            <div class="ios-item vertical" id="rateField">
+              <div class="slider-header">
+                <div class="item-label">ローン金利</div>
+                <div class="item-val num" id="rateV">2.0%</div>
+              </div>
+              <input type="range" id="rate" min="0.5" max="4" step="0.1" value="2.0">
+            </div>
+            <div class="ios-item vertical" id="yearsField">
+              <div class="slider-header">
+                <div class="item-label">返済年数</div>
+                <div class="item-val num" id="yearsV">30年</div>
+              </div>
+              <input type="range" id="years" min="20" max="35" step="1" value="30">
+            </div>
+            <div class="ios-item vertical">
+              <div class="slider-header">
+                <div class="item-label">基礎生活費（月）</div>
+                <div class="item-val num" id="livingV">20万</div>
+              </div>
+              <input type="range" id="living" min="10" max="40" step="1" value="20">
+            </div>
+            <div class="ios-item vertical">
+              <div class="slider-header">
+                <div class="item-label">老後・予備の積立（月）</div>
+                <div class="item-val num" id="saveV">5万</div>
+              </div>
+              <input type="range" id="save" min="0" max="15" step="1" value="5">
+            </div>
+            <div class="ios-item vertical">
+              <div class="slider-header">
+                <div class="item-label">自分の想定年収レンジ (下限)</div>
+                <div class="item-val num" id="myLowV">450万</div>
+              </div>
+              <input type="range" id="myLow" min="300" max="800" step="25" value="450">
+            </div>
+            <div class="ios-item vertical">
+              <div class="slider-header">
+                <div class="item-label">自分の想定年収レンジ (上限)</div>
+                <div class="item-val num" id="myHighV">650万</div>
+              </div>
+              <input type="range" id="myHigh" min="300" max="900" step="25" value="650">
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section>
+        <h2 class="sec-title">Step 4. エリア比較（東京＋横浜）</h2>
+        <div class="range-note" id="rankNote"></div>
+        <div class="glass-panel" id="rankList"></div>
+      </section>
+    </div>
+
+    <!-- RIGHT COLUMN (Results) -->
+    <div class="layout-right">
+      <section>
+        <h2 class="sec-title">Step 2. 積算結果</h2>
+        <div class="glass-panel result-card">
+          <div id="resLines"></div>
+          <div class="res-total">
+            <div class="t">必要世帯年収（額面）</div>
+            <div class="big num" id="grossTotal">—<small>万円</small></div>
+          </div>
+          <div class="bar" id="bar"></div>
+          <div class="legend">
+            <span style="--c:var(--bar-house)">住居</span>
+            <span style="--c:var(--bar-live)">生活・バイク</span>
+            <span style="--c:var(--bar-car)">車</span>
+            <span style="--c:var(--bar-child)">子ども</span>
+            <span style="--c:var(--bar-save)">積立</span>
+          </div>
+          <div class="verdict-box" id="shareBox">
+            <div>
+              <div class="lbl" id="shareLbl">自分に必要な年収（額面）</div>
+              <div class="amt num" id="shareAmt">—</div>
+            </div>
+            <div class="stamp" id="stamp">—</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="sec-title">Step 3. 月次の内訳</h2>
+        <div class="glass-panel">
+          <table class="ios-table">
+            <thead><tr><th>費目</th><th>月額</th></tr></thead>
+            <tbody id="monthBody"></tbody>
+            <tfoot><tr><td>手取り必要額 / 月</td><td class="num" id="monthTotal">—</td></tr></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="sec-title" id="retSecLabel">Step 5. 老後資金</h2>
+        <div class="glass-panel result-card">
+          <div class="slider-header" style="margin-bottom:8px;">
+            <div class="item-label" style="font-size:0.85rem;">年金見込み（月）</div>
+            <div class="item-val num" id="pensionV">14万</div>
+          </div>
+          <input type="range" id="pension" min="5" max="35" step="0.5" value="14">
+
+          <div class="slider-header" style="margin-top:16px; margin-bottom:8px;">
+            <div class="item-label" style="font-size:0.85rem;">NISA等 運用利回り</div>
+            <div class="item-val num" id="yldV">3%</div>
+          </div>
+          <input type="range" id="yld" min="0" max="7" step="0.5" value="3">
+
+          <div style="height:16px;"></div>
+          <div id="retLines"></div>
+
+          <div class="res-total" style="margin-top: 16px;">
+            <div class="t">必要老後資金（65歳時点）</div>
+            <div class="big num" id="retNeed">—<small>万円</small></div>
+          </div>
+
+          <div class="verdict-box">
+            <div>
+              <div class="lbl" id="retLbl">現在の積立の到達見込み</div>
+              <div class="amt num" id="retFV">—</div>
+            </div>
+            <div class="stamp" id="retStamp">—</div>
+          </div>
+          <div class="note" id="retNote" style="padding:0; margin-top:16px;"></div>
+        </div>
+      </section>
+
+      <div class="note">
+        ※ 相場は2026年春の推定値（間取り別・築15〜25年想定）。<br>
+        ※ 額面換算は税・社会保険の概算。子ども費用は支援制度考慮。<br>
+        ※ 老後は65歳リタイア・95歳までの30年で計算。
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">EST. BY TAKUYA × CLAUDE × GEMINI / DATA AS OF JUN 2026 / 単位：万円</div>
+</div>
+
+<script>
+// ===== UI Colors (iOS Style) =====
+const COLORS = {
+  success: "var(--sys-green)",
+  warning: "var(--sys-orange)",
+  danger: "var(--sys-red)",
+  blue: "var(--sys-blue)",
+  gray: "var(--sys-tertiary)"
+};
+
+// ===== エリアデータ（2026年春・推定値）=====
+const WARDS = [
+  {g:"都心6区", n:"千代田区", u:230, r2:30, p:5}, {g:"都心6区", n:"中央区", u:185, r2:27, p:5},
+  {g:"都心6区", n:"港区", u:250, r2:33, p:5.5}, {g:"都心6区", n:"新宿区", u:150, r2:24, p:4},
+  {g:"都心6区", n:"文京区", u:145, r2:22, p:3.5}, {g:"都心6区", n:"渋谷区", u:215, r2:29, p:5},
+  {g:"城南", n:"品川区", u:140, r2:23, p:3.5}, {g:"城南", n:"目黒区", u:160, r2:25, p:4},
+  {g:"城南", n:"大田区", u:100, r2:16.5, p:2.5}, {g:"城南", n:"世田谷区", u:120, r2:20, p:3},
+  {g:"城西", n:"中野区", u:110, r2:18, p:2.8}, {g:"城西", n:"杉並区", u:105, r2:17, p:2.5},
+  {g:"城西", n:"練馬区", u:82, r2:14, p:2},
+  {g:"城北", n:"豊島区", u:118, r2:19, p:3}, {g:"城北", n:"北区", u:95, r2:15.5, p:2.2},
+  {g:"城北", n:"荒川区", u:92, r2:15, p:2.2}, {g:"城北", n:"板橋区", u:86, r2:14.5, p:2},
+  {g:"城北", n:"足立区", u:60, r2:12, p:1.8},
+  {g:"城東", n:"台東区", u:125, r2:20, p:3}, {g:"城東", n:"墨田区", u:100, r2:16, p:2.5},
+  {g:"城東", n:"江東区", u:105, r2:18, p:2.8}, {g:"城東", n:"葛飾区", u:62, r2:11.5, p:1.8},
+  {g:"城東", n:"江戸川区", u:70, r2:12.5, p:1.8},
+  {g:"市部", n:"武蔵野市", u:110, r2:17, p:2}, {g:"市部", n:"三鷹市", u:92, r2:15, p:1.8},
+  {g:"市部", n:"調布市", u:80, r2:13.5, p:1.5}, {g:"市部", n:"立川市", u:65, r2:12, p:1.2},
+  {g:"市部", n:"町田市", u:55, r2:10.5, p:1}, {g:"市部", n:"八王子市", u:45, r2:9, p:0.8},
+  {g:"横浜・中心/北部", n:"西区", u:100, r2:16, p:2.5}, {g:"横浜・中心/北部", n:"中区", u:79, r2:14, p:2.2},
+  {g:"横浜・中心/北部", n:"神奈川区", u:73, r2:13, p:2}, {g:"横浜・中心/北部", n:"港北区", u:60, r2:13.5, p:1.8},
+  {g:"横浜・中心/北部", n:"都筑区", u:63, r2:12.5, p:1.2}, {g:"横浜・中心/北部", n:"青葉区", u:54, r2:12.5, p:1.4},
+  {g:"横浜・中心/北部", n:"鶴見区", u:53, r2:12, p:1.5}, {g:"横浜・中心/北部", n:"緑区", u:40, r2:10, p:0.9},
+  {g:"横浜・南部/西部", n:"戸塚区", u:45, r2:11, p:1}, {g:"横浜・南部/西部", n:"保土ケ谷区", u:42, r2:10.5, p:1.1},
+  {g:"横浜・南部/西部", n:"南区", u:42, r2:10, p:1.2}, {g:"横浜・南部/西部", n:"港南区", u:36, r2:10, p:0.9},
+  {g:"横浜・南部/西部", n:"旭区", u:35, r2:9.5, p:0.8}, {g:"横浜・南部/西部", n:"磯子区", u:33, r2:10, p:0.9},
+  {g:"横浜・南部/西部", n:"金沢区", u:33, r2:9.5, p:0.8}, {g:"横浜・南部/西部", n:"栄区", u:33, r2:9, p:0.8},
+  {g:"横浜・南部/西部", n:"泉区", u:32, r2:9, p:0.7}, {g:"横浜・南部/西部", n:"瀬谷区", u:35, r2:8.5, p:0.7},
+];
+
+// ===== 間取り→広さ・補正 =====
+const MADORI = {
+  "1K":  {sqm:25, rf:0.55, pf:1.15},
+  "1LDK":{sqm:40, rf:0.72, pf:1.08},
+  "2LDK":{sqm:55, rf:1.00, pf:1.00},
+  "3LDK":{sqm:70, rf:1.25, pf:0.97},
+  "4LDK":{sqm:85, rf:1.50, pf:0.95},
+};
+
+// ===== 状態 =====
+const S = {ward:"鶴見区", hh:"single", house:"rent", madori:"1LDK", car:0, kids:0,
+  spouse:300, down:500, rate:2.0, years:30, living:20, save:5,
+  myLow:450, myHigh:650, pension:14, yld:3, age:39, kanri:3.5};
+let pensionTouched = false;
+let madoriTouched = false;
+
+// ===== スライダーのグラス風プログレス更新 =====
+function updateSliderVisuals() {
+  document.querySelectorAll('input[type=range]').forEach(el => {
+    const min = parseFloat(el.min) || 0;
+    const max = parseFloat(el.max) || 100;
+    const val = parseFloat(el.value);
+    const percent = ((val - min) / (max - min)) * 100;
+    el.style.background = `linear-gradient(to right, var(--sys-blue) ${percent}%, var(--glass-track) ${percent}%)`;
+  });
+}
+
+// ===== 額面⇄手取り（個人別・概算）=====
+function net(gv){
+  if(gv<=0) return 0;
+  let r;
+  if(gv<=300) r=.81;
+  else if(gv<=500) r=.81-(gv-300)/200*.03;
+  else if(gv<=700) r=.78-(gv-500)/200*.025;
+  else if(gv<=1000) r=.755-(gv-700)/300*.035;
+  else r=.72-(gv-1000)/1000*.04;
+  return gv*r;
+}
+function gross(needNet){
+  if(needNet<=0) return 0;
+  let lo=needNet, hi=needNet*1.6;
+  for(let i=0;i<40;i++){
+    const mid=(lo+hi)/2;
+    if(net(mid)<needNet) lo=mid; else hi=mid;
+  }
+  return (lo+hi)/2;
+}
+
+// ===== 年間コスト計算 =====
+function calc(ward){
+  const w = WARDS.find(x=>x.n===ward);
+  const M = MADORI[S.madori];
+  const couple = S.hh==="couple";
+  let house=0, houseLabel="", rentM=0;
+  if(S.house==="rent"){
+    rentM = w.r2*M.rf;
+    house = rentM*12*1.05;
+    houseLabel = `賃貸 ${S.madori}（約${rentM.toFixed(1)}万/月）`;
+  }else if(S.house==="buy"){
+    const price = w.u*M.pf*M.sqm;
+    const loan = Math.max(price - S.down, 0);
+    const i = S.rate/100/12, n = S.years*12;
+    const mPay = i===0 ? loan/n : loan*i/(1-Math.pow(1+i,-n));
+    const upkeep = 22 + M.sqm*0.17 + price*0.0025;
+    house = mPay*12 + upkeep;
+    const doneAge = S.age + 1 + S.years;
+    houseLabel = `購入 ${S.madori}・${Math.round(price).toLocaleString()}万（月${mPay.toFixed(1)}万・完済${doneAge}歳）`;
+  }else{ // inherit
+    house = S.kanri*12;
+    houseLabel = `実家承継（管理費等 月${S.kanri}万）`;
+  }
+  let livingM = couple ? S.living : Math.max(S.living*0.68,10);
+  if(S.house==="inherit") livingM *= 0.9;
+  const livingY = livingM*12;
+  const bike = 20;
+  let car=0;
+  if(S.car===1) car = 12;
+  if(S.car===2) car = 60 + w.p*12;
+  const child = S.kids*85;
+  const save = S.save*12;
+  const totalNet = house + livingY + bike + car + child + save;
+  return {w, house, houseLabel, livingY, bike, car, child, save, totalNet, rentM};
+}
+
+// ===== 描画 =====
+const $ = id=>document.getElementById(id);
+function yen(v){return Math.round(v).toLocaleString();}
+
+function render(){
+  const c = calc(S.ward);
+  const couple = S.hh==="couple";
+  $("spouseField").style.display = couple ? "flex" : "none";
+  const buying = S.house==="buy";
+  $("downField").style.display = buying?"flex":"none";
+  $("rateField").style.display = buying?"flex":"none";
+  $("yearsField").style.display = buying?"flex":"none";
+  $("kanriField").style.display = S.house==="inherit"?"flex":"none";
+  $("madoriField").style.display = S.house==="inherit"?"none":"flex";
+
+  const lines = [
+    ["住居｜"+c.houseLabel, c.house],
+    ["生活費＋バイク", c.livingY+c.bike],
+    ["車", c.car],
+    ["子ども（年平均）", c.child],
+    ["老後・予備の積立", c.save],
+  ].filter(x=>x[1]>0.5);
+  $("resLines").innerHTML = lines.map(x=>
+    `<div class="res-line"><span style="color:var(--sys-secondary)">${x[0]}</span><span class="v num">${yen(x[1])}万/年</span></div>`).join("");
+
+  let householdGross;
+  if(couple){
+    const spouseNet = net(S.spouse);
+    const myNeedNet = Math.max(c.totalNet - spouseNet, 0);
+    const myGross = gross(myNeedNet);
+    householdGross = myGross + S.spouse;
+    $("shareLbl").textContent = `自分に必要な年収（配偶者${S.spouse}万前提）`;
+    $("shareAmt").innerHTML = yen(myGross)+`<small style="font-size:1rem; font-weight:600">万円</small>`;
+    setStamp(myGross, "stamp");
+  }else{
+    householdGross = gross(c.totalNet);
+    $("shareLbl").textContent = "自分に必要な年収（単身）";
+    $("shareAmt").innerHTML = yen(householdGross)+`<small style="font-size:1rem; font-weight:600">万円</small>`;
+    setStamp(householdGross, "stamp");
+  }
+  $("grossTotal").innerHTML = yen(householdGross)+"<small>万円</small>";
+
+  const segs = [
+    [c.house,"var(--bar-house)"],[c.livingY+c.bike,"var(--bar-live)"],
+    [c.car,"var(--bar-car)"],[c.child,"var(--bar-child)"],[c.save,"var(--bar-save)"]];
+  $("bar").innerHTML = segs.filter(s=>s[0]>0)
+    .map(s=>`<div style="width:${s[0]/c.totalNet*100}%;background:${s[1]}"></div>`).join("");
+
+  const rows = [
+    ["住居", c.house/12],
+    [couple?"生活費（夫婦）":"生活費（単身）", c.livingY/12],
+    ["バイク", c.bike/12],
+    ...(c.car>0?[["車", c.car/12]]:[]),
+    ...(c.child>0?[["子ども", c.child/12]]:[]),
+    ["積立", c.save/12],
+  ];
+  $("monthBody").innerHTML = rows.map(r=>
+    `<tr><td>${r[0]}</td><td class="num val">${r[1].toFixed(1)}万</td></tr>`).join("");
+  $("monthTotal").textContent = (c.totalNet/12).toFixed(1)+"万";
+
+  renderRank();
+  renderRetire(c);
+  updateSliderVisuals();
+}
+
+function setStamp(val, id){
+  const st = $(id);
+  let txt, color;
+  if(val<=S.myLow){txt="余裕で<br>射程内"; color = COLORS.success;}
+  else if(val<=S.myHigh){txt="射程内"; color = COLORS.success;}
+  else if(val<=S.myHigh+150){txt="要調整"; color = COLORS.warning;}
+  else{txt="現状<br>圏外"; color = COLORS.danger;}
+
+  st.innerHTML = txt;
+  st.style.color = color;
+  st.style.borderColor = color;
+  st.classList.remove("pop"); void st.offsetWidth; st.classList.add("pop");
+}
+
+function renderRank(){
+  const cur = S.ward;
+  const list = WARDS.map(w=>{
+    const saved = S.ward; S.ward = w.n;
+    const c = calc(w.n);
+    let g = S.hh==="single" ? gross(c.totalNet) : gross(Math.max(c.totalNet-net(S.spouse),0)) + S.spouse;
+    S.ward = saved;
+    return {n:w.n, g};
+  }).sort((a,b)=>a.g-b.g);
+
+  const max = list[list.length-1].g;
+  const within = list.filter(x=>{
+    const mine = S.hh==="single" ? x.g : x.g - S.spouse;
+    return mine<=S.myHigh;
+  }).length;
+
+  $("rankNote").textContent =
+    `想定レンジ（〜${S.myHigh}万）に収まるエリア：${within} / ${list.length}`;
+  $("rankList").innerHTML = list.map(x=>{
+    const mine = S.hh==="single" ? x.g : x.g - S.spouse;
+    const cls = (x.n===cur?"sel ":"") + (mine>S.myHigh?"over":"");
+    return `<div class="rank-item ${cls}">
+      <span class="nm">${x.n}</span>
+      <div class="bar-wrap"><div class="bar-inner" style="width:${x.g/max*100}%"></div></div>
+      <span class="amt num">${yen(x.g)}万</span>
+    </div>`;
+  }).join("");
+}
+
+// ===== 老後資金 =====
+function renderRetire(c){
+  const couple = S.hh==="couple";
+  const w = c.w;
+  const yearsTo65 = Math.max(1, 65 - S.age);
+  const retireYears = 30;
+
+  $("retSecLabel").textContent = `Step 5. 老後資金（${S.age}歳→65歳・95歳迄）`;
+
+  let spendM = couple ? 26 : 17;
+  let houseNote = "";
+  if(S.house==="buy"){
+    spendM += 3.2; houseNote = "持ち家（管理修繕等3.2万）";
+  }else if(S.house==="inherit"){
+    spendM += S.kanri; houseNote = `実家（管理費等${S.kanri}万）`;
+  }else{
+    const rRent = c.rentM*0.9; spendM += rRent; houseNote = `賃貸（家賃${rRent.toFixed(1)}万）`;
+  }
+
+  const gapM = Math.max(0, spendM - S.pension);
+  const careBuf = 500;
+  let postLoan = 0, postLoanYears = 0;
+  if(S.house==="buy"){
+    const M = MADORI[S.madori];
+    const price = w.u*M.pf*M.sqm, loan = Math.max(price-S.down,0);
+    const i = S.rate/100/12, n = S.years*12;
+    const mPay = i===0 ? loan/n : loan*i/(1-Math.pow(1+i,-n));
+    postLoanYears = Math.max(0, (S.age+1) + S.years - 65);
+    postLoan = mPay*12*postLoanYears;
+  }
+  const need = gapM*12*retireYears + careBuf + postLoan;
+  const im = S.yld/100/12, nm = yearsTo65*12;
+  const fv = im===0 ? S.save*nm : S.save*(Math.pow(1+im,nm)-1)/im;
+  const shortfall = need - fv;
+
+  const lines = [
+    [`生活費（月）｜${houseNote}`, spendM.toFixed(1)+"万"],
+    [`年金見込み（月）`, S.pension+"万"],
+    [`不足分（月${gapM.toFixed(1)}万）× 30年`, yen(gapM*12*retireYears)+"万"],
+    [`介護・医療の予備`, yen(careBuf)+"万"],
+  ];
+  if(postLoan>0) lines.push([`65歳以降のローン残（${postLoanYears}年）`, yen(postLoan)+"万"]);
+
+  $("retLines").innerHTML = lines.map(x=>
+    `<div class="res-line"><span style="color:var(--sys-secondary)">${x[0]}</span><span class="v num">${x[1]}</span></div>`).join("");
+  $("retNeed").innerHTML = yen(need)+"<small>万円</small>";
+  $("retLbl").textContent = `月${S.save}万×${yearsTo65}年の到達見込み`;
+  $("retFV").innerHTML = yen(fv)+`<small style="font-size:1rem; font-weight:600">万円</small>`;
+
+  const st = $("retStamp");
+  if(shortfall<=0){
+    st.innerHTML = "老後<br>クリア"; st.style.color = st.style.borderColor = COLORS.success;
+    $("retNote").textContent = `余裕 ${yen(-shortfall)}万。持ち家なら物件自体も資産に。`;
+  }else{
+    const extra = im===0 ? shortfall/nm : shortfall*im/(Math.pow(1+im,nm)-1);
+    if(extra<=3){
+      st.innerHTML = "あと<br>少し"; st.style.color = st.style.borderColor = COLORS.warning;
+    }else{
+      st.innerHTML = "要<br>再設計"; st.style.color = st.style.borderColor = COLORS.danger;
+    }
+    $("retNote").textContent =
+      `不足 ${yen(shortfall)}万 → 積立をあと月＋${extra.toFixed(1)}万（合計 月${(S.save+extra).toFixed(1)}万）にすれば到達可能。`;
+  }
+  // FIX: クリア時もアニメーションが発火するよう共通化
+  st.classList.remove("pop"); void st.offsetWidth; st.classList.add("pop");
+}
+
+// ===== UI 結線 =====
+function segWire(id, key, num){
+  $(id).querySelectorAll("button").forEach(b=>{
+    b.addEventListener("click",()=>{
+      $(id).querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      S[key] = num ? parseInt(b.dataset.v) : b.dataset.v;
+      render();
+    });
+  });
+}
+segWire("hh","hh",false);
+segWire("house","house",false);
+segWire("madori","madori",false);
+segWire("car","car",true);
+segWire("kids","kids",true);
+$("madori").querySelectorAll("button").forEach(b=>{ b.addEventListener("click",()=>{madoriTouched=true;}); });
+
+function autoDefaults(){
+  let changed=false;
+  if(!madoriTouched){
+    const m = S.house==="buy" ? "3LDK" : (S.hh==="single" ? "1LDK" : "2LDK");
+    if(S.madori!==m){
+      S.madori=m;
+      $("madori").querySelectorAll("button").forEach(x=> x.classList.toggle("on", x.dataset.v===m));
+      changed=true;
+    }
+  }
+  if(!pensionTouched){
+    const p = S.hh==="single" ? 14 : 22;
+    if(S.pension!==p){
+      S.pension=p; $("pension").value=p; $("pensionV").textContent=p+"万";
+      changed=true;
+    }
+  }
+  if(changed) render();
+}
+["hh","house"].forEach(id=>{ $(id).querySelectorAll("button").forEach(b=>b.addEventListener("click",autoDefaults)); });
+
+function sliderWire(id, key, suffix){
+  $(id).addEventListener("input",e=>{
+    S[key]=parseFloat(e.target.value);
+    $(id+"V").textContent = e.target.value + suffix;
+    render();
+  });
+}
+sliderWire("age","age","歳"); sliderWire("kanri","kanri","万"); sliderWire("spouse","spouse","万");
+sliderWire("down","down","万"); sliderWire("rate","rate","%"); sliderWire("years","years","年");
+sliderWire("living","living","万"); sliderWire("save","save","万"); sliderWire("myLow","myLow","万");
+sliderWire("myHigh","myHigh","万"); sliderWire("pension","pension","万"); sliderWire("yld","yld","%");
+$("pension").addEventListener("input",()=>{pensionTouched=true;});
+
+(function(){
+  const sel = $("ward"); let g="", html="";
+  WARDS.forEach(w=>{
+    if(w.g!==g){ if(g) html+="</optgroup>"; html+=`<optgroup label="${w.g}">`; g=w.g; }
+    const total70 = w.u*70;
+    const priceTxt = total70>=10000 ? (total70/10000).toFixed(1)+"億" : Math.round(total70).toLocaleString()+"万";
+    html+=`<option value="${w.n}" ${w.n===S.ward?"selected":""}>${w.n}（購${priceTxt} / 賃${w.r2}万）</option>`;
+  });
+  html+="</optgroup>"; sel.innerHTML=html;
+  sel.addEventListener("change",e=>{S.ward=e.target.value;render();});
+})();
+
+// 初期描画
+render();
+</script>
+</body>
+</html>
