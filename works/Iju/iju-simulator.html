@@ -424,6 +424,18 @@ details.ios-adv .adv-body {
           </div>
           <div class="ios-item vertical">
             <div class="slider-header">
+              <div>
+                <div class="item-label">バイク</div>
+                <div class="item-hint">あり＝維持費 年約10万（保険・税・ガソリン・車検等）</div>
+              </div>
+              <div class="segment" id="bike">
+                <button data-v="0">なし</button>
+                <button data-v="1" class="on">あり</button>
+              </div>
+            </div>
+          </div>
+          <div class="ios-item vertical">
+            <div class="slider-header">
               <div class="item-label">子ども</div>
               <div class="segment" id="kids">
                 <button data-v="0" class="on">0人</button>
@@ -439,6 +451,33 @@ details.ios-adv .adv-body {
               <div class="item-val num" id="spouseV">300万</div>
             </div>
             <input type="range" id="spouse" min="0" max="600" step="25" value="300">
+          </div>
+
+          <div class="ios-item vertical">
+            <div class="slider-header">
+              <div>
+                <div class="item-label">障害基礎年金</div>
+                <div class="item-hint">非課税・2級 年約83万 / 1級 年約104万（子の加算別）</div>
+              </div>
+              <div class="segment" id="disPension">
+                <button data-v="none" class="on">なし</button>
+                <button data-v="g2">2級</button>
+                <button data-v="g1">1級</button>
+              </div>
+            </div>
+          </div>
+          <div class="ios-item vertical">
+            <div class="slider-header">
+              <div>
+                <div class="item-label">障害者控除</div>
+                <div class="item-hint">一般 所27/住26万・特別 所40/住30万を控除 → 手取り増</div>
+              </div>
+              <div class="segment" id="disDeduct">
+                <button data-v="none" class="on">なし</button>
+                <button data-v="normal">一般</button>
+                <button data-v="special">特別</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -660,9 +699,10 @@ const LIV_CATS = [
 ];
 
 // ===== 状態 =====
-const S = {ward:"鶴見区", hh:"single", house:"rent", madori:"1LDK", car:0, kids:0,
+const S = {ward:"鶴見区", hh:"single", house:"rent", madori:"1LDK", car:0, hasBike:1, kids:0,
   spouse:300, down:500, rate:2.0, years:30, save:5,
   myLow:450, myHigh:650, pension:14, yld:3, age:39, kanri:3.5,
+  disPension:"none", disDeduct:"none",
   liv:{}};
 LIV_CATS.forEach(c=> S.liv[c.k] = c.single);
 let pensionTouched = false;
@@ -701,6 +741,34 @@ function gross(needNet){
   return (lo+hi)/2;
 }
 
+// ===== 障害基礎年金・障害者控除（2026概算）=====
+// 障害基礎年金（年・万円・非課税）。子の加算は1〜2人目 各約23.9万。
+function disPensionAnnual(){
+  const base = {none:0, g2:83, g1:104}[S.disPension] || 0;
+  if(base===0) return 0;
+  const childAdd = S.kids>0 ? Math.min(S.kids,2)*23.9 : 0;
+  return base + childAdd;
+}
+// 障害者控除による所得税＋住民税の軽減（年・万円）。額面で限界税率を近似。
+function disDeductSaving(gv){
+  if(S.disDeduct==="none" || gv<=0) return 0;
+  const ded = S.disDeduct==="special" ? {it:40, rt:30} : {it:27, rt:26};
+  const itRate = gv<=330?0.05 : gv<=600?0.10 : gv<=900?0.20 : 0.23;
+  return ded.it*itRate + ded.rt*0.10;
+}
+// 本人の給与手取り＝ベース手取り＋障害者控除の軽減
+function takeHome(gv){ return net(gv) + disDeductSaving(gv); }
+// 必要手取り→必要額面（障害者控除を反映した逆算）
+function grossFor(needNet){
+  if(needNet<=0) return 0;
+  let lo=needNet, hi=needNet*1.7;
+  for(let i=0;i<40;i++){
+    const mid=(lo+hi)/2;
+    if(takeHome(mid)<needNet) lo=mid; else hi=mid;
+  }
+  return (lo+hi)/2;
+}
+
 // ===== 年間コスト計算 =====
 function calc(ward){
   const w = WARDS.find(x=>x.n===ward);
@@ -727,7 +795,7 @@ function calc(ward){
   let livingM = LIV_CATS.reduce((s,c)=> s + (S.liv[c.k]||0), 0);
   if(S.house==="inherit") livingM *= 0.9; // 実家承継は光熱・雑費がやや軽い想定
   const livingY = livingM*12;
-  const bike = 10;
+  const bike = S.hasBike ? 10 : 0;
   let car=0;
   if(S.car===1) car = 12;
   if(S.car===2) car = 60 + w.p*12;
@@ -754,7 +822,7 @@ function render(){
 
   const lines = [
     ["住居｜"+c.houseLabel, c.house],
-    ["生活費＋バイク", c.livingY+c.bike],
+    [c.bike>0?"生活費＋バイク":"生活費", c.livingY+c.bike],
     ["車", c.car],
     ["子ども（年平均）", c.child],
     ["老後・予備の積立", c.save],
@@ -762,22 +830,39 @@ function render(){
   $("resLines").innerHTML = lines.map(x=>
     `<div class="res-line"><span style="color:var(--sys-secondary)">${x[0]}</span><span class="v num">${yen(x[1])}万/年</span></div>`).join("");
 
-  let householdGross;
+  const dp = disPensionAnnual();
+  let householdGross, personGross;
   if(couple){
     const spouseNet = net(S.spouse);
-    const myNeedNet = Math.max(c.totalNet - spouseNet, 0);
-    const myGross = gross(myNeedNet);
+    const myNeedNet = Math.max(c.totalNet - spouseNet - dp, 0);
+    const myGross = grossFor(myNeedNet);
+    personGross = myGross;
     householdGross = myGross + S.spouse;
     $("shareLbl").textContent = `自分に必要な年収（配偶者${S.spouse}万前提）`;
     $("shareAmt").innerHTML = yen(myGross)+`<small style="font-size:1rem; font-weight:600">万円</small>`;
     setStamp(myGross, "stamp");
   }else{
-    householdGross = gross(c.totalNet);
+    householdGross = grossFor(Math.max(c.totalNet - dp, 0));
+    personGross = householdGross;
     $("shareLbl").textContent = "自分に必要な年収（単身）";
     $("shareAmt").innerHTML = yen(householdGross)+`<small style="font-size:1rem; font-weight:600">万円</small>`;
     setStamp(householdGross, "stamp");
   }
   $("grossTotal").innerHTML = yen(householdGross)+"<small>万円</small>";
+
+  // 障害基礎年金・障害者控除による減額を内訳に追記（緑のオフセット行）
+  let offsets = "";
+  if(dp>0){
+    const lv = S.disPension==="g1"?"1級":"2級";
+    const ca = S.kids>0?`＋子の加算${Math.min(S.kids,2)}人`:"";
+    offsets += `<div class="res-line"><span style="color:var(--sys-green)">障害基礎年金（非課税）${lv}${ca}</span><span class="v num" style="color:var(--sys-green)">−${yen(dp)}万/年</span></div>`;
+  }
+  if(S.disDeduct!=="none"){
+    const sv = disDeductSaving(personGross);
+    const k = S.disDeduct==="special"?"特別":"一般";
+    offsets += `<div class="res-line"><span style="color:var(--sys-green)">障害者控除（${k}）で手取り増</span><span class="v num" style="color:var(--sys-green)">額面 約−${sv.toFixed(1)}万/年</span></div>`;
+  }
+  if(offsets) $("resLines").insertAdjacentHTML("beforeend", offsets);
 
   const segs = [
     [c.house,"var(--bar-house)"],[c.livingY+c.bike,"var(--bar-live)"],
@@ -788,7 +873,7 @@ function render(){
   const rows = [
     ["住居", c.house/12],
     [couple?"生活費（夫婦）":"生活費（単身）", c.livingY/12],
-    ["バイク", c.bike/12],
+    ...(c.bike>0?[["バイク", c.bike/12]]:[]),
     ...(c.car>0?[["車", c.car/12]]:[]),
     ...(c.child>0?[["子ども", c.child/12]]:[]),
     ["積立", c.save/12],
@@ -819,10 +904,12 @@ function setStamp(val, id){
 
 function renderRank(){
   const cur = S.ward;
+  const dp = disPensionAnnual();
   const list = WARDS.map(w=>{
     const saved = S.ward; S.ward = w.n;
     const c = calc(w.n);
-    let g = S.hh==="single" ? gross(c.totalNet) : gross(Math.max(c.totalNet-net(S.spouse),0)) + S.spouse;
+    let g = S.hh==="single" ? grossFor(Math.max(c.totalNet-dp,0))
+                            : grossFor(Math.max(c.totalNet-net(S.spouse)-dp,0)) + S.spouse;
     S.ward = saved;
     return {n:w.n, g};
   }).sort((a,b)=>a.g-b.g);
@@ -974,7 +1061,10 @@ segWire("hh","hh",false);
 segWire("house","house",false);
 segWire("madori","madori",false);
 segWire("car","car",true);
+segWire("bike","hasBike",true);
 segWire("kids","kids",true);
+segWire("disPension","disPension",false);
+segWire("disDeduct","disDeduct",false);
 $("madori").querySelectorAll("button").forEach(b=>{ b.addEventListener("click",()=>{madoriTouched=true;}); });
 
 function autoDefaults(){
@@ -1018,9 +1108,10 @@ sliderWire("myHigh","myHigh","万"); sliderWire("pension","pension","万"); slid
 $("pension").addEventListener("input",()=>{pensionTouched=true;});
 
 // ===== 全体リセット =====
-const DEFAULTS = {ward:"鶴見区", hh:"single", house:"rent", madori:"1LDK", car:0, kids:0,
+const DEFAULTS = {ward:"鶴見区", hh:"single", house:"rent", madori:"1LDK", car:0, hasBike:1, kids:0,
   spouse:300, down:500, rate:2.0, years:30, save:5,
-  myLow:450, myHigh:650, pension:14, yld:3, age:39, kanri:3.5};
+  myLow:450, myHigh:650, pension:14, yld:3, age:39, kanri:3.5,
+  disPension:"none", disDeduct:"none"};
 const SLIDER_DEFS = [["age","歳"],["kanri","万"],["spouse","万"],["down","万"],["rate","%"],
   ["years","年"],["save","万"],["myLow","万"],["myHigh","万"],["pension","万"],["yld","%"]];
 function syncSeg(id,val){ $(id).querySelectorAll("button").forEach(b=> b.classList.toggle("on", b.dataset.v===val)); }
@@ -1030,7 +1121,8 @@ function resetAll(){
   pensionTouched=false; madoriTouched=false; livTouched=false;
   $("ward").value = S.ward;
   syncSeg("hh",S.hh); syncSeg("house",S.house); syncSeg("madori",S.madori);
-  syncSeg("car",String(S.car)); syncSeg("kids",String(S.kids));
+  syncSeg("car",String(S.car)); syncSeg("bike",String(S.hasBike)); syncSeg("kids",String(S.kids));
+  syncSeg("disPension",S.disPension); syncSeg("disDeduct",S.disDeduct);
   SLIDER_DEFS.forEach(([id,suf])=>{ const el=$(id); if(el){ el.value=S[id]; $(id+"V").textContent=S[id]+suf; } });
   syncLivSliders();
   render();
