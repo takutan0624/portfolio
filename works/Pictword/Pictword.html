@@ -689,6 +689,16 @@
             let sentenceJP = "";
             let promptENArray = [];
 
+            // ブランク時の英語プレースホルダは 5W1H の語ではなく画像AI向けの意味語で示す
+            const enHint = {
+                When: 'time or season',
+                Where: 'place or scene',
+                Who: 'main subject',
+                What: 'key object',
+                Why: 'purpose or mood',
+                How: 'art style'
+            };
+
             // Combine each components for the 5W1H sentence
             keys5W1H.forEach((key, index) => {
                 if (blankIndices.includes(index)) {
@@ -703,7 +713,7 @@
                         case 'How': labelJP = "画風・タッチ？ / How (Style)"; break;
                     }
                     sentenceJP += `<span class="bg-red-100 text-red-600 border border-red-300 rounded-md px-1.5 py-0.5 mx-1 font-bold text-xs inline-block animate-pulse">[ ？？？ (${labelJP}) ]</span>`;
-                    promptENArray.push(`[BLANK_${key.toUpperCase()}]`);
+                    promptENArray.push(`[??? ${enHint[key]}]`);
                 } else {
                     const list = data5W1H[key];
                     const selected = list[Math.floor(Math.random() * list.length)];
