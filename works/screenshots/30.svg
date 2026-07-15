@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-labelledby="title desc">
+  <title id="title">Prompt Gacha thumbnail</title>
+  <desc id="desc">Playful gacha-machine thumbnail for a 5W1H image-prompt generator.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5f0ff"/>
+      <stop offset="1" stop-color="#e6dcff"/>
+    </linearGradient>
+    <radialGradient id="glass" cx="0.42" cy="0.38" r="0.65">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.5" stop-color="#d9c8ff" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#b39aff" stop-opacity="0.35"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#3b0764" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="800" fill="url(#bg)"/>
+
+  <!-- decorative bubbles -->
+  <g opacity="0.5">
+    <circle cx="120" cy="140" r="46" fill="#c4b5fd"/>
+    <circle cx="1160" cy="120" r="60" fill="#fbcfe8"/>
+    <circle cx="1180" cy="640" r="40" fill="#bbf7d0"/>
+    <circle cx="90" cy="660" r="52" fill="#fde68a"/>
+  </g>
+
+  <!-- main card -->
+  <rect x="360" y="70" width="560" height="660" rx="40" fill="#ffffff" stroke="#3b0764" stroke-width="10" filter="url(#shadow)"/>
+
+  <!-- header -->
+  <text x="640" y="150" fill="#3b0764" font-family="'M PLUS Rounded 1c',Arial,sans-serif" font-size="46" font-weight="900" letter-spacing="4" text-anchor="middle">PROMPT GACHA</text>
+  <text x="640" y="184" fill="#7e22ce" font-family="'M PLUS Rounded 1c',Arial,sans-serif" font-size="19" font-weight="700" text-anchor="middle">2箇所の空欄を埋めて傑作プロンプトを作ろう！</text>
+
+  <!-- gacha glass sphere -->
+  <circle cx="640" cy="360" r="150" fill="url(#glass)" stroke="#3b0764" stroke-width="8"/>
+  <circle cx="640" cy="360" r="150" fill="none" stroke="#ffffff" stroke-opacity="0.6" stroke-width="3"/>
+  <!-- capsules inside -->
+  <g stroke="#3b0764" stroke-width="6">
+    <circle cx="592" cy="320" r="28" fill="#f87171"/>
+    <circle cx="700" cy="330" r="28" fill="#60a5fa"/>
+    <circle cx="612" cy="404" r="28" fill="#4ade80"/>
+    <circle cx="692" cy="410" r="28" fill="#facc15"/>
+    <circle cx="648" cy="358" r="28" fill="#f472b6"/>
+  </g>
+  <!-- glass highlight -->
+  <ellipse cx="592" cy="308" rx="46" ry="26" fill="#ffffff" opacity="0.45" transform="rotate(-28 592 308)"/>
+
+  <!-- dispenser slot -->
+  <rect x="560" y="522" width="160" height="40" rx="12" fill="#ede9fe" stroke="#3b0764" stroke-width="6"/>
+
+  <!-- 5W1H chips -->
+  <g font-family="'M PLUS Rounded 1c',Arial,sans-serif" font-size="24" font-weight="900" text-anchor="middle">
+    <rect x="404" y="596" width="104" height="52" rx="16" fill="#7c3aed"/>
+    <text x="456" y="631" fill="#ffffff">WHO</text>
+    <rect x="520" y="596" width="120" height="52" rx="16" fill="#db2777"/>
+    <text x="580" y="631" fill="#ffffff">WHAT</text>
+    <rect x="652" y="596" width="120" height="52" rx="16" fill="#0891b2"/>
+    <text x="712" y="631" fill="#ffffff">WHERE</text>
+    <rect x="784" y="596" width="92" height="52" rx="16" fill="#16a34a"/>
+    <text x="830" y="631" fill="#ffffff">HOW</text>
+  </g>
+
+  <!-- spin button -->
+  <rect x="470" y="666" width="340" height="46" rx="23" fill="#3b0764"/>
+  <text x="640" y="698" fill="#ffffff" font-family="'M PLUS Rounded 1c',Arial,sans-serif" font-size="24" font-weight="900" text-anchor="middle">ガチャを回す</text>
+</svg>

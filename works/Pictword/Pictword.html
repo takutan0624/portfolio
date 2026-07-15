@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5W1H プロンプトジェネレーター ガチャ</title>
+    <!-- Tailwind CSS for modern layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for retro/kawaii design -->
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- Lucide Icons for premium UI look -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background: radial-gradient(circle, #ffeaa7 0%, #ffaf40 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Gacha glass container and bouncing capsules */
+        .glass-container {
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: inset 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            backdrop-filter: blur(4px);
+            border: 6px solid #4a154b;
+        }
+
+        /* Lever rotation */
+        @keyframes crank {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .crank-active {
+            animation: crank 0.8s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+        }
+
+        /* Capsules bouncing inside the glass */
+        @keyframes shuffle {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-10px, -15px) rotate(-10deg); }
+            40% { transform: translate(15px, -30px) rotate(15deg); }
+            60% { transform: translate(-15px, -25px) rotate(-15deg); }
+            80% { transform: translate(10px, -10px) rotate(10deg); }
+        }
+        .shuffling {
+            animation: shuffle 0.6s ease-in-out infinite alternate;
+        }
+
+        /* Falling capsule from chute */
+        @keyframes fallAndBounce {
+            0% {
+                transform: translateY(-250px) rotate(0deg) scale(0.5);
+                opacity: 0;
+            }
+            50% {
+                transform: translateY(0px) rotate(180deg) scale(1);
+                opacity: 1;
+            }
+            70% {
+                transform: translateY(-40px) rotate(270deg) scale(1);
+            }
+            85% {
+                transform: translateY(-10px) rotate(320deg) scale(1);
+            }
+            100% {
+                transform: translateY(0) rotate(360deg) scale(1);
+                opacity: 1;
+            }
+        }
+        .capsule-drop {
+            animation: fallAndBounce 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        /* Capsule Split animation */
+        .capsule-lid {
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.6s;
+        }
+        .capsule-base {
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.6s;
+        }
+        
+        .capsule-split .capsule-lid {
+            transform: translateY(-95px) rotate(-15deg) scale(0.9);
+            opacity: 0.3;
+        }
+        .capsule-split .capsule-base {
+            transform: translateY(95px) rotate(15deg) scale(0.9);
+            opacity: 0.3;
+        }
+
+        /* Paper revealing from inside */
+        .prompt-paper {
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0;
+            transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s;
+            pointer-events: none;
+        }
+        .capsule-split .prompt-paper {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Drag management helper */
+        .no-transition {
+            transition: none !important;
+        }
+
+        .drag-handle {
+            cursor: grab;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        /* Floating background items */
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            animation: floatUp 12s infinite linear;
+            bottom: -50px;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-110vh) rotate(360deg); opacity: 0; }
+        }
+
+        /* State management styles for split capsule */
+        #click-me-label {
+            display: flex;
+            transition: opacity 0.3s;
+        }
+        .capsule-split #click-me-label {
+            display: none !important;
+        }
+
+        #cap-seal {
+            display: block;
+        }
+        .capsule-split #cap-seal {
+            display: none !important;
+        }
+
+        #fell-capsule.capsule-split {
+            cursor: default;
+        }
+    </style>
+</head>
+<body class="relative flex flex-col items-center justify-center min-h-screen p-4 select-none">
+
+    <!-- Background decorative bubbles -->
+    <div id="bubble-bg" class="absolute inset-0 overflow-hidden pointer-events-none z-0"></div>
+
+    <div class="relative w-full max-w-md bg-white rounded-3xl border-8 border-purple-950 shadow-2xl p-6 z-10">
+        <!-- Header -->
+        <div class="text-center mb-4">
+            <h1 class="text-3xl font-black text-purple-950 tracking-wider">PROMPT GACHA</h1>
+            <p class="text-xs text-purple-700 font-bold mt-1">2箇所の空欄を埋めて傑作プロンプトを作ろう！</p>
+        </div>
+
+        <!-- Main Machine Area -->
+        <div class="relative flex flex-col items-center">
+            <!-- Gacha Glass Area -->
+            <div class="w-64 h-64 rounded-full relative overflow-hidden glass-container flex items-center justify-center mb-8 shadow-inner">
+                <!-- Tiny capsules inside the machine -->
+                <div id="toy-capsule-1" class="toy-capsule absolute w-12 h-12 rounded-full bg-red-400 border-4 border-purple-950 top-12 left-10 flex items-center justify-center">
+                    <div class="w-full h-1/2 bg-white rounded-t-full opacity-40 absolute top-0"></div>
+                </div>
+                <div id="toy-capsule-2" class="toy-capsule absolute w-12 h-12 rounded-full bg-blue-400 border-4 border-purple-950 bottom-8 left-14">
+                    <div class="w-full h-1/2 bg-white rounded-t-full opacity-40 absolute top-0"></div>
+                </div>
+                <div id="toy-capsule-3" class="toy-capsule absolute w-12 h-12 rounded-full bg-green-400 border-4 border-purple-950 top-16 right-12">
+                    <div class="w-full h-1/2 bg-white rounded-t-full opacity-40 absolute top-0"></div>
+                </div>
+                <div id="toy-capsule-4" class="toy-capsule absolute w-12 h-12 rounded-full bg-yellow-400 border-4 border-purple-950 bottom-14 right-10">
+                    <div class="w-full h-1/2 bg-white rounded-t-full opacity-40 absolute top-0"></div>
+                </div>
+                <div id="toy-capsule-5" class="toy-capsule absolute w-12 h-12 rounded-full bg-pink-400 border-4 border-purple-950 top-24 left-24">
+                    <div class="w-full h-1/2 bg-white rounded-t-full opacity-40 absolute top-0"></div>
+                </div>
+                <div id="toy-capsule-6" class="toy-capsule absolute w-12 h-12 rounded-full bg-indigo-400 border-4 border-purple-950 bottom-4 right-24">
+                    <div class="w-full h-1/2 bg-white rounded-t-full opacity-40 absolute top-0"></div>
+                </div>
+
+                <!-- Chute tube inside visual -->
+                <div class="absolute bottom-0 w-24 h-12 bg-purple-950 opacity-20 rounded-t-xl"></div>
+            </div>
+
+            <!-- Lower Body / Control Panel -->
+            <div class="w-full bg-red-500 rounded-2xl p-4 border-4 border-purple-950 relative flex flex-col items-center">
+                
+                <!-- The Crank / Lever -->
+                <div class="relative mb-6">
+                    <div id="gacha-crank" onclick="spinCrank()" class="w-24 h-24 rounded-full bg-yellow-400 border-4 border-purple-950 flex items-center justify-center cursor-pointer shadow-lg hover:bg-yellow-300 transition-colors duration-150 active:scale-95">
+                        <!-- Inside details of the crank -->
+                        <div class="w-16 h-4 bg-purple-950 rounded-full absolute transform rotate-45"></div>
+                        <div class="w-16 h-4 bg-purple-950 rounded-full absolute transform -rotate-45"></div>
+                        <div class="w-8 h-8 rounded-full bg-white border-4 border-purple-950 z-10 flex items-center justify-center">
+                            <div class="w-2 h-2 rounded-full bg-purple-950"></div>
+                        </div>
+                    </div>
+                    <!-- Spin Hint -->
+                    <span class="absolute -bottom-5 left-1/2 transform -translate-x-1/2 text-xs font-bold bg-purple-950 text-white px-3 py-0.5 rounded-full whitespace-nowrap animate-pulse">タップして回す！</span>
+                </div>
+
+                <!-- Chute Outlet -->
+                <div class="w-32 h-16 bg-purple-950 rounded-b-lg border-t-4 border-purple-900 shadow-inner relative flex justify-center items-center">
+                    <div class="absolute top-0 w-24 h-4 bg-black/40 rounded-b-md"></div>
+                    
+                    <!-- Text showing status -->
+                    <div id="outlet-label" class="text-[10px] text-red-200 font-bold uppercase tracking-widest mt-4">OUTLET</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dropped Capsule Area (Overlay or Slide layer) -->
+        <div id="drop-zone" class="absolute inset-x-0 bottom-1/3 flex justify-center items-center pointer-events-none z-30">
+            <!-- This is the actual capsule that falls -->
+            <div id="fell-capsule" onclick="popOpenCapsule()" class="hidden w-28 h-28 relative cursor-pointer pointer-events-auto">
+                
+                <!-- Top Cap (Lid) -->
+                <div id="cap-lid" class="capsule-lid absolute top-0 left-0 w-full h-1/2 bg-rose-500 rounded-t-full border-t-4 border-x-4 border-purple-950 z-20 flex items-end justify-center pb-1">
+                    <div class="w-20 h-2 bg-white/30 rounded-full"></div>
+                </div>
+                
+                <!-- Bottom Cap (Base) -->
+                <div id="cap-base" class="capsule-base absolute bottom-0 left-0 w-full h-1/2 bg-yellow-300 rounded-b-full border-b-4 border-x-4 border-purple-950 z-20 flex items-start justify-center pt-1">
+                    <div class="w-12 h-3 bg-purple-950/20 rounded-full"></div>
+                </div>
+
+                <!-- Middle Seal Ring -->
+                <div id="cap-seal" class="absolute top-1/2 left-0 w-full h-1 bg-white border-y border-purple-950 z-25 -translate-y-1/2"></div>
+
+                <!-- Click Me Pulse Label -->
+                <div id="click-me-label" class="absolute inset-0 flex items-center justify-center z-30">
+                    <span class="bg-purple-950 text-white text-xs font-black px-2 py-1 rounded-full border-2 border-white animate-bounce shadow-md uppercase">開ける！</span>
+                </div>
+
+                <!-- Output Paper Document hidden inside (grows outwards upon open) -->
+                <div id="prompt-paper" onclick="event.stopPropagation()" class="prompt-paper absolute top-1/2 left-1/2 w-80 bg-stone-50 border-4 border-purple-950 rounded-2xl shadow-2xl p-4 flex flex-col z-10 overflow-hidden">
+                    <!-- Retro Ticket Header (Drag Handle) -->
+                    <div id="drag-handle" class="drag-handle flex justify-between items-center border-b-2 border-dashed border-purple-300 pb-2 mb-2 select-none">
+                        <span class="text-[11px] font-bold text-purple-600 tracking-wider flex items-center gap-1">
+                            <i data-lucide="grip-horizontal" class="w-3.5 h-3.5"></i> ★ 5W1H PROMPT ★
+                        </span>
+                        <div class="flex gap-1">
+                            <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                            <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+                            <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                        </div>
+                    </div>
+
+                    <!-- Prompt display spaces -->
+                    <div class="space-y-2 mb-4 text-left select-text">
+                        <!-- Japanese structured text -->
+                        <div>
+                            <span class="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.5 rounded">日本語アイデア</span>
+                            <p id="prompt-jp-text" class="text-sm font-bold text-gray-800 mt-1 leading-relaxed"></p>
+                        </div>
+
+                        <!-- English generation string -->
+                        <div class="bg-purple-50 p-2.5 rounded-lg border border-purple-200">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[10px] bg-purple-600 text-white font-bold px-1.5 py-0.5 rounded">AI用英語プロンプト</span>
+                                <span class="text-[9px] text-purple-500 font-bold">Midjourney / SD対応</span>
+                            </div>
+                            <p id="prompt-en-text" class="text-xs font-mono font-bold text-purple-900 break-words select-all"></p>
+                        </div>
+                    </div>
+
+                    <!-- Close / Re-Gacha Buttons -->
+                    <div class="flex flex-col gap-2">
+                        <button onclick="copyToClipboard(event)" class="w-full bg-yellow-400 hover:bg-yellow-300 border-2 border-purple-950 text-purple-950 font-bold py-2 px-4 rounded-xl text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                            <i data-lucide="copy" class="w-4 h-4"></i> 英語プロンプトをコピー
+                        </button>
+                        <div class="flex gap-2 w-full">
+                            <button onclick="reGacha(event)" class="flex-1 bg-red-500 hover:bg-red-400 border-2 border-purple-950 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> もう一回引く！
+                            </button>
+                            <button onclick="closePaper(event)" class="flex-1 bg-gray-200 hover:bg-gray-300 border-2 border-purple-950 text-gray-700 font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i> 閉じる
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions / Footer -->
+    <div class="mt-6 text-center max-w-sm z-10 px-4">
+        <p class="text-xs font-bold text-purple-950 leading-relaxed bg-white/70 backdrop-blur px-3 py-2 rounded-xl border-2 border-purple-900/10">
+            💡 <span class="text-purple-800">遊び方:</span> ガチャを回すと5W1Hの内の**2箇所**がランダムに「[？？？]」になったプロンプトが出現します。好きなパーツを2つ考えて自由度の高い表現で画像生成AIに入力してみましょう！
+        </p>
+    </div>
+
+    <!-- Alert Modal (Custom Notification) -->
+    <div id="custom-alert" class="fixed top-4 bg-purple-950 text-yellow-300 border-2 border-yellow-400 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 transform -translate-y-24 transition-transform duration-300 ease-out z-50 font-bold text-sm">
+        <i data-lucide="check-circle" class="w-5 h-5 text-yellow-400"></i>
+        <span id="alert-message">プロンプトをコピーしました！</span>
+    </div>
+
+    <script>
+        // Massive Data Source - Doubled to 30 elements per category (Total 180 entries)
+        const data5W1H = {
+            When: [
+                { jp: "永遠に続く美しい夕暮れ時に", en: "at the hour of eternal beautiful twilight" },
+                { jp: "激しい雷雨が吹き荒れる不穏な真夜中に", en: "during a violent thunderstorm midnight" },
+                { jp: "オーロラが空を覆う神秘的な北極の夜に", en: "during a mystical night with bright aurora borealis" },
+                { jp: "黄金色の朝日が差し込む奇跡の瞬間に", en: "at the miraculous moment of golden sunrise" },
+                { jp: "満天の星空から流星群が降り注ぐ夜に", en: "at midnight with a heavy meteor shower" },
+                { jp: "深い霧が立ち込める早朝の誰もいない静寂の中で", en: "in the complete silence of a misty early morning" },
+                { jp: "遥か1000年後の高度に発達した未来都市で", en: "in a highly advanced future city 1000 years from now" },
+                { jp: "ネオンがきらびやかに輝くサイバーパンクの夜に", en: "at a neon-glowing cyberpunk night" },
+                { jp: "桜の花びらが無限に舞い落ちる穏やかな春の午後に", en: "during a peaceful spring afternoon with infinite falling cherry blossoms" },
+                { jp: "時間が完全に停止してしまった奇妙な昼下がりに", en: "in a bizarre afternoon where time has completely stopped" },
+                { jp: "ノスタルジックな夕立が降り始めた昭和の放課後に", en: "during a nostalgic Showa-era after-school evening shower" },
+                { jp: "巨大な赤い満月が地平線から昇る不気味な夜に", en: "during an eerie night as a gigantic blood-red full moon rises" },
+                { jp: "氷河期が訪れてすべてが凍りついた遥かなる未来に", en: "in the far future where an ice age has frozen everything" },
+                { jp: "すべての生命が目覚め始める太古の地球の夜明けに", en: "at the dawn of ancient Earth when all life begins to wake" },
+                { jp: "時計の針が逆回りを始める奇妙な25時の空間で", en: "inside a strange 25th-hour space where clock hands spin backward" },
+                { jp: "雪がしんしんと降り積もる静かな聖夜に", en: "on a quiet holy Christmas night with gently falling snow" },
+                { jp: "どこか懐かしい1990年代の夏の終わりに", en: "at the end of a nostalgic 1990s summer" },
+                { jp: "時空の歪みから2つの太陽が昇る異次元の正午に", en: "at dimension-rift noon as twin suns rise in the sky" },
+                { jp: "きらめくホタルが舞う真夏の夜の小川のほとりで", en: "at midsummer night by a stream with shimmering fireflies" },
+                { jp: "文明が崩壊した後の美しき終末の黄昏時に", en: "during a beautiful post-apocalyptic twilight" },
+                { jp: "すべてがシルエットになる黄金の夕暮れ時に", en: "during a golden hour dusk when everything becomes silhouettes" },
+                { jp: "月明かりが湖面を照らす静寂の深夜2時に", en: "at serene 2:00 AM as moonlight illuminates the lake" },
+                { jp: "新緑の隙間から木漏れ日が揺れる爽やかな五月の朝に", en: "on a fresh May morning with sunlight filtering through new green leaves" },
+                { jp: "太古の超科学文明が滅び去る最後の瞬間に", en: "at the final moment of the collapse of a prehistoric super-scientific civilization" },
+                { jp: "次元の壁が最も薄くなるハロウィンの夜に", en: "on Halloween night when the veil between dimensions is thinnest" },
+                { jp: "無数の灯籠が川を流れるお盆の宵闇に", en: "at Bon festival dusk with countless lanterns floating down the river" },
+                { jp: "冷たい秋風が落ち葉を巻き上げる黄昏の街角で", en: "at a twilight street corner as cold autumn wind sweeps up fallen leaves" },
+                { jp: "全ての色が失われた純白の冬の朝に", en: "on a pure white winter morning with all colors lost" },
+                { jp: "超新星爆発が夜空を真昼のように照らす瞬間に", en: "at the moment a supernova lights up the night sky like midday" },
+                { jp: "幾千のランタンが夜空へ昇っていく幻想的な祭りの夜に", en: "on a magical festival night with thousands of sky lanterns rising" }
+            ],
+            Where: [
+                { jp: "巨大な光るキノコが生い茂る魔法の森で", en: "in a magical forest filled with giant glowing mushrooms" },
+                { jp: "天空にぽつんと浮かぶ、忘れ去られた古代の遺跡島で", en: "on a forgotten ancient ruins island floating high in the sky" },
+                { jp: "深海の底にひっそりと佇むアトランティスの宮殿で", en: "inside a sunken Atlantis palace at the bottom of the deep sea" },
+                { jp: "歯車が絶え間なく回り続ける蒸気機関の時計塔内部で", en: "inside a steampunk clock tower with massive turning gears" },
+                { jp: "どこまでも続くクリスタルの結晶が輝く砂漠の真ん中で", en: "in the middle of an infinite desert with glowing crystal pillars" },
+                { jp: "幻想的な桜吹雪が激しく舞い散る和風の庭園で", en: "in a traditional Japanese garden with explosive cherry blossom storm" },
+                { jp: "カラフルなホログラム広告が飛び交う巨大な未来型都市の路地裏で", en: "in a neon-lit futuristic back alley with holographic advertisements" },
+                { jp: "雲の海を見下ろす美しい天空のカフェテラスで", en: "at a beautiful sky cafe terrace overlooking a sea of clouds" },
+                { jp: "本が自らパタパタと空を飛ぶ、果てしない魔法の図書館の中で", en: "inside an infinite magical library where books fly like birds" },
+                { jp: "お菓子やゼリーでできた美味しそうなパステルカラーの異世界で", en: "in a delicious pastel-colored fantasy world made of sweets and jelly" },
+                { jp: "すべてが水没し、クジラがビルの間を泳ぐ幻想的な水上都市で", en: "in a surreal submerged city where blue whales swim between skyscrapers" },
+                { jp: "サイバースペースの奥深く、光るデータグリッドが交差する電子の海で", en: "deep in cyberspace, in an electronic ocean with glowing data grids" },
+                { jp: "緑豊かな大自然と同化した、温かみのあるレトロな廃線跡で", en: "at a warm nostalgic abandoned railway overrun by beautiful wild nature" },
+                { jp: "光り輝く星雲が間近に見える、宇宙列車のプラットホームで", en: "on the platform of a cosmic space train with a shining nebula view" },
+                { jp: "不思議な万華鏡の内側のように、幾何学模様が刻々と変わる空間で", en: "inside a surreal kaleidoscope room with constantly shifting geometric patterns" },
+                { jp: "歯車と真鍮でできたスチームパンク都市のドックで", en: "at a steampunk harbor built with gears and brass" },
+                { jp: "サイバー猫たちが集まる、路地裏の秘密の地下電子クラブで", en: "in a secret underground electronic club for cyber cats in the back alley" },
+                { jp: "巨大な熱帯魚が空中を泳ぐ幻想的な温室の中で", en: "inside a surreal greenhouse where giant tropical fish swim in the air" },
+                { jp: "幾重もの赤い鳥居が永遠に続く神秘的な山道で", en: "on a mystical mountain path with endless rows of red torii gates" },
+                { jp: "パステルカラーの雲が浮かぶ、メルヘンな空の遊園地で", en: "at a whimsical sky amusement park with pastel-colored clouds" },
+                { jp: "波打ち際が青く発光する、夜のロマンチックな海岸で", en: "on a romantic night beach with bioluminescent glowing blue waves" },
+                { jp: "何万ものクリスタルが天井でまたたく地下の鍾乳洞で", en: "inside a subterranean cavern with tens of thousands of glittering crystals on the ceiling" },
+                { jp: "巨大なステンドグラスから七色の光が差し込む大聖堂で", en: "inside a grand cathedral with rainbow light filtering through huge stained glass" },
+                { jp: "宇宙の果てに佇む、星屑のインクで満たされたオアシスで", en: "at an oasis filled with stardust ink at the edge of the universe" },
+                { jp: "カラフルな風船が空を埋め尽くす、賑やかなヨーロッパ風の広場で", en: "in a bustling European plaza where colorful balloons fill the sky" },
+                { jp: "おとぎ話の巨人が残した、巨大な石の靴の内部で", en: "inside a gigantic stone shoe left behind by a fairytale giant" },
+                { jp: "巨大な盆栽の上に建てられた、超小型の和風庭園つき神社で", en: "at a tiny traditional shrine built on top of a giant bonsai tree" },
+                { jp: "壁一面が水槽になっており魚が泳ぐ、近未来の水中スイートルームで", en: "in a futuristic underwater hotel suite with aquarium walls" },
+                { jp: "緑色の炎が静かに揺らめく、魔女の住む古い三角屋根の小屋で", en: "inside an old triangular witch's cottage with gently flickering green fire" },
+                { jp: "空に浮かぶクジラの背中に作られた、のどかな空中庭園で", en: "at a peaceful sky garden built on the back of a floating whale" }
+            ],
+            Who: [
+                { jp: "サイバーパンクな衣装に身を包んだネコが", en: "a cool cyberpunk cat with futuristic visor" },
+                { jp: "壊れかけたレトロな宇宙服を着た孤独な宇宙飛行士が", en: "a lonely astronaut in a battered retro spacesuit" },
+                { jp: "見習いの小さな魔法使いの少女が", en: "a cute little apprentice witch girl" },
+                { jp: "ツタや花に覆われた優しく巨大な古代ロボットが", en: "a gentle giant ancient robot overgrown with vines and flowers" },
+                { jp: "スチームパンク風の機械仕掛けの義手を持つ探偵が", en: "a steampunk detective with a complex mechanical arm" },
+                { jp: "サイボーグ化されたサイバー・サムライが", en: "a highly advanced cyber samurai with glowing katana" },
+                { jp: "クリスタルの羽を持つ美しい森の妖精が", en: "a beautiful forest fairy with translucent crystal wings" },
+                { jp: "どこか切ない瞳をした人工知能搭載のアンドロイドが", en: "a melancholic android with visible glowing memory circuits" },
+                { jp: "背中に小さなロケットエンジンを背負ったレッサーパンダが", en: "a cute red panda wearing a tiny functional jetpack rocket" },
+                { jp: "本物の星 of 光で編まれた美しいドレスを着た王女が", en: "a majestic princess wearing a glowing dress woven from real starlight" },
+                { jp: "ネオンカラーのタトゥーが入ったスケボーを操るキツネの忍者が", en: "a cool neon-tattooed fox ninja riding a hover-skateboard" },
+                { jp: "シルクハットを被り、怪しげなカラスの仮面をつけた錬金術師が", en: "a mysterious plague-doctor-style alchemist wearing a top hat" },
+                { jp: "どこかアンニュイな雰囲気を持つ、音楽好きのヘッドホン少女が", en: "a lo-fi chill girl with messy hair wearing oversized headphones" },
+                { jp: "体全体が透明な星空のテクスチャでできている半透明の精霊が", en: "a translucent celestial spirit whose body is a living starry night sky" },
+                { jp: "マントをなびかせ、不気味な骸骨の仮面を被った正義の怪盗が", en: "a dashing phantom thief wearing a white skull mask and a cape" },
+                { jp: "ピカピカ光るネオンのヘッドフォンをつけた柴犬が", en: "a cute Shiba Inu wearing glowing RGB neon headphones" },
+                { jp: "古い本から実体化して抜け出した、インクでできた幻影の騎士が", en: "a phantom knight made of black ink materialized from an old book" },
+                { jp: "全身が美しいお花や草木でできた、恥ずかしがり屋の森の精霊が", en: "a shy forest dryad made entirely of beautiful flowers and green leaves" },
+                { jp: "星屑の詰まった砂時計の杖を持つ、猫の賢者が", en: "a wise cat wizard holding an hourglass staff filled with stardust" },
+                { jp: "真鍮の体とゼンマイのネジを持つ、心優しい時計人形が", en: "a gentle clockwork doll with a brass body and a winding key" },
+                { jp: "クリスタルでできた半透明のクラゲのドレスを着た深海のプリンセスが", en: "a deep-sea princess wearing a translucent jellyfish dress made of crystal" },
+                { jp: "近未来のレーザースーツを着用した、勇敢なサイバーパンクの探検家が", en: "a brave cyberpunk explorer wearing a futuristic laser suit" },
+                { jp: "水滴のようにぷるぷるとした、水属性の小さなスライムの妖精が", en: "a cute tiny water-element slime fairy, bouncy and watery" },
+                { jp: "漆黒の翼と黄金の瞳を持つ、気高き堕天使の少年が", en: "a noble fallen angel boy with jet-black wings and glowing golden eyes" },
+                { jp: "大きな絵の具の筆を背負った、いたずら好きな絵描きのネズミが", en: "a mischievous painter mouse carrying a giant paint brush" },
+                { jp: "頭の上に小さな光るキノコを生やした、のんびり屋のハリネズミが", en: "a sleepy hedgehog with a tiny glowing mushroom on its head" },
+                { jp: "雲のようにふわふわな毛並みを持つ、空飛ぶ伝説のユニコーンが", en: "a legendary flying unicorn with fluffy cloud-like fur" },
+                { jp: "青いサイバーネオンの光が走る、狐の仮面を被ったサイバー忍者狐が", en: "a cyber ninja fox wearing a traditional kitsune mask with blue neon circuits" },
+                { jp: "アンティークなドレスを着て空中を浮遊する、人懐っこい磁器のドールが", en: "a friendly porcelain doll in an antique dress floating in the air" },
+                { jp: "オーロラの光を背負って旅をする、巨大な白いツノを持つトナカイが", en: "a majestic reindeer with huge white antlers carrying the aurora light" }
+            ],
+            What: [
+                { jp: "七色に妖しく光る未知のエネルギー結晶を", en: "a mysterious energy crystal glowing in rainbow colors" },
+                { jp: "空中をひらひらと舞う機械仕掛けの黄金の蝶を", en: "a mechanical golden butterfly fluttering in the air" },
+                { jp: "ホログラムで立体的な星座を投影する古びた方位磁針を", en: "an antique compass projecting a 3D holographic constellation" },
+                { jp: "宇宙の真理が描かれているという禁断の魔導書を", en: "a forbidden ancient grimoire containing cosmic secrets" },
+                { jp: "淡い青色の光を放つ不思議な小瓶を", en: "a whimsical glass flask filled with glowing blue liquid" },
+                { jp: "音符の粒子が湧き出る古い蓄音機を", en: "a vintage phonograph emitting shimmering musical notes into the air" },
+                { jp: "黄金のエネルギーを宿す伝説のリンゴを", en: "a glowing golden apple pulsing with magical energy" },
+                { jp: "見たこともない幾何学模様が輝く立方体を", en: "a floating cosmic cube with glowing geometric patterns" },
+                { jp: "触れるとホログラムが展開する、レトロなカセットテープを", en: "a retro cassette tape that projects neon holograms when touched" },
+                { jp: "水滴が宝石のように輝く、一輪の青いバラを", en: "a single glowing blue rose with dewdrops sparkling like diamonds" },
+                { jp: "雲を糸にして編み上げた、ふわふわのマフラーを", en: "a fluffy scarf woven from real white clouds" },
+                { jp: "時の流れをコントロールできる、砂が逆流する砂時計を", en: "a magical hourglass where the sparkling sand flows upward to control time" },
+                { jp: "触れるだけで夜空の色が変わる、虹色にまたたく筆を", en: "a whimsical glowing paint brush that changes the color of the sky" },
+                { jp: "星屑のパウダーがたっぷりとふりかけられたドーナツを", en: "a cosmic donut heavily sprinkled with sparkling stardust" },
+                { jp: "遠くのパラレルワールドを映し出す、アンティークな手鏡を", en: "an antique hand-mirror that reflects a beautiful parallel universe" },
+                { jp: "虹色のシャボン玉が無限に湧き出す、不思議なしゃぼん玉ピストルを", en: "a whimsical bubble gun shooting infinite rainbow bubbles" },
+                { jp: "宇宙のどこかへ繋がっているという、浮遊する漆黒のミニワームホールを", en: "a small floating black wormhole connecting to a distant universe" },
+                { jp: "触れると奏者の感情に合わせてメロディを奏でる、水晶のハープを", en: "a crystal harp that plays melodies based on the player's emotions" },
+                { jp: "無限の知恵が詰まっているとされる、黄金に輝く脳のデバイスを", en: "a glowing golden brain device containing infinite wisdom" },
+                { jp: "星の光をそのまま固めて作った、夜空を照らすランタンを", en: "a glowing lantern made of solidified starlight illuminating the night sky" },
+                { jp: "持ち主の過去の思い出を映像として映し出す、魔法の水たまりを", en: "a magical water puddle displaying memories of the owner's past" },
+                { jp: "未来の天気や季節を自在に選択できる、レトロな天気操作スイッチを", en: "a retro weather controller switch that changes seasons and weather" },
+                { jp: "光輝く折り紙で折られた、パタパタと自律飛行する紙のツルを", en: "a self-flying origami crane folded from brilliant glowing paper" },
+                { jp: "宇宙の誕生と死が極小サイズで再現された、美しいガラスの小宇宙を", en: "a beautiful glass orb replicating the birth and death of the universe in miniature" },
+                { jp: "振ると本物の雪の結晶がパラパラと降り注ぐ、神秘的なスノードームを", en: "a mystical snowglobe that sprinkles real snowflakes when shaken" },
+                { jp: "世界のすべての植物の言語を翻訳できる、木製の小さなイヤフォンを", en: "a small wooden earphone that translates the language of all plants" },
+                { jp: "夜空の雲を美味しそうな綿あめに変えてしまう、星屑のステッキを", en: "a stardust wand that transforms night clouds into delicious cotton candy" },
+                { jp: "文字が空中にホログラムとして飛び出す、未来の電子書籍を", en: "a futuristic e-book where letters pop out as 3D holograms" },
+                { jp: "触れると水のように波打ち変化する、液体のクリスタル彫刻を", en: "a liquid crystal sculpture that ripples like water when touched" },
+                { jp: "空に描いたものがすべて実体化する、不思議なチョークを", en: "a magical chalk that materializes whatever is drawn in the air" }
+            ],
+            Why: [
+                { jp: "世界に再び失われた光を取り戻すために", en: "to restore the lost light to the world" },
+                { jp: "封印された過去のすべての記憶を思い出すために", en: "to unlock all forgotten memories of the past" },
+                { jp: "まだ見ぬ新しい世界（異次元）への扉を開くために", en: "to open a portal to an undiscovered dimension" },
+                { jp: "かつて交わした大切な人との約束を果たすために", en: "to fulfill an ancient promise with a loved one" },
+                { jp: "宇宙と大自然の究極の真理を解き明かすために", en: "to decode the ultimate cosmic truth of the universe" },
+                { jp: "迫りくる漆黒の邪悪な影から大切な場所を守るために", en: "to protect a sacred place from the encroaching dark shadows" },
+                { jp: "退屈な日常から抜け出し、まだ見ぬ冒険を始めるために", en: "to escape a boring everyday life and embark on an epic adventure" },
+                { jp: "誰も作ったことのない、奇跡の料理（アート）を完成させるために", en: "to complete a legendary recipe of a miraculous artwork" },
+                { jp: "心に空いた寂しい穴を、星屑の光で埋めるために", en: "to fill a lonely empty heart with the warm light of stardust" },
+                { jp: "親愛なる相棒への最高のプレゼントを作るために", en: "to create the most beautiful and perfect gift for a beloved partner" },
+                { jp: "この世界の歴史書から消え去ってしまった真実を探るために", en: "to uncover the ancient truth erased from the history books" },
+                { jp: "人間に恋をしてしまい、不老不死の力を捨てる決意をするために", en: "to sacrifice immortality after falling deeply in love with a human" },
+                { jp: "世界中に音楽の魔法を響かせ、人々を笑顔にするために", en: "to spread musical magic across the world and make everyone smile" },
+                { jp: "千年の眠りから目覚めたばかりで、お腹がとても空いていたので", en: "simply because they just woke up from a 1000-year sleep and were hungry" },
+                { jp: "ただ純粋な好奇心の赴くまま、魔法の衝動に身を任せるために", en: "purely to follow their innocent curiosity and surrender to magical impulses" },
+                { jp: "この世界のすべての色を元の鮮やかさに戻すために", en: "to restore all colors of this world to their original vividness" },
+                { jp: "行方不明になった大切な親友のロボットの手がかりを見つけるために", en: "to find clues about a beloved best friend robot who went missing" },
+                { jp: "次元の裂け目から漏れ出る、危険な電子ノイズを完全に封印するために", en: "to completely seal the dangerous electronic noise leaking from a dimensional rift" },
+                { jp: "千年前に滅んだと言われる、伝説の天空都市を再起動させるために", en: "to reboot the legendary sky city that collapsed thousands of years ago" },
+                { jp: "自分が本当は何者なのか、自分を探す心の旅を完結させるために", en: "to complete a journey of self-discovery to find who they truly are" },
+                { jp: "夢の世界の中で出会った、優しき幻影の少女にもう一度会うために", en: "to meet the gentle phantom girl from the dream world once again" },
+                { jp: "砂漠化が進む故郷の星に、最初の奇跡の雨を降らせるために", en: "to bring the first miraculous rain to their desertified home planet" },
+                { jp: "長い冬が続く世界に、暖かくて優しい春の風を呼び込むために", en: "to invite a warm and gentle spring breeze to a world locked in eternal winter" },
+                { jp: "宇宙図書館から誤って盗まれてしまった、大切な本の１ページを返すために", en: "to return a precious stolen page back to the cosmic library" },
+                { jp: "誰も聞いたことのない、魂を震わせる「宇宙のメロディ」を奏でるために", en: "to play the soul-stirring cosmic melody that no one has ever heard" },
+                { jp: "自分に命を吹き込んでくれた優しい創造主に、感謝の気持ちを伝えるために", en: "to express deep gratitude to the gentle creator who brought them to life" },
+                { jp: "冷めきってしまった世界のすべての人々の心を、温かい魔法で満たすために", en: "to fill the cold hearts of everyone in the world with warm magic" },
+                { jp: "夜空から盗まれてしまった、すべての星屑を取り戻すために", en: "to recover all the stardust that was stolen from the night sky" },
+                { jp: "伝説の「永遠の眠り」から王様を目覚めさせる、最高の目覚まし音楽を作るために", en: "to create the ultimate wake-up music to awake the King from his legendary eternal sleep" },
+                { jp: "失われた古代のおとぎ話に、ハッピーエンドの結末を書き足すために", en: "to write a happy ending for a lost ancient fairytale" }
+            ],
+            How: [
+                { jp: "繊細で幻想的な水彩画風のタッチで", en: "in a delicate whimsical watercolor painting style" },
+                { jp: "息をのむほど美しく超リアルなシネマティック3D描写で", en: "as a breathtaking ultra-realistic cinematic 3D render, Unreal Engine 5" },
+                { jp: "どこか懐かしくも鮮やかなドット絵のレトロフューチャー風に", en: "in a beautiful vibrant pixel art retro-future style" },
+                { jp: "細部まで美しく描き込まれた平成のレトロな日本アニメ風に", en: "in the style of a beautifully detailed 1990s retro Japanese anime" },
+                { jp: "光と雲が美しく調和する新海誠監督作品のような画風で", en: "in the aesthetic of Makoto Shinkai films with dramatic clouds and lighting" },
+                { jp: "可愛らしい3Dクレイフィギュア（粘土細工）のようなデザインで", en: "as a cute 3D clay figure, claymation style, tilt shift photograph" },
+                { jp: "どこか不気味でダークな雰囲気漂うゴシック・ダークファンタジー調で", en: "in a dark gothic dark fantasy style, atmospheric dark surrealism" },
+                { jp: "重厚な油絵のタッチを活かした19世紀のアート名画風に", en: "in the style of a 19th century classic oil masterpiece, textured impasto brushstrokes" },
+                { jp: "葛飾北斎や歌川広重を思わせる、鮮やかで伝統的な「浮世絵」風に", en: "in the traditional style of vibrant Japanese Ukiyo-e woodblock prints" },
+                { jp: "カラフルなインクの飛沫（スプラッシュ）がダイナミックに飛び散るポップアート風に", en: "in a dynamic pop art style with explosive colorful ink splashes and splatters" },
+                { jp: "電子ノイズや歪み（バグ）がサイバー感を醸し出す「グリッチアート」風に", en: "in a glowing glitch art style with analog electronic distortion and neon scans" },
+                { jp: "すべてがキラキラしたネオンライトの線画で構築された近未来デザインで", en: "in a futuristic style drawn with brilliant glowing neon line-art wireframes" },
+                { jp: "鉛筆とコピックで手書きされたような、ラフで可愛い温かみのあるスケッチ調で", en: "as a cozy cute colored-pencil sketch with soft pastel tones on textured paper" },
+                { jp: "SF小説の表紙を飾るような、どこか退廃的で深みのある「レトロフューチャー」風に", en: "in a nostalgic retro-futurism sci-fi book cover art style, 1970s sci-fi" },
+                { jp: "スタジオジブリ映画を彷彿とさせる、瑞々しい自然と優しい光に包まれた手描きアニメ調で", en: "in a heartwarming hand-drawn anime style reminiscent of Studio Ghibli films" },
+                { jp: "どこかアンニュイでノスタルジックな、90年代のレトロなPCゲームCG風に", en: "in the style of retro 90s PC game CG with a nostalgic lo-fi atmosphere" },
+                { jp: "光る蛍光塗料が飛び散る、非常にエネルギッシュなネオンストリートアート風に", en: "in a highly energetic neon street art style with splashing glowing fluorescent paint" },
+                { jp: "優しい色鉛筆と温かい水彩画が絶妙に融合した、絵本風のイラスト調で", en: "in a heartwarming picture book illustration style combining soft colored pencils and warm watercolors" },
+                { jp: "細い万年筆のインクラインと美しいグラデーションが映える、繊細な線画スタイルで", en: "in a delicate line art style featuring fine fountain pen ink lines and beautiful color gradients" },
+                { jp: "まるで現実世界から切り取られたかのような、息をのむほど精巧なペーパークラフト調で", en: "in a breathtakingly intricate papercraft style that looks incredibly tangible" },
+                { jp: "ビタミンカラーが弾ける、非常にポップでキュートな1960年代のビンテージ・カートゥーン風に", en: "in a highly vibrant, pop and cute 1960s vintage cartoon style with bursting colors" },
+                { jp: "光と闇が美しくせめぎ合う、ルネサンス期の劇的でドラマチックな絵画風に", en: "in a dramatic Renaissance painting style with a beautiful contrast of light and shadow" },
+                { jp: "すべてが手縫いのフェルトや毛糸マスコットで表現された、ストップモーション風に", en: "in a stop-motion style made with warm hand-stitched felt and colorful yarn mascots" },
+                { jp: "サイバーネオンのグリッドと、どこか退廃的な蒸気（Vaporwave）が交差するレトロサイバー風に", en: "in a retro-cyber Vaporwave style with glowing neon grids and nostalgic lo-fi aesthetic" },
+                { jp: "インクと墨の風合いを活かした、非常にモダンで美麗なアジア風の墨絵イラスト調で", en: "in a beautiful modern Asian ink wash painting style with graceful brushstrokes and textures" },
+                { jp: "おもちゃのジオラマを上から覗き込んだような、ミニチュア＆チルトシフト写真風に", en: "in a miniature and tilt-shift photography style, looking down at a cute toy diorama" },
+                { jp: "光を贅沢に浴びた印象派のタッチで、キャンバスに豊かな色彩が踊る絵画調で", en: "in an Impressionist painting style with rich, dancing colors capturing radiant light on canvas" },
+                { jp: "すべてが光るガラス細工やステンドグラスの破片でモザイク構築された、幻想的なアート風に", en: "in a magical mosaic art style built with glowing glassware and stained glass fragments" },
+                { jp: "ダークで美しい、おとぎ話のダークサイドを描いたゴシック調のコンセプトアート風に", en: "as a gothic dark fairytale concept art, beautifully dark and atmospheric" },
+                { jp: "最高峰の3Dアニメーション映画のワンシーンを思わせる、高品質なフルCGレンダリングで", en: "as a high-end 3D animated film still, Pixar or Disney style, vibrant color grading" }
+            ]
+        };
+
+        const keys5W1H = ['When', 'Where', 'Who', 'What', 'Why', 'How'];
+
+        // Preset capsule color palettes for dynamic random drops
+        const capsuleColors = [
+            { lid: '#f43f5e', base: '#facc15' }, // Rose & Yellow
+            { lid: '#3b82f6', base: '#f97316' }, // Blue & Orange
+            { lid: '#10b981', base: '#ec4899' }, // Emerald & Pink
+            { lid: '#8b5cf6', base: '#10b981' }, // Violet & Emerald
+            { lid: '#f43f5e', base: '#06b6d4' }, // Rose & Cyan
+            { lid: '#a855f7', base: '#facc15' }, // Purple & Yellow
+            { lid: '#14b8a6', base: '#ff7849' }, // Teal & Coral
+            { lid: '#6366f1', base: '#f43f5e' }, // Indigo & Rose
+            { lid: '#f59e0b', base: '#10b981' }, // Amber & Emerald
+            { lid: '#06b6d4', base: '#f59e0b' }  // Cyan & Amber
+        ];
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Generate drifting background bubbles
+        function initBubbles() {
+            const container = document.getElementById('bubble-bg');
+            for (let i = 0; i < 15; i++) {
+                const bubble = document.createElement('div');
+                bubble.classList.add('bubble');
+                const size = Math.random() * 40 + 20;
+                bubble.style.width = `${size}px`;
+                bubble.style.height = `${size}px`;
+                bubble.style.left = `${Math.random() * 100}%`;
+                bubble.style.animationDelay = `${Math.random() * 8}s`;
+                bubble.style.animationDuration = `${Math.random() * 8 + 6}s`;
+                container.appendChild(bubble);
+            }
+        }
+        initBubbles();
+
+        let isSpinning = false;
+        let activePrompt = { jp: "", en: "" };
+
+        // Drag Position Variables
+        let isDragging = false;
+        let currentX = 0;
+        let currentY = 0;
+        let initialX = 0;
+        let initialY = 0;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        const dragHandle = document.getElementById('drag-handle');
+        const promptPaper = document.getElementById('prompt-paper');
+
+        // Drag functions
+        function dragStart(e) {
+            if (e.type === "touchstart") {
+                initialX = e.touches[0].clientX - xOffset;
+                initialY = e.touches[0].clientY - yOffset;
+            } else {
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+            }
+
+            // Disable transitions during drag to make movement instant and crisp
+            promptPaper.classList.add('no-transition');
+
+            if (e.target === dragHandle || dragHandle.contains(e.target)) {
+                isDragging = true;
+            }
+        }
+
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+
+                if (e.type === "touchmove") {
+                    currentX = e.touches[0].clientX - initialX;
+                    currentY = e.touches[0].clientY - initialY;
+                } else {
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+                }
+
+                xOffset = currentX;
+                yOffset = currentY;
+
+                setTranslate(currentX, currentY, promptPaper);
+            }
+        }
+
+        function dragEnd() {
+            initialX = currentX;
+            initialY = currentY;
+            isDragging = false;
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.transform = `translate(calc(-50% + ${xPos}px), calc(-50% + ${yPos}px)) scale(1)`;
+        }
+
+        // Reset paper position back to original slot
+        function resetDragPosition() {
+            isDragging = false;
+            currentX = 0;
+            currentY = 0;
+            initialX = 0;
+            initialY = 0;
+            xOffset = 0;
+            yOffset = 0;
+            promptPaper.classList.remove('no-transition');
+            promptPaper.style.transform = `translate(-50%, -50%) scale(0)`;
+        }
+
+        // Attach Drag Events
+        dragHandle.addEventListener('mousedown', dragStart, false);
+        document.addEventListener('mousemove', drag, false);
+        document.addEventListener('mouseup', dragEnd, false);
+
+        dragHandle.addEventListener('touchstart', dragStart, false);
+        document.addEventListener('touchmove', drag, { passive: false });
+        document.addEventListener('touchend', dragEnd, false);
+
+        // Shuffle Animation for internal toy capsules
+        function animateToysInside() {
+            const toys = document.querySelectorAll('.toy-capsule');
+            toys.forEach(toy => {
+                toy.classList.add('shuffling');
+            });
+            setTimeout(() => {
+                toys.forEach(toy => {
+                    toy.classList.remove('shuffling');
+                });
+            }, 1000);
+        }
+
+        // Handle Spin Event
+        function spinCrank() {
+            if (isSpinning) return;
+            isSpinning = true;
+
+            const crank = document.getElementById('gacha-crank');
+            const fellCapsule = document.getElementById('fell-capsule');
+            const capLid = document.getElementById('cap-lid');
+            const capBase = document.getElementById('cap-base');
+
+            // 1. Reset drag and drop area state immediately to hide previous capsule and card
+            resetDragPosition();
+            fellCapsule.classList.add('hidden');
+            fellCapsule.classList.remove('capsule-split', 'capsule-drop');
+
+            // 2. Play crank rotation
+            crank.classList.add('crank-active');
+            
+            // 3. Play internal capsules shuffling
+            animateToysInside();
+
+            // 4. Fall down animation trigger after crank animation ends
+            setTimeout(() => {
+                crank.classList.remove('crank-active');
+                
+                // Set a completely random color combination to the dropped capsule
+                const randomColor = capsuleColors[Math.floor(Math.random() * capsuleColors.length)];
+                capLid.style.backgroundColor = randomColor.lid;
+                capBase.style.backgroundColor = randomColor.base;
+
+                // Show drop capsule and run drop animations
+                fellCapsule.classList.remove('hidden');
+                fellCapsule.classList.add('capsule-drop');
+
+                // Generate new content in memory ready for opening (featuring double blanks)
+                generate5W1HPrompt();
+
+                // Prevent clicking again until the bounce animation is fully complete (1.2s)
+                setTimeout(() => {
+                    isSpinning = false;
+                }, 1200); 
+            }, 1000);
+        }
+
+        // 5W1H Prompt Generator Engine (Updated to randomly select EXACTLY 2 distinct blanks)
+        function generate5W1HPrompt() {
+            // Pick two distinct random indices from 0 to 5 to be the BLANKs
+            const blankIndices = [];
+            while (blankIndices.length < 2) {
+                const rand = Math.floor(Math.random() * keys5W1H.length);
+                if (!blankIndices.includes(rand)) {
+                    blankIndices.push(rand);
+                }
+            }
+
+            let sentenceJP = "";
+            let promptENArray = [];
+
+            // Combine each components for the 5W1H sentence
+            keys5W1H.forEach((key, index) => {
+                if (blankIndices.includes(index)) {
+                    // Inject appropriate helper text for the blank in JP
+                    let labelJP = "";
+                    switch(key) {
+                        case 'When': labelJP = "いつ？ / When"; break;
+                        case 'Where': labelJP = "どこで？ / Where"; break;
+                        case 'Who': labelJP = "だれが？ / Who"; break;
+                        case 'What': labelJP = "何を？ / What"; break;
+                        case 'Why': labelJP = "なぜ？ / Why"; break;
+                        case 'How': labelJP = "画風・タッチ？ / How (Style)"; break;
+                    }
+                    sentenceJP += `<span class="bg-red-100 text-red-600 border border-red-300 rounded-md px-1.5 py-0.5 mx-1 font-bold text-xs inline-block animate-pulse">[ ？？？ (${labelJP}) ]</span>`;
+                    promptENArray.push(`[BLANK_${key.toUpperCase()}]`);
+                } else {
+                    const list = data5W1H[key];
+                    const selected = list[Math.floor(Math.random() * list.length)];
+                    
+                    sentenceJP += selected.jp + " ";
+                    promptENArray.push(selected.en);
+                }
+            });
+
+            // Set final prompts with default atmospheric modifiers
+            activePrompt.jp = sentenceJP;
+            activePrompt.en = promptENArray.join(", ") + ", highly detailed, cinematic lighting, masterwork art";
+        }
+
+        // Open Gacha Capsule
+        function popOpenCapsule() {
+            const fellCapsule = document.getElementById('fell-capsule');
+            if (fellCapsule.classList.contains('capsule-split')) return; // already open
+
+            const promptJpText = document.getElementById('prompt-jp-text');
+            const promptEnText = document.getElementById('prompt-en-text');
+
+            // Push prompt values to paper display
+            promptJpText.innerHTML = activePrompt.jp;
+            promptEnText.innerText = activePrompt.en;
+
+            // Make sure the paper style translates cleanly during reveal
+            resetDragPosition();
+
+            // Split open capsule physically (transforms lid and base outwards)
+            fellCapsule.classList.add('capsule-split');
+
+            // Trigger the scale and transform to display
+            setTimeout(() => {
+                setTranslate(0, 0, promptPaper);
+            }, 50);
+        }
+
+        // Close Paper Modal
+        function closePaper(event) {
+            if(event) event.stopPropagation(); // prevent triggering parent clicks
+            const fellCapsule = document.getElementById('fell-capsule');
+            fellCapsule.classList.add('hidden');
+            fellCapsule.classList.remove('capsule-split', 'capsule-drop');
+            resetDragPosition();
+        }
+
+        // Re-Gacha Action (Automated transition back to spinning state)
+        function reGacha(event) {
+            event.stopPropagation();
+            
+            // 1. Instantly close the card
+            closePaper(null);
+
+            // 2. Run next spin with a slight delay for a smoother cinematic flow
+            setTimeout(() => {
+                spinCrank();
+            }, 150);
+        }
+
+        // Clipboard Copy Action
+        function copyToClipboard(event) {
+            event.stopPropagation(); // prevent capsule actions
+            const textToCopy = activePrompt.en;
+
+            // Modern & Fallback copying protocol for iframe environment
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    showAlert("英語プロンプトをコピーしました！");
+                }).catch(() => {
+                    fallbackCopyText(textToCopy);
+                });
+            } else {
+                fallbackCopyText(textToCopy);
+            }
+        }
+
+        // Robust Copy Fallback
+        function fallbackCopyText(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";  // avoid scrolling to bottom
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showAlert("英語プロンプトをコピーしました！");
+            } catch (err) {
+                showAlert("コピーに失敗しました。手動でコピーしてください。");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // Premium Notification Banner
+        function showAlert(msg) {
+            const alertBox = document.getElementById('custom-alert');
+            const alertMsg = document.getElementById('alert-message');
+            alertMsg.innerText = msg;
+            
+            alertBox.classList.remove('-translate-y-24');
+            alertBox.classList.add('translate-y-4');
+
+            setTimeout(() => {
+                alertBox.classList.remove('translate-y-4');
+                alertBox.classList.add('-translate-y-24');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
