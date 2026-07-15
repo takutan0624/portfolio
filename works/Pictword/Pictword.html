@@ -294,7 +294,7 @@
     <!-- Instructions / Footer -->
     <div class="mt-6 text-center max-w-sm z-10 px-4">
         <p class="text-xs font-bold text-purple-950 leading-relaxed bg-white/70 backdrop-blur px-3 py-2 rounded-xl border-2 border-purple-900/10">
-            💡 <span class="text-purple-800">遊び方:</span> ガチャを回すと5W1Hの内の**2箇所**がランダムに「[？？？]」になったプロンプトが出現します。好きなパーツを2つ考えて自由度の高い表現で画像生成AIに入力してみましょう！
+            💡 <span class="text-purple-800">遊び方:</span> ガチャを回すと「画風・タッチ（How）」と5W（When/Where/Who/What/Why）のうち1つ、計**2箇所**が「[？？？]」になったプロンプトが出現します。好きなパーツを2つ考えて自由度の高い表現で画像生成AIに入力してみましょう！
         </p>
     </div>
 
@@ -678,16 +678,13 @@
             }, 1000);
         }
 
-        // 5W1H Prompt Generator Engine (Updated to randomly select EXACTLY 2 distinct blanks)
+        // 5W1H Prompt Generator Engine (Blanks: always How + one random W)
         function generate5W1HPrompt() {
-            // Pick two distinct random indices from 0 to 5 to be the BLANKs
-            const blankIndices = [];
-            while (blankIndices.length < 2) {
-                const rand = Math.floor(Math.random() * keys5W1H.length);
-                if (!blankIndices.includes(rand)) {
-                    blankIndices.push(rand);
-                }
-            }
+            // "How" (画風・タッチ) is always a blank; the other blank is one random W
+            const howIndex = keys5W1H.indexOf('How');
+            const wCandidates = keys5W1H.map((k, i) => i).filter(i => i !== howIndex);
+            const randW = wCandidates[Math.floor(Math.random() * wCandidates.length)];
+            const blankIndices = [howIndex, randW];
 
             let sentenceJP = "";
             let promptENArray = [];
