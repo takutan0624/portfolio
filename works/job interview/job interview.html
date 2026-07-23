@@ -89,15 +89,26 @@
 
     <!-- 4. 入力エリア -->
     <div class="w-full bg-white border-t border-slate-200 p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex-shrink-0">
-        <div class="max-w-4xl mx-auto relative flex items-end gap-2">
-            <textarea id="userInput" 
-                placeholder="回答を入力... (Enterで改行 / Ctrl+Enterで送信)" 
-                class="w-full p-3 pr-12 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none h-14 max-h-32 transition-all"
-                rows="1"></textarea>
-            <button id="sendBtn" onclick="app.sendMessage()" disabled
-                class="absolute right-2 bottom-2 p-2 rounded-lg transition-colors bg-slate-200 text-slate-400 cursor-not-allowed">
-                <i data-lucide="send" class="w-5 h-5"></i>
-            </button>
+        <div class="max-w-4xl mx-auto">
+            <!-- 未ログイン時のログイン導線 -->
+            <div id="loginBar" class="hidden flex flex-col items-center gap-2 py-2">
+                <p class="text-xs text-slate-500 text-center">AIと練習するにはログインが必要です</p>
+                <button id="loginBtn" onclick="app.login()"
+                    class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors shadow-sm">
+                    <i data-lucide="log-in" class="w-4 h-4"></i> Googleでログイン
+                </button>
+            </div>
+            <!-- 入力行 -->
+            <div id="inputRow" class="relative flex items-end gap-2">
+                <textarea id="userInput"
+                    placeholder="回答を入力... (Enterで改行 / Ctrl+Enterで送信)"
+                    class="w-full p-3 pr-12 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none h-14 max-h-32 transition-all"
+                    rows="1"></textarea>
+                <button id="sendBtn" onclick="app.sendMessage()" disabled
+                    class="absolute right-2 bottom-2 p-2 rounded-lg transition-colors bg-slate-200 text-slate-400 cursor-not-allowed">
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -107,6 +118,7 @@
             <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <h2 class="text-lg font-bold flex items-center gap-2 text-slate-800">
                     <i data-lucide="settings" class="w-5 h-5 text-slate-500"></i> 設定 <span id="authStatus" class="text-xs font-normal ml-2 px-2 py-0.5 rounded bg-slate-100 text-slate-500">未接続</span>
+                    <button id="logoutBtn" onclick="app.logout()" class="hidden text-xs font-normal ml-1 px-2 py-0.5 rounded bg-slate-100 text-slate-500 hover:bg-slate-200">ログアウト</button>
                 </h2>
                 <button onclick="app.closeSettings()" class="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200">
                     <i data-lucide="x" class="w-6 h-6"></i>
@@ -169,7 +181,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
-        import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-auth.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-analytics.js";
 
         function readFirebaseConfigRuntime() {
@@ -248,6 +260,8 @@
             openSettings: () => instance.openSettings(),
             closeSettings: () => instance.closeSettings(),
             saveProfile: () => instance.saveProfile(),
+            login: () => instance.login(),
+            logout: () => instance.logout(),
         };
 
         class InterviewPartnerApp {
@@ -279,6 +293,9 @@
                     interviewerType: document.getElementById('interviewerType'),
                     modelId: document.getElementById('modelId'),
                     authStatus: document.getElementById('authStatus'),
+                    logoutBtn: document.getElementById('logoutBtn'),
+                    loginBar: document.getElementById('loginBar'),
+                    inputRow: document.getElementById('inputRow'),
                     firebaseWarning: document.getElementById('firebaseWarning'),
                     firebaseErrorMessage: document.getElementById('firebaseErrorMessage')
                 };
@@ -339,21 +356,22 @@
 
             initFirebaseLogic() {
                 onAuthStateChanged(auth, async (user) => {
-                    console.log("Auth State Changed:", user ? (user.isAnonymous ? "Anonymous" : "User: " + user.email) : "No User");
+                    console.log("Auth State Changed:", user ? ("User: " + (user.email || user.uid)) : "No User");
                     
                     if (user) {
                         this.state.currentUser = user;
                         this.state.isAuthReady = true;
-                        this.elements.authStatus.textContent = "接続中";
+                        this.elements.authStatus.textContent = "ログイン中";
                         this.elements.authStatus.className = "text-xs font-normal ml-2 px-2 py-0.5 rounded bg-emerald-100 text-emerald-600";
-                        this.elements.firebaseWarning.classList.add('hidden'); 
+                        this.elements.firebaseWarning.classList.add('hidden');
+                        this.showInput();
                         this.updateSendButton();
 
                         // Firestoreからのデータ読み込み
                         try {
                             const userDocRef = doc(db, "users", user.uid);
                             const userDoc = await getDoc(userDocRef);
-                            
+
                             if (userDoc.exists()) {
                                 this.state.userProfile = userDoc.data();
                                 this.loadProfileToUI();
@@ -377,17 +395,53 @@
                         }
 
                     } else {
-                        signInAnonymously(auth).catch((error) => {
-                            console.error("Anon Auth Error", error);
-                            if (error.code === 'auth/configuration-not-found' || error.code === 'auth/admin-restricted-operation') {
-                                this.showFirebaseWarning("Firebaseコンソールで「Authentication」>「Sign-in method」>「匿名(Anonymous)」を有効にしてください。");
-                            } else {
-                                this.showFirebaseWarning(`認証エラー: ${error.message}`);
-                            }
-                            this.fallbackToLocal();
-                        });
+                        // 匿名認証は使わない。Googleログインを促す。
+                        this.state.currentUser = null;
+                        this.state.isAuthReady = false;
+                        this.elements.authStatus.textContent = "未ログイン";
+                        this.elements.authStatus.className = "text-xs font-normal ml-2 px-2 py-0.5 rounded bg-slate-100 text-slate-500";
+                        this.showLogin();
+                        this.updateSendButton();
+                        // プロフィールと挨拶だけローカルで用意（送信はログイン後）
+                        this.fallbackToLocal();
                     }
                 });
+            }
+
+            showInput() {
+                this.elements.loginBar.classList.add('hidden');
+                this.elements.inputRow.classList.remove('hidden');
+                if (this.elements.logoutBtn) this.elements.logoutBtn.classList.remove('hidden');
+            }
+
+            showLogin() {
+                this.elements.loginBar.classList.remove('hidden');
+                this.elements.inputRow.classList.add('hidden');
+                if (this.elements.logoutBtn) this.elements.logoutBtn.classList.add('hidden');
+                if (window.lucide) lucide.createIcons();
+            }
+
+            async login() {
+                if (!auth) { this.showFirebaseWarning("Firebaseが初期化されていません。"); return; }
+                try {
+                    await signInWithPopup(auth, new GoogleAuthProvider());
+                    // 以降は onAuthStateChanged が処理
+                } catch (e) {
+                    console.error("Login error:", e);
+                    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+                    this.showFirebaseWarning(`ログインに失敗しました: ${e.message}`);
+                }
+            }
+
+            async logout() {
+                try {
+                    if (auth) await signOut(auth);
+                    this.state.messages = [];
+                    if (this.elements.messageList) this.elements.messageList.innerHTML = '';
+                    // 以降は onAuthStateChanged が未ログイン表示に切り替える
+                } catch (e) {
+                    console.error("Logout error:", e);
+                }
             }
 
             showFirebaseWarning(message) {
