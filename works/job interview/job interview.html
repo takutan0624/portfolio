@@ -192,30 +192,53 @@
             return null;
         }
 
-        const firebaseConfig = readFirebaseConfigRuntime();
-        if (!firebaseConfig) {
-            throw new Error("Firebase config is missing. Provide __firebase_config or window.__FIREBASE_CONFIG__.");
-        }
-
-        // Groq Proxy (Vercel API)
-        const GROQ_PROXY_URL = "/api/groq";
+        // Groq Proxy (Vercel API) — antiageプロジェクトのIDトークンを検証するエンドポイント
+        const GROQ_PROXY_URL = "/api/groq-antiage";
+        // 実行時configが無い本番向け: サーバからconfigを取得（antiage→mentalの順）
+        const FIREBASE_CONFIG_ENDPOINTS = ["/api/firebase-config-antiage", "/api/firebase-config-mental"];
 
         // --- アプリケーションロジック ---
-        
+
         let db, auth, appInstance;
         let isFirebaseReady = false;
 
-        try {
-            const app = initializeApp(firebaseConfig);
-            if (firebaseConfig.measurementId) {
-                const analytics = getAnalytics(app);
+        function isValidFirebaseConfig(cfg) {
+            return !!(cfg && typeof cfg === "object" && cfg.apiKey && cfg.projectId && cfg.appId);
+        }
+
+        async function fetchFirebaseConfigFromServer() {
+            for (const url of FIREBASE_CONFIG_ENDPOINTS) {
+                try {
+                    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+                    if (!res.ok) continue;
+                    const cfg = await res.json();
+                    if (isValidFirebaseConfig(cfg)) return cfg;
+                } catch (e) { /* 次の候補へ */ }
             }
-            db = getFirestore(app);
-            auth = getAuth(app);
-            isFirebaseReady = true;
-            console.log("Firebase initialized successfully");
-        } catch (e) {
-            console.error("Firebase Init Error:", e);
+            return null;
+        }
+
+        async function setupFirebase() {
+            let firebaseConfig = readFirebaseConfigRuntime();
+            if (!isValidFirebaseConfig(firebaseConfig)) {
+                firebaseConfig = await fetchFirebaseConfigFromServer();
+            }
+            if (!isValidFirebaseConfig(firebaseConfig)) {
+                console.error("Firebase config is missing (runtime & server).");
+                return; // isFirebaseReady=false のままローカル動作にフォールバック
+            }
+            try {
+                const app = initializeApp(firebaseConfig);
+                if (firebaseConfig.measurementId) {
+                    try { getAnalytics(app); } catch (e) { /* analyticsは任意 */ }
+                }
+                db = getFirestore(app);
+                auth = getAuth(app);
+                isFirebaseReady = true;
+                console.log("Firebase initialized successfully");
+            } catch (e) {
+                console.error("Firebase Init Error:", e);
+            }
         }
 
         window.app = {
@@ -560,6 +583,7 @@
                                 currentMessageForAI
                             ],
                             temperature: 0.7,
+                            max_tokens: 1800,
                             max_completion_tokens: 1800
                         })
                     });
@@ -747,7 +771,11 @@
             }
         }
 
-        const instance = new InterviewPartnerApp();
+        let instance;
+        (async () => {
+            await setupFirebase();
+            instance = new InterviewPartnerApp();
+        })();
     </script>
 </body>
 </html>
