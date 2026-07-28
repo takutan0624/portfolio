@@ -279,6 +279,7 @@
         let items = [];     // コインなど
         let particles = []; // エフェクト用
         let flagPole = null;
+        let boss = null; // ボスキャラ（旗の手前に出現）
 
         // レベルデータを生成する関数
         function generateLevel() {
@@ -372,6 +373,19 @@
             // バグ修正: 階段の終端(x=6520)からゴール旗〜城壁手前(x=6850)まで
             // 床が途切れており、旗を飛び越えると奈落に落ちて死亡していたため地面で埋める
             platforms.push({ x: 6520, y: 400, w: 6850 - 6520, h: 50 });
+
+            // ボスキャラ「BOX KING」— 旗の手前で待ち構える門番。3回踏むと倒せる。
+            boss = {
+                x: 6560, y: 400 - 64, w: 64, h: 64,
+                dx: -1.6, dy: 0,
+                minX: 6540, maxX: 6660, // 巡回範囲（旗より手前に留める）
+                hp: 3, maxHp: 3,
+                dead: false, deadTimer: 0,
+                grounded: true,
+                invuln: 0,
+                jumpTimer: 90 + Math.floor(Math.random() * 60),
+                facing: -1
+            };
 
             // ゴール後の城壁風ブロック
             platforms.push({ x: 6850, y: 350, w: 250, h: 50, color: '#CC4C0C' });
@@ -688,6 +702,63 @@
                 }
             }
 
+            // ボスの更新
+            if (boss) {
+                if (boss.dead) {
+                    boss.deadTimer--;
+                    if (boss.deadTimer <= 0) boss = null;
+                } else {
+                    if (boss.invuln > 0) boss.invuln--;
+
+                    // ホップ攻撃（一定間隔で飛び跳ねる）
+                    boss.jumpTimer--;
+                    if (boss.jumpTimer <= 0 && boss.grounded) {
+                        boss.dy = -9;
+                        boss.grounded = false;
+                        boss.jumpTimer = 100 + Math.floor(Math.random() * 60);
+                    }
+                    boss.dy += 0.5;
+                    boss.y += boss.dy;
+                    const bossGroundY = 400 - boss.h;
+                    if (boss.y >= bossGroundY) {
+                        boss.y = bossGroundY;
+                        boss.dy = 0;
+                        boss.grounded = true;
+                    }
+
+                    // 巡回範囲の端で反転
+                    boss.x += boss.dx;
+                    if (boss.x <= boss.minX) { boss.x = boss.minX; boss.dx = Math.abs(boss.dx); boss.facing = 1; }
+                    if (boss.x + boss.w >= boss.maxX) { boss.x = boss.maxX - boss.w; boss.dx = -Math.abs(boss.dx); boss.facing = -1; }
+
+                    // プレイヤーとの衝突
+                    if (!player.dead && isColliding(player, {x: boss.x, y: boss.y, w: boss.w, h: boss.h})) {
+                        if (boss.invuln <= 0 && player.dy > 0 && (player.y + player.height) < boss.y + boss.h * 0.55) {
+                            // 踏みつけ成功
+                            boss.hp--;
+                            boss.invuln = 45;
+                            player.dy = player.jumpForce * 0.75;
+                            player.jumpCount = 1;
+                            score += 300;
+                            spawnPoof(player.x + player.width / 2, boss.y + boss.h * 0.3);
+                            updateHUD();
+                            if (boss.hp <= 0) {
+                                boss.dead = true;
+                                boss.deadTimer = 45;
+                                score += 1500;
+                                spawnPoof(boss.x + boss.w / 2, boss.y + boss.h / 2);
+                                for (let k = 0; k < 3; k++) createCoinParticle(boss.x + 10 + k * 20, boss.y);
+                                updateHUD();
+                            }
+                        } else if (boss.invuln <= 0) {
+                            // 側面・下からの接触はダメージ
+                            player.dead = true;
+                            player.dy = -10;
+                        }
+                    }
+                }
+            }
+
             // アイテム（コイン）の更新と取得
             for (let i = items.length - 1; i >= 0; i--) {
                 let item = items[i];
@@ -846,6 +917,58 @@
                         ctx.fillRect(enemy.x + 0, enemy.y + enemy.h, 8, 4);
                         ctx.fillRect(enemy.x + 24, enemy.y + enemy.h, 8, 4);
                     }
+                }
+            }
+
+            // ボスキャラの描画
+            if (boss) {
+                if (boss.dead) {
+                    // 倒れて潰れた表現
+                    ctx.fillStyle = '#3a2a4a';
+                    ctx.fillRect(boss.x, boss.y + boss.h - 14, boss.w, 14);
+                } else {
+                    const flashing = boss.invuln > 0 && Math.floor(boss.invuln / 4) % 2 === 0;
+
+                    // 本体
+                    ctx.fillStyle = flashing ? '#ffffff' : '#2b2140';
+                    ctx.fillRect(boss.x, boss.y, boss.w, boss.h);
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(boss.x, boss.y, boss.w, boss.h);
+
+                    // 頭上のトゲ
+                    ctx.fillStyle = '#c8c8d8';
+                    for (let sx = boss.x + 6; sx < boss.x + boss.w - 4; sx += 14) {
+                        ctx.beginPath();
+                        ctx.moveTo(sx, boss.y);
+                        ctx.lineTo(sx + 6, boss.y - 10);
+                        ctx.lineTo(sx + 12, boss.y);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+
+                    // 発光する目
+                    ctx.fillStyle = '#ff3b3b';
+                    ctx.fillRect(boss.x + 12, boss.y + 22, 10, 8);
+                    ctx.fillRect(boss.x + boss.w - 22, boss.y + 22, 10, 8);
+
+                    // 通気孔ライン
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(boss.x + 14, boss.y + 44, boss.w - 28, 3);
+
+                    // 体力バー
+                    const barW = 74, barX = boss.x + boss.w / 2 - barW / 2, barY = boss.y - 24;
+                    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                    ctx.fillRect(barX - 3, barY - 3, barW + 6, 12);
+                    ctx.fillStyle = '#3a2a4a';
+                    ctx.fillRect(barX, barY, barW, 6);
+                    ctx.fillStyle = '#ff3b3b';
+                    ctx.fillRect(barX, barY, barW * (boss.hp / boss.maxHp), 6);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '8px "Press Start 2P"';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('BOSS', boss.x + boss.w / 2, barY - 6);
+                    ctx.textAlign = 'left';
                 }
             }
 
