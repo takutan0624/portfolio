@@ -243,6 +243,8 @@
 
         // カメラ（スクロールオフセット）
         let cameraX = 0;
+        let levelWidth = 8000; // generateLevel で実測値に更新
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
         // キー入力状態
         const keys = {
@@ -371,6 +373,12 @@
             platforms.push({ x: 6870, y: 300, w: 30, h: 50, color: '#CC4C0C' }); // 塔1
             platforms.push({ x: 6950, y: 300, w: 30, h: 50, color: '#CC4C0C' }); // 塔2
             platforms.push({ x: 7030, y: 300, w: 30, h: 50, color: '#CC4C0C' }); // 塔3
+
+            // レベルの右端を実測（カメラのクランプに使用）
+            levelWidth = 0;
+            for (const p of platforms) levelWidth = Math.max(levelWidth, p.x + p.w);
+            if (flagPole) levelWidth = Math.max(levelWidth, flagPole.x + 200);
+            levelWidth += 80;
         }
 
         function initGame(fullReset = false) {
@@ -426,7 +434,12 @@
 
         // キーボード操作
         window.addEventListener('keydown', (e) => {
-            if(gameState !== 'playing') return;
+            if (gameState !== 'playing') {
+                // メニュー/ゲームオーバー/クリア中は Space / Enter で開始・再開
+                if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); startBtn.click(); }
+                return;
+            }
+            if (e.code === 'Space' || e.code === 'ArrowUp') e.preventDefault(); // ページスクロール防止
             if (e.code === 'ArrowRight') keys.right = true;
             if (e.code === 'ArrowLeft') keys.left = true;
             if (e.code === 'Space' || e.code === 'ArrowUp') {
@@ -489,23 +502,48 @@
                    rect1.y + rect1.height > rect2.y;
         }
 
+        // 点が固形物（地形/ブロック）の内側にあるか
+        function solidAt(px, py, solids) {
+            for (const b of solids) {
+                if (px >= b.x && px < b.x + b.w && py >= b.y && py < b.y + b.h) return true;
+            }
+            return false;
+        }
+
         // 弾けるコインのエフェクト作成
         function createCoinParticle(x, y) {
-            particles.push({
-                x: x,
-                y: y,
-                dy: -8,
-                life: 30, // 30フレームで消える
-                color: '#FCE0A8',
-                type: 'coin'
-            });
+            particles.push({ x, y, dx: 0, dy: -9, life: 28, maxLife: 28, size: 9, color: '#FFD65C', type: 'coin' });
+            for (let i = 0; i < 5; i++) {
+                particles.push({
+                    x, y, dx: (Math.random() - 0.5) * 4, dy: -3 - Math.random() * 3,
+                    life: 24, maxLife: 24, size: 2 + Math.random() * 2, color: '#FFF3B0', type: 'spark'
+                });
+            }
             score += 100;
             coins++;
-            if (coins >= 100) {
-                coins = 0;
-                lives++;
-            }
+            if (coins >= 100) { coins = 0; lives++; }
             updateHUD();
+        }
+
+        // 踏みつけ時の煙エフェクト
+        function spawnPoof(x, y) {
+            for (let i = 0; i < 8; i++) {
+                const a = (Math.PI * 2 * i) / 8;
+                particles.push({
+                    x, y, dx: Math.cos(a) * 2.2, dy: Math.sin(a) * 2.2 - 1,
+                    life: 20, maxLife: 20, size: 4 + Math.random() * 3, color: 'rgba(255,255,255,0.9)', type: 'poof'
+                });
+            }
+        }
+
+        // 着地の砂ぼこり
+        function spawnDust(x, y) {
+            for (let i = 0; i < 5; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 16, y, dx: (Math.random() - 0.5) * 2, dy: -Math.random() * 1.5,
+                    life: 16, maxLife: 16, size: 3 + Math.random() * 2, color: 'rgba(230,220,200,0.85)', type: 'poof'
+                });
+            }
         }
 
         function update() {
@@ -536,9 +574,9 @@
 
             // X軸の移動と衝突判定
             player.x += player.dx;
-            
-            // 画面左端での制限
-            if (player.x < cameraX) player.x = cameraX;
+
+            // レベル左端での制限（左に戻れるように）
+            if (player.x < 0) player.x = 0;
 
             const collidables = [...platforms, ...blocks];
 
@@ -560,6 +598,7 @@
             for (let b of collidables) {
                 if (isColliding(player, b)) {
                     if (player.dy > 0) { // 落下中（着地）
+                        if (!player.grounded && player.dy > 7) spawnDust(player.x + player.width / 2, b.y);
                         player.y = b.y - player.height;
                         player.dy = 0;
                         player.grounded = true;
@@ -595,32 +634,46 @@
                 }
 
                 // 敵の重力と移動
-                enemy.y += 2; // 簡易的な重力
+                enemy.y += 3; // 簡易的な重力
                 let enemyGrounded = false;
                 for (let b of collidables) {
                     if (isColliding({x: enemy.x, y: enemy.y, width: enemy.w, height: enemy.h}, b)) {
-                        enemy.y = b.y - enemy.h;
-                        enemyGrounded = true;
+                        if (enemy.y + enemy.h - 3 <= b.y + 8) { // 上から着地した場合のみ
+                            enemy.y = b.y - enemy.h;
+                            enemyGrounded = true;
+                        }
                     }
                 }
-                
+
+                // 奈落に落ちた敵は除去
+                if (enemy.y > canvas.height + 80) { enemies.splice(i, 1); continue; }
+
                 enemy.x += enemy.dx;
-                // 障害物に当たったら反転
+                // 壁に当たったら反転
                 for (let b of collidables) {
-                    if (isColliding({x: enemy.x, y: enemy.y - 2, width: enemy.w, height: enemy.h - 4}, b)) {
+                    if (isColliding({x: enemy.x, y: enemy.y + 2, width: enemy.w, height: enemy.h - 6}, b)) {
                         enemy.dx *= -1;
+                        enemy.x += enemy.dx; // 壁にめり込まないよう戻す
                         break;
                     }
+                }
+                // 足場の端まで来たら反転（穴に落ちないように）
+                if (enemyGrounded) {
+                    const frontX = enemy.dx > 0 ? enemy.x + enemy.w + 1 : enemy.x - 1;
+                    const footY = enemy.y + enemy.h + 4;
+                    if (!solidAt(frontX, footY, collidables)) enemy.dx *= -1;
                 }
 
                 // プレイヤーと敵の衝突
                 if (!player.dead && isColliding(player, {x: enemy.x, y: enemy.y, w: enemy.w, h: enemy.h})) {
-                    // 上から踏んだか？（プレイヤーの底辺が敵の上部付近にあり、落下中）
-                    if (player.dy > 0 && player.y + player.height < enemy.y + 16) {
+                    // 上から踏んだか？（落下中で、プレイヤーの底辺が敵の上半分より上）
+                    if (player.dy > 0 && (player.y + player.height) < enemy.y + enemy.h * 0.6) {
                         enemy.dead = true;
                         enemy.deadTimer = 30; // 潰れた状態を30フレーム表示
-                        player.dy = -8; // 少しバウンド
+                        player.dy = player.jumpForce * 0.7; // 少しバウンド
+                        player.jumpCount = 1; // 踏んだ後の空中ジャンプを許可
                         score += 200;
+                        spawnPoof(enemy.x + enemy.w / 2, enemy.y + enemy.h);
                         updateHUD();
                     } else {
                         // ダメージを受けた
@@ -645,8 +698,10 @@
             // パーティクルの更新
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
+                p.x += p.dx || 0;
                 p.y += p.dy;
-                p.dy += 0.5; // 重力
+                if (p.type === 'poof') { p.dy += 0.08; p.dx *= 0.92; }
+                else { p.dy += 0.5; }
                 p.life--;
                 if (p.life <= 0) particles.splice(i, 1);
             }
@@ -663,11 +718,11 @@
                 menuOverlay.style.display = 'flex';
             }
 
-            // カメラの更新 (プレイヤーが画面中央より右に行ったらスクロール)
-            let targetCameraX = player.x - canvas.width / 2 + 100;
-            if (targetCameraX > cameraX) {
-                cameraX = targetCameraX;
-            }
+            // カメラの更新（プレイヤーを中央付近に、レベル範囲内でスムーズ追従）
+            let targetCameraX = player.x + player.width / 2 - canvas.width / 2;
+            targetCameraX = clamp(targetCameraX, 0, Math.max(0, levelWidth - canvas.width));
+            cameraX += (targetCameraX - cameraX) * 0.12; // イージングでスムーズに
+            if (Math.abs(targetCameraX - cameraX) < 0.5) cameraX = targetCameraX;
         }
 
         function draw() {
