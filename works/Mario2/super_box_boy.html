@@ -268,7 +268,8 @@
             dead: false,       // 死亡判定
             color: '#D82800',  // マリオ風の赤
             jumpCount: 0,      // 現在のジャンプ回数
-            maxJumps: 2        // 最大ジャンプ回数 (2段ジャンプ)
+            maxJumps: 2,       // 最大ジャンプ回数 (2段ジャンプ)
+            facing: 1          // 向き (1:右, -1:左)
         };
 
         // マップ要素
@@ -367,7 +368,11 @@
             // --- エリア5：ゴール ---
             // ゴールのポール
             flagPole = { x: 6700, y: 100, w: 10, h: 300 };
-            
+
+            // バグ修正: 階段の終端(x=6520)からゴール旗〜城壁手前(x=6850)まで
+            // 床が途切れており、旗を飛び越えると奈落に落ちて死亡していたため地面で埋める
+            platforms.push({ x: 6520, y: 400, w: 6850 - 6520, h: 50 });
+
             // ゴール後の城壁風ブロック
             platforms.push({ x: 6850, y: 350, w: 250, h: 50, color: '#CC4C0C' });
             platforms.push({ x: 6870, y: 300, w: 30, h: 50, color: '#CC4C0C' }); // 塔1
@@ -568,8 +573,8 @@
             }
 
             // プレイヤーのX軸移動
-            if (keys.right) player.dx = player.speed;
-            else if (keys.left) player.dx = -player.speed;
+            if (keys.right) { player.dx = player.speed; player.facing = 1; }
+            else if (keys.left) { player.dx = -player.speed; player.facing = -1; }
             else player.dx = 0;
 
             // X軸の移動と衝突判定
