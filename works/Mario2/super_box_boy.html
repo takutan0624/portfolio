@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Box Boy</title>
+    <!-- Google Fontsからレトロなピクセルフォントを読み込む -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none; /* テキスト選択を無効化（ゲーム操作のため） */
+        }
+
+        body {
+            background-color: #222;
+            color: #fff;
+            font-family: 'Press Start 2P', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none; /* スワイプによるスクロールを防止 */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 900px;
+            max-height: 600px;
+            background-color: #5C94FC; /* 空の色 */
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated; /* レトロ感を出すためにピクセルをくっきりさせる */
+        }
+
+        /* UIオーバーレイのスタイル */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* UIの背景部分はクリックを透過させる */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        /* メニュー画面（スタート、ゲームオーバー、クリア） */
+        #menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        #menu-overlay h1 {
+            font-size: 32px;
+            color: #FFCE00;
+            text-shadow: 4px 4px 0 #D82800;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        #menu-overlay p {
+            font-size: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 2;
+        }
+
+        button {
+            background: #D82800;
+            color: white;
+            border: 4px solid #fff;
+            padding: 15px 30px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 #000;
+            transition: transform 0.1s;
+        }
+
+        button:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0 #000;
+        }
+
+        /* タッチコントロール（モバイル向け） */
+        #touch-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none; /* コンテナ自体は透過 */
+            opacity: 0.5; /* 半透明 */
+            z-index: 5;
+        }
+
+        .touch-btn {
+            pointer-events: auto; /* ボタン部分はタッチ可能にする */
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: white;
+            touch-action: none;
+        }
+
+        .touch-btn.active {
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        #d-pad {
+            display: flex;
+            gap: 15px;
+        }
+
+        /* PC画面でタッチコントロールを隠す場合（任意ですが、今回は常時表示またはメディアクエリで調整可能。ここではスマホサイズの時のみ見やすくします） */
+        @media (min-width: 768px) {
+            #touch-controls {
+                display: none; /* PC等の横幅が広い場合は非表示 */
+            }
+            .hud {
+                font-size: 20px;
+            }
+            #menu-overlay h1 {
+                font-size: 48px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- ゲーム描画用キャンバス -->
+        <canvas id="gameCanvas" width="800" height="450"></canvas>
+        
+        <!-- UIレイヤー -->
+        <div id="ui-layer">
+            <div class="hud">
+                <div id="scoreDisplay">SCORE: 000000</div>
+                <div id="coinsDisplay">COINS: x00</div>
+                <div id="livesDisplay">LIVES: 3</div>
+            </div>
+            
+            <!-- タッチコントローラー -->
+            <div id="touch-controls">
+                <div id="d-pad">
+                    <div class="touch-btn" id="btn-left">◀</div>
+                    <div class="touch-btn" id="btn-right">▶</div>
+                </div>
+                <div class="touch-btn" id="btn-jump">▲</div>
+            </div>
+        </div>
+
+        <!-- メニュー画面 -->
+        <div id="menu-overlay">
+            <h1 id="menu-title">SUPER<br>BOX BOY</h1>
+            <p id="menu-desc">PC: Arrow Keys to move, Space to jump<br>Mobile: Use on-screen buttons</p>
+            <button id="start-btn">START GAME</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI要素
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const coinsDisplay = document.getElementById('coinsDisplay');
+        const livesDisplay = document.getElementById('livesDisplay');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const menuTitle = document.getElementById('menu-title');
+        const menuDesc = document.getElementById('menu-desc');
+        const startBtn = document.getElementById('start-btn');
+
+        // タッチボタン
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        const btnJump = document.getElementById('btn-jump');
+
+        // ゲームの状態
+        let gameState = 'menu'; // menu, playing, gameover, win
+        let animationId;
+        
+        // スコアとライフ
+        let score = 0;
+        let coins = 0;
+        let lives = 3;
+
+        // カメラ（スクロールオフセット）
+        let cameraX = 0;
+
+        // キー入力状態
+        const keys = {
+            right: false,
+            left: false,
+            jump: false
+        };
+
+        // プレイヤーオブジェクト
+        const player = {
+            x: 50,
+            y: 50,
+            width: 32,
+            height: 32,
+            dx: 0,
+            dy: 0,
+            speed: 4,          // 移動速度
+            jumpForce: -12,    // ジャンプ力
+            gravity: 0.6,      // 重力
+            grounded: false,   // 地面に接地しているか
+            dead: false,       // 死亡判定
+            color: '#D82800',  // マリオ風の赤
+            jumpCount: 0,      // 現在のジャンプ回数
+            maxJumps: 2        // 最大ジャンプ回数 (2段ジャンプ)
+        };
+
+        // マップ要素
+        let platforms = [];
+        let blocks = [];
+        let enemies = [];
+        let items = [];     // コインなど
+        let particles = []; // エフェクト用
+        let flagPole = null;
+
+        // レベルデータを生成する関数
+        function generateLevel() {
+            platforms = [];
+            blocks = [];
+            enemies = [];
+            items = [];
+            particles = [];
+            cameraX = 0;
+
+            // --- エリア1：序盤の平原 ---
+            platforms.push({ x: 0, y: 400, w: 800, h: 50 }); // 短くなった最初の地面
+            
+            // 2段ジャンプを使わないと落ちる穴
+            platforms.push({ x: 950, y: 400, w: 600, h: 50 });
+
+            // ブロックとハテナブロック
+            blocks.push({ x: 300, y: 280, w: 32, h: 32, type: 'brick' });
+            blocks.push({ x: 332, y: 280, w: 32, h: 32, type: 'question', active: true });
+            blocks.push({ x: 364, y: 280, w: 32, h: 32, type: 'brick' });
+            blocks.push({ x: 396, y: 280, w: 32, h: 32, type: 'question', active: true });
+            blocks.push({ x: 428, y: 280, w: 32, h: 32, type: 'brick' });
+            blocks.push({ x: 364, y: 150, w: 32, h: 32, type: 'question', active: true });
+
+            items.push({ x: 400, y: 350, w: 20, h: 20, type: 'coin', collected: false });
+            items.push({ x: 430, y: 350, w: 20, h: 20, type: 'coin', collected: false });
+            items.push({ x: 460, y: 350, w: 20, h: 20, type: 'coin', collected: false });
+
+            // 敵キャラクター
+            enemies.push({ x: 500, y: 368, w: 32, h: 32, dx: -1, type: 'goomba', dead: false, deadTimer: 0 });
+            enemies.push({ x: 700, y: 368, w: 32, h: 32, dx: -1, type: 'goomba', dead: false, deadTimer: 0 });
+
+            // 土管風の障害物
+            platforms.push({ x: 600, y: 350, w: 64, h: 50, color: '#00A800' });
+            platforms.push({ x: 1100, y: 320, w: 64, h: 80, color: '#00A800' });
+            platforms.push({ x: 1300, y: 280, w: 64, h: 120, color: '#00A800' });
+
+            enemies.push({ x: 1180, y: 368, w: 32, h: 32, dx: -1, type: 'goomba', dead: false, deadTimer: 0 });
+            enemies.push({ x: 1450, y: 368, w: 32, h: 32, dx: -1, type: 'goomba', dead: false, deadTimer: 0 });
+
+            // --- エリア2：2段ジャンプ必須のアスレチック ---
+            platforms.push({ x: 1750, y: 400, w: 300, h: 50 }); // 離れ小島
+            enemies.push({ x: 1900, y: 368, w: 32, h: 32, dx: -1, type: 'goomba', dead: false, deadTimer: 0 });
+
+            // 奈落の底に浮かぶブロック群
+            blocks.push({ x: 2200, y: 300, w: 32, h: 32, type: 'brick' });
+            blocks.push({ x: 2350, y: 200, w: 32, h: 32, type: 'question', active: true });
+            blocks.push({ x: 2500, y: 300, w: 32, h: 32, type: 'brick' });
+
+            // アスレチックを抜けた先の地面
+            platforms.push({ x: 2700, y: 400, w: 1000, h: 50 });
+            
+            // 登りと下りの階段
+            for(let i=0; i<6; i++) {
+                platforms.push({ x: 2800 + (i*32), y: 400 - ((i+1)*32), w: 32, h: (i+1)*32, color: '#CC4C0C' });
+            }
+            for(let i=0; i<6; i++) {
+                platforms.push({ x: 3050 + (i*32), y: 400 - (6*32) + (i*32), w: 32, h: (6-i)*32, color: '#CC4C0C' });
+            }
+
+            // 谷底の敵
+            enemies.push({ x: 3300, y: 368, w: 32, h: 32, dx: -1, type: 'goomba', dead: false, deadTimer: 0 });
+            enemies.push({ x: 3400, y: 368, w: 32, h: 32, dx: -1, type: 'goomba', dead: false, deadTimer: 0 });
+            enemies.push({ x: 3500, y: 368, w: 32, h: 32, dx: -1, type: 'goomba', dead: false, deadTimer: 0 });
+            
+            platforms.push({ x: 3600, y: 320, w: 64, h: 80, color: '#00A800' }); // 高めの土管
+            
+            // --- エリア3：精密なジャンプエリア ---
+            platforms.push({ x: 3850, y: 400, w: 200, h: 50 });
+            platforms.push({ x: 4250, y: 350, w: 100, h: 50 }); // 少し浮いた足場
+            platforms.push({ x: 4600, y: 300, w: 100, h: 50 }); // さらに高い足場
+            platforms.push({ x: 4950, y: 250, w: 64, h: 32, color: '#FFCE00' }); // 金色の小さい足場
+
+            // --- エリア4：敵の猛攻 ---
+            platforms.push({ x: 5200, y: 400, w: 1500, h: 50 });
+            
+            // 敵の大群
+            for (let i = 0; i < 8; i++) {
+                enemies.push({ x: 5400 + i * 100, y: 368, w: 32, h: 32, dx: -1, type: 'goomba', dead: false, deadTimer: 0 });
+            }
+
+            // ゴール前の巨大階段
+            for(let i=0; i<10; i++) {
+                platforms.push({ x: 6200 + (i*32), y: 400 - ((i+1)*32), w: 32, h: (i+1)*32, color: '#CC4C0C' });
+            }
+
+            // --- エリア5：ゴール ---
+            // ゴールのポール
+            flagPole = { x: 6700, y: 100, w: 10, h: 300 };
+            
+            // ゴール後の城壁風ブロック
+            platforms.push({ x: 6850, y: 350, w: 250, h: 50, color: '#CC4C0C' });
+            platforms.push({ x: 6870, y: 300, w: 30, h: 50, color: '#CC4C0C' }); // 塔1
+            platforms.push({ x: 6950, y: 300, w: 30, h: 50, color: '#CC4C0C' }); // 塔2
+            platforms.push({ x: 7030, y: 300, w: 30, h: 50, color: '#CC4C0C' }); // 塔3
+        }
+
+        function initGame(fullReset = false) {
+            if (fullReset) {
+                score = 0;
+                coins = 0;
+                lives = 3;
+            }
+            
+            player.x = 50;
+            player.y = 50;
+            player.dx = 0;
+            player.dy = 0;
+            player.dead = false;
+            player.gravity = 0.6; // バグ修正: 重力を初期値にリセット
+            player.jumpCount = 0; // バグ修正: ジャンプ回数もリセット
+            
+            generateLevel();
+            updateHUD();
+            gameState = 'playing';
+            menuOverlay.style.display = 'none';
+            
+            // バグ修正: ループの多重起動（速度が倍増するバグ）を防止
+            // animationIdがまだ発行されていない初回のみループを開始する
+            if (!animationId) {
+                gameLoop();
+            }
+        }
+
+        function updateHUD() {
+            scoreDisplay.textContent = `SCORE: ${score.toString().padStart(6, '0')}`;
+            coinsDisplay.textContent = `COINS: x${coins.toString().padStart(2, '0')}`;
+            livesDisplay.textContent = `LIVES: ${lives}`;
+        }
+
+        // ジャンプ処理ロジック
+        function tryJump() {
+            if (gameState !== 'playing' || player.dead) return;
+
+            if (player.grounded) {
+                // 1段目のジャンプ
+                player.dy = player.jumpForce;
+                player.grounded = false;
+                player.jumpCount = 1;
+            } else if (player.jumpCount < player.maxJumps) {
+                // 2段目（空中）のジャンプ
+                player.dy = player.jumpForce;
+                player.jumpCount = player.maxJumps; // 崖から落ちた場合なども1回だけ空中ジャンプ可能に
+            }
+        }
+
+        let jumpPressed = false; // ジャンプキーの押しっぱなしによる連続ジャンプを防止
+
+        // キーボード操作
+        window.addEventListener('keydown', (e) => {
+            if(gameState !== 'playing') return;
+            if (e.code === 'ArrowRight') keys.right = true;
+            if (e.code === 'ArrowLeft') keys.left = true;
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                if (!jumpPressed) {
+                    jumpPressed = true;
+                    tryJump();
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowRight') keys.right = false;
+            if (e.code === 'ArrowLeft') keys.left = false;
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                keys.jump = false;
+                jumpPressed = false;
+            }
+        });
+
+        // タッチ操作（モバイル）
+        function handleTouch(btn, keyName, isDown) {
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // デフォルトの動作（スクロール等）を防ぐ
+                btn.classList.add('active');
+                if (keyName === 'jump') {
+                    tryJump();
+                } else {
+                    keys[keyName] = true;
+                }
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                btn.classList.remove('active');
+                if (keyName !== 'jump') keys[keyName] = false;
+            });
+            // タッチキャンセル時（指が画面外へ行った時など）
+            btn.addEventListener('touchcancel', (e) => {
+                btn.classList.remove('active');
+                if (keyName !== 'jump') keys[keyName] = false;
+            });
+        }
+
+        handleTouch(btnLeft, 'left');
+        handleTouch(btnRight, 'right');
+        handleTouch(btnJump, 'jump');
+
+        startBtn.addEventListener('click', () => {
+            if (gameState === 'gameover' || gameState === 'win') {
+                initGame(true);
+            } else {
+                initGame(false);
+            }
+        });
+
+        // AABB 衝突判定関数
+        function isColliding(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.w &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.h &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        // 弾けるコインのエフェクト作成
+        function createCoinParticle(x, y) {
+            particles.push({
+                x: x,
+                y: y,
+                dy: -8,
+                life: 30, // 30フレームで消える
+                color: '#FCE0A8',
+                type: 'coin'
+            });
+            score += 100;
+            coins++;
+            if (coins >= 100) {
+                coins = 0;
+                lives++;
+            }
+            updateHUD();
+        }
+
+        function update() {
+            if (player.dead) {
+                player.dy += player.gravity;
+                player.y += player.dy;
+                if (player.y > canvas.height + 100) {
+                    lives--;
+                    updateHUD();
+                    if (lives > 0) {
+                        initGame(false); // リトライ
+                    } else {
+                        gameState = 'gameover';
+                        menuTitle.textContent = "GAME OVER";
+                        menuTitle.style.color = "#D82800";
+                        menuDesc.textContent = `SCORE: ${score}`;
+                        startBtn.textContent = "RETRY";
+                        menuOverlay.style.display = 'flex';
+                    }
+                }
+                return; // 死んでいる時は以下の処理を行わない
+            }
+
+            // プレイヤーのX軸移動
+            if (keys.right) player.dx = player.speed;
+            else if (keys.left) player.dx = -player.speed;
+            else player.dx = 0;
+
+            // X軸の移動と衝突判定
+            player.x += player.dx;
+            
+            // 画面左端での制限
+            if (player.x < cameraX) player.x = cameraX;
+
+            const collidables = [...platforms, ...blocks];
+
+            for (let b of collidables) {
+                if (isColliding(player, b)) {
+                    if (player.dx > 0) { // 右へ移動中
+                        player.x = b.x - player.width;
+                    } else if (player.dx < 0) { // 左へ移動中
+                        player.x = b.x + b.w;
+                    }
+                }
+            }
+
+            // Y軸の移動と重力適用
+            player.dy += player.gravity;
+            player.y += player.dy;
+            player.grounded = false;
+
+            for (let b of collidables) {
+                if (isColliding(player, b)) {
+                    if (player.dy > 0) { // 落下中（着地）
+                        player.y = b.y - player.height;
+                        player.dy = 0;
+                        player.grounded = true;
+                        player.jumpCount = 0; // 着地したらジャンプ回数をリセット
+                    } else if (player.dy < 0) { // 上昇中（頭をぶつけた）
+                        player.y = b.y + b.h;
+                        player.dy = 0;
+                        
+                        // ハテナブロックを叩いた処理
+                        if (b.type === 'question' && b.active) {
+                            b.active = false;
+                            createCoinParticle(b.x + 6, b.y);
+                            // ブロックが少し跳ねるアニメーション用の設定等も可能ですがシンプルに色を変えます
+                        }
+                    }
+                }
+            }
+
+            // 穴に落ちた判定
+            if (player.y > canvas.height) {
+                player.dead = true;
+                player.dy = -10; // 少し跳ねて落ちる
+                player.gravity = 0.5;
+            }
+
+            // 敵の更新
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let enemy = enemies[i];
+                if (enemy.dead) {
+                    enemy.deadTimer--;
+                    if (enemy.deadTimer <= 0) enemies.splice(i, 1);
+                    continue;
+                }
+
+                // 敵の重力と移動
+                enemy.y += 2; // 簡易的な重力
+                let enemyGrounded = false;
+                for (let b of collidables) {
+                    if (isColliding({x: enemy.x, y: enemy.y, width: enemy.w, height: enemy.h}, b)) {
+                        enemy.y = b.y - enemy.h;
+                        enemyGrounded = true;
+                    }
+                }
+                
+                enemy.x += enemy.dx;
+                // 障害物に当たったら反転
+                for (let b of collidables) {
+                    if (isColliding({x: enemy.x, y: enemy.y - 2, width: enemy.w, height: enemy.h - 4}, b)) {
+                        enemy.dx *= -1;
+                        break;
+                    }
+                }
+
+                // プレイヤーと敵の衝突
+                if (!player.dead && isColliding(player, {x: enemy.x, y: enemy.y, w: enemy.w, h: enemy.h})) {
+                    // 上から踏んだか？（プレイヤーの底辺が敵の上部付近にあり、落下中）
+                    if (player.dy > 0 && player.y + player.height < enemy.y + 16) {
+                        enemy.dead = true;
+                        enemy.deadTimer = 30; // 潰れた状態を30フレーム表示
+                        player.dy = -8; // 少しバウンド
+                        score += 200;
+                        updateHUD();
+                    } else {
+                        // ダメージを受けた
+                        player.dead = true;
+                        player.dy = -10;
+                    }
+                }
+            }
+
+            // アイテム（コイン）の更新と取得
+            for (let i = items.length - 1; i >= 0; i--) {
+                let item = items[i];
+                if (!item.collected && isColliding(player, {x: item.x, y: item.y, w: item.w, h: item.h})) {
+                    item.collected = true;
+                    score += 100;
+                    coins++;
+                    if (coins >= 100) { coins = 0; lives++; }
+                    updateHUD();
+                }
+            }
+
+            // パーティクルの更新
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.y += p.dy;
+                p.dy += 0.5; // 重力
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            // ゴール判定
+            if (flagPole && isColliding(player, flagPole)) {
+                gameState = 'win';
+                score += 1000;
+                updateHUD();
+                menuTitle.textContent = "LEVEL CLEARED!";
+                menuTitle.style.color = "#00A800";
+                menuDesc.textContent = `FINAL SCORE: ${score}`;
+                startBtn.textContent = "PLAY AGAIN";
+                menuOverlay.style.display = 'flex';
+            }
+
+            // カメラの更新 (プレイヤーが画面中央より右に行ったらスクロール)
+            let targetCameraX = player.x - canvas.width / 2 + 100;
+            if (targetCameraX > cameraX) {
+                cameraX = targetCameraX;
+            }
+        }
+
+        function draw() {
+            // 背景のクリア
+            ctx.fillStyle = '#5C94FC';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // カメラのオフセットを適用
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+
+            // 雲や山の装飾 (簡易的な背景)
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.fillRect(100, 100, 60, 40);
+            ctx.fillRect(120, 80, 50, 40);
+            ctx.fillRect(500, 150, 80, 50);
+            ctx.fillRect(540, 120, 60, 50);
+            ctx.fillStyle = '#00A800'; // 奥の山
+            ctx.beginPath();
+            ctx.moveTo(300, 400);
+            ctx.lineTo(400, 250);
+            ctx.lineTo(500, 400);
+            ctx.fill();
+
+            // ゴールポールの描画
+            if (flagPole) {
+                // ポール
+                ctx.fillStyle = '#C8C8C8';
+                ctx.fillRect(flagPole.x, flagPole.y, flagPole.w, flagPole.h);
+                // 旗
+                ctx.fillStyle = '#00A800';
+                ctx.fillRect(flagPole.x - 40, flagPole.y + 10, 40, 30);
+                // ポールの上の玉
+                ctx.fillStyle = '#FFCE00';
+                ctx.beginPath();
+                ctx.arc(flagPole.x + 5, flagPole.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 地面・障害物の描画
+            for (let p of platforms) {
+                ctx.fillStyle = p.color || '#D84C0C'; // 指定がない場合は茶色
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                
+                // 地面の場合は上部に緑の草部分を描画
+                if (p.h >= 50 && (!p.color || p.color === '#D84C0C')) {
+                    ctx.fillStyle = '#00A800';
+                    ctx.fillRect(p.x, p.y, p.w, 10);
+                }
+            }
+
+            // ブロックの描画
+            for (let b of blocks) {
+                if (b.type === 'brick') {
+                    ctx.fillStyle = '#CC4C0C';
+                    ctx.fillRect(b.x, b.y, b.w, b.h);
+                    // レンガの模様
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(b.x, b.y + 15, b.w, 2);
+                    ctx.fillRect(b.x + 15, b.y, 2, 15);
+                    ctx.fillRect(b.x + 8, b.y + 15, 2, 15);
+                } else if (b.type === 'question') {
+                    if (b.active) {
+                        ctx.fillStyle = '#FFCE00';
+                        ctx.fillRect(b.x, b.y, b.w, b.h);
+                        // ？マーク
+                        ctx.fillStyle = '#D82800';
+                        ctx.font = '20px "Press Start 2P"';
+                        ctx.fillText('?', b.x + 8, b.y + 24);
+                    } else {
+                        // 叩かれた後の空ブロック
+                        ctx.fillStyle = '#C8C8C8';
+                        ctx.fillRect(b.x, b.y, b.w, b.h);
+                        ctx.fillStyle = '#000';
+                        ctx.fillRect(b.x, b.y, b.w, b.h);
+                        ctx.fillStyle = '#C8C8C8';
+                        ctx.fillRect(b.x+2, b.y+2, b.w-4, b.h-4);
+                    }
+                }
+            }
+
+            // アイテム（コイン）の描画
+            for (let item of items) {
+                if (!item.collected) {
+                    ctx.fillStyle = '#FFCE00';
+                    ctx.beginPath();
+                    ctx.ellipse(item.x + item.w/2, item.y + item.h/2, 6, 10, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // 敵キャラクターの描画
+            for (let enemy of enemies) {
+                if (enemy.dead) {
+                    // 潰れたクリボー
+                    ctx.fillStyle = '#A81000';
+                    ctx.fillRect(enemy.x, enemy.y + enemy.h - 10, enemy.w, 10);
+                } else {
+                    ctx.fillStyle = '#A81000'; // 濃い赤茶色
+                    
+                    // シンプルな形を描画
+                    ctx.beginPath();
+                    // 頭の丸み
+                    ctx.arc(enemy.x + enemy.w/2, enemy.y + enemy.h/2, enemy.w/2, Math.PI, 0);
+                    ctx.lineTo(enemy.x + enemy.w, enemy.y + enemy.h);
+                    ctx.lineTo(enemy.x, enemy.y + enemy.h);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // 足 (歩行アニメーション簡易版)
+                    ctx.fillStyle = '#000';
+                    if (Math.floor(Date.now() / 200) % 2 === 0) {
+                        ctx.fillRect(enemy.x + 4, enemy.y + enemy.h, 8, 4);
+                        ctx.fillRect(enemy.x + 20, enemy.y + enemy.h, 8, 4);
+                    } else {
+                        ctx.fillRect(enemy.x + 0, enemy.y + enemy.h, 8, 4);
+                        ctx.fillRect(enemy.x + 24, enemy.y + enemy.h, 8, 4);
+                    }
+                }
+            }
+
+            // パーティクル（叩かれたコインなど）の描画
+            for (let p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // プレイヤーの描画
+            ctx.fillStyle = player.color;
+            // 死亡時アニメーション中は逆さまにするなどの表現
+            if (player.dead) {
+                ctx.save();
+                ctx.translate(player.x + player.width/2, player.y + player.height/2);
+                ctx.scale(1, -1);
+                ctx.fillRect(-player.width/2, -player.height/2, player.width, player.height);
+                ctx.restore();
+            } else {
+                ctx.fillRect(player.x, player.y, player.width, player.height);
+                // 目と髭（マリオ風のディテール）
+                ctx.fillStyle = '#FCE0A8'; // 肌色
+                ctx.fillRect(player.x + (player.dx < 0 ? 0 : 12), player.y + 4, 20, 16);
+                
+                ctx.fillStyle = '#000'; // 目と髭
+                let faceDir = player.dx < 0 ? -1 : 1; // 向き
+                let faceX = player.dx < 0 ? player.x + 4 : player.x + 20;
+                ctx.fillRect(faceX, player.y + 8, 4, 4); // 目
+                ctx.fillRect(faceX - 2, player.y + 16, 12, 4); // 髭
+                
+                // 帽子
+                ctx.fillStyle = player.color;
+                ctx.fillRect(player.x + (player.dx < 0 ? 8 : -8), player.y, 32, 8);
+                ctx.fillRect(player.x + (player.dx < 0 ? -4 : 8), player.y + 4, 28, 4);
+            }
+
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            if (gameState === 'playing') {
+                update();
+            }
+            // ゲームオーバーやクリア時でも、落下アニメーションなどは見せるために描画は続ける
+            draw();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        // 初期描画だけ行っておく
+        generateLevel();
+        draw();
+
+    </script>
+</body>
+</html>
