@@ -1,93 +1,84 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-labelledby="title desc" shape-rendering="crispEdges">
-  <title id="title">Super Box Boy thumbnail</title>
-  <desc id="desc">Retro NES-style platformer thumbnail with a red box hero, bricks, coin and pipe.</desc>
-  <!-- sky -->
-  <rect width="1280" height="800" fill="#5C94FC"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-labelledby="title desc">
+  <title id="title">Dimension Viewer thumbnail</title>
+  <desc id="desc">Dark technical thumbnail for a 3D aircraft cargo hold and ULD dimension viewer.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0A1017"/>
+      <stop offset="1" stop-color="#0F1822"/>
+    </linearGradient>
+    <linearGradient id="mainGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F2A23C" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#F2A23C" stop-opacity="0.35"/>
+    </linearGradient>
+    <linearGradient id="lowerGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#46C2D8" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#46C2D8" stop-opacity="0.3"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1280" height="800" fill="url(#bg)"/>
 
-  <!-- clouds -->
-  <g fill="#ffffff" opacity="0.85">
-    <rect x="140" y="120" width="160" height="40"/>
-    <rect x="170" y="90" width="100" height="40"/>
-    <rect x="980" y="90" width="180" height="40"/>
-    <rect x="1020" y="60" width="100" height="40"/>
+  <!-- faint grid -->
+  <g stroke="#1A2833" stroke-width="1">
+    <path d="M0 100H1280M0 200H1280M0 300H1280M0 400H1280M0 500H1280M0 600H1280M0 700H1280"/>
+    <path d="M160 0V800M320 0V800M480 0V800M640 0V800M800 0V800M960 0V800M1120 0V800"/>
   </g>
 
-  <!-- distant hills -->
-  <g fill="#00A800" opacity="0.55">
-    <rect x="120" y="560" width="220" height="80"/>
-    <rect x="160" y="520" width="140" height="60"/>
-    <rect x="900" y="560" width="260" height="80"/>
-    <rect x="960" y="520" width="150" height="60"/>
-  </g>
-
-  <!-- title -->
-  <g font-family="'Courier New',monospace" font-weight="900" text-anchor="middle">
-    <text x="644" y="242" font-size="118" fill="#D82800">SUPER</text>
-    <text x="640" y="238" font-size="118" fill="#FFCE00">SUPER</text>
-    <text x="644" y="366" font-size="118" fill="#D82800">BOX BOY</text>
-    <text x="640" y="362" font-size="118" fill="#FFCE00">BOX BOY</text>
-  </g>
-
-  <!-- floating brick + coin block row -->
+  <!-- header bar -->
   <g>
-    <!-- brick -->
-    <rect x="360" y="452" width="72" height="72" fill="#CC4C0C" stroke="#000" stroke-width="4"/>
-    <rect x="360" y="486" width="72" height="4" fill="#000"/>
-    <rect x="394" y="452" width="4" height="34" fill="#000"/>
-    <rect x="378" y="490" width="4" height="34" fill="#000"/>
-    <!-- ? coin block -->
-    <rect x="440" y="452" width="72" height="72" fill="#FFCE00" stroke="#000" stroke-width="4"/>
-    <text x="476" y="508" font-family="'Courier New',monospace" font-weight="900" font-size="52" fill="#B45000" text-anchor="middle">?</text>
-    <!-- brick -->
-    <rect x="520" y="452" width="72" height="72" fill="#CC4C0C" stroke="#000" stroke-width="4"/>
-    <rect x="520" y="486" width="72" height="4" fill="#000"/>
-    <rect x="554" y="452" width="4" height="34" fill="#000"/>
-    <rect x="538" y="490" width="4" height="34" fill="#000"/>
+    <rect x="0" y="0" width="1280" height="72" fill="#0F1822" stroke="#22323F" stroke-width="1"/>
+    <text x="48" y="46" fill="#E4EDF4" font-family="'Barlow Condensed',Arial,sans-serif" font-size="30" font-weight="700" letter-spacing="2">DIMENSION VIEWER</text>
+    <rect x="420" y="24" width="90" height="26" rx="2" fill="#FFE27A"/>
+    <text x="465" y="42" fill="#14100A" font-family="'Barlow Condensed',Arial,sans-serif" font-size="15" font-weight="700" text-anchor="middle">機体</text>
+    <rect x="520" y="24" width="90" height="26" rx="2" fill="none" stroke="#22323F" stroke-width="1"/>
+    <text x="565" y="42" fill="#7E94A6" font-family="'Barlow Condensed',Arial,sans-serif" font-size="15" font-weight="700" text-anchor="middle">ULD</text>
+    <rect x="900" y="22" width="332" height="30" rx="2" fill="#131D28" stroke="#22323F" stroke-width="1"/>
+    <text x="920" y="42" fill="#7E94A6" font-family="'IBM Plex Sans JP',Arial,sans-serif" font-size="14">BOEING 767-300ER — 選択中</text>
   </g>
 
-  <!-- floating coin -->
-  <g>
-    <circle cx="700" cy="470" r="26" fill="#FFCE00" stroke="#B45000" stroke-width="4"/>
-    <rect x="694" y="452" width="12" height="36" fill="#B45000"/>
+  <!-- fuselage wireframe -->
+  <g filter="url(#glow)">
+    <ellipse cx="560" cy="430" rx="430" ry="88" fill="none" stroke="#7E94A6" stroke-width="2" opacity="0.55"/>
+    <path d="M130 430 Q160 330 420 320 L760 320 Q940 330 990 430 Q940 530 760 540 L420 540 Q160 530 130 430 Z"
+          fill="none" stroke="#E4EDF4" stroke-width="2.5"/>
+    <!-- deck division -->
+    <path d="M150 430 L980 430" stroke="#22323F" stroke-width="2"/>
+    <!-- main deck (upper) -->
+    <path d="M170 425 Q190 345 420 336 L760 336 Q930 345 965 425 Z" fill="url(#mainGrad)"/>
+    <!-- lower deck cargo hold -->
+    <path d="M175 435 Q195 500 400 512 L720 512 Q900 500 960 435 Z" fill="url(#lowerGrad)"/>
+    <!-- frame ribs -->
+    <g stroke="#22323F" stroke-width="1.5" opacity="0.7">
+      <path d="M270 330 L255 530"/>
+      <path d="M420 322 L410 538"/>
+      <path d="M570 320 L570 540"/>
+      <path d="M720 322 L730 538"/>
+      <path d="M860 335 L880 525"/>
+    </g>
   </g>
 
-  <!-- green pipe -->
-  <g>
-    <rect x="900" y="556" width="150" height="84" fill="#00A800" stroke="#000" stroke-width="4"/>
-    <rect x="884" y="516" width="182" height="48" fill="#00A800" stroke="#000" stroke-width="4"/>
-    <rect x="906" y="524" width="24" height="112" fill="#5CE05C" opacity="0.6"/>
+  <!-- ULD box wireframe (isometric) -->
+  <g transform="translate(1020 560)" stroke="#9B8CE0" stroke-width="2" fill="none">
+    <path d="M0 40 L90 0 L190 40 L100 84 Z"/>
+    <path d="M0 40 L0 120 L100 164 L100 84"/>
+    <path d="M190 40 L190 120 L100 164"/>
+    <path d="M0 40 L100 84 L190 40" opacity="0.5"/>
+  </g>
+  <text x="1020" y="605" fill="#4F6373" font-family="'Barlow Condensed',Arial,sans-serif" font-size="13" letter-spacing="1">ULD LD3</text>
+
+  <!-- legend -->
+  <g font-family="'IBM Plex Sans JP',Arial,sans-serif" font-size="15" fill="#7E94A6">
+    <rect x="130" y="640" width="14" height="14" rx="2" fill="#F2A23C"/>
+    <text x="154" y="652">メインデッキ</text>
+    <rect x="290" y="640" width="14" height="14" rx="2" fill="#46C2D8"/>
+    <text x="314" y="652">ロワーデッキ</text>
+    <rect x="450" y="640" width="14" height="14" rx="2" fill="#9B8CE0"/>
+    <text x="474" y="652">ULD / バルク</text>
   </g>
 
-  <!-- red box hero -->
-  <g stroke="#000" stroke-width="4">
-    <rect x="238" y="556" width="84" height="84" fill="#D82800"/>
-    <!-- cap brim -->
-    <rect x="230" y="560" width="100" height="14" fill="#B01E00"/>
-    <!-- eyes -->
-    <rect x="258" y="586" width="14" height="16" fill="#fff" stroke="none"/>
-    <rect x="288" y="586" width="14" height="16" fill="#fff" stroke="none"/>
-    <rect x="264" y="590" width="8" height="10" fill="#000" stroke="none"/>
-    <rect x="294" y="590" width="8" height="10" fill="#000" stroke="none"/>
-    <!-- feet -->
-    <rect x="246" y="624" width="26" height="16" fill="#3A1400" stroke="none"/>
-    <rect x="288" y="624" width="26" height="16" fill="#3A1400" stroke="none"/>
-  </g>
-
-  <!-- ground -->
-  <rect x="0" y="640" width="1280" height="160" fill="#CC4C0C"/>
-  <g fill="#8C2C00">
-    <rect x="0" y="640" width="1280" height="10"/>
-    <rect x="40" y="660" width="60" height="40"/>
-    <rect x="200" y="700" width="60" height="40"/>
-    <rect x="360" y="660" width="60" height="40"/>
-    <rect x="520" y="700" width="60" height="40"/>
-    <rect x="680" y="660" width="60" height="40"/>
-    <rect x="840" y="700" width="60" height="40"/>
-    <rect x="1000" y="660" width="60" height="40"/>
-    <rect x="1160" y="700" width="60" height="40"/>
-  </g>
-  <rect x="0" y="628" width="1280" height="14" fill="#00A800"/>
-
-  <!-- score HUD -->
-  <text x="40" y="70" font-family="'Courier New',monospace" font-weight="900" font-size="40" fill="#ffffff" style="text-shadow:2px 2px 0 #000">SCORE 001280</text>
+  <text x="130" y="700" fill="#4F6373" font-family="'IBM Plex Mono',monospace" font-size="13">DRAG = ROTATE　　WHEEL = ZOOM</text>
+  <text x="130" y="730" fill="#E4EDF4" font-family="'IBM Plex Sans JP',Arial,sans-serif" font-size="17" font-weight="500">機材・ULD 立体ビューア</text>
 </svg>

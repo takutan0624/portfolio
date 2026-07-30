@@ -1,0 +1,844 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>機材・ULD 立体ビューア</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Sans+JP:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#0A1017; --panel:#131D28; --panel2:#0F1822; --line:#22323F; --line2:#1A2833;
+  --ink:#E4EDF4; --dim:#7E94A6; --dimmer:#4F6373;
+  --main:#F2A23C; --lower:#46C2D8; --bulk:#9B8CE0; --mark:#FFE27A;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;height:100dvh}
+body{
+  background:var(--void); color:var(--ink);
+  font-family:"IBM Plex Sans JP",system-ui,sans-serif; font-size:14px; line-height:1.7;
+  display:flex; flex-direction:column; overflow:hidden;
+  -webkit-text-size-adjust:100%;
+}
+.eyebrow{font-family:"Barlow Condensed",sans-serif;font-weight:600;letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--dimmer)}
+
+header{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel2);flex:0 0 auto;
+}
+header h1{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:19px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.modes{display:flex;gap:6px}
+.mode{
+  font-family:"Barlow Condensed",sans-serif;font-size:15px;font-weight:600;letter-spacing:.05em;
+  padding:6px 16px;background:transparent;color:var(--dim);
+  border:1px solid var(--line);border-radius:2px;cursor:pointer;transition:.15s;min-height:36px;
+}
+.mode:hover{color:var(--ink)}
+.mode[aria-pressed="true"]{background:var(--mark);color:#14100A;border-color:var(--mark)}
+select{
+  font-family:inherit;font-size:14px;background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:2px;padding:8px 10px;min-width:220px;cursor:pointer;
+  flex:1 1 220px;max-width:420px;min-height:38px;
+}
+select:focus-visible,.mode:focus-visible,.chip:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+
+.body{flex:1 1 auto;display:grid;grid-template-columns:1fr 340px;min-height:0}
+.stage{position:relative;min-height:0;border-right:1px solid var(--line)}
+canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+canvas:active{cursor:grabbing}
+.badge{position:absolute;left:14px;top:12px;padding:5px 10px;border:1px solid var(--line);background:rgba(15,24,34,.85);max-width:calc(100% - 28px)}
+.badge .n{font-family:"Barlow Condensed",sans-serif;font-size:18px;font-weight:600;letter-spacing:.05em}
+.badge .o{font-size:11px;color:var(--dim)}
+.hint{position:absolute;left:14px;bottom:10px;color:var(--dimmer);font-size:11px;pointer-events:none}
+.legend{position:absolute;right:14px;top:12px;display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--dim);text-align:right}
+.legend span{display:flex;align-items:center;gap:7px;justify-content:flex-end}
+.legend i{width:11px;height:11px;display:inline-block;border-radius:2px;flex:0 0 auto}
+
+.info{overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--panel);padding:14px 16px 26px}
+.info h2{font-family:"Barlow Condensed",sans-serif;font-size:17px;font-weight:600;letter-spacing:.05em;margin:0 0 2px;text-transform:uppercase}
+.info .jp{font-size:12px;color:var(--dim);margin-bottom:14px}
+.blk{margin-bottom:18px}
+.blk .eyebrow{display:block;margin-bottom:6px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:5px 8px 5px 0;border-bottom:1px solid var(--line2);vertical-align:top}
+th{color:var(--dimmer);font-weight:400;width:40%;font-size:11.5px}
+td{font-family:"IBM Plex Mono",monospace;font-size:12.5px;word-break:break-word}
+td.jptext{font-family:"IBM Plex Sans JP",sans-serif}
+.pill{display:inline-block;font-size:10.5px;padding:1px 7px;border:1px solid var(--line);color:var(--dim);border-radius:2px;margin-right:5px}
+.pill.f{border-color:var(--main);color:var(--main)}
+
+.rail{flex:0 0 auto;border-top:1px solid var(--line);background:var(--panel2);padding:9px 16px;
+  display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.ctl{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);white-space:nowrap}
+input[type=range]{width:110px;accent-color:var(--mark);height:26px}
+.chip{font-size:12.5px;padding:7px 12px;border:1px solid var(--line);background:transparent;
+  color:var(--dim);border-radius:2px;cursor:pointer;font-family:inherit;transition:.15s;
+  min-height:36px;white-space:nowrap}
+.chip:hover{color:var(--ink)}
+.chip[aria-pressed="true"]{color:#0A1017}
+.chip.md[aria-pressed="true"]{background:var(--main);border-color:var(--main)}
+.chip.ld[aria-pressed="true"]{background:var(--lower);border-color:var(--lower)}
+.chip.pl[aria-pressed="true"]{background:var(--dim);border-color:var(--dim)}
+.chip:disabled{opacity:.28;cursor:not-allowed}
+.note{padding:7px 16px;border-top:1px solid var(--line);background:var(--panel2);color:var(--dimmer);font-size:11px;
+  max-height:22vh;overflow-y:auto}
+
+/* ---- タブレット：情報パネルを下段へ ---- */
+@media (max-width:920px){
+  .body{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(0,auto)}
+  .stage{border-right:0;border-bottom:1px solid var(--line);min-height:46dvh}
+  .info{max-height:38dvh}
+  .legend{font-size:10.5px;gap:4px}
+}
+
+/* ---- スマートフォン ---- */
+@media (max-width:600px){
+  body{font-size:13.5px}
+  header{padding:9px 12px;gap:9px}
+  header h1{font-size:16px;width:100%;order:-1;color:var(--dim)}
+  .modes{flex:0 0 auto}
+  .mode{padding:7px 14px;font-size:14px}
+  select{flex:1 1 100%;max-width:none;min-width:0;font-size:16px} /* 16px＝iOSの自動ズーム防止 */
+  .stage{min-height:42dvh}
+  .info{max-height:42dvh;padding:12px 14px 22px}
+  .legend{display:none}
+  .hint{font-size:10px;left:12px;bottom:8px}
+  .badge{left:12px;top:10px;padding:4px 8px}
+  .badge .n{font-size:15px}
+  .rail{padding:8px 12px;gap:9px;overflow-x:auto;flex-wrap:nowrap}
+  .rail::-webkit-scrollbar{display:none}
+  .ctl{flex:0 0 auto}
+  input[type=range]{width:88px}
+  .chip{padding:8px 11px;font-size:12px}
+  th{width:44%;font-size:11px}
+  td{font-size:12px}
+  .note{font-size:10.5px;padding:6px 12px;max-height:18dvh}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header>
+  <h1>Dimension viewer</h1>
+  <div class="modes" role="group" aria-label="表示モード">
+    <button class="mode" id="mAC" aria-pressed="true">機体</button>
+    <button class="mode" id="mUL" aria-pressed="false">ULD</button>
+  </div>
+  <select id="picker" aria-label="表示対象"></select>
+</header>
+
+<div class="body">
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="badge"><div class="n" id="bName">—</div><div class="o" id="bOp">—</div></div>
+    <div class="legend" id="legend"></div>
+    <div class="hint" id="hint">ドラッグ＝回転　ホイール＝ズーム</div>
+  </div>
+  <div class="info" id="info"></div>
+</div>
+
+<div class="rail">
+  <label class="ctl">透過 <input type="range" id="opa" min="0" max="100" value="60" aria-label="外皮の透過"></label>
+  <button class="chip md" id="tMD" aria-pressed="true">メインデッキ</button>
+  <button class="chip ld" id="tLD" aria-pressed="true">ロワーデッキ</button>
+  <button class="chip pl" id="tDoor" aria-pressed="false">扉を開く</button>
+  <button class="chip pl" id="tNose" aria-pressed="false">ノーズドア</button>
+  <button class="chip pl" id="tSpin" aria-pressed="true">自動回転</button>
+  <button class="chip" id="reset">視点を戻す</button>
+</div>
+
+<div class="note">数値は「Dimension Guide」(2026年3月改訂) に基づく実数値。貨物ドアはガイドの幅×高さをそのまま反映（ロワーデッキ＝右舷、メインデッキ＝左舷）。機体形状とULDの面取り角は模式的な簡略モデルです（ガイドに角度の記載はありません）。B747-8Fは同ガイド外のため、諸元はメーカー公表値。</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============ 機体データ（Dimension Guide 準拠） ============ */
+const AC = [
+{id:'B738', name:'BOEING 737-800', jp:'国内線ナローボディ', grp:'旅客機（ナローボディ）',
+ len:39.5, span:35.8, rad:1.88, eng:2, abreast:1, fwdPos:0, aftPos:0, bulkOnly:true,
+ doors:[['FWD CGO Door','121 × 88'],['AFT CGO Door','121 × 78〜88']],
+ uld:[['FWD','バラ積みのみ'],['AFT','バラ積みのみ']],
+ wt:[['FWD F-1','809 kg'],['FWD F-2','2,670 kg'],['AFT A-1','3,818 kg'],['AFT A-2','764 kg']],
+ memo:'ULDを積まないバラ積み専用機。AFT貨物室のFWD側にスライディングカーペット装備。'},
+
+{id:'B763', name:'BOEING 767-300 / 300ER', jp:'旅客機・ワイドボディ', grp:'旅客機（ワイドボディ）',
+ len:54.9, span:47.6, rad:2.52, eng:2, abreast:1, fwdPos:8, aftPos:7,
+ doors:[['FWD CGO Door','178 × 175 ／ 300ER 340 × 175'],['AFT CGO Door','178 × 175'],['BULK CGO Door','97 × 114']],
+ uld:[['FWD','8 Containers（300ER：8C / 4P）'],['AFT','7 Containers'],['TOTAL','15 Containers（300ER：15C / 4P）']],
+ wt:[['FWD','14,152 kg'],['AFT','11,747 kg'],['BULK','2,925 kg'],['床面制限','977 kg/m²（BULK 732）']],
+ memo:'300ERはFWDドアが340cm幅に拡大され、96インチパレットが4枚積める。断面はLD8が横1列。'},
+
+{id:'B763F', name:'BOEING 767-300 F / BCF', jp:'貨物専用機（中型フレイター）', grp:'フレイター',
+ len:54.9, span:47.6, rad:2.52, eng:2, abreast:1, fwdPos:8, aftPos:7,
+ mainDeck:true, mdRows:11, mdCols:2, mdH:2.13,
+ doors:[['Main deck CGO Door','340 × 262'],['FWD CGO Door','340 × 170'],['AFT CGO Door','340 × 170 ／ BCF 178 × 175'],['BULK CGO Door','97 × 114']],
+ uld:[['MAIN','22 Pallets（Side by side）'],['FWD','8 Containers / 4 Pallets'],['AFT','7 Containers / 3 Pallets（BCF 7C）'],['TOTAL','15 Containers / 29 Pallets（BCF 26P）']],
+ wt:[['MAIN','24,734 kg（床 1,221 kg/m²）'],['FWD','20,411 kg'],['AFT','17,758 kg'],['BULK','2,925 kg']],
+ memo:'メインデッキは Transverse / Side by side / Container load の3パターン。BCFは31P・32P・41Pへのパレット搭載不可。'},
+
+{id:'B772', name:'BOEING 777-200 / 200ER', jp:'旅客機・ワイドボディ', grp:'旅客機（ワイドボディ）',
+ len:63.7, span:60.9, rad:3.11, eng:2, abreast:2, fwdPos:18, aftPos:14,
+ doors:[['FWD CGO Door','269 × 170'],['AFT CGO Door','〈DOM〉178 × 170 ／ 200ER 269 × 170'],['BULK CGO Door','91 × 114']],
+ uld:[['FWD','18 Containers / 6 Pallets'],['AFT','14C /〈INT〉4P（200ER：10C / 3P）'],['TOTAL','32C /〈INT〉10P（200ER：28C / 9P）']],
+ wt:[['FWD','30,617 kg'],['AFT','22,226 kg'],['BULK','4,082 kg']],
+ memo:'LD3が横2列（406cm幅）入る。ここから先はコンテナがR/Lのペアで動く。'},
+
+{id:'B773', name:'BOEING 777-300 / 300ER', jp:'旅客機・ワイドボディ', grp:'旅客機（ワイドボディ）',
+ len:73.9, span:64.8, rad:3.11, eng:2, abreast:2, fwdPos:24, aftPos:20,
+ doors:[['FWD CGO Door','269 × 170'],['AFT CGO Door','300：178 × 170 ／ 300ER 269 × 170'],['BULK CGO Door','91 × 114']],
+ uld:[['FWD','24 Containers / 8 Pallets'],['AFT','20 Containers（300ER：20C / 6P）'],['TOTAL','44C / 8P（300ER：44C / 14P）']],
+ wt:[['FWD','40,823 kg'],['AFT','31,751 kg'],['BULK','4,082 kg']],
+ memo:'旅客機で最大のベリー容量。300ERは国際線専用機材。'},
+
+{id:'B77F', name:'BOEING 777F', jp:'貨物専用機（大型フレイター）', grp:'フレイター',
+ len:63.7, span:64.8, rad:3.11, eng:2, abreast:2, fwdPos:18, aftPos:14,
+ mainDeck:true, mdRows:13, mdCols:2, mdH:3.00,
+ doors:[['Main deck CGO Door','373 × 305'],['FWD CGO Door','259 × 170'],['AFT CGO Door','259 × 170'],['BULK CGO Door','84 × 112']],
+ uld:[['MAIN','27 Pallets（Side by side）'],['FWD','18 Containers / 6 Pallets'],['AFT','14 Containers / 4 Pallets'],['TOTAL','32 Containers / 37 Pallets']],
+ wt:[['MAIN','床 1,464 kg/m²'],['FWD','30,617 kg'],['AFT','22,226 kg'],['BULK','4,082 kg']],
+ memo:'メインデッキ高300cm。Side by side（PMC/PAG）、Center load（PMC）、Center load（PRA/PGA）の3パターン。20フィートULDのPGAが積めるのはこの機材だけ。'},
+
+{id:'B788', name:'BOEING 787-8', jp:'旅客機・ワイドボディ', grp:'旅客機（ワイドボディ）',
+ len:56.7, span:60.1, rad:2.83, eng:2, abreast:2, fwdPos:16, aftPos:12,
+ doors:[['FWD CGO Door','269 × 170'],['AFT CGO Door','269 × 170'],['BULK CGO Door','102 × 114']],
+ uld:[['FWD','16 Containers / 5 Pallets'],['AFT','12 Containers / 4 Pallets'],['TOTAL','28 Containers / 9 Pallets']],
+ wt:[['FWD','22,906 kg'],['AFT','18,534 kg'],['BULK','2,735 kg']],
+ memo:'787は縦積み・横積みで重量制限が変わるULD（DQP等）がある点に注意。'},
+
+{id:'B789', name:'BOEING 787-9', jp:'旅客機・ワイドボディ', grp:'旅客機（ワイドボディ）',
+ len:62.8, span:60.1, rad:2.83, eng:2, abreast:2, fwdPos:20, aftPos:16,
+ doors:[['FWD CGO Door','269 × 170'],['AFT CGO Door','269 × 170'],['BULK CGO Door','102 × 114']],
+ uld:[['FWD','20 Containers / 6 Pallets'],['AFT','16 Containers / 5 Pallets'],['TOTAL','36 Containers / 11 Pallets']],
+ wt:[['FWD','32,005 kg'],['AFT','25,655 kg'],['BULK','2,735 kg']],
+ memo:'長距離国際線の主力機。-8より胴体が6m長く、コンテナが8個多く積める。'},
+
+{id:'B78X', name:'BOEING 787-10', jp:'旅客機・ワイドボディ', grp:'旅客機（ワイドボディ）',
+ len:68.3, span:60.1, rad:2.83, eng:2, abreast:2, fwdPos:22, aftPos:18,
+ doors:[['FWD CGO Door','269 × 170'],['AFT CGO Door','269 × 170'],['BULK CGO Door','102 × 156']],
+ uld:[['FWD','22 Containers / 7 Pallets'],['AFT','18 Containers / 6 Pallets'],['TOTAL','40 Containers / 13 Pallets']],
+ wt:[['FWD','36,967 kg'],['AFT','30,617 kg'],['BULK','2,735 kg']],
+ memo:'787系で最大。バルクドアが156cm高と大きい。'},
+
+{id:'A320', name:'AIRBUS A320 / A321', jp:'国内線ナローボディ', grp:'旅客機（ナローボディ）',
+ len:41.0, span:35.8, rad:1.98, eng:2, abreast:1, fwdPos:4, aftPos:5,
+ doors:[['FWD CGO Door','182 × 119'],['AFT CGO Door','182 × 119'],['BULK CGO Door','95 × 77']],
+ uld:[['FWD','A320：3C ／ A321：5C'],['AFT','A320：4C ／ A321：5C'],['TOTAL','A320：7C ／ A321：10C']],
+ wt:[['FWD','A320 3,402 / A321 5,070 kg'],['AFT','A320 4,536 / A321 5,670 kg'],['BULK','1,497 kg'],['床面制限','488 kg/m²']],
+ memo:'ナローボディだがULDが積める。断面は244×114cmの低い専用コンテナ。'},
+
+{id:'A380', name:'AIRBUS A380', jp:'総二階建て・リゾート路線', grp:'旅客機（ワイドボディ）',
+ len:72.7, span:79.8, rad:3.70, eng:4, abreast:2, fwdPos:16, aftPos:16, doubleDeck:true,
+ doors:[['FWD CGO Door','311 × 175'],['AFT CGO Door','279 × 175'],['BULK CGO Door','113 × 99']],
+ uld:[['FWD','16 Containers / 5 Pallets'],['AFT','16 Containers / 6 Pallets'],['TOTAL','32 Containers / 11 Pallets']],
+ wt:[['FWD','36,967 kg'],['AFT','30,617 kg'],['BULK','2,735 kg'],['床面制限','659 kg/m²']],
+ memo:'総二階建てだが貨物はロワーデッキのみ。床面制限が659kg/m²と低いのが特徴。'},
+
+{id:'DH8D', name:'DHC8-400', jp:'ターボプロップ（地域路線）', grp:'旅客機（ナローボディ）',
+ len:32.8, span:28.4, rad:1.35, eng:2, prop:true, highWing:true, abreast:1, fwdPos:0, aftPos:0, bulkOnly:true,
+ doors:[['FWD CGO Door','61 × 137'],['AFT CGO Door','127 × 152']],
+ uld:[['FWD / AFT','バラ積みのみ']],
+ wt:[['FWD','407 kg'],['AFT-1','681 kg'],['AFT-2','454 kg']],
+ memo:'高翼のターボプロップ。AFT貨物室はセンターポスト・カーゴネットで1と2に仕切られる。'},
+
+{id:'B748F', name:'BOEING 747-8F', jp:'貨物専用機（4発大型）※本ガイド外', grp:'フレイター',
+ len:76.3, span:68.4, rad:3.25, eng:4, abreast:2, fwdPos:16, aftPos:16,
+ mainDeck:true, mdRows:15, mdCols:2, mdH:3.05, hump:true, nose:true,
+ doors:[['Nose CGO Door','機首上開き（この機材のみ）'],['Main deck side door','後部左舷'],['Lower deck doors','FWD / AFT']],
+ uld:[['MAIN','96インチパレット 約38枚'],['LOWER','コンテナ / パレット'],['—','詳細は運航会社の機材資料を参照']],
+ wt:[['最大搭載','約 137 t（メーカー公表）'],['航続距離','約 8,130 km']],
+ memo:'現行で唯一の4発大型フレイター。ノーズカーゴドアで長尺貨物を機首から搭載できる。大型貨物機の運航は集約が進んでいる。'}
+];
+
+/* ============ 貨物ドア（Dimension Guide の実寸 cm）============
+   [表示名, 幅cm, 高さcm, 舷(L=左/R=右), 全長比x, 属するデッキ]
+   実機の慣習どおり、ロワーデッキ（ベリー）のドアは右舷、
+   フレイターのメインデッキドアは左舷に配置している。 */
+const DOORS={
+ B738 :[['FWD CGO Door',121,88,'R',.30,'lower'],['AFT CGO Door',121,88,'R',.62,'lower']],
+ B763 :[['FWD CGO Door（300ER）',340,175,'R',.28,'lower'],['AFT CGO Door',178,175,'R',.60,'lower'],['BULK CGO Door',97,114,'R',.69,'bulk']],
+ B763F:[['Main deck CGO Door',340,262,'L',.23,'main'],['FWD CGO Door',340,170,'R',.30,'lower'],['AFT CGO Door',340,170,'R',.60,'lower'],['BULK CGO Door',97,114,'R',.69,'bulk']],
+ B772 :[['FWD CGO Door',269,170,'R',.28,'lower'],['AFT CGO Door',269,170,'R',.60,'lower'],['BULK CGO Door',91,114,'R',.69,'bulk']],
+ B773 :[['FWD CGO Door',269,170,'R',.28,'lower'],['AFT CGO Door',269,170,'R',.60,'lower'],['BULK CGO Door',91,114,'R',.69,'bulk']],
+ B77F :[['Main deck CGO Door',373,305,'L',.65,'main'],['FWD CGO Door',259,170,'R',.28,'lower'],['AFT CGO Door',259,170,'R',.57,'lower'],['BULK CGO Door',84,112,'R',.69,'bulk']],
+ B788 :[['FWD CGO Door',269,170,'R',.28,'lower'],['AFT CGO Door',269,170,'R',.60,'lower'],['BULK CGO Door',102,114,'R',.69,'bulk']],
+ B789 :[['FWD CGO Door',269,170,'R',.28,'lower'],['AFT CGO Door',269,170,'R',.60,'lower'],['BULK CGO Door',102,114,'R',.69,'bulk']],
+ B78X :[['FWD CGO Door',269,170,'R',.28,'lower'],['AFT CGO Door',269,170,'R',.60,'lower'],['BULK CGO Door',102,156,'R',.69,'bulk']],
+ A320 :[['FWD CGO Door',182,119,'R',.30,'lower'],['AFT CGO Door',182,119,'R',.60,'lower'],['BULK CGO Door',95,77,'R',.70,'bulk']],
+ A380 :[['FWD CGO Door',311,175,'R',.28,'lower'],['AFT CGO Door',279,175,'R',.60,'lower'],['BULK CGO Door',113,99,'R',.70,'bulk']],
+ DH8D :[['FWD CGO Door',61,137,'L',.26,'lower'],['AFT CGO Door',127,152,'L',.64,'lower']],
+ B748F:[['Main deck side door（参考）',340,305,'L',.66,'main']]
+};
+
+
+/* ============ ULDデータ（Dimension Guide 準拠） ============ */
+const ULD = [
+// code, iata, group, L,W,H(cm), shape, vol, tare, lim, ac, door, use
+{c:'DKH (AKH)',i:'LD-3-46WF',g:'コンテナ',L:244,W:153,H:117,s:'wedge2',v:'3.2 m³（113 ft³）',t:'125〜135 kg',lim:'1,134 kg',ac:'B777 / B787 / B767 / A320 / A321 / A380',d:'143 × 95',u:'DC'},
+{c:'DKH',i:'LD-3-45WF',g:'コンテナ',L:244,W:153,H:114,s:'wedge2',v:'3.1 m³（109 ft³）',t:'125〜135 kg',lim:'1,134 kg',ac:'B777 / B787 / B767 / A320 / A321 / A380',d:'147 × 95',u:'DC'},
+{c:'AKH',i:'LD3-45WF',g:'コンテナ',L:215,W:148,H:144,s:'wedge2',v:'3.0 m³（106 ft³）',t:'111 kg',lim:'1,134 kg',ac:'B777 / B787 / B767 / A320 / A321 / A380',d:'137 × 95',u:'DC'},
+{c:'AKH',i:'LD3-45WF（IC）',g:'コンテナ',L:156,W:153,H:114,s:'ld3',v:'3.3 m³（116 ft³）',t:'95 kg',lim:'1,134 kg',ac:'B777 / B787 / B767 / A320 / A321 / A380',d:'137 × 105',u:'IC'},
+{c:'DKN',i:'LD-3F',g:'コンテナ',L:156,W:153,H:163,s:'ld3',v:'3.8 m³（134 ft³）',t:'125〜135 kg',lim:'1,587 kg',ac:'B777 / B787 / B767 / A380',d:'143 × 141',u:'DC'},
+{c:'DKN',i:'LD-3F 軽量型',g:'コンテナ',L:156,W:153,H:163,s:'ld3',v:'4.0 m³（141 ft³）',t:'113 kg',lim:'1,587 kg',ac:'B777 / B787 / B767 / A380',d:'140 × 143',u:'DC'},
+{c:'DKN',i:'LD-3F GOH',g:'コンテナ',L:156,W:153,H:163,s:'ld3',v:'3.8 m³（134 ft³）',t:'162 kg',lim:'1,587 kg',ac:'B777 / B787 / B767 / A380',d:'143 × 139',u:'IC / DC'},
+{c:'AKN',i:'LD-3F GOH',g:'コンテナ',L:156,W:153,H:163,s:'ld3',v:'3.8 m³（134 ft³）',t:'120 kg',lim:'1,587 kg',ac:'B777 / B787 / B767 / A380',d:'143 × 142',u:'IC / DC'},
+{c:'AKE',i:'LD-3 軽量型',g:'コンテナ',L:156,W:153,H:163,s:'ld3',v:'4.4 m³（156 ft³）',t:'71 kg',lim:'1,587 kg',ac:'B777 / B787 / B767 / A380',d:'138 × 153',u:'IC'},
+{c:'DQP',i:'LD-4F',g:'コンテナ',L:244,W:153,H:163,s:'box',v:'5.1 m³（180 ft³）',t:'190〜200 kg',lim:'2,449 kg（B787縦積み 1,587）',ac:'B777 / B767 / B787',d:'231 × 139',u:'DC'},
+{c:'DQP',i:'LD-4',g:'コンテナ',L:244,W:153,H:163,s:'box',v:'5.5 m³（194 ft³）',t:'120〜130 kg',lim:'2,449 kg（B787縦積み 1,587）',ac:'B777 / B767 / B787',d:'231 × 148',u:'IC'},
+{c:'DQF',i:'LD-8',g:'コンテナ',L:244,W:153,H:163,s:'wedge2',v:'7.2 m³（253 ft³）',t:'145〜155 kg',lim:'2,449 kg',ac:'B777-200 / B777-300 / B787-8 / B767',d:'225 × 154',u:'IC'},
+{c:'DLP (DWB)',i:'LD-11F',g:'コンテナ',L:318,W:153,H:163,s:'box',v:'6.8 m³（240 ft³）',t:'240〜250 kg',lim:'3,175 kg（A380 3,174）',ac:'B777 / B787 / B767ER / B767F / A380',d:'296 × 137',u:'DC'},
+{c:'DLF',i:'LD-6F',g:'コンテナ',L:318,W:153,H:163,s:'wedge2',v:'8.7 m³（307 ft³）',t:'270〜280 kg',lim:'3,175 kg（A380 3,174）',ac:'B777 / B787 / A380',d:'231 × 139',u:'DC'},
+{c:'DAP',i:'LD-9F',g:'コンテナ',L:224,W:318,H:163,s:'box',v:'10.3 m³（364 ft³）',t:'417〜430 kg',lim:'4,676 kg（B767F/ER 5,102）',ac:'B777 / B787 / B767ER / B767F',d:'196 × 132',u:'DC'},
+{c:'DAP',i:'LD-9F サイドドア開放型',g:'コンテナ',L:318,W:224,H:163,s:'box',v:'10.3 m³（364 ft³）',t:'360〜370 kg',lim:'4,676 kg（B767F/ER 5,102）',ac:'B777 / B787 / B767ER / B767F',d:'284 × 130',u:'DC'},
+{c:'DAF',i:'LD-26',g:'コンテナ',L:318,W:224,H:163,s:'wedge2',v:'12.5 m³（441 ft³）',t:'275〜285 kg',lim:'4,676 kg（A380 4,676）',ac:'B777 / B787 / A380',d:'302 × 150',u:'DC'},
+{c:'AMF',i:'LD-36',g:'コンテナ',L:318,W:244,H:163,s:'wedge2',v:'12.5 m³（441 ft³）',t:'280 kg',lim:'5,102 kg',ac:'B777 / B787 / A380',d:'302 × 150',u:'IC'},
+{c:'UMA',i:'M-1',g:'コンテナ',L:318,W:244,H:244,s:'main',v:'15.9 m³（561 ft³）',t:'439 kg',lim:'MAIN 3,394〜6,803 kg（B777F 4,082〜6,803）',ac:'B767F / B777F',d:'225 × 228',u:'DC'},
+{c:'AAX',i:'—',g:'コンテナ',L:318,W:224,H:243,s:'main',v:'13.7 m³（484 ft³）',t:'309 kg',lim:'MAIN 4,857〜8,915 kg（B777F 4,082〜6,803）',ac:'B767F / B777F',d:'295 × 233',u:'IC'},
+{c:'AMA',i:'—',g:'コンテナ',L:318,W:244,H:244,s:'main',v:'17.1 m³（604 ft³）',t:'287 kg',lim:'MAIN 3,394〜6,803 kg（B777F 4,082〜6,803）',ac:'B767F / B777F',d:'293 × 228',u:'IC'},
+{c:'HMJ',i:'—',g:'コンテナ',L:318,W:244,H:224,s:'main',v:'16.0 m³（565 ft³）',t:'1,150 kg',lim:'6,804 kg',ac:'B777F のみ',d:'170 × 222',u:'IC'},
+
+{c:'MQP',i:'LD-4F 簡易保冷',g:'特殊コンテナ',L:244,W:153,H:163,s:'box',v:'4.9 m³（173 ft³）',t:'240〜250 kg',lim:'2,449 kg（B787縦積み 1,587）',ac:'B777 / B767 / B787',d:'231 × 140',u:'DC'},
+{c:'MKN',i:'LD-3F 簡易保冷',g:'特殊コンテナ',L:156,W:153,H:163,s:'ld3',v:'3.8 m³（134 ft³）',t:'150〜160 kg',lim:'1,587 kg',ac:'B777 / B787 / B767 / A380',d:'141 × 140',u:'DC'},
+{c:'MKN',i:'LD-3F 簡易保冷（軽量）',g:'特殊コンテナ',L:156,W:153,H:163,s:'ld3',v:'3.8 m³（134 ft³）',t:'125〜135 kg',lim:'1,587 kg',ac:'B777 / B787 / B767 / A380',d:'143 × 141',u:'DC'},
+{c:'MKN',i:'LD-3F ファンタイプ',g:'特殊コンテナ',L:156,W:153,H:162,s:'ld3',v:'3.0 m³（106 ft³）',t:'280〜290 kg',lim:'1,587 kg',ac:'B777 / B787 / B767 / A380',d:'143 × 141',u:'DC'},
+{c:'RKN',i:'LD-3F 温度管理',g:'特殊コンテナ',L:156,W:153,H:163,s:'ld3',v:'3.5 m³（123 ft³）',t:'260〜270 kg',lim:'1,587 kg',ac:'B777 / B787 / B767 / A380',d:'142 × 140',u:'IC / DC'},
+{c:'RAP',i:'LD-9 温度管理',g:'特殊コンテナ',L:318,W:224,H:163,s:'box',v:'8.9 m³（314 ft³）',t:'450〜460 kg',lim:'4,676 kg（B767F/ER 5,102 / A380 4,626）',ac:'B777 / B787 / B767ER / B767F / A380',d:'278 × 145',u:'IC'},
+
+{c:'PNA',i:'パレット',g:'パレット',L:244,W:156,H:163,hmin:5,hmax:163,hnote:'ガイドはPNAの高さを記載していない。積付上限163cmは他のロワーデッキ用パレットおよび機体断面図の96" PLT＝163(64)から。板厚5cmは作図上の想定。',ext:'244 × 156（ガイドに高さの記載なし／作図は163想定）',s:'pallet',v:'—',t:'53 kg',lim:'2,449 kg',ac:'B777 / B787',d:'—',u:'IC'},
+{c:'PLA',i:'パレット',g:'パレット',L:318,W:153,H:163,hmin:5,hmax:163,hnote:'163cmはガイドの外寸H＝積付上限。板厚5cmは作図上の想定。',s:'pallet',v:'—',t:'100 kg',lim:'B787 3,175 / B777 2,449 / A380 3,174 kg',ac:'B777 / B787 / A380',d:'—',u:'IC / DC'},
+{c:'PAG / PAJ',i:'パレット',g:'パレット',L:318,W:224,H:163,hmin:5,hmax:163,hnote:'163cmはガイドの外寸H＝積付上限。板厚5cmは作図上の想定。',s:'pallet',v:'—',t:'100 kg',lim:'B777/B787 4,676 / B767F MAIN 1,950〜6,803 / B777F MAIN 3,233〜6,803 kg',ac:'B777 / B787 / A380 / B767ER / B767F / B777F',d:'—',u:'IC / DC'},
+{c:'PMC',i:'96インチパレット',g:'パレット',L:318,W:244,H:163,hmin:5,hmax:163,hnote:'163cmはガイドの外寸H＝ロワーデッキの積付上限。777Fメインデッキでは断面図の300(118)まで積める。板厚5cmは作図上の想定。',s:'pallet',v:'—',t:'110 kg',lim:'5,102 kg / B767F MAIN 3,394〜6,803 / B777F MAIN 3,527〜6,803 kg',ac:'B777 / B787 / B767ER / A380 / B767F / B777F',d:'—',u:'IC / DC'},
+{c:'PRA',i:'16 FEET',g:'パレット',L:498,W:244,H:244,hmin:5,hmax:244,hnote:'244cmはガイドの外寸H。メインデッキ専用の長尺パレット。板厚5cmは作図上の想定。',s:'pallet',v:'—',t:'469 kg',lim:'B767F MAIN 6,803〜10,437 / B777F MAIN 6,401〜11,339 kg',ac:'B767F / B777F',d:'—',u:'IC'},
+{c:'PGA',i:'20 FEET',g:'パレット',L:606,W:244,H:299,hmin:5,hmax:299,hnote:'299cmはガイドの外寸H。777Fメインデッキ（貨物室高300cm）に収まる最大級。板厚5cmは作図上の想定。',s:'pallet',v:'—',t:'500 kg',lim:'7,788〜11,339 kg',ac:'B777F のみ',d:'—',u:'IC'},
+
+{c:'MOTORBIKE SKID',i:'バイクスキッド',g:'その他',L:220,W:74,H:49.5,hmin:49.5,hmax:163,hnote:'49.5cmはガイドの外寸H＝スキッド本体。上限163cmは搭載可能機種（B777/B787/B767/A380）のロワーデッキ断面図に示された96" PLT＝163(64)から。',s:'pan',v:'—',t:'175〜185 kg',lim:'—',ac:'B777 / B787 / B767 / A380',d:'—',u:'DC'},
+{c:'MEDIUM BOX',i:'AMB',g:'その他',L:78,W:59.4,H:53.3,s:'box',v:'—',t:'6 kg',lim:'80 kg',ac:'全機材（バラ積み）',d:'—',u:'DC'},
+{c:'WATERPROOF PAN',i:'LD3 TYPE 防水パン',g:'その他',L:136,W:127,H:38,hmin:38,hmax:163,hnote:'38cmはガイドの外寸H＝パン本体の深さ。上限163cmはロワーデッキ断面図の96" PLT＝163(64)から。',s:'pan',v:'0.5 m³（17 ft³）',t:'25 kg',lim:'—',ac:'B777 / B787 / B767 / A320 / A321 / A380',d:'—',u:'DC'},
+{c:'WATERPROOF PAN',i:'LD4 TYPE 防水パン',g:'その他',L:220,W:127,H:38,hmin:38,hmax:163,hnote:'38cmはガイドの外寸H＝パン本体の深さ。上限163cmはロワーデッキ断面図の96" PLT＝163(64)から。',s:'pan',v:'0.8 m³（17 ft³）',t:'40 kg',lim:'—',ac:'B777 / B787 / B767',d:'—',u:'DC'}
+];
+
+/* ============ シーン ============ */
+const C={skin:0xC6D2DB,main:0xF2A23C,lower:0x46C2D8,bulk:0x9B8CE0,mark:0xFFE27A,floor:0x2A3B4A,deck:0xB9C6D1};
+const cv=document.getElementById('cv');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0x0A1017,180,520);
+const camera=new THREE.PerspectiveCamera(38,1,.5,1200);
+scene.add(new THREE.HemisphereLight(0xBFD6E8,0x16222E,.95));
+const key=new THREE.DirectionalLight(0xFFF3DE,.85);key.position.set(60,90,50);scene.add(key);
+const rim=new THREE.DirectionalLight(0x8FD4E8,.45);rim.position.set(-70,30,-60);scene.add(rim);
+const grid=new THREE.GridHelper(400,40,0x1F3040,0x16232F);scene.add(grid);
+
+let root=null,noseGrp=null,skins=[],mdGrp=null,ldGrp=null,doorPivots=[],doorOpen=false,mode='ac',cur=null;
+
+function skinMat(){const m=new THREE.MeshStandardMaterial({color:C.skin,metalness:.25,roughness:.55,
+  transparent:true,opacity:1,side:THREE.DoubleSide});skins.push(m);return m;}
+function clearScene(){if(root)scene.remove(root);skins=[];mdGrp=ldGrp=noseGrp=null;doorPivots=[];}
+
+/* ---- 機体形状 ---- */
+function profile(L,R,x0,x1){
+  const p=[],N=26;
+  for(let i=0;i<=N;i++){
+    const x=x0+(x1-x0)*i/N,u=x/L;let r;
+    if(u<0.13)r=R*Math.sin((u/0.13)*Math.PI/2)*0.99;
+    else if(u<0.70)r=R;
+    else r=R*(1-0.86*Math.pow((u-0.70)/0.30,1.7));
+    p.push(new THREE.Vector2(Math.max(r,0.06),x));
+  }
+  return p;
+}
+function wingShape(rc,tc,half,sweep){
+  const s=new THREE.Shape();s.moveTo(0,0);s.lineTo(rc,0);
+  s.lineTo(sweep+tc,half);s.lineTo(sweep,half);s.closePath();return s;
+}
+function panel(shape,th,mat){return new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:th,bevelEnabled:false}),mat);}
+
+function buildAircraft(cfg){
+  clearScene();
+  const L=cfg.len,R=cfg.rad,g=new THREE.Group();
+
+  const body=new THREE.Mesh(new THREE.LatheGeometry(profile(L,R,0.13*L,L),40),skinMat());
+  body.geometry.rotateZ(-Math.PI/2);g.add(body);
+
+  noseGrp=new THREE.Group();
+  const nose=new THREE.Mesh(new THREE.LatheGeometry(profile(L,R,0,0.132*L),40),skinMat());
+  nose.geometry.rotateZ(-Math.PI/2);nose.geometry.translate(-0.132*L,-R*0.55,0);
+  noseGrp.add(nose);noseGrp.position.set(0.132*L,R*0.55,0);g.add(noseGrp);
+
+  if(cfg.hump){
+    const h=new THREE.Mesh(new THREE.CylinderGeometry(R*.60,R*.60,L*.20,22),skinMat());
+    h.geometry.rotateZ(Math.PI/2);h.position.set(L*.22,R*.58,0);g.add(h);
+    const f=new THREE.Mesh(new THREE.ConeGeometry(R*.60,L*.16,22),skinMat());
+    f.geometry.rotateZ(-Math.PI/2);f.position.set(L*.40,R*.58,0);g.add(f);
+  }
+  if(cfg.doubleDeck){
+    const h=new THREE.Mesh(new THREE.CylinderGeometry(R*.66,R*.66,L*.74,26),skinMat());
+    h.geometry.rotateZ(Math.PI/2);h.position.set(L*.42,R*.45,0);g.add(h);
+  }
+
+  /* 主翼：左右は同じ板を鏡像化するので、厚み分のオフセットも符号を反転させる */
+  const half=cfg.span/2,wm=skinMat();
+  const wy=cfg.highWing?R*0.75:-R*0.42;
+  const WTH=Math.max(0.45,R*0.26);
+  const wRootX=L*0.40,wRC=L*0.27,wTC=L*0.075;
+  const wSweep=cfg.prop?half*0.10:half*0.56;
+  const ws=wingShape(wRC,wTC,half,wSweep);
+  [1,-1].forEach(sg=>{
+    const w=panel(ws,WTH,wm);
+    w.rotation.x=sg>0?Math.PI/2:-Math.PI/2;
+    w.position.set(wRootX,wy+(sg>0?WTH/2:-WTH/2),0);g.add(w);
+  });
+  const wingLE=u=>wRootX+wSweep*u;
+
+  /* 尾翼 */
+  const fm=skinMat(),TTH=Math.max(0.4,R*0.20);
+  const fin=panel(wingShape(L*.19,L*.085,R*3.1,R*2.3),TTH,fm);
+  fin.position.set(L*.80,R*.75,-TTH/2);g.add(fin);
+  [1,-1].forEach(sg=>{
+    const t=panel(wingShape(L*.11,L*.045,half*.36,half*.24),TTH,fm);
+    t.rotation.x=sg>0?Math.PI/2:-Math.PI/2;
+    t.position.set(L*.86,R*.05+(sg>0?TTH/2:-TTH/2),0);g.add(t);
+  });
+
+  /* エンジン：主翼前縁のx座標から算出するので、後退角が変わってもズレない */
+  const em=skinMat();
+  const stations=cfg.eng===4?[0.32,0.62]:[0.36];
+  const nacL=L*0.115,nacR=cfg.prop?R*0.30:R*0.52;
+  stations.forEach(u=>{
+    const z=half*u,le=wingLE(u);
+    const ex=le-nacL*0.55;
+    const ey=cfg.prop?wy:wy-WTH/2-nacR*0.85;
+    [1,-1].forEach(sg=>{
+      const n=new THREE.Mesh(new THREE.CylinderGeometry(nacR,nacR*.9,nacL,20,1,true),em);
+      n.geometry.rotateZ(Math.PI/2);
+      n.position.set(ex,ey,sg*z);g.add(n);
+      if(cfg.prop){
+        for(let k=0;k<3;k++){
+          const bl=new THREE.Mesh(new THREE.BoxGeometry(0.14,R*1.9,0.30),em);
+          bl.rotation.x=k*Math.PI/3;
+          bl.position.set(ex-nacL*0.58,ey,sg*z);g.add(bl);
+        }
+      }else{
+        const pl=Math.max(le+wRC*0.10-ex,L*0.05),ph=wy-ey;
+        const p=new THREE.Mesh(new THREE.BoxGeometry(pl,ph,0.45),em);
+        p.position.set(ex+pl/2,(wy+ey)/2,sg*z);g.add(p);
+      }
+    });
+  });
+
+  /* ==== 貨物：胴体断面（半径 Ri の円）の内側に必ず収まるよう座標を逆算する ====
+     円筒なので床から高い位置ほど使える幅が狭い。外舷の角がどこまで許されるかを
+     sqrt(Ri²−z²) で求め、そこから床高さと積付高さを決める。 */
+  const Ri=R*0.96;
+  const lim=z=>Math.sqrt(Math.max(Ri*Ri-z*z,0.01))*0.97;   // 幅zでの許容高さ
+
+  /* --- ロワーデッキ --- */
+  ldGrp=new THREE.Group();
+  const lmat=new THREE.MeshStandardMaterial({color:cfg.bulkOnly?C.bulk:C.lower,roughness:.6});
+  const two=cfg.abreast===2&&!cfg.bulkOnly;
+  const lcw=cfg.bulkOnly?Ri*0.55:(two?Ri*0.64:Ri*0.62);   // 2列なら片側幅、1列なら半幅
+  const lBotZ=two?lcw*0.66:lcw*0.56;                       // 底面の外端
+  const lFloor=-lim(lBotZ);
+  const lch=Math.min(cfg.bulkOnly?Ri*0.45:Ri*0.52, lim(lcw)-lFloor);
+  const lTop=lFloor+lch;
+
+  const lShapes = two
+    ? [outerCutProfile(lcw,lch,1),outerCutProfile(lcw,lch,-1)]
+    : [uldProfile(lcw*2,lch,'wedge2')];
+
+  const putLD=(x,len)=>lShapes.forEach(sp=>{
+    const b=extrudeX(sp,len,lmat);b.position.set(x,lFloor,0);ldGrp.add(b);
+  });
+  const bays=cfg.bulkOnly
+    ? [[L*0.20,L*0.34,3],[L*0.56,L*0.72,4]]
+    : [[L*0.15,L*0.40,Math.ceil(cfg.fwdPos/cfg.abreast)],
+       [L*0.52,L*0.72,Math.ceil(cfg.aftPos/cfg.abreast)]];
+  bays.forEach(([x0,x1,n])=>{
+    if(n<1)return;
+    const pitch=(x1-x0)/n;
+    for(let r=0;r<n;r++)putLD(x0+r*pitch,pitch*0.90);
+  });
+  g.add(ldGrp);
+
+  /* --- メインデッキ --- */
+  mdGrp=new THREE.Group();
+  const mFloor=lTop+Ri*0.08;
+  if(cfg.mainDeck){
+    const two2=cfg.mdCols===2;
+    const mcw=Ri*(two2?0.78:0.90);
+    const ph=Math.min(cfg.mdH, lim(mcw*0.76)-mFloor, (lim(mcw)-mFloor)/0.70);
+    const mmat=new THREE.MeshStandardMaterial({color:C.main,roughness:.6});
+    const fl=new THREE.Mesh(new THREE.BoxGeometry(L*0.56,0.18,mcw*2),
+      new THREE.MeshStandardMaterial({color:C.floor,roughness:.9}));
+    fl.position.set(L*0.425,mFloor-0.09,0);g.add(fl);
+
+    const mShapes = two2
+      ? [mainCutProfile(mcw,ph,1),mainCutProfile(mcw,ph,-1)]
+      : [uldProfile(mcw*2,ph,'main')];
+    const x0=L*0.155,x1=L*0.70,pitch=(x1-x0)/cfg.mdRows;
+    for(let r=0;r<cfg.mdRows;r++)mShapes.forEach(sp=>{
+      const b=extrudeX(sp,pitch*0.92,mmat);
+      b.position.set(x0+r*pitch,mFloor,0);mdGrp.add(b);
+    });
+  }
+  g.add(mdGrp);
+
+  /* --- 貨物ドア：ガイドの実寸（幅×高さ）で胴体外皮に沿った曲面を張り、上辺で開く --- */
+  doorPivots=[];
+  const dcol={main:C.main,lower:C.lower,bulk:C.bulk};
+  (DOORS[cfg.id]||[]).forEach(([label,wCm,hCm,sd,xf,deck])=>{
+    const w=wCm/100,h=hCm/100,side=sd==='R'?1:-1;
+    const yBot = deck==='main'?mFloor : (deck==='bulk'?lFloor+lch*0.20:lFloor);
+    const yTop = Math.min(yBot+h, R*0.93);
+    const cl=v=>Math.max(-0.99,Math.min(0.99,v/R));
+    const t1=Math.asin(cl(yBot)),t2=Math.asin(cl(yTop));
+    const start = side>0 ? t1 : Math.PI-t2;
+    const geo=new THREE.CylinderGeometry(R*1.008,R*1.008,w,26,1,true,start,t2-t1);
+    geo.rotateZ(Math.PI/2);
+    const hy=R*1.008*Math.sin(t2),hz=side*R*1.008*Math.cos(t2);
+    geo.translate(0,-hy,-hz);
+    const mat=new THREE.MeshStandardMaterial({color:dcol[deck],roughness:.5,
+      side:THREE.DoubleSide,transparent:true,opacity:.92,emissive:dcol[deck],emissiveIntensity:.15});
+    const pivot=new THREE.Group();
+    pivot.position.set(L*xf,hy,hz);
+    pivot.add(new THREE.Mesh(geo,mat));
+    pivot.userData={axis:'x',target:side>0?-1.25:1.25};
+    g.add(pivot);doorPivots.push(pivot);
+  });
+
+  g.position.x=-L/2;
+  root=new THREE.Group();root.add(g);scene.add(root);
+  grid.position.y=-R*2.2;
+  dist=L*2.3;
+  applyOpacity();applyDecks();
+}
+
+/* ---- 貨物ブロックの断面（dir=+1/-1 で左右舷を作り分ける） ---- */
+function outerCutProfile(w,h,dir){   // 外舷側の下部を切り落とす＝ロワーデッキ用
+  const s=new THREE.Shape(),bx=w*0.34,by=h*0.42,d=dir;
+  s.moveTo(0,0);s.lineTo(d*(w-bx),0);s.lineTo(d*w,by);s.lineTo(d*w,h);s.lineTo(0,h);
+  s.closePath();return s;
+}
+function mainCutProfile(w,h,dir){    // 外舷側の上部を切り落とす＝メインデッキ用
+  const s=new THREE.Shape(),tx=w*0.24,ty=h*0.30,d=dir;
+  s.moveTo(0,0);s.lineTo(d*w,0);s.lineTo(d*w,h-ty);s.lineTo(d*(w-tx),h);s.lineTo(0,h);
+  s.closePath();return s;
+}
+function makeLabel(text,color,w){
+  const c=document.createElement('canvas');c.width=512;c.height=96;
+  const x=c.getContext('2d');
+  x.font='600 40px "IBM Plex Sans JP",system-ui,sans-serif';
+  x.textAlign='center';x.textBaseline='middle';
+  const tw=Math.min(500,x.measureText(text).width+34);
+  x.fillStyle='rgba(10,16,23,.80)';x.fillRect(256-tw/2,14,tw,68);
+  x.strokeStyle=color;x.lineWidth=2;x.strokeRect(256-tw/2,14,tw,68);
+  x.fillStyle=color;x.fillText(text,256,50);
+  const t=new THREE.CanvasTexture(c);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false}));
+  sp.scale.set(w,w*96/512,1);return sp;
+}
+function extrudeZ(shape,len,mat){   // 断面を幅方向（Z）へ押し出す
+  return new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:len,bevelEnabled:false}),mat);
+}
+function extrudeX(shape,len,mat){    // 断面を機首尾方向（X）へ押し出す
+  const m=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:len,bevelEnabled:false}),mat);
+  m.rotation.y=Math.PI/2;return m;
+}
+
+/* ---- ULD形状（断面を押し出す） ---- */
+function uldProfile(w,h,shape,bo){
+  bo=bo||{};
+  const bx=w*(bo.bx!=null?bo.bx:(shape==='ld3'?0.30:0.22));
+  const by=h*(bo.by!=null?bo.by:(shape==='ld3'?0.42:0.30));
+  const tx=w*(bo.tx!=null?bo.tx:0.24);
+  const ty=h*(bo.ty!=null?bo.ty:0.30);
+  const s=new THREE.Shape();
+  if(shape==='ld3'){                 // 下部の片側だけ切り落とし（LD3系）
+    s.moveTo(-w/2,0);s.lineTo(w/2-bx,0);s.lineTo(w/2,by);s.lineTo(w/2,h);s.lineTo(-w/2,h);
+  }else if(shape==='wedge2'){        // 下部の両側を切り落とし
+    s.moveTo(-w/2+bx,0);s.lineTo(w/2-bx,0);s.lineTo(w/2,by);s.lineTo(w/2,h);s.lineTo(-w/2,h);s.lineTo(-w/2,by);
+  }else if(shape==='main'){          // 上部の両側を切り落とし（メインデッキ用）
+    s.moveTo(-w/2,0);s.lineTo(w/2,0);s.lineTo(w/2,h-ty);s.lineTo(w/2-tx,h);s.lineTo(-w/2+tx,h);s.lineTo(-w/2,h-ty);
+  }else if(shape==='pallet'){
+    s.moveTo(-w/2,0);s.lineTo(w/2,0);s.lineTo(w/2,h-ty*1.3);s.lineTo(w/2-tx*1.4,h);s.lineTo(-w/2+tx*1.4,h);s.lineTo(-w/2,h-ty*1.3);
+  }else{
+    s.moveTo(-w/2,0);s.lineTo(w/2,0);s.lineTo(w/2,h);s.lineTo(-w/2,h);
+  }
+  s.closePath();return s;
+}
+
+function buildULD(u){
+  clearScene();
+  const L=u.L/100,W=u.W/100;
+  const Hmin=(u.hmin!=null?u.hmin:u.H)/100;      // ULD本体そのものの高さ
+  const Hmax=(u.hmax!=null?u.hmax:u.H)/100;      // 積付上限（＝全高）
+  const g=new THREE.Group(), base=-Hmax/2;
+  const col=u.g==='パレット'?C.main:C.lower;
+
+  /* 扉サイズが分かるものは、面取り量の上限がそこから決まる（扉は平面にしか付かない） */
+  const m=/(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)/.exec(u.d||'');
+  const bo={};
+  if(m){
+    const dh=+m[2]/100, H=Hmax;
+    if(u.s==='wedge2') bo.by=Math.min(0.30,Math.max(0.005,(H-dh)/H*0.85));
+    if(u.s==='main')   bo.ty=Math.min(0.30,Math.max(0.005,(H-dh)/H*0.85));
+  }
+
+  /* 本体（実線・不透明側） */
+  const mat=new THREE.MeshStandardMaterial({color:col,roughness:.6,metalness:.08,
+    transparent:true,opacity:1,side:THREE.DoubleSide});
+  skins.push(mat);
+  const solidShape = Hmax>Hmin ? uldProfile(W,Hmin,u.s==='pallet'?'box':u.s,bo)
+                               : uldProfile(W,Hmin,u.s,bo);
+  const body=extrudeX(solidShape,L,mat);
+  body.position.set(-L/2,base,0);
+  g.add(body);
+
+  /* 積付可能な範囲（半透明＋稜線） */
+  if(Hmax>Hmin+0.01){
+    const env=uldProfile(W,Hmax-Hmin,'pallet');
+    const emat=new THREE.MeshStandardMaterial({color:col,roughness:.9,
+      transparent:true,opacity:.13,side:THREE.DoubleSide,depthWrite:false});
+    const e=extrudeX(env,L,emat);e.position.set(-L/2,base+Hmin,0);g.add(e);
+    const wire=new THREE.LineSegments(
+      new THREE.EdgesGeometry(e.geometry,25),
+      new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.55}));
+    wire.position.copy(e.position);wire.rotation.copy(e.rotation);g.add(wire);
+  }
+
+  /* ==== 寸法線：長さ(X)・幅(Z)・高さ(Y) を三方向に出す ==== */
+  const MX=Math.max(L,W,Hmax);
+  const D  = Math.max(0.20, MX*0.10);                 // 本体から寸法線までの離れ
+  const TK = Math.max(0.016, MX*0.006);               // 線の太さ
+  const LW = Math.min(2.6, Math.max(0.80, MX*0.44));  // ラベルの実寸幅
+  const INK=0xE4EDF4;
+
+  const rod=(ax,v0,v1,f,color,op)=>{
+    const len=Math.abs(v1-v0), mid=(v0+v1)/2;
+    const dim={x:[len,TK,TK],y:[TK,len,TK],z:[TK,TK,len]}[ax];
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(dim[0],dim[1],dim[2]),
+      new THREE.MeshBasicMaterial({color,transparent:true,opacity:op}));
+    mesh.position.set(ax==='x'?mid:f[0], ax==='y'?mid:(ax==='x'?f[0]:f[1]), ax==='z'?mid:f[1]);
+    if(ax==='z')mesh.position.set(f[0],f[1],mid);
+    g.add(mesh);
+  };
+  const tick=(ax,v,f)=>{
+    const t2=TK*9;
+    const dim={x:[TK,t2,t2],y:[t2,TK,t2],z:[t2,t2,TK]}[ax];
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(dim[0],dim[1],dim[2]),
+      new THREE.MeshBasicMaterial({color:INK,transparent:true,opacity:.75}));
+    if(ax==='x')mesh.position.set(v,f[0],f[1]);
+    if(ax==='y')mesh.position.set(f[0],v,f[1]);
+    if(ax==='z')mesh.position.set(f[0],f[1],v);
+    g.add(mesh);
+  };
+
+  /* 長さ：手前下 */
+  const fL=[base-D, W/2+D];
+  rod('x',-L/2,L/2,fL,INK,.6); tick('x',-L/2,fL); tick('x',L/2,fL);
+  const lblL=makeLabel('長さ '+u.L+' cm','#E4EDF4',LW);
+  lblL.position.set(0,base-D-LW*0.22,W/2+D); g.add(lblL);
+
+  /* 幅：右下 */
+  const fW=[L/2+D, base-D];
+  rod('z',-W/2,W/2,fW,INK,.6); tick('z',-W/2,fW); tick('z',W/2,fW);
+  const lblW=makeLabel('幅 '+u.W+' cm','#E4EDF4',LW);
+  lblW.position.set(L/2+D+LW*0.58,base-D,0); g.add(lblW);
+
+  /* 高さ：奥左。本体と積付上限が分かれるものは二色で分割表示 */
+  const fH=[-L/2-D, -W/2-D];
+  const split=Hmax>Hmin+0.01;
+  rod('y',base,base+Hmin,fH,split?C.mark:col,split?.95:.6);
+  if(split)rod('y',base+Hmin,base+Hmax,fH,col,.55);
+  tick('y',base,fH); if(split)tick('y',base+Hmin,fH); tick('y',base+Hmax,fH);
+
+  const lx=-L/2-D-LW*0.58;
+  if(split){
+    const a1=makeLabel('本体 '+(u.hmin!=null?u.hmin:u.H)+' cm','#FFE27A',LW);
+    a1.position.set(lx,base+Hmin/2,-W/2-D); g.add(a1);
+    const a2=makeLabel('上限 '+(u.hmax!=null?u.hmax:u.H)+' cm',
+      u.g==='パレット'?'#F2A23C':'#46C2D8',LW);
+    a2.position.set(lx,base+Hmin+(Hmax-Hmin)/2,-W/2-D); g.add(a2);
+  }else{
+    const a1=makeLabel('高さ '+u.H+' cm',u.g==='パレット'?'#F2A23C':'#46C2D8',LW);
+    a1.position.set(lx,base+Hmax/2,-W/2-D); g.add(a1);
+  }
+
+  root=new THREE.Group();root.add(g);scene.add(root);
+  grid.position.y=base-D-0.10;
+  dist=MX*2.9+LW*1.7+1.6;
+  applyOpacity();
+}
+
+/* ============ UI ============ */
+const picker=document.getElementById('picker');
+function fillPicker(){
+  picker.innerHTML='';
+  const groups={};
+  const list = mode==='ac' ? AC : ULD;
+  list.forEach((o,idx)=>{
+    const gname = mode==='ac' ? o.grp : o.g;
+    (groups[gname]=groups[gname]||[]).push([idx,
+      mode==='ac' ? o.name : `${o.c}　${o.i}`]);
+  });
+  Object.entries(groups).forEach(([gn,items])=>{
+    const og=document.createElement('optgroup');og.label=gn;
+    items.forEach(([i,label])=>{
+      const op=document.createElement('option');op.value=i;op.textContent=label;og.appendChild(op);
+    });
+    picker.appendChild(og);
+  });
+}
+function rows(title,arr,jp){
+  if(!arr||!arr.length)return '';
+  return `<div class="blk"><span class="eyebrow">${title}</span><table>`+
+    arr.map(([k,v])=>`<tr><th>${k}</th><td class="${jp?'jptext':''}">${v}</td></tr>`).join('')+
+    `</table></div>`;
+}
+function renderInfo(){
+  const el=document.getElementById('info'),lg=document.getElementById('legend');
+  if(mode==='ac'){
+    const a=cur;
+    document.getElementById('bName').textContent=a.name;
+    document.getElementById('bOp').textContent=a.jp;
+    el.innerHTML=`<h2>${a.name}</h2><div class="jp">${a.jp}</div>`+
+      rows('Dimensions',[['全長',a.len.toFixed(1)+' m'],['全幅',a.span.toFixed(1)+' m'],
+        ['胴体径','約 '+(a.rad*2).toFixed(2)+' m'],['エンジン',a.eng+' 基'+(a.prop?'（プロペラ）':'')]])+
+      rows('Cargo door（cm）',a.doors,true)+
+      rows('Max number of ULD',a.uld,true)+
+      rows('Weight limitation',a.wt,true)+
+      `<div class="blk"><span class="eyebrow">Note</span><div style="font-size:12.5px;color:var(--dim)">${a.memo}</div></div>`;
+    lg.innerHTML = a.mainDeck
+      ? `<span><i style="background:#F2A23C"></i>メインデッキ（パレット）</span><span><i style="background:#46C2D8"></i>ロワーデッキ（コンテナ）</span><span><i style="background:#F2A23C"></i>メインデッキドア</span><span><i style="background:#46C2D8"></i>ロワーデッキドア</span>`
+      : (a.bulkOnly
+        ? `<span><i style="background:#9B8CE0"></i>バラ積み貨物室</span>`
+        : `<span><i style="background:#46C2D8"></i>ロワーデッキ（ベリー）</span><span><i style="background:#46C2D8"></i>貨物ドア（右舷）</span>`);
+  }else{
+    const u=cur;
+    document.getElementById('bName').textContent=u.c;
+    document.getElementById('bOp').textContent=u.i;
+    const shapeJP={ld3:'片側下部を切り落とし（ロワーデッキ用）',wedge2:'両下部を切り落とし',
+      box:'直方体',main:'上部両角を切り落とし（メインデッキ用）',pallet:'パレット＋ネット積付形状',pan:'浅型トレー'}[u.s];
+    el.innerHTML=`<h2>${u.c}</h2><div class="jp">${u.i}　<span class="pill">${u.g}</span><span class="pill ${u.u.includes('IC')?'f':''}">${u.u}</span></div>`+
+      rows('Dimensions（cm）',[['外寸 L × W × H',u.ext||`${u.L} × ${u.W} × ${u.H}`],['底面 L × W',`${u.L} × ${u.W}`],...(u.hmin!=null?[['高さ（本体）',u.hmin+' cm'],['高さ（積付上限）',u.hmax+' cm']]:[]),['ドアーサイズ',u.d],['内容量',u.v]],true)+
+      rows('Weight（kg）',[['自重（Tare）',u.t],['重量制限（自重含）',u.lim]],true)+
+      rows('搭載可能機種',[['対応機材',u.ac]],true)+
+      `<div class="blk"><span class="eyebrow">Shape</span><div style="font-size:12.5px;color:var(--dim)">${shapeJP}。胴体断面が円形なので、床に近い位置ほど角が使えなくなる。この切り欠きが「四角くないコンテナ」の理由です。</div></div>`+
+      (u.hnote?`<div class="blk"><span class="eyebrow">Height</span><div style="font-size:12.5px;color:var(--dim)">${u.hnote}</div></div>`:'')+
+      `<div class="blk"><span class="eyebrow">Door</span><div style="font-size:12.5px;color:var(--dim)">${u.d&&u.d!=='—'
+        ?'ドアーサイズ <b>'+u.d+' cm</b>（ガイドの実数値）。付く面・吊り元・位置はガイドに記載がないため、3Dでは扉を描いていません。'
+        :'このULDに扉はありません。'+(u.g==='パレット'?'パレットは平床にネットで固縛するため、開口部という概念がありません。':'開放型のため上から積み込みます。')}</div></div>`+
+      `<div class="blk"><span class="eyebrow">Legend</span><div style="font-size:12px;color:var(--dimmer)">IC＝国際（International）／DC＝国内（Domestic）</div></div>`;
+    lg.innerHTML=`<span><i style="background:${u.g==='パレット'?'#F2A23C':'#46C2D8'}"></i>${u.g}</span>`+
+      (u.hmin!=null?`<span><i style="background:#FFE27A"></i>ULD本体（最小）</span><span><i style="background:${u.g==='パレット'?'#F2A23C':'#46C2D8'};opacity:.45"></i>積付上限まで（最大）</span>`:'');
+  }
+  const isAC=mode==='ac';
+  tMD.disabled=!isAC||!cur.mainDeck;
+  tLD.disabled=!isAC;
+  tNose.disabled=!isAC||!cur.nose;
+  document.getElementById('tDoor').disabled=!doorPivots.length;
+  if(tNose.disabled){tNose.setAttribute('aria-pressed','false');noseOpen=false;}
+}
+function select(idx){
+  cur = mode==='ac' ? AC[idx] : ULD[idx];
+  if(mode==='ac')buildAircraft(cur); else buildULD(cur);
+  renderInfo();
+}
+
+let noseOpen=false;
+function applyOpacity(){
+  const v=1-document.getElementById('opa').value/100*0.92;
+  skins.forEach(m=>{m.opacity=v;m.depthWrite=v>0.85;});
+}
+function applyDecks(){
+  if(mdGrp)mdGrp.visible=tMD.getAttribute('aria-pressed')==='true';
+  if(ldGrp)ldGrp.visible=tLD.getAttribute('aria-pressed')==='true';
+}
+
+/* ---- カメラ ---- */
+let yaw=-0.75,pitch=0.30,dist=150,spin=true;
+function place(){
+  camera.position.set(dist*Math.cos(pitch)*Math.sin(yaw),dist*Math.sin(pitch),dist*Math.cos(pitch)*Math.cos(yaw));
+  camera.lookAt(0,0,0);
+}
+/* ポインタ操作：マウスのドラッグ／ホイールに加え、タッチの1本指回転・2本指ピンチに対応 */
+const pts=new Map();
+let px=0,py=0,pinch0=0,dist0=0,drag=false;
+const two=()=>{const a=[...pts.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);};
+
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId);
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pts.size===1){drag=true;px=e.clientX;py=e.clientY;}
+  else if(pts.size===2){drag=false;pinch0=two();dist0=dist;}
+});
+const release=e=>{
+  pts.delete(e.pointerId);
+  if(pts.size===1){const a=[...pts.values()][0];drag=true;px=a.x;py=a.y;}
+  if(pts.size===0)drag=false;
+};
+cv.addEventListener('pointerup',release);
+cv.addEventListener('pointercancel',release);
+cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')release(e);});
+
+cv.addEventListener('pointermove',e=>{
+  if(!pts.has(e.pointerId))return;
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pts.size>=2){                       // ピンチでズーム
+    const d=two();
+    if(pinch0>0)dist=Math.max(minDist(),Math.min(400,dist0*pinch0/d));
+    return;
+  }
+  if(!drag)return;                       // 1本指／マウスで回転
+  yaw-=(e.clientX-px)*0.008;
+  pitch=Math.max(-1.3,Math.min(1.3,pitch+(e.clientY-py)*0.006));
+  px=e.clientX;py=e.clientY;
+});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  dist=Math.max(minDist(),Math.min(400,dist+e.deltaY*dist*0.0012));
+},{passive:false});
+function minDist(){return mode==='ac'?6:0.8;}
+
+function resize(){
+  const r=cv.getBoundingClientRect();
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+  renderer.setSize(r.width,r.height,false);
+  camera.aspect=r.width/Math.max(r.height,1);
+  camera.fov=r.width<r.height?52:38;          // 縦長画面では画角を広げて全体を収める
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize',resize);
+addEventListener('orientationchange',()=>setTimeout(resize,120));
+if(window.visualViewport)visualViewport.addEventListener('resize',resize);
+function loop(){
+  requestAnimationFrame(loop);
+  if(spin&&!drag)yaw-=0.0022;
+  if(noseGrp)noseGrp.rotation.z+=((noseOpen?-1.35:0)-noseGrp.rotation.z)*0.12;
+  doorPivots.forEach(p=>{const a=p.userData.axis||'x';
+    p.rotation[a]+=((doorOpen?p.userData.target:0)-p.rotation[a])*0.11;});
+  place();renderer.render(scene,camera);
+}
+
+/* ---- 操作 ---- */
+const tMD=document.getElementById('tMD'),tLD=document.getElementById('tLD'),tNose=document.getElementById('tNose');
+function toggle(el,fn){el.onclick=()=>{if(el.disabled)return;
+  const on=el.getAttribute('aria-pressed')==='true';el.setAttribute('aria-pressed',String(!on));fn(!on);};}
+toggle(tMD,applyDecks);toggle(tLD,applyDecks);
+toggle(document.getElementById('tDoor'),v=>doorOpen=v);
+toggle(tNose,v=>noseOpen=v);
+toggle(document.getElementById('tSpin'),v=>spin=v);
+document.getElementById('opa').oninput=applyOpacity;
+document.getElementById('reset').onclick=()=>{yaw=-0.75;pitch=0.30;
+  dist=mode==='ac'?cur.len*2.3:(()=>{const M=Math.max(cur.L,cur.W,cur.hmax!=null?cur.hmax:cur.H)/100;
+    return M*2.9+Math.min(2.6,Math.max(.80,M*.44))*1.7+1.6;})();};
+picker.onchange=()=>select(+picker.value);
+document.getElementById('mAC').onclick=()=>setMode('ac');
+document.getElementById('mUL').onclick=()=>setMode('uld');
+function setMode(m){
+  mode=m;
+  document.getElementById('mAC').setAttribute('aria-pressed',String(m==='ac'));
+  document.getElementById('mUL').setAttribute('aria-pressed',String(m==='uld'));
+  fillPicker();picker.value=m==='ac'?5:4;select(+picker.value);
+}
+
+setMode('ac');
+if(matchMedia('(pointer:coarse)').matches)
+  document.getElementById('hint').textContent='1本指＝回転　2本指＝拡大縮小';
+resize();loop();
+</script>
