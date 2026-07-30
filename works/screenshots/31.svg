@@ -36,7 +36,7 @@
     <rect x="520" y="24" width="90" height="26" rx="2" fill="none" stroke="#22323F" stroke-width="1"/>
     <text x="565" y="42" fill="#7E94A6" font-family="'Barlow Condensed',Arial,sans-serif" font-size="15" font-weight="700" text-anchor="middle">ULD</text>
     <rect x="900" y="22" width="332" height="30" rx="2" fill="#131D28" stroke="#22323F" stroke-width="1"/>
-    <text x="920" y="42" fill="#7E94A6" font-family="'IBM Plex Sans JP',Arial,sans-serif" font-size="14">BOEING 767-300ER — 選択中</text>
+    <text x="920" y="42" fill="#7E94A6" font-family="'IBM Plex Sans JP',Arial,sans-serif" font-size="14">BOEING 777F — 選択中</text>
   </g>
 
   <!-- fuselage wireframe -->
@@ -60,8 +60,8 @@
     </g>
   </g>
 
-  <!-- ULD box wireframe (isometric) -->
-  <g transform="translate(1020 560)" stroke="#9B8CE0" stroke-width="2" fill="none">
+  <!-- ULD box wireframe (isometric) — LD3はコンテナ系＝ロワーデッキと同じシアン -->
+  <g transform="translate(1020 560)" stroke="#46C2D8" stroke-width="2" fill="none">
     <path d="M0 40 L90 0 L190 40 L100 84 Z"/>
     <path d="M0 40 L0 120 L100 164 L100 84"/>
     <path d="M190 40 L190 120 L100 164"/>
@@ -69,14 +69,12 @@
   </g>
   <text x="1020" y="605" fill="#4F6373" font-family="'Barlow Condensed',Arial,sans-serif" font-size="13" letter-spacing="1">ULD LD3</text>
 
-  <!-- legend -->
+  <!-- legend（実際のアプリ表示に合わせて2色のみ）-->
   <g font-family="'IBM Plex Sans JP',Arial,sans-serif" font-size="15" fill="#7E94A6">
     <rect x="130" y="640" width="14" height="14" rx="2" fill="#F2A23C"/>
-    <text x="154" y="652">メインデッキ</text>
-    <rect x="290" y="640" width="14" height="14" rx="2" fill="#46C2D8"/>
-    <text x="314" y="652">ロワーデッキ</text>
-    <rect x="450" y="640" width="14" height="14" rx="2" fill="#9B8CE0"/>
-    <text x="474" y="652">ULD / バルク</text>
+    <text x="154" y="652">メインデッキ（パレット）</text>
+    <rect x="370" y="640" width="14" height="14" rx="2" fill="#46C2D8"/>
+    <text x="394" y="652">ロワーデッキ（コンテナ）</text>
   </g>
 
   <text x="130" y="700" fill="#4F6373" font-family="'IBM Plex Mono',monospace" font-size="13">DRAG = ROTATE　　WHEEL = ZOOM</text>
