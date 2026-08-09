@@ -381,7 +381,7 @@ function fitView(list){
 
 function initLeafMap(){
   const mapDiv=document.getElementById("leafmap");
-  leafMap=L.map(mapDiv,{zoomControl:false,minZoom:2,maxZoom:10,worldCopyJump:true});
+  leafMap=L.map(mapDiv,{center:[30,100],zoom:3,zoomControl:false,minZoom:2,maxZoom:10,worldCopyJump:true});
   L.control.zoom({position:"topright"}).addTo(leafMap);
   const isDark=document.documentElement.getAttribute("data-theme")==="dark";
   tileLight=L.tileLayer(TILE_L,{attribution:TILE_ATTR,maxZoom:19,subdomains:"abcd"});
@@ -405,6 +405,8 @@ function drawMap(){
   arcData=[]; nodeData=[];
   gArc.textContent=""; gNode.textContent="";
   if(!list.length) return;
+  /* fitView を先に呼んで正しい座標系を確立してから proj() を使う */
+  fitView(list);
   const org=origin();
   const labels=(list.length<=52)||list.length<=15;
   list.forEach(a=>{
@@ -433,7 +435,6 @@ function drawMap(){
     gNode.appendChild(g);
     nodeData.push({el:g,a,s});
   });
-  fitView(list);
   paint();
   if(selected) fly(selected);
 }
