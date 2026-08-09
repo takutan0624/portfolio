@@ -407,7 +407,7 @@ function drawMap(){
       const t=el("text",{x:p.x+s/2+5,y:p.y+4});
       t.textContent=a.c; g.appendChild(t);
     }
-    g.addEventListener("click",()=>select(a.c));
+    g.addEventListener("click",()=>{ g.parentNode.appendChild(g); select(a.c); });
     g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();select(a.c);}});
     gNode.appendChild(g);
   });
